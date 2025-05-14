@@ -1,0 +1,7 @@
+[workspace]
+members = [
+  "llzk-sys"
+, "mlir-18-sys"]
+resolver = "2"
+
+

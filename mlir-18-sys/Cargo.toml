@@ -1,0 +1,14 @@
+[package]
+name = "mlir-18-sys"
+version = "0.1.0"
+edition = "2024"
+keywords = ["mlir", "llvm"]
+categories = ["external-ffi-bindings"]
+description = "Rust bindings to the MLIR 18.x C API."
+repository = "https://github.com/Veridise/llzk-rs"
+readme = "README.md"
+links = "MLIR"
+license = "MIT AND Apache-2.0"
+
+[build-dependencies]
+bindgen = "0.71.1"

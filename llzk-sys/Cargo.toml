@@ -1,0 +1,19 @@
+[package]
+name = "llzk-sys"
+version = "0.1.0"
+edition = "2024"
+keywords = ["llzk", "mlir"]
+categories = ["external-ffi-bindings"]
+description = "Rust bindings to the LLZK C API."
+repository = "https://github.com/Veridise/llzk-rs"
+readme = "README.md"
+links = "LLZK"
+license = "Apache-2.0"
+
+[dependencies]
+mlir-18-sys = { path = "../mlir-18-sys/" }
+
+[build-dependencies]
+bindgen = "0.71.1"
+cmake = "0.1.54"
+glob = "0.3.2"
