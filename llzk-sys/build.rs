@@ -5,7 +5,6 @@ use std::{
     env,
     error::Error,
     ffi::OsStr,
-    fs::read_dir,
     path::{Path, PathBuf},
     process::{exit, Command},
     str,
@@ -26,9 +25,9 @@ fn run() -> Result<(), Box<dyn Error>> {
         .define("BUILD_TESTING", "OFF")
         .define("LLVM_DIR", &mlir_path)
         .define("MLIR_DIR", &mlir_path)
-        .build_target("LLZKDialectRegistration")
-        .build_target("LLZKTransforms")
-        .build_target("LLZKValidators")
+        //.build_target("LLZKDialectRegistration")
+        //.build_target("LLZKTransforms")
+        //.build_target("LLZKValidators")
         .build();
     eprintln!("llzk_path = {}", llzk_path.display());
     eprintln!("llzk_src_path = {}", llzk_src_path.display());
