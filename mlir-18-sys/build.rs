@@ -28,6 +28,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     }
 
     println!("cargo::metadata=PREFIX={}", llvm_config("--prefix")?);
+    println!("cargo::metadata=CMAKE_DIR={}", llvm_config("--cmakedir")?);
     println!("cargo:rerun-if-changed=wrapper.h");
     println!("cargo:rustc-link-search={}", llvm_config("--libdir")?);
 

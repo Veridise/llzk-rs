@@ -6,7 +6,7 @@ use std::{
     error::Error,
     ffi::OsStr,
     path::{Path, PathBuf},
-    process::{exit, Command},
+    process::exit,
     str,
 };
 
@@ -19,18 +19,17 @@ fn main() {
 
 fn run() -> Result<(), Box<dyn Error>> {
     let mlir_path = env::var("DEP_MLIR_PREFIX")?;
-    let llzk_src_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("llzk-lib");
-    let llzk_path = Config::new("llzk-lib")
+    let mlir_cmake_path = env::var("DEP_MLIR_CMAKE_DIR")?;
+    let llzk_src_path = Path::new("llzk-lib");
+    let llzk_path = Config::new(&llzk_src_path)
         .define("LLZK_BUILD_DEVTOOLS", "OFF")
         .define("BUILD_TESTING", "OFF")
-        .define("LLVM_DIR", &mlir_path)
-        .define("MLIR_DIR", &mlir_path)
-        //.build_target("LLZKDialectRegistration")
-        //.build_target("LLZKTransforms")
-        //.build_target("LLZKValidators")
-        .build();
-    eprintln!("llzk_path = {}", llzk_path.display());
-    eprintln!("llzk_src_path = {}", llzk_src_path.display());
+        .define("LLVM_DIR", &mlir_cmake_path)
+        .define("MLIR_DIR", &mlir_cmake_path)
+        .define("LLVM_ROOT", &mlir_path)
+        .define("MLIR_ROOT", &mlir_path)
+        .build()
+        .join("build");
 
     let mut seen: HashSet<PathBuf> = Default::default();
     for f in glob(llzk_path.join("**/*.a").to_str().unwrap())? {
@@ -50,14 +49,11 @@ fn run() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    let include_paths = [llzk_src_path, &llzk_path, Path::new(&mlir_path)];
+
     bindgen::builder()
         .header("wrapper.h")
-        .clang_arg(format!("-I{}", llzk_src_path.join("include").display()))
-        .clang_arg(format!("-I{}", llzk_path.join("build/include").display()))
-        .clang_arg(format!(
-            "-I{}",
-            Path::new(&mlir_path).join("include").display()
-        ))
+        .clang_args(include_paths.map(|path| format!("-I{}", path.join("include").display())))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate()?
         .write_to_file(Path::new(&env::var("OUT_DIR")?).join("bindings.rs"))?;
