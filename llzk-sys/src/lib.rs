@@ -2,6 +2,10 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
+use mlir_18_sys::{
+    MlirAttribute, MlirContext, MlirDialectHandle, MlirPass, MlirStringRef, MlirType,
+};
+
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 #[cfg(test)]

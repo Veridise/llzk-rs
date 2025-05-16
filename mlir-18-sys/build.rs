@@ -81,6 +81,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     bindgen::builder()
         .header("wrapper.h")
         .clang_arg(format!("-I{}", llvm_config("--includedir")?))
+        .allowlist_item("[Mm]lir.*")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate()
         .unwrap()

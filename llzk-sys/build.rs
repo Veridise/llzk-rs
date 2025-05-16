@@ -50,11 +50,29 @@ fn run() -> Result<(), Box<dyn Error>> {
     }
 
     let include_paths = [llzk_src_path, &llzk_path, Path::new(&mlir_path)];
+    let passes = [
+        "ArrayToScalar",
+        "InlineIncludes",
+        "Flattening",
+        "RedundantOperationElimination",
+        "RedundantReadAndWriteElimination",
+        "UnusedDeclarationElimination",
+        "FieldWriteValidator",
+    ];
 
-    bindgen::builder()
+    let builder = bindgen::builder()
         .header("wrapper.h")
         .clang_args(include_paths.map(|path| format!("-I{}", path.join("include").display())))
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        .allowlist_item("[Ll]lzk.*")
+        .allowlist_function("mlirGetDialectHandle__llzk__.*")
+        .allowlist_recursively(false)
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
+
+    let builder = passes.iter().fold(builder, |builder, pass| {
+        builder.allowlist_function(format!("mlir(Create|Register).*{pass}Pass"))
+    });
+
+    builder
         .generate()?
         .write_to_file(Path::new(&env::var("OUT_DIR")?).join("bindings.rs"))?;
 

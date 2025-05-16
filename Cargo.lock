@@ -119,6 +119,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "llzk"
+version = "0.1.0"
+dependencies = [
+ "llzk-sys",
+]
+
+[[package]]
 name = "llzk-sys"
 version = "0.1.0"
 dependencies = [

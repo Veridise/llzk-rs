@@ -1,5 +1,5 @@
 [workspace]
-members = [
+members = [ "llzk",
   "llzk-sys"
 , "mlir-18-sys"]
 resolver = "2"

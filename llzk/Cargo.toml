@@ -1,0 +1,7 @@
+[package]
+name = "llzk"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+llzk-sys = { path = "../llzk-sys/" }
