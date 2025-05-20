@@ -5,6 +5,15 @@ This repository is a collection of Rust crates that gives Rust developers access
 > [!warning]
 > These crates are under active development and things may change unexpectedly.
 
+## Usage 
+
+To use the llzk bindings add the crates to your Cargo.toml:
+
+```
+llzk-sys = { git = "https://github.com/Veridise/llzk-rs" }
+llzk = { git = "https://github.com/Veridise/llzk-rs" }
+```
+
 ## Building tips
 
 If you are using homebrew in macos you can access MLIR 18 by installing `llvm@18` with homebrew.
@@ -12,5 +21,6 @@ Setting the following environment variables configures the build system with the
 
 ```
 export MLIR_SYS_180_PREFIX=/opt/homebrew/opt/llvm@18/
+export TABLEGEN_180_PREFIX=/opt/homebrew/opt/llvm@18/
 export RUSTFLAGS='-L /opt/homebrew/lib/'
 ```
