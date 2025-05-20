@@ -11,7 +11,7 @@ links = "LLZK"
 license = "Apache-2.0"
 
 [dependencies]
-mlir-18-sys = { path = "../mlir-18-sys/" }
+mlir-sys = { workspace = true }
 
 [build-dependencies]
 bindgen = "0.71.1"

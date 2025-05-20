@@ -1,7 +1,13 @@
 [workspace]
 members = [ "llzk",
   "llzk-sys"
-, "mlir-18-sys"]
+]
 resolver = "2"
 
+[patch.crates-io]
+mlir-sys = { git = "https://github.com/Veridise/mlir-sys" }
+melior = { git = "https://github.com/Veridise/melior" }
 
+[workspace.dependencies]
+melior = "0.24.0"
+mlir-sys = "0.5.0"

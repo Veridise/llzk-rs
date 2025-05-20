@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 llzk-sys = { path = "../llzk-sys/" }
+melior = { workspace = true }
