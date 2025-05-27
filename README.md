@@ -24,3 +24,9 @@ export MLIR_SYS_180_PREFIX=/opt/homebrew/opt/llvm@18/
 export TABLEGEN_180_PREFIX=/opt/homebrew/opt/llvm@18/
 export RUSTFLAGS='-L /opt/homebrew/lib/'
 ```
+
+If working on LLZK via the submodule you can enable dumping the compile commands when building with cargo. Assuming the current directory is where your editor will look for the compile commands you can link them setting the `LLZK_EMIT_COMPILE_COMMANDS` environment variable as follows.
+
+```
+LLZK_EMIT_COMPILE_COMMANDS=$(pwd) cargo build
+```

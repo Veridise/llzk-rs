@@ -6,3 +6,7 @@ edition = "2024"
 [dependencies]
 llzk-sys = { path = "../llzk-sys/" }
 melior = { workspace = true }
+mlir-sys = { workspace = true }
+
+[dev-dependencies]
+rstest = "0.25.0"

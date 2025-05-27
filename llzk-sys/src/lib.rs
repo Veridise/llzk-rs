@@ -2,50 +2,13 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-use mlir_sys::{MlirAttribute, MlirContext, MlirDialectHandle, MlirPass, MlirStringRef, MlirType};
+use mlir_sys::{
+    MlirAffineExpr, MlirAffineMap, MlirAttribute, MlirBlock, MlirContext, MlirDialectHandle,
+    MlirDialectRegistry, MlirLocation, MlirLogicalResult, MlirNamedAttribute, MlirOperation,
+    MlirPass, MlirRegion, MlirStringRef, MlirType, MlirValue,
+};
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 #[cfg(test)]
-mod sanity_tests {
-    use mlir_sys::*;
-    use std::ffi::CString;
-
-    #[test]
-    fn test_context() {
-        unsafe {
-            let ctx = mlirContextCreate();
-            assert!(mlirContextEqual(ctx, ctx));
-            mlirContextDestroy(ctx);
-        }
-    }
-
-    #[test]
-    fn create_string() {
-        unsafe {
-            let string = CString::new("Hello, world!").unwrap();
-
-            mlirStringRefCreateFromCString(string.as_ptr());
-        }
-    }
-
-    #[test]
-    fn test_location() {
-        unsafe {
-            let registry = mlirDialectRegistryCreate();
-            let context = mlirContextCreate();
-
-            mlirContextAppendDialectRegistry(context, registry);
-            mlirRegisterAllDialects(registry);
-
-            let location = mlirLocationUnknownGet(context);
-            let string = CString::new("newmod").unwrap();
-            let reference = mlirStringRefCreateFromCString(string.as_ptr());
-
-            mlirOperationStateGet(reference, location);
-
-            mlirContextDestroy(context);
-            mlirDialectRegistryDestroy(registry);
-        }
-    }
-}
+mod sanity_tests;
