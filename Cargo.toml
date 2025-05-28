@@ -1,7 +1,7 @@
 [workspace]
 members = [ "llzk",
   "llzk-sys"
-]
+, "macros"]
 resolver = "2"
 
 [patch.crates-io]

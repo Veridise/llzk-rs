@@ -1,84 +1,105 @@
-use std::{cell::RefCell, ops::Deref};
+use std::marker::PhantomData;
 
+use llzk_sys::{
+    mlirOpBuilderCreate, mlirOpBuilderDestroy, mlirOpBuilderGetContext,
+    mlirOpBuilderGetInsertionBlock, mlirOpBuilderGetInsertionPoint,
+    mlirOpBuilderSetInsertionPointToStart, MlirOpBuilder,
+};
 use melior::{
-    ir::{
-        attribute::IntegerAttribute, Attribute, BlockLike, BlockRef, Location, Operation,
-        OperationRef, Type,
-    },
+    ir::{BlockLike, BlockRef, Location, Operation, OperationRef},
     Context, ContextRef,
 };
 
-pub struct Builder<'c> {
-    context: ContextRef<'c>,
-}
+pub trait OpBuilderLike<'c> {
+    fn to_raw(&self) -> MlirOpBuilder;
 
-impl<'c> Builder<'c> {
-    pub fn new(context: ContextRef<'c>) -> Self {
-        Self { context }
+    fn context(&self) -> ContextRef<'c> {
+        unsafe { ContextRef::from_raw(mlirOpBuilderGetContext(self.to_raw())) }
     }
 
-    pub fn from_ref(context: &'c Context) -> Self {
-        Self::new(unsafe { ContextRef::from_raw(context.to_raw()) })
-    }
-
-    pub fn context(&self) -> ContextRef<'c> {
-        self.context
-    }
-
-    pub fn context_ref(&self) -> &'c Context {
-        unsafe { self.context.to_ref() }
-    }
-
-    pub fn unknown_loc(&self) -> Location {
-        Location::unknown(self.context_ref())
-    }
-
-    pub fn index_type(&self) -> Type {
-        return Type::index(self.context_ref());
-    }
-
-    pub fn index_attr(&self, val: i64) -> Attribute {
-        IntegerAttribute::new(self.index_type(), val).into()
-    }
-}
-
-pub struct OpBuilder<'c, 'a> {
-    inner: Builder<'c>,
-    block: BlockRef<'c, 'a>,
-    insertion_point: RefCell<Option<OperationRef<'c, 'a>>>,
-}
-
-impl<'c, 'a> OpBuilder<'c, 'a> {
-    pub fn at_block_begin<B: BlockLike<'c, 'a>>(ctx: ContextRef<'c>, block: B) -> Self {
-        Self {
-            inner: Builder::new(ctx),
-            block: unsafe { BlockRef::from_raw(block.to_raw()) },
-            insertion_point: block.first_operation().into(),
+    fn set_insertion_point_at_start<'a, B: BlockLike<'c, 'a>>(&self, block: B) {
+        unsafe {
+            mlirOpBuilderSetInsertionPointToStart(self.to_raw(), block.to_raw());
         }
     }
 
-    pub fn insert<F: FnOnce(&'c Self, Location<'c>) -> Operation<'c>>(
+    fn insertion_block<'a>(&self) -> BlockRef<'c, 'a> {
+        unsafe { BlockRef::from_raw(mlirOpBuilderGetInsertionBlock(self.to_raw())) }
+    }
+
+    fn insertion_point<'a>(&self) -> OperationRef<'c, 'a> {
+        unsafe { OperationRef::from_raw(mlirOpBuilderGetInsertionPoint(self.to_raw())) }
+    }
+
+    fn insert<'a, F: FnOnce(ContextRef<'c>, Location<'c>) -> Operation<'c>>(
         &'c self,
         loc: Location<'c>,
         f: F,
     ) -> OperationRef<'c, 'a> {
-        let op = f(self, loc);
-
-        let mut point = self.insertion_point.borrow_mut();
-        *point = Some(if let Some(p) = *point {
-            self.block.insert_operation_after(p, op)
-        } else {
-            self.block.append_operation(op)
-        });
-
-        return point.unwrap();
+        let op = f(self.context(), loc);
+        self.insertion_block()
+            .insert_operation_after(self.insertion_point(), op)
     }
 }
 
-impl<'c, 'a> Deref for OpBuilder<'c, 'a> {
-    type Target = Builder<'c>;
+pub struct OpBuilder<'c> {
+    raw: MlirOpBuilder,
+    _context: PhantomData<&'c Context>,
+}
 
-    fn deref(&self) -> &Self::Target {
-        &self.inner
+impl<'c> OpBuilder<'c> {
+    pub fn new(context: &'c Context) -> Self {
+        unsafe {
+            let ctx = context.to_raw();
+            Self {
+                raw: mlirOpBuilderCreate(ctx),
+                _context: Default::default(),
+            }
+        }
+    }
+
+    pub fn from_raw(raw: MlirOpBuilder) -> Self {
+        Self {
+            raw,
+            _context: Default::default(),
+        }
+    }
+
+    pub fn at_block_begin<'a, B: BlockLike<'c, 'a>>(ctx: &'c Context, block: B) -> Self {
+        let b = Self::new(ctx);
+        b.set_insertion_point_at_start(block);
+        b
+    }
+}
+
+impl<'c> OpBuilderLike<'c> for OpBuilder<'c> {
+    fn to_raw(&self) -> MlirOpBuilder {
+        self.raw
+    }
+}
+
+impl Drop for OpBuilder<'_> {
+    fn drop(&mut self) {
+        unsafe { mlirOpBuilderDestroy(self.raw) }
+    }
+}
+
+pub struct OpBuilderRef<'c, 'a> {
+    raw: MlirOpBuilder,
+    _reference: PhantomData<&'a OpBuilder<'c>>,
+}
+
+impl<'c, 'a> OpBuilderRef<'c, 'a> {
+    pub fn from_raw(raw: MlirOpBuilder) -> Self {
+        Self {
+            raw,
+            _reference: Default::default(),
+        }
+    }
+}
+
+impl<'c> OpBuilderLike<'c> for OpBuilderRef<'c, '_> {
+    fn to_raw(&self) -> MlirOpBuilder {
+        self.raw
     }
 }

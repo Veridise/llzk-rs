@@ -45,9 +45,9 @@ dependencies = [
 
 [[package]]
 name = "bitflags"
-version = "2.9.0"
+version = "2.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c8214115b7bf84099f1309324e63141d4c5d7cc26862f97a0a857dbefe165bd"
+checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
 
 [[package]]
 name = "bumpalo"
@@ -237,9 +237,9 @@ checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
 
 [[package]]
 name = "libloading"
-version = "0.8.7"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a793df0d7afeac54f95b471d3af7f0d4fb975699f972341a4b76988d49cdf0c"
+checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if",
  "windows-targets",
@@ -249,10 +249,21 @@ dependencies = [
 name = "llzk"
 version = "0.1.0"
 dependencies = [
+ "llzk-macros",
  "llzk-sys",
  "melior",
  "mlir-sys",
  "rstest",
+]
+
+[[package]]
+name = "llzk-macros"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -277,7 +288,7 @@ checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
 [[package]]
 name = "melior"
 version = "0.24.0"
-source = "git+https://github.com/Veridise/melior#12122d514aee56f31c8b63da8d354b4245c94820"
+source = "git+https://github.com/Veridise/melior#98daa77254dc94f732dab588801d9389dc4464e7"
 dependencies = [
  "melior-macro",
  "mlir-sys",
@@ -286,7 +297,7 @@ dependencies = [
 [[package]]
 name = "melior-macro"
 version = "0.17.0"
-source = "git+https://github.com/Veridise/melior#12122d514aee56f31c8b63da8d354b4245c94820"
+source = "git+https://github.com/Veridise/melior#98daa77254dc94f732dab588801d9389dc4464e7"
 dependencies = [
  "comrak",
  "convert_case",
@@ -471,9 +482,9 @@ dependencies = [
 
 [[package]]
 name = "rustversion"
-version = "1.0.20"
+version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eded382c5f5f786b989652c49544c4877d9f015cc22e145a5ea8ea66c2921cd2"
+checksum = "8a0d197bd2c9dc6e53b84da9556a69ba4cdfab8619eb41a8bd1cc2027a0f6b1d"
 
 [[package]]
 name = "semver"
