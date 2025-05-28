@@ -7,7 +7,6 @@ edition = "2024"
 llzk-sys = { path = "../llzk-sys/" }
 melior = { workspace = true }
 mlir-sys = { workspace = true }
-llzk-macros = { path = "../macros"}
 
 [dev-dependencies]
 rstest = "0.25.0"

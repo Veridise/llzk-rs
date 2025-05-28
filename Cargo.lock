@@ -249,21 +249,10 @@ dependencies = [
 name = "llzk"
 version = "0.1.0"
 dependencies = [
- "llzk-macros",
  "llzk-sys",
  "melior",
  "mlir-sys",
  "rstest",
-]
-
-[[package]]
-name = "llzk-macros"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
