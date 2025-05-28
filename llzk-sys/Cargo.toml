@@ -9,6 +9,26 @@ repository = "https://github.com/Veridise/llzk-rs"
 readme = "README.md"
 links = "LLZK"
 license = "Apache-2.0"
+exclude = [
+  "/llzk-lib/.github",
+  "/llzk-lib/changelogs",
+  "/llzk-lib/doc",
+  "/llzk-lib/nix",
+  "/llzk-lib/python",
+  "/llzk-lib/test",
+  "/llzk-lib/tools",
+  "/llzk-lib/unittests",
+  "/llzk-lib/.clang-format",
+  "/llzk-lib/.clang-tidy",
+  "/llzk-lib/.cmake-format.yaml",
+  "/llzk-lib/.gitignore",
+  "/llzk-lib/CMakePresets.json",
+  "/llzk-lib/flake.lock",
+  "/llzk-lib/flake.nix",
+  "/llzk-lib/LICENSE.txt",
+  "/llzk-lib/README.md",
+]
+
 
 [dependencies]
 mlir-sys = { workspace = true }
@@ -18,7 +38,7 @@ bindgen = "0.71.1"
 cmake = "0.1.54"
 glob = "0.3.2"
 anyhow = "1.0.98"
-cc = "1.2.24"
+cc = "^1.1"
 
 [dev-dependencies]
 rstest = "0.25.0"
