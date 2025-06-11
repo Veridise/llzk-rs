@@ -1,5 +1,7 @@
+use std::fmt;
+
 /// Argument number of a function
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ArgNo(usize);
 
 impl From<usize> for ArgNo {
@@ -14,8 +16,14 @@ impl ArgNo {
     }
 }
 
+impl fmt::Display for ArgNo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// An identifier that Backend::FuncOutput will use to identify an output field in the function.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct FieldId(usize);
 
 impl From<usize> for FieldId {
@@ -30,7 +38,13 @@ impl FieldId {
     }
 }
 
-#[derive(Clone, Copy)]
+impl fmt::Display for FieldId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Clone, Copy, Hash, Eq, PartialEq)]
 pub enum FuncIO {
     Arg(ArgNo),
     Field(FieldId),

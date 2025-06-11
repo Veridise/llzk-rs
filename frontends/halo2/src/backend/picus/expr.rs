@@ -1,7 +1,9 @@
-use super::vars::{VarAllocator, VarKind};
+use super::{
+    output::PicusFelt,
+    vars::{VarAllocator, VarStr},
+};
 use crate::halo2::Field;
-use anyhow::Result;
-use std::rc::Rc;
+use std::{fmt, rc::Rc};
 
 //===----------------------------------------------------------------------===//
 // Main traits
@@ -9,11 +11,11 @@ use std::rc::Rc;
 
 pub type Wrap<T> = Rc<T>;
 
-pub trait Depth {
+pub trait ExprSize {
     fn depth(&self) -> usize;
 }
 
-pub trait PicusExprLike: Depth {}
+pub trait PicusExprLike: ExprSize + fmt::Display {}
 
 pub type PicusExpr = Wrap<dyn PicusExprLike>;
 
@@ -22,44 +24,22 @@ pub type PicusExpr = Wrap<dyn PicusExprLike>;
 //===----------------------------------------------------------------------===//
 
 pub fn r#const<F: Field>(f: F) -> PicusExpr {
-    Wrap::new(ConstExpr(f.clone()))
+    Wrap::new(ConstExpr(f.into()))
 }
 
-fn var<'a, A, M>(allocator: &'a A, kind: VarKind, meta: M) -> Result<PicusExpr>
+pub fn var<A, K>(allocator: &A, kind: K) -> PicusExpr
 where
-    A: VarAllocator<'a>,
-    M: Into<A::Meta>,
+    A: VarAllocator,
+    K: Into<A::Kind>,
 {
-    Ok(Wrap::new(VarExpr(
-        allocator.allocate(&kind, meta)?.to_owned(),
-        kind,
-    )))
+    Wrap::new(VarExpr(allocator.allocate(kind)))
 }
 
-pub fn input_var<'a, A, M>(allocator: &'a A, meta: M) -> Result<PicusExpr>
-where
-    A: VarAllocator<'a>,
-    M: Into<A::Meta>,
-{
-    var(allocator, VarKind::Input, meta)
-}
-
-pub fn output_var<'a, A, M>(allocator: &'a A, meta: M) -> Result<PicusExpr>
-where
-    A: VarAllocator<'a>,
-    M: Into<A::Meta>,
-{
-    var(allocator, VarKind::Output, meta)
-}
-
-pub fn temp_var<'a, A>(allocator: &'a A, meta: A::Meta) -> Result<PicusExpr>
-where
-    A: VarAllocator<'a>,
-{
-    var(allocator, VarKind::Temporary, meta)
-}
-
-fn binop<K: Clone + 'static>(kind: K, lhs: &PicusExpr, rhs: &PicusExpr) -> PicusExpr {
+fn binop<K: Clone + fmt::Display + 'static>(
+    kind: K,
+    lhs: &PicusExpr,
+    rhs: &PicusExpr,
+) -> PicusExpr {
     Wrap::new(BinaryExpr(kind.clone(), rhs.clone(), lhs.clone()))
 }
 
@@ -98,33 +78,57 @@ pub fn ge(lhs: &PicusExpr, rhs: &PicusExpr) -> PicusExpr {
 pub fn eq(lhs: &PicusExpr, rhs: &PicusExpr) -> PicusExpr {
     binop(ConstraintKind::Eq, lhs, rhs)
 }
+
 pub fn neg(expr: &PicusExpr) -> PicusExpr {
     Wrap::new(NegExpr(expr.clone()))
+}
+
+pub fn call<A>(callee: String, inputs: Vec<PicusExpr>, n_outputs: usize, allocator: &A) -> PicusExpr
+where
+    A: VarAllocator,
+{
+    Wrap::new(CallExpr {
+        callee,
+        inputs,
+        outputs: (0..n_outputs).map(|_| allocator.allocate_temp()).collect(),
+    })
 }
 
 //===----------------------------------------------------------------------===//
 // ConstExpr
 //===----------------------------------------------------------------------===//
 
-struct ConstExpr<F>(F);
+struct ConstExpr(PicusFelt);
 
-impl<F> Depth for ConstExpr<F> {
+impl ExprSize for ConstExpr {
     fn depth(&self) -> usize {
         1
     }
 }
 
-impl<F> PicusExprLike for ConstExpr<F> {}
+impl fmt::Display for ConstExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl PicusExprLike for ConstExpr {}
 
 //===----------------------------------------------------------------------===//
 // VarExpr
 //===----------------------------------------------------------------------===//
 
-pub struct VarExpr(String, VarKind);
+pub struct VarExpr(VarStr);
 
-impl Depth for VarExpr {
+impl ExprSize for VarExpr {
     fn depth(&self) -> usize {
         1
+    }
+}
+
+impl fmt::Display for VarExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -142,6 +146,21 @@ enum BinaryOp {
     Div,
 }
 
+impl fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                BinaryOp::Add => "+",
+                BinaryOp::Sub => "-",
+                BinaryOp::Mul => "*",
+                BinaryOp::Div => "/",
+            }
+        )
+    }
+}
+
 #[derive(Clone)]
 enum ConstraintKind {
     Lt,
@@ -151,15 +170,37 @@ enum ConstraintKind {
     Eq,
 }
 
+impl fmt::Display for ConstraintKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                ConstraintKind::Lt => "<",
+                ConstraintKind::Le => "<=",
+                ConstraintKind::Gt => ">",
+                ConstraintKind::Ge => ">=",
+                ConstraintKind::Eq => "=",
+            }
+        )
+    }
+}
+
 struct BinaryExpr<K>(K, PicusExpr, PicusExpr);
 
-impl<K: Clone> Depth for BinaryExpr<K> {
+impl<K: Clone> ExprSize for BinaryExpr<K> {
     fn depth(&self) -> usize {
         self.1.depth() + self.2.depth()
     }
 }
 
-impl<K: Clone> PicusExprLike for BinaryExpr<K> {}
+impl<K: fmt::Display> fmt::Display for BinaryExpr<K> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({} {} {})", self.0, self.1, self.2)
+    }
+}
+
+impl<K: Clone + fmt::Display> PicusExprLike for BinaryExpr<K> {}
 
 //===----------------------------------------------------------------------===//
 // NegExpr
@@ -167,9 +208,15 @@ impl<K: Clone> PicusExprLike for BinaryExpr<K> {}
 
 struct NegExpr(PicusExpr);
 
-impl Depth for NegExpr {
+impl ExprSize for NegExpr {
     fn depth(&self) -> usize {
         self.0.depth() + 1
+    }
+}
+
+impl fmt::Display for NegExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(- {})", self.0)
     }
 }
 
@@ -178,3 +225,46 @@ impl PicusExprLike for NegExpr {}
 //===----------------------------------------------------------------------===//
 // CallExpr
 //===----------------------------------------------------------------------===//
+
+struct CallExpr {
+    callee: String,
+    inputs: Vec<PicusExpr>,
+    outputs: Vec<VarStr>,
+}
+
+impl ExprSize for CallExpr {
+    fn depth(&self) -> usize {
+        self.inputs.iter().map(|i| i.depth()).sum()
+    }
+}
+
+fn print_list<T: fmt::Display>(lst: &[T], f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let print = |t: &Option<&T>, f: &mut fmt::Formatter| {
+        if let Some(t) = t {
+            write!(f, "{t} ")
+        } else {
+            write!(f, "")
+        }
+    };
+    write!(f, "[")?;
+    let mut iter = lst.iter();
+    let mut it = iter.next();
+    print(&it, f)?;
+    while it.is_some() {
+        it = iter.next();
+        print(&it, f)?;
+    }
+    write!(f, "]")
+}
+
+impl fmt::Display for CallExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(call ")?;
+        print_list(&self.outputs, f)?;
+        write!(f, " {} ", self.callee)?;
+        print_list(&self.inputs, f)?;
+        write!(f, ")")
+    }
+}
+
+impl PicusExprLike for CallExpr {}

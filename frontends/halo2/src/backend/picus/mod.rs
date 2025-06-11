@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{cell::RefCell, fmt, marker::PhantomData};
 
 use super::Backend;
 use crate::{
@@ -10,10 +10,13 @@ use anyhow::Result;
 
 mod expr;
 mod lowering;
+mod output;
 mod vars;
 
-use lowering::PicusModule;
 pub use lowering::PicusModuleLowering;
+use lowering::PicusModuleRef;
+use output::PicusModule;
+pub use output::PicusOutput;
 
 pub struct PicusParams {
     expr_cutoff: usize,
@@ -27,13 +30,11 @@ impl Default for PicusParams {
 
 pub struct PicusBackend<F> {
     params: PicusParams,
-    modules: Vec<PicusModule>,
+    modules: RefCell<Vec<PicusModuleRef>>,
     _marker: PhantomData<F>,
 }
 
-pub struct PicusOutput {}
-
-impl<'c, F: PrimeField> Backend<'c, PicusParams, PicusOutput> for PicusBackend<F> {
+impl<'c, F: PrimeField> Backend<'c, PicusParams, PicusOutput<F>> for PicusBackend<F> {
     type FuncOutput = PicusModuleLowering<F>;
     type F = F;
 
@@ -45,32 +46,43 @@ impl<'c, F: PrimeField> Backend<'c, PicusParams, PicusOutput> for PicusBackend<F
         }
     }
 
-    fn generate_output(&'c self) -> Result<PicusOutput> {
-        todo!()
+    fn generate_output(&'c self) -> Result<PicusOutput<Self::F>> {
+        let output = PicusOutput::from(self.modules.borrow().clone());
+
+        // TODO: Cut the expressions that are too big
+        Ok(output)
     }
 
     fn define_gate_function<'f>(
         &'c self,
-        _name: &str,
-        _selectors: &[&Selector],
-        _queries: &[AnyQuery],
+        name: &str,
+        selectors: &[&Selector],
+        queries: &[AnyQuery],
     ) -> Result<Self::FuncOutput>
     where
         Self::FuncOutput: 'f,
         'c: 'f,
     {
-        todo!()
+        let module = PicusModule::shared(name.to_owned(), selectors.len() + queries.len(), 0);
+        self.modules.borrow_mut().push(module.clone());
+        Ok(Self::FuncOutput::from(module))
     }
 
     fn define_main_function<'f>(
         &'c self,
-        _advice_io: &CircuitIO<Advice>,
-        _instance_io: &CircuitIO<Instance>,
+        advice_io: &CircuitIO<Advice>,
+        instance_io: &CircuitIO<Instance>,
     ) -> Result<Self::FuncOutput>
     where
         Self::FuncOutput: 'f,
         'c: 'f,
     {
-        todo!()
+        let module = PicusModule::shared(
+            "Main".to_owned(),
+            instance_io.inputs().len() + advice_io.inputs().len(),
+            instance_io.outputs().len() + advice_io.outputs().len(),
+        );
+        self.modules.borrow_mut().push(module.clone());
+        Ok(Self::FuncOutput::from(module))
     }
 }

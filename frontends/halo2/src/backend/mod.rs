@@ -180,10 +180,8 @@ pub trait Backend<'c, Params: Default, Output>: Sized {
             };
 
             let lower_gate_call = |gate: &Gate<Self::F>, r: &RegionRow<Self::F>| {
-                println!("    Gate '{}'", gate.name());
                 let (selectors, queries) = compute_gate_arity(gate.polynomials());
                 if r.gate_is_disabled(&selectors) {
-                    println!("      Gate {} is disabled!", gate.name());
                     return None;
                 }
 
@@ -203,11 +201,9 @@ pub trait Backend<'c, Params: Default, Output>: Sized {
                 .regions()
                 .iter()
                 .flat_map(|region| {
-                    println!("Entering region: {region:?}");
                     region
                         .rows()
                         .map(|row| {
-println!("  Row #{row}");
                             RegionRow::new(region, row, syn.advice_io(), syn.instance_io())})
                 })
                 .flat_map(|r| {

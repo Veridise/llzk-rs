@@ -1,10 +1,11 @@
 use crate::backend::func::{ArgNo, FieldId};
+use crate::backend::picus::PicusBackend;
 use crate::backend::Backend;
 use crate::halo2::{Field, Fr};
 use crate::test::fixtures::midnight::fibonacci::FibonacciCircuit;
 use crate::test::fixtures::midnight::mul::MulCircuit;
 use crate::test::mock::backend::{MockBackend, MockExprIR, MockFunc, MockOutput};
-use crate::{codegen_test, mock_codegen_test};
+use crate::{codegen_test, mock_codegen_test, picus_codegen_test};
 
 #[test]
 fn test_mul_circuit_codegen() {
@@ -66,6 +67,12 @@ fn test_mul_circuit_codegen() {
             })
         }
     )
+}
+
+#[test]
+fn test_mul_circuit_picus_codegen() {
+    let output = picus_codegen_test!(MulCircuit<Fr>);
+    println!("{output}");
 }
 
 #[test]

@@ -162,49 +162,67 @@ impl Lowering for MockFuncRef {
         Ok(())
     }
 
-    fn lower_sum(
-        &self,
+    fn lower_sum<'a, 'l: 'a>(
+        &'l self,
         lhs: &Value<Self::CellOutput>,
         rhs: &Value<Self::CellOutput>,
-    ) -> Result<Value<Self::CellOutput>> {
+    ) -> Result<Value<Self::CellOutput>>
+    where
+        Self::CellOutput: 'a,
+    {
         Ok(lhs
             .zip(*rhs)
             .map(|(lhs, rhs)| self.push_expr(MockExprIR::Sum(lhs, rhs))))
     }
 
-    fn lower_product(
-        &self,
+    fn lower_product<'a>(
+        &'a self,
         lhs: &Value<Self::CellOutput>,
         rhs: &Value<Self::CellOutput>,
-    ) -> Result<Value<Self::CellOutput>> {
+    ) -> Result<Value<Self::CellOutput>>
+    where
+        Self::CellOutput: 'a,
+    {
         Ok(lhs
             .zip(*rhs)
             .map(|(lhs, rhs)| self.push_expr(MockExprIR::Product(lhs, rhs))))
     }
 
-    fn lower_neg(&self, expr: &Value<Self::CellOutput>) -> Result<Value<Self::CellOutput>> {
+    fn lower_neg<'a>(&'a self, expr: &Value<Self::CellOutput>) -> Result<Value<Self::CellOutput>>
+    where
+        Self::CellOutput: 'a,
+    {
         Ok(expr.map(|expr| self.push_expr(MockExprIR::Neg(expr))))
     }
 
-    fn lower_scaled(
-        &self,
+    fn lower_scaled<'a>(
+        &'a self,
         expr: &Value<Self::CellOutput>,
         scale: &Value<Self::CellOutput>,
-    ) -> Result<Value<Self::CellOutput>> {
+    ) -> Result<Value<Self::CellOutput>>
+    where
+        Self::CellOutput: 'a,
+    {
         Ok(expr
             .zip(*scale)
             .map(|(expr, scale)| self.push_expr(MockExprIR::Scaled(expr, scale))))
     }
 
-    fn lower_challenge(&self, _challenge: &Challenge) -> Result<Value<Self::CellOutput>> {
+    fn lower_challenge<'a>(&'a self, _challenge: &Challenge) -> Result<Value<Self::CellOutput>>
+    where
+        Self::CellOutput: 'a,
+    {
         todo!()
     }
 
-    fn lower_selector(
-        &self,
+    fn lower_selector<'a, 'l: 'a>(
+        &'l self,
         sel: &Selector,
         resolver: &dyn crate::backend::resolvers::SelectorResolver,
-    ) -> Result<Value<Self::CellOutput>> {
+    ) -> Result<Value<Self::CellOutput>>
+    where
+        Self::CellOutput: 'a,
+    {
         let resolved = resolver.resolve_selector(sel)?;
         Ok(Value::known(match resolved {
             ResolvedSelector::Const(value) => {
@@ -214,11 +232,14 @@ impl Lowering for MockFuncRef {
         }))
     }
 
-    fn lower_advice_query(
-        &self,
+    fn lower_advice_query<'a>(
+        &'a self,
         query: &AdviceQuery,
         resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Value<Self::CellOutput>> {
+    ) -> Result<Value<Self::CellOutput>>
+    where
+        Self::CellOutput: 'a,
+    {
         let resolved = resolver.resolve_advice_query(query)?;
 
         Ok(match resolved {
@@ -231,11 +252,14 @@ impl Lowering for MockFuncRef {
         })
     }
 
-    fn lower_instance_query(
-        &self,
+    fn lower_instance_query<'a>(
+        &'a self,
         query: &InstanceQuery,
         resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Value<Self::CellOutput>> {
+    ) -> Result<Value<Self::CellOutput>>
+    where
+        Self::CellOutput: 'a,
+    {
         let resolved = resolver.resolve_instance_query(query)?;
 
         Ok(match resolved {
@@ -248,11 +272,14 @@ impl Lowering for MockFuncRef {
         })
     }
 
-    fn lower_fixed_query(
-        &self,
+    fn lower_fixed_query<'a>(
+        &'a self,
         query: &FixedQuery,
         resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Value<Self::CellOutput>> {
+    ) -> Result<Value<Self::CellOutput>>
+    where
+        Self::CellOutput: 'a,
+    {
         let resolved = resolver.resolve_fixed_query(query)?;
 
         Ok(match resolved {
@@ -265,7 +292,11 @@ impl Lowering for MockFuncRef {
         })
     }
 
-    fn lower_constant(&self, f: &Self::F) -> Result<Value<Self::CellOutput>> {
+    fn lower_constant<'a, 'f>(&'a self, f: &Self::F) -> Result<Value<Self::CellOutput>>
+    where
+        Self::CellOutput: 'a,
+        'a: 'f,
+    {
         Ok(Value::known(self.push_expr(MockExprIR::Const(*f))))
     }
 }
@@ -278,10 +309,7 @@ impl<'c> Backend<'c, (), MockOutput> for MockBackend {
         Self(Default::default())
     }
 
-    fn generate_output<'o>(&'c self) -> Result<MockOutput>
-    where
-        MockOutput: 'o,
-    {
+    fn generate_output(&'c self) -> Result<MockOutput> {
         let clone_func = |func: &SharedFuncRef| func.borrow().clone();
         let ctx = self.0.borrow();
         let gates = ctx.gates.iter().map(clone_func).collect();
