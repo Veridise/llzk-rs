@@ -1,5 +1,7 @@
 [workspace]
-members = [ "llzk",
+members = [ 
+  "frontends/halo2", 
+  "llzk",
   "llzk-sys"
 ]
 resolver = "2"

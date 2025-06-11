@@ -4,13 +4,14 @@ use mlir_sys::{
     mlirAffineConstantExprGet, mlirAffineMapAttrGet, mlirAffineMapEqual, mlirAffineMapGet,
     mlirAttributeEqual, mlirFlatSymbolRefAttrGet, mlirLocationUnknownGet, mlirOperationDestroy,
     mlirOperationVerify, mlirStringAttrGet, mlirStringRefCreateFromCString, mlirStringRefEqual,
-    MlirStringRef,
+    MlirStringRef, MlirValue,
 };
 use rstest::rstest;
 
 use crate::{
     llzkApplyMapOpBuild, llzkApplyMapOpBuildWithAffineExpr, llzkApplyMapOpBuildWithAffineMap,
-    llzkApplyMapOpGetAffineMap, llzkApplyMapOpGetDimOperands, llzkApplyMapOpGetSymbolOperands,
+    llzkApplyMapOpGetAffineMap, llzkApplyMapOpGetDimOperands, llzkApplyMapOpGetNumDimOperands,
+    llzkApplyMapOpGetNumSymbolOperands, llzkApplyMapOpGetSymbolOperands,
     llzkOperationIsAApplyMapOp, llzkTypeIsATypeVarType, llzkTypeVarTypeGet,
     llzkTypeVarTypeGetFromAttr, llzkTypeVarTypeGetName, llzkTypeVarTypeGetNameRef,
     mlirGetDialectHandle__llzk__polymorphic__, mlirOpBuilderCreate,
@@ -186,6 +187,10 @@ fn test_llzk_apply_map_op_get_affine_map(context: TestContext) {
     }
 }
 
+fn boxed_value_range(size: isize) -> Box<[MlirValue]> {
+    vec![MlirValue { ptr: null() }; size as usize].into_boxed_slice()
+}
+
 #[rstest]
 fn test_llzk_apply_map_op_get_dim_operands(context: TestContext) {
     unsafe {
@@ -205,8 +210,10 @@ fn test_llzk_apply_map_op_get_dim_operands(context: TestContext) {
         );
         assert_ne!(op.ptr, null_mut());
         assert!(mlirOperationVerify(op));
-        let dims = llzkApplyMapOpGetDimOperands(op);
-        assert_eq!(dims.size, 0);
+        let n_dims = llzkApplyMapOpGetNumDimOperands(op);
+        let mut dims = boxed_value_range(n_dims);
+        llzkApplyMapOpGetDimOperands(op, dims.as_mut_ptr());
+        assert_eq!(dims.len(), 0);
         mlirOperationDestroy(op);
     }
 }
@@ -230,8 +237,10 @@ fn test_llzk_apply_map_op_get_symbol_operands(context: TestContext) {
         );
         assert_ne!(op.ptr, null_mut());
         assert!(mlirOperationVerify(op));
-        let syms = llzkApplyMapOpGetSymbolOperands(op);
-        assert_eq!(syms.size, 0);
+        let n_syms = llzkApplyMapOpGetNumSymbolOperands(op);
+        let mut syms = boxed_value_range(n_syms);
+        llzkApplyMapOpGetSymbolOperands(op, syms.as_mut_ptr());
+        assert_eq!(syms.len(), 0);
         mlirOperationDestroy(op);
     }
 }
