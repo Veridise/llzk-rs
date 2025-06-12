@@ -225,9 +225,7 @@ impl Lowering for MockFuncRef {
     {
         let resolved = resolver.resolve_selector(sel)?;
         Ok(Value::known(match resolved {
-            ResolvedSelector::Const(value) => {
-                self.push_expr(MockExprIR::Const(if value { Fr::ONE } else { Fr::ZERO }))
-            }
+            ResolvedSelector::Const(value) => self.push_expr(MockExprIR::Const(value.to_f())),
             ResolvedSelector::Arg(arg_no) => self.push_expr(MockExprIR::Arg(arg_no)),
         }))
     }

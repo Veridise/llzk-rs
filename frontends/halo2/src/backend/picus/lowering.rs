@@ -4,13 +4,10 @@ use super::vars::{VarAllocator, VarStr};
 use crate::backend::func::FuncIO;
 use crate::backend::lowering::Lowering;
 use crate::backend::resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver};
-use crate::halo2::{
-    AdviceQuery, Challenge, Field, FixedQuery, InstanceQuery, PrimeField, Selector, Value,
-};
+use crate::halo2::{AdviceQuery, Challenge, Field, FixedQuery, InstanceQuery, Selector, Value};
 use crate::value::{steal, steal_many};
 use anyhow::{anyhow, Result};
 use std::cell::RefCell;
-use std::fmt;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
@@ -57,18 +54,9 @@ impl<'a, F: Field> PicusModuleLowering<F> {
             ResolvedQuery::IO(func_io) => Value::known(expr::var(self, func_io)),
         })
     }
-
-    //fn maybe_cut(&self, expr: Result<Value<PicusExpr>>) -> Result<Value<PicusExpr>> {
-    //    self.maybe_cut(Ok(expr?.map(|expr| {
-    //        if expr.depth() < self.expr_cutoff {
-    //            return expr;
-    //        }
-    //        todo!()
-    //    })))
-    //}
 }
 
-impl<F: PrimeField> Lowering for PicusModuleLowering<F> {
+impl<F: Field> Lowering for PicusModuleLowering<F> {
     type CellOutput = PicusExpr;
 
     type F = F;
@@ -170,7 +158,7 @@ impl<F: PrimeField> Lowering for PicusModuleLowering<F> {
         PicusExpr: 'a,
     {
         match resolver.resolve_selector(sel)? {
-            ResolvedSelector::Const(value) => self.lower_constant(&Self::F::from(value as u64)),
+            ResolvedSelector::Const(value) => self.lower_constant(&value.to_f()),
             ResolvedSelector::Arg(arg_no) => Ok(Value::known(expr::var(self, arg_no))),
         }
     }

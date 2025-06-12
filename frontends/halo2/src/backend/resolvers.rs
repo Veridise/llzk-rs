@@ -5,9 +5,30 @@ use crate::{
 };
 use anyhow::Result;
 
+pub struct Bool(bool);
+
+impl From<bool> for Bool {
+    fn from(value: bool) -> Self {
+        Self(value)
+    }
+}
+
+impl Bool {
+    pub fn to_f<F>(self) -> F
+    where
+        F: Field,
+    {
+        if self.0 {
+            F::ONE
+        } else {
+            F::ZERO
+        }
+    }
+}
+
 pub enum ResolvedSelector {
     // When the selector is used as argument.
-    Const(bool),
+    Const(Bool),
     // When the selector is used as formal.
     Arg(ArgNo),
 }
@@ -20,7 +41,7 @@ impl From<ArgNo> for ResolvedSelector {
 
 impl From<bool> for ResolvedSelector {
     fn from(value: bool) -> Self {
-        Self::Const(value)
+        Self::Const(value.into())
     }
 }
 

@@ -28,7 +28,7 @@ pub use io::{CircuitIO, CircuitWithIO};
 
 pub fn picus_codegen_with_params<F, C>(circuit: &C, params: PicusParams) -> Result<PicusOutput<F>>
 where
-    F: PrimeField + fmt::Display,
+    F: Field,
     C: CircuitWithIO<F>,
 {
     let backend = PicusBackend::initialize(params);
@@ -37,19 +37,8 @@ where
 
 pub fn picus_codegen<F, C>(circuit: &C) -> Result<PicusOutput<F>>
 where
-    F: PrimeField + fmt::Display,
+    F: Field,
     C: CircuitWithIO<F>,
 {
     picus_codegen_with_params(circuit, Default::default())
 }
-
-//pub type Output = <LLZKBackend as Backend>::Output;
-//pub type PicusOutput = <PicusBackend as Backend>::Output;
-
-//pub fn codegen<F: Field, C: CircuitWithIO<F>>(circuit: &C) -> Result<Output> {
-//    codegen_impl::<F, C, LLZKBackend>(circuit)
-//}
-//
-//pub fn picus_codegen<F: Field, C: CircuitWithIO<F>>(circuit: &C) -> Result<PicusOutput> {
-//    codegen_impl::<F, C, PicusBackend>(circuit)
-//}

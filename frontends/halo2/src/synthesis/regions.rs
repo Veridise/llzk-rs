@@ -286,6 +286,6 @@ impl<F: Field> SelectorResolver for RegionRow<'_, '_, F> {
             .get(selector)
             .map(|rows| rows.contains(&self.row.row))
             .unwrap_or(false);
-        Ok(ResolvedSelector::Const(selected))
+        Ok(ResolvedSelector::Const(selected.into()))
     }
 }

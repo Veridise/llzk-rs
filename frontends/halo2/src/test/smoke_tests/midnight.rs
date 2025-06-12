@@ -80,6 +80,12 @@ fn test_fibonacci_circuit_codegen() {
     mock_codegen_test!(FibonacciCircuit<Fr>);
 }
 
+#[test]
+fn test_fibonacci_circuit_picus_codegen() {
+    let output = picus_codegen_test!(FibonacciCircuit<Fr>);
+    println!("{output}");
+}
+
 //#[test]
 //fn test_mul_circuit_llzk_codegen() {
 //    smoke_test!(MulCircuit<Fr>, LLZKBackend);
