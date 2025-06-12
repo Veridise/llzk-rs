@@ -10,7 +10,7 @@ use crate::{
 use anyhow::{bail, Result};
 use std::{
     collections::{HashMap, HashSet},
-    ops::RangeInclusive,
+    ops::Range,
 };
 
 #[derive(Debug)]
@@ -76,9 +76,10 @@ impl<F: Default + Clone> RegionData<F> {
             .insert((fixed.index(), row), value.map(|vr| vr.into().evaluate()));
     }
 
-    pub fn rows(&self) -> RangeInclusive<usize> {
-        let (begin, end) = self.rows.unwrap();
-        begin..=end
+    pub fn rows(&self) -> Range<usize> {
+        self.rows.map(|(begin, end)| begin..end + 1).unwrap_or(0..0)
+        //let (begin, end) = self.rows.unwrap_or((0, 0));
+        //begin..=end
     }
 
     pub fn resolve_fixed(&self, column: &usize, row: &usize) -> Value<&F> {
