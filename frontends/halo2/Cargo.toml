@@ -23,6 +23,13 @@ optional = true
 git = "https://github.com/midnightntwrk/halo2.git"
 package = "halo2_proofs"
 optional = true
+rev = "8303031"
+default-features = false
+features = [
+    "bits",
+    "cost-estimator",
+    "circuit-params",
+]
 
 [dependencies.pse_halo2_proofs]
 git = "https://github.com/privacy-scaling-explorations/halo2.git"

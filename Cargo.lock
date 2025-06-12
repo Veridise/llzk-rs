@@ -550,7 +550,7 @@ dependencies = [
  "group 0.13.0",
  "halo2-axiom",
  "halo2_proofs 0.2.0",
- "halo2_proofs 0.3.0 (git+https://github.com/midnightntwrk/halo2.git)",
+ "halo2_proofs 0.3.0 (git+https://github.com/midnightntwrk/halo2.git?rev=8303031)",
  "halo2_proofs 0.3.0 (git+https://github.com/zcash/halo2.git)",
  "halo2_proofs 0.4.0",
  "halo2_proofs 1.1.0",
@@ -620,7 +620,7 @@ dependencies = [
 [[package]]
 name = "halo2_proofs"
 version = "0.3.0"
-source = "git+https://github.com/midnightntwrk/halo2.git#8303031da2c7e9fc06c798f0230b71e2a5fe4e00"
+source = "git+https://github.com/midnightntwrk/halo2.git?rev=8303031#8303031da2c7e9fc06c798f0230b71e2a5fe4e00"
 dependencies = [
  "blake2b_simd",
  "blstrs",
@@ -632,6 +632,8 @@ dependencies = [
  "rand_chacha",
  "rand_core",
  "rayon",
+ "serde",
+ "serde_derive",
  "sha3 0.9.1",
  "tracing",
 ]
