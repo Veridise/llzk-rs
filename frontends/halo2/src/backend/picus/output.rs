@@ -1,9 +1,15 @@
-use std::{cell::Ref, collections::HashMap, fmt, marker::PhantomData, rc::Rc};
+use std::collections::HashSet;
+use std::ops::{Add, AddAssign};
+use std::{collections::HashMap, fmt, marker::PhantomData, rc::Rc};
 
+use anyhow::Result;
 use rug::Integer;
 
+use super::stmt::{self, CallLike, PicusStmt};
+use super::vars::VarKey;
 use super::{expr::PicusExpr, lowering::PicusModuleRef, vars::VarStr};
 use crate::backend::func::{ArgNo, FieldId, FuncIO};
+use crate::backend::picus::vars::VarIO;
 use crate::halo2::{Field, PrimeField};
 
 pub struct PicusFelt(Integer);
@@ -34,6 +40,79 @@ pub struct PicusOutput<F> {
     _marker: PhantomData<F>,
 }
 
+impl<F> PicusOutput<F> {
+    fn module_names(&self) -> HashSet<String> {
+        self.modules.iter().map(|m| m.name.clone()).collect()
+    }
+
+    pub fn merge(&mut self, other: PicusOutput<F>) -> Result<()> {
+        let collisions: HashSet<String> = self
+            .module_names()
+            .intersection(&other.module_names())
+            .map(Clone::clone)
+            .collect();
+        // Maps the old name to the new one
+        let mut renames: HashMap<String, String> = Default::default();
+
+        let renamed = other
+            .modules
+            .into_iter()
+            .map(|m| -> Result<PicusModule> {
+                if !collisions.contains(&m.name) {
+                    return Ok(m);
+                }
+
+                let new_name = (0..)
+                    .find_map(|i| {
+                        let new_name = format!("{}{i}", m.name);
+                        if collisions.contains(&new_name) {
+                            return None;
+                        }
+                        Some(new_name)
+                    })
+                    .ok_or_else(|| anyhow::anyhow!("Failed to find a new name"))?;
+                let mut m = m;
+                renames.insert(m.name, new_name.clone());
+                m.name = new_name;
+                Ok(m)
+            })
+            // Collect the modules to make a barrier since the next step needs the full list of
+            // renames
+            .collect::<Result<Vec<_>>>()?;
+        let renames = renames;
+        self.modules.extend(renamed.into_iter().map(|m| {
+            let mut m = m;
+
+            m.stmts = m
+                .stmts
+                .into_iter()
+                .map(|s| {
+                    if let Some(call) = s.as_call() {
+                        if renames.contains_key(call.callee()) {
+                            return call.with_new_callee(renames[call.callee()].clone());
+                        }
+                    }
+                    s
+                })
+                .collect();
+
+            m
+        }));
+
+        Ok(())
+    }
+}
+
+impl<F> Add for PicusOutput<F> {
+    type Output = Result<PicusOutput<F>>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut lhs = self;
+        lhs.merge(rhs)?;
+        Ok(lhs)
+    }
+}
+
 impl<'a, F> From<Vec<PicusModuleRef>> for PicusOutput<F> {
     fn from(modules: Vec<PicusModuleRef>) -> Self {
         Self {
@@ -54,74 +133,9 @@ impl<F: PrimeField> fmt::Display for PicusOutput<F> {
 }
 
 #[derive(Clone)]
-struct PicusConstraint(PicusExpr);
-
-impl fmt::Display for PicusConstraint {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "(assert {})", self.0)
-    }
-}
-
-trait VarIO {
-    fn is_input(&self) -> bool;
-    fn is_output(&self) -> bool;
-}
-
-#[derive(Clone, Copy, Hash, Eq, PartialEq)]
-pub enum VarKey {
-    IO(FuncIO),
-    Temp(usize),
-}
-
-impl VarIO for VarKey {
-    fn is_input(&self) -> bool {
-        match self {
-            VarKey::IO(func_io) => match func_io {
-                FuncIO::Arg(_) => true,
-                _ => false,
-            },
-            _ => false,
-        }
-    }
-
-    fn is_output(&self) -> bool {
-        match self {
-            VarKey::IO(func_io) => match func_io {
-                FuncIO::Field(_) => true,
-                _ => false,
-            },
-            _ => false,
-        }
-    }
-}
-
-impl<K: VarIO, V> VarIO for (&K, &V) {
-    fn is_input(&self) -> bool {
-        self.0.is_input()
-    }
-
-    fn is_output(&self) -> bool {
-        self.0.is_output()
-    }
-}
-
-impl<T: Into<FuncIO>> From<T> for VarKey {
-    fn from(value: T) -> Self {
-        Self::IO(value.into())
-    }
-}
-
-impl From<usize> for VarKey {
-    fn from(value: usize) -> Self {
-        Self::Temp(value)
-    }
-}
-
-#[derive(Clone)]
 pub struct PicusModule {
     name: String,
-    constraints: Vec<PicusConstraint>,
-    calls: Vec<PicusExpr>,
+    stmts: Vec<PicusStmt>,
     vars: HashMap<VarKey, VarStr>,
 }
 
@@ -135,8 +149,7 @@ impl From<String> for PicusModule {
     fn from(name: String) -> Self {
         Self {
             name,
-            constraints: Default::default(),
-            calls: Default::default(),
+            stmts: Default::default(),
             vars: Default::default(),
         }
     }
@@ -160,15 +173,15 @@ impl PicusModule {
     }
 
     pub fn add_constraint(&mut self, constraint: PicusExpr) {
-        self.constraints.push(PicusConstraint(constraint))
+        self.stmts.push(stmt::constrain(constraint))
     }
 
     pub fn constraints_len(&self) -> usize {
-        self.constraints.len()
+        self.stmts.iter().filter(|s| s.is_constraint()).count()
     }
 
-    pub fn add_call(&mut self, expr: PicusExpr) {
-        self.calls.push(expr)
+    pub fn add_call(&mut self, stmt: PicusStmt) {
+        self.stmts.push(stmt)
     }
 
     pub fn add_var(&mut self, key: Option<FuncIO>) -> VarStr {
@@ -191,10 +204,7 @@ impl fmt::Display for PicusModule {
         for o in self.vars.iter().filter(VarIO::is_output) {
             writeln!(f, "(output {})", o.1)?;
         }
-        for c in &self.constraints {
-            writeln!(f, "{c}")?;
-        }
-        for c in &self.calls {
+        for c in &self.stmts {
             writeln!(f, "{c}")?;
         }
         writeln!(f, "(end-module)")

@@ -11,6 +11,7 @@ use anyhow::Result;
 mod expr;
 mod lowering;
 mod output;
+mod stmt;
 mod vars;
 
 pub use lowering::PicusModuleLowering;

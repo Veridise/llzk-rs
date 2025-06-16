@@ -2,8 +2,6 @@ use std::fmt;
 
 use crate::backend::func::{ArgNo, FieldId, FuncIO};
 
-use super::output::VarKey;
-
 #[derive(Clone)]
 pub struct VarStr(String);
 
@@ -56,4 +54,59 @@ pub trait VarAllocator {
     fn allocate<K: Into<Self::Kind>>(&self, kind: K) -> VarStr;
 
     fn allocate_temp(&self) -> VarStr;
+}
+
+pub trait VarIO {
+    fn is_input(&self) -> bool;
+    fn is_output(&self) -> bool;
+}
+
+#[derive(Clone, Copy, Hash, Eq, PartialEq)]
+pub enum VarKey {
+    IO(FuncIO),
+    Temp(usize),
+}
+
+impl VarIO for VarKey {
+    fn is_input(&self) -> bool {
+        match self {
+            VarKey::IO(func_io) => match func_io {
+                FuncIO::Arg(_) => true,
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    fn is_output(&self) -> bool {
+        match self {
+            VarKey::IO(func_io) => match func_io {
+                FuncIO::Field(_) => true,
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+}
+
+impl<K: VarIO, V> VarIO for (&K, &V) {
+    fn is_input(&self) -> bool {
+        self.0.is_input()
+    }
+
+    fn is_output(&self) -> bool {
+        self.0.is_output()
+    }
+}
+
+impl<T: Into<FuncIO>> From<T> for VarKey {
+    fn from(value: T) -> Self {
+        Self::IO(value.into())
+    }
+}
+
+impl From<usize> for VarKey {
+    fn from(value: usize) -> Self {
+        Self::Temp(value)
+    }
 }

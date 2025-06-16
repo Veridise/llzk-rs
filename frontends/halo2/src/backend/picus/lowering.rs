@@ -1,5 +1,6 @@
 use super::expr::{self, PicusExpr};
 use super::output::PicusModule;
+use super::stmt;
 use super::vars::{VarAllocator, VarStr};
 use crate::backend::func::FuncIO;
 use crate::backend::lowering::Lowering;
@@ -84,7 +85,7 @@ impl<F: Field> Lowering for PicusModuleLowering<F> {
         selectors: &[Value<Self::CellOutput>],
         queries: &[Value<Self::CellOutput>],
     ) -> Result<()> {
-        self.module.borrow_mut().add_call(expr::call(
+        self.module.borrow_mut().add_call(stmt::call(
             name.to_owned(),
             steal_many(selectors)
                 .ok_or_else(|| anyhow!("some selector value was unknown"))?

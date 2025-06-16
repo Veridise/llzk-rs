@@ -83,17 +83,6 @@ pub fn neg(expr: &PicusExpr) -> PicusExpr {
     Wrap::new(NegExpr(expr.clone()))
 }
 
-pub fn call<A>(callee: String, inputs: Vec<PicusExpr>, n_outputs: usize, allocator: &A) -> PicusExpr
-where
-    A: VarAllocator,
-{
-    Wrap::new(CallExpr {
-        callee,
-        inputs,
-        outputs: (0..n_outputs).map(|_| allocator.allocate_temp()).collect(),
-    })
-}
-
 //===----------------------------------------------------------------------===//
 // ConstExpr
 //===----------------------------------------------------------------------===//
@@ -221,50 +210,3 @@ impl fmt::Display for NegExpr {
 }
 
 impl PicusExprLike for NegExpr {}
-
-//===----------------------------------------------------------------------===//
-// CallExpr
-//===----------------------------------------------------------------------===//
-
-struct CallExpr {
-    callee: String,
-    inputs: Vec<PicusExpr>,
-    outputs: Vec<VarStr>,
-}
-
-impl ExprSize for CallExpr {
-    fn depth(&self) -> usize {
-        self.inputs.iter().map(|i| i.depth()).sum()
-    }
-}
-
-fn print_list<T: fmt::Display>(lst: &[T], f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let print = |t: &Option<&T>, f: &mut fmt::Formatter| {
-        if let Some(t) = t {
-            write!(f, "{t} ")
-        } else {
-            write!(f, "")
-        }
-    };
-    write!(f, "[")?;
-    let mut iter = lst.iter();
-    let mut it = iter.next();
-    print(&it, f)?;
-    while it.is_some() {
-        it = iter.next();
-        print(&it, f)?;
-    }
-    write!(f, "]")
-}
-
-impl fmt::Display for CallExpr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "(call ")?;
-        print_list(&self.outputs, f)?;
-        write!(f, " {} ", self.callee)?;
-        print_list(&self.inputs, f)?;
-        write!(f, ")")
-    }
-}
-
-impl PicusExprLike for CallExpr {}

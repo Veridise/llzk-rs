@@ -78,8 +78,6 @@ impl<F: Default + Clone> RegionData<F> {
 
     pub fn rows(&self) -> Range<usize> {
         self.rows.map(|(begin, end)| begin..end + 1).unwrap_or(0..0)
-        //let (begin, end) = self.rows.unwrap_or((0, 0));
-        //begin..=end
     }
 
     pub fn resolve_fixed(&self, column: &usize, row: &usize) -> Value<&F> {
