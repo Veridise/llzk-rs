@@ -292,8 +292,12 @@ impl<K: OpFolder + Clone + fmt::Display + 'static> ConstantFolding for BinaryExp
     }
 
     fn fold(&self) -> Option<PicusExpr> {
+        eprintln!("Op {}, lhs before: {}", self.op(), self.lhs());
         let lhs = self.lhs().fold().unwrap_or_else(|| self.lhs());
+        eprintln!("Op {}, lhs after: {}", self.op(), lhs);
+        eprintln!("Op {}, rhs before: {}", self.op(), self.rhs());
         let rhs = self.rhs().fold().unwrap_or_else(|| self.rhs());
+        eprintln!("Op {}, rhs after: {}", self.op(), rhs);
 
         self.op()
             .fold(self.lhs(), self.rhs())
