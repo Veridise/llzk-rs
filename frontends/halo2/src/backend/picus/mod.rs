@@ -43,7 +43,7 @@ impl PicusParamsBuilder {
         Self(p)
     }
 
-    pub fn extrypoint(self, name: &str) -> Self {
+    pub fn entrypoint(self, name: &str) -> Self {
         let mut p = self.0;
         p.entrypoint = name.to_owned();
         Self(p)
