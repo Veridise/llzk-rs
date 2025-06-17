@@ -1,17 +1,10 @@
 use std::fmt;
 
-use crate::halo2::{
-    Advice, AdviceQuery, Any, Column, ColumnType, Field, FixedQuery, Gate, Instance, InstanceQuery,
-    PrimeField, Rotation, Selector,
-};
-use anyhow::{bail, Result};
+use crate::halo2::Field;
+use anyhow::Result;
 use backend::picus::PicusBackend;
+use backend::Backend;
 use backend::InlineConstraintsStrat;
-use backend::{lowering::Lowering, Backend};
-use gates::compute_gate_arity;
-use ir::CircuitStmt;
-use synthesis::regions::{RegionRow, Row};
-use synthesis::CircuitSynthesis;
 
 pub(crate) mod backend;
 mod gates;
@@ -25,6 +18,7 @@ mod value;
 
 pub use backend::picus::PicusOutput;
 pub use backend::picus::PicusParams;
+pub use backend::picus::PicusParamsBuilder;
 pub use io::{CircuitIO, CircuitWithIO};
 
 pub fn picus_codegen_with_params<F, C>(circuit: &C, params: PicusParams) -> Result<PicusOutput<F>>

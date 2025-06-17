@@ -33,6 +33,10 @@ impl PicusParams {
 pub struct PicusParamsBuilder(PicusParams);
 
 impl PicusParamsBuilder {
+    pub fn new() -> Self {
+        Self(Default::default())
+    }
+
     pub fn expr_cutoff(self, expr_cutoff: usize) -> Self {
         let mut p = self.0;
         p.expr_cutoff = expr_cutoff;
