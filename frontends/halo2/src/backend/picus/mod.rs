@@ -84,8 +84,11 @@ impl<'c, F: Field> Backend<'c, PicusParams, PicusOutput<F>> for PicusBackend<F> 
     }
 
     fn generate_output(&'c self) -> Result<PicusOutput<Self::F>> {
-        let output = PicusOutput::from(self.modules.borrow().clone());
+        let mut output = PicusOutput::from(self.modules.borrow().clone());
 
+        for module in output.modules_mut() {
+            module.fold_stmts();
+        }
         // TODO: Cut the expressions that are too big
         Ok(output)
     }

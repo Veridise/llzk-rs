@@ -12,6 +12,7 @@ use crate::backend::func::{ArgNo, FieldId, FuncIO};
 use crate::backend::picus::vars::VarIO;
 use crate::halo2::{Field, PrimeField};
 
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PicusFelt(Integer);
 
 impl<F: Field> From<F> for PicusFelt {
@@ -22,10 +23,30 @@ impl<F: Field> From<F> for PicusFelt {
 }
 
 impl PicusFelt {
+    pub fn new(value: usize) -> Self {
+        Self(value.into())
+    }
+
     pub fn prime<F: Field>() -> Self {
         let mut f = Self::from(-F::ONE);
         f.0 += 1;
         f
+    }
+
+    pub fn is_one(&self) -> bool {
+        self.0 == 1
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.0.is_zero()
+    }
+}
+
+impl Add for PicusFelt {
+    type Output = PicusFelt;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
     }
 }
 
@@ -41,6 +62,14 @@ pub struct PicusOutput<F> {
 }
 
 impl<F> PicusOutput<F> {
+    pub fn modules(&self) -> &[PicusModule] {
+        &self.modules
+    }
+
+    pub fn modules_mut(&mut self) -> &mut [PicusModule] {
+        &mut self.modules
+    }
+
     fn module_names(&self) -> HashSet<String> {
         self.modules.iter().map(|m| m.name.clone()).collect()
     }
@@ -156,6 +185,18 @@ impl From<String> for PicusModule {
 }
 
 impl PicusModule {
+    pub fn stmts(&self) -> &[PicusStmt] {
+        &self.stmts
+    }
+
+    pub fn fold_stmts(&mut self) {
+        self.stmts = self
+            .stmts()
+            .iter()
+            .map(|s| s.fold().unwrap_or(s.clone()))
+            .collect();
+    }
+
     pub fn shared(name: String, n_inputs: usize, n_outputs: usize) -> PicusModuleRef {
         Rc::new(Self::new(name, n_inputs, n_outputs).into())
     }

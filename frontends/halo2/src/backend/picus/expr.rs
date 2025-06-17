@@ -15,7 +15,28 @@ pub trait ExprSize {
     fn depth(&self) -> usize;
 }
 
-pub trait PicusExprLike: ExprSize + fmt::Display {}
+pub trait ConstantFolding {
+    fn as_const(&self) -> Option<PicusFelt>;
+
+    /// If the expression folded returns Some(expr), otherwise returns None
+    fn fold(&self) -> Option<PicusExpr>;
+
+    fn is_one(&self) -> bool {
+        if let Some(n) = self.as_const() {
+            return n.is_one();
+        }
+        false
+    }
+
+    fn is_zero(&self) -> bool {
+        if let Some(n) = self.as_const() {
+            return n.is_zero();
+        }
+        false
+    }
+}
+
+pub trait PicusExprLike: ExprSize + fmt::Display + ConstantFolding {}
 
 pub type PicusExpr = Wrap<dyn PicusExprLike>;
 
@@ -35,7 +56,7 @@ where
     Wrap::new(VarExpr(allocator.allocate(kind)))
 }
 
-fn binop<K: Clone + fmt::Display + 'static>(
+fn binop<K: Clone + fmt::Display + OpFolder + 'static>(
     kind: K,
     lhs: &PicusExpr,
     rhs: &PicusExpr,
@@ -101,6 +122,16 @@ impl fmt::Display for ConstExpr {
     }
 }
 
+impl ConstantFolding for ConstExpr {
+    fn as_const(&self) -> Option<PicusFelt> {
+        Some(self.0.clone())
+    }
+
+    fn fold(&self) -> Option<PicusExpr> {
+        None
+    }
+}
+
 impl PicusExprLike for ConstExpr {}
 
 //===----------------------------------------------------------------------===//
@@ -112,6 +143,16 @@ pub struct VarExpr(VarStr);
 impl ExprSize for VarExpr {
     fn depth(&self) -> usize {
         1
+    }
+}
+
+impl ConstantFolding for VarExpr {
+    fn as_const(&self) -> Option<PicusFelt> {
+        None
+    }
+
+    fn fold(&self) -> Option<PicusExpr> {
+        None
     }
 }
 
@@ -127,12 +168,51 @@ impl PicusExprLike for VarExpr {}
 // BinaryExpr
 //===----------------------------------------------------------------------===//
 
+trait OpFolder {
+    fn fold(&self, lhs: PicusExpr, rhs: PicusExpr) -> Option<PicusExpr>;
+}
+
 #[derive(Clone)]
 enum BinaryOp {
     Add,
     Sub,
     Mul,
     Div,
+}
+
+impl BinaryOp {
+    fn fold_add(&self, lhs: PicusExpr, rhs: PicusExpr) -> Option<PicusExpr> {
+        if let Some(lhs) = lhs.as_const() {
+            if lhs.is_zero() {
+                return Some(rhs);
+            }
+        }
+        None
+    }
+
+    fn fold_mul(&self, lhs: PicusExpr, rhs: PicusExpr) -> Option<PicusExpr> {
+        if let Some(lhs) = lhs.as_const() {
+            if lhs.is_one() {
+                return Some(rhs);
+            }
+        }
+        None
+    }
+}
+
+impl OpFolder for BinaryOp {
+    fn fold(&self, lhs: PicusExpr, rhs: PicusExpr) -> Option<PicusExpr> {
+        match self {
+            BinaryOp::Add => self
+                .fold_add(lhs.clone(), rhs.clone())
+                .or_else(|| self.fold_add(rhs, lhs)),
+            BinaryOp::Sub => None,
+            BinaryOp::Mul => self
+                .fold_mul(lhs.clone(), rhs.clone())
+                .or_else(|| self.fold_add(rhs, lhs)),
+            BinaryOp::Div => None,
+        }
+    }
 }
 
 impl fmt::Display for BinaryOp {
@@ -159,6 +239,12 @@ enum ConstraintKind {
     Eq,
 }
 
+impl OpFolder for ConstraintKind {
+    fn fold(&self, _lhs: PicusExpr, _rhs: PicusExpr) -> Option<PicusExpr> {
+        None
+    }
+}
+
 impl fmt::Display for ConstraintKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -177,9 +263,38 @@ impl fmt::Display for ConstraintKind {
 
 struct BinaryExpr<K>(K, PicusExpr, PicusExpr);
 
+impl<K> BinaryExpr<K> {
+    fn lhs(&self) -> PicusExpr {
+        self.1.clone()
+    }
+
+    fn rhs(&self) -> PicusExpr {
+        self.2.clone()
+    }
+
+    fn op(&self) -> &K {
+        &self.0
+    }
+}
+
 impl<K: Clone> ExprSize for BinaryExpr<K> {
     fn depth(&self) -> usize {
         self.1.depth() + self.2.depth()
+    }
+}
+
+impl<K: OpFolder + Clone + fmt::Display + 'static> ConstantFolding for BinaryExpr<K> {
+    fn as_const(&self) -> Option<PicusFelt> {
+        None
+    }
+
+    fn fold(&self) -> Option<PicusExpr> {
+        let lhs = self.lhs().fold().unwrap_or_else(|| self.lhs());
+        let rhs = self.rhs().fold().unwrap_or_else(|| self.rhs());
+
+        self.op()
+            .fold(self.lhs(), self.rhs())
+            .or_else(|| Some(Wrap::new(Self(self.0.clone(), lhs, rhs))))
     }
 }
 
@@ -189,7 +304,7 @@ impl<K: fmt::Display> fmt::Display for BinaryExpr<K> {
     }
 }
 
-impl<K: Clone + fmt::Display> PicusExprLike for BinaryExpr<K> {}
+impl<K: Clone + fmt::Display + OpFolder + 'static> PicusExprLike for BinaryExpr<K> {}
 
 //===----------------------------------------------------------------------===//
 // NegExpr
@@ -200,6 +315,20 @@ struct NegExpr(PicusExpr);
 impl ExprSize for NegExpr {
     fn depth(&self) -> usize {
         self.0.depth() + 1
+    }
+}
+
+impl ConstantFolding for NegExpr {
+    fn as_const(&self) -> Option<PicusFelt> {
+        None
+    }
+
+    fn fold(&self) -> Option<PicusExpr> {
+        if let Some(e) = self.0.fold() {
+            Some(Wrap::new(Self(e)))
+        } else {
+            None
+        }
     }
 }
 

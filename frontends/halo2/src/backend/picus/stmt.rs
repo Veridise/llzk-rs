@@ -1,5 +1,5 @@
 use super::{
-    expr::{ExprSize, PicusExpr, PicusExprLike},
+    expr::{ConstantFolding, ExprSize, PicusExpr, PicusExprLike},
     vars::{VarAllocator, VarStr},
 };
 use std::{fmt, rc::Rc};
@@ -22,6 +22,10 @@ pub trait CallLike {
     fn callee(&self) -> &str;
 
     fn with_new_callee(&self, new_name: String) -> PicusStmt;
+}
+
+pub trait StmtConstantFolding {
+    fn fold(&self) -> Option<PicusStmt>;
 }
 
 pub trait CallLikeMut: CallLike {
@@ -64,7 +68,10 @@ pub trait MaybeCallLike {
     fn as_call_mut<'a>(&'a mut self) -> Option<CallLikeAdaptorMut<'a>>;
 }
 
-pub trait PicusStmtLike: ExprArgs + ConstraintLike + MaybeCallLike + fmt::Display {}
+pub trait PicusStmtLike:
+    ExprArgs + ConstraintLike + MaybeCallLike + StmtConstantFolding + fmt::Display
+{
+}
 
 pub type PicusStmt = Wrap<dyn PicusStmtLike>;
 
@@ -102,6 +109,16 @@ impl TempVarExpr {
 impl ExprSize for TempVarExpr {
     fn depth(&self) -> usize {
         1
+    }
+}
+
+impl ConstantFolding for TempVarExpr {
+    fn as_const(&self) -> Option<super::output::PicusFelt> {
+        None
+    }
+
+    fn fold(&self) -> Option<PicusExpr> {
+        None
     }
 }
 
@@ -169,6 +186,20 @@ impl MaybeCallLike for CallStmt {
     }
 }
 
+impl StmtConstantFolding for CallStmt {
+    fn fold(&self) -> Option<PicusStmt> {
+        Some(Wrap::new(Self {
+            callee: self.callee.clone(),
+            inputs: self
+                .inputs
+                .iter()
+                .map(|e| e.fold().unwrap_or(e.clone()))
+                .collect(),
+            outputs: self.outputs.clone(),
+        }))
+    }
+}
+
 fn print_list<T: fmt::Display>(lst: &[T], f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let print = |t: &Option<&T>, f: &mut fmt::Formatter| {
         if let Some(t) = t {
@@ -231,6 +262,12 @@ impl MaybeCallLike for PicusConstraint {
 impl fmt::Display for PicusConstraint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "(assert {})", self.0)
+    }
+}
+
+impl StmtConstantFolding for PicusConstraint {
+    fn fold(&self) -> Option<PicusStmt> {
+        Some(Wrap::new(Self(self.0.fold().unwrap_or(self.0.clone()))))
     }
 }
 
