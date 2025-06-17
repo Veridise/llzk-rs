@@ -300,7 +300,7 @@ impl<K: OpFolder + Clone + fmt::Display + 'static> ConstantFolding for BinaryExp
         eprintln!("Op {}, rhs after: {}", self.op(), rhs);
 
         self.op()
-            .fold(self.lhs(), self.rhs())
+            .fold(lhs.clone(), rhs.clone())
             .or_else(|| Some(Wrap::new(Self(self.0.clone(), lhs, rhs))))
     }
 }
