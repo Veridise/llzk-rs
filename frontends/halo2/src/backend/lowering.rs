@@ -1,8 +1,9 @@
 use crate::{
     gates::AnyQuery,
     halo2::{
-        AdviceQuery, Challenge, Expression, Field, FixedQuery, InstanceQuery, Selector, Value,
+        AdviceQuery, Challenge, Expression, Field, FixedQuery, Gate, InstanceQuery, Selector, Value,
     },
+    ir::{CircuitStmt, CircuitStmts},
 };
 use anyhow::{bail, Result};
 
@@ -209,6 +210,25 @@ pub trait Lowering {
         queries
             .iter()
             .map(|q| self.lower_any_query(q, resolver))
+            .collect()
+    }
+
+    fn lower_constraints<'c>(
+        &'c self,
+        gate: &Gate<Self::F>,
+        query_resolver: &impl QueryResolver<Self::F>,
+        selector_resolver: &dyn SelectorResolver,
+    ) -> Result<CircuitStmts<Self::CellOutput>> {
+        gate.polynomials()
+            .iter()
+            .map(|lhs| (lhs, Expression::Constant(Self::F::ZERO)))
+            .map(|(lhs, rhs)| {
+                (
+                    self.lower_expr(lhs, query_resolver, selector_resolver),
+                    self.lower_expr(&rhs, query_resolver, selector_resolver),
+                )
+            })
+            .map(|(lhs, rhs)| Ok(CircuitStmt::EqConstraint(lhs?, rhs?)))
             .collect()
     }
 }

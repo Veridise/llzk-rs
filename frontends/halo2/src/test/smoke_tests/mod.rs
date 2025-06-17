@@ -3,10 +3,10 @@ pub mod midnight;
 
 #[macro_export]
 macro_rules! codegen_test {
-    ($c:ty, $b:ty) => {{
+    ($c:ty, $b:ty, $s:expr) => {{
         let circuit = <$c>::default();
         let backend = <$b>::initialize(Default::default());
-        let output = backend.codegen_impl(&circuit);
+        let output = backend.codegen(&circuit, &$s);
 
         output.unwrap()
     }};
@@ -15,13 +15,13 @@ macro_rules! codegen_test {
 #[macro_export]
 macro_rules! mock_codegen_test {
     ($c:ty) => {
-        codegen_test!($c, MockBackend)
+        codegen_test!($c, MockBackend, CallGatesStrat)
     };
 }
 
 #[macro_export]
 macro_rules! picus_codegen_test {
     ($c:ty) => {
-        codegen_test!($c, PicusBackend<Fr>)
+        codegen_test!($c, PicusBackend<Fr>, InlineConstraintsStrat)
     };
 }

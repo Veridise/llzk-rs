@@ -9,6 +9,7 @@ use constraint::{EqConstraint, Graph};
 use regions::{RegionData, RegionRow, Regions};
 
 use crate::{
+    gates::find_gate_selector_set,
     halo2::*,
     io::{AdviceIOValidator, InstanceIOValidator},
     CircuitIO, CircuitWithIO,
@@ -73,6 +74,27 @@ impl<F: Field> CircuitSynthesis<F> {
 
     pub fn constraints<'a>(&'a self) -> Iter<'a, ((Column<Any>, usize), (Column<Any>, usize))> {
         self.eq_constraints.iter()
+    }
+
+    pub fn region_gates<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = (&'a Gate<F>, RegionRow<'a, 'a, F>)> + 'a {
+        self.regions()
+            .iter()
+            .flat_map(|region| {
+                region
+                    .rows()
+                    .map(|row| RegionRow::new(region, row, self.advice_io(), self.instance_io()))
+            })
+            .flat_map(|r| {
+                self.gates().iter().filter_map(move |gate| {
+                    let selectors = find_gate_selector_set(gate.polynomials());
+                    if r.gate_is_disabled(&selectors) {
+                        return None;
+                    }
+                    Some((gate, r))
+                })
+            })
     }
 }
 

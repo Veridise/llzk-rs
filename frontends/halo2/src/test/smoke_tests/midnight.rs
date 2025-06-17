@@ -1,6 +1,6 @@
 use crate::backend::func::{ArgNo, FieldId};
 use crate::backend::picus::PicusBackend;
-use crate::backend::Backend;
+use crate::backend::{Backend, CallGatesStrat, InlineConstraintsStrat};
 use crate::halo2::{Field, Fr};
 use crate::test::fixtures::midnight::fibonacci::FibonacciCircuit;
 use crate::test::fixtures::midnight::mul::MulCircuit;
@@ -33,17 +33,18 @@ fn test_mul_circuit_codegen() {
                     MockExprIR::Neg(4),              // 5  = -b
                     MockExprIR::Sum(3, 5),           // 6  = f * a + (-b)
                     MockExprIR::Product(6, 0),       // 7  = s * (f * a + (-b))
+                    MockExprIR::Const(Fr::ZERO),     // 16 = 0
                     MockExprIR::Arg(ArgNo::from(0)), // 8  = s
                     MockExprIR::Arg(ArgNo::from(1)), // 9  = a
                     MockExprIR::Arg(ArgNo::from(2)), // 10 = b
-                    MockExprIR::Product(10, 9),      // 11 = b * a
+                    MockExprIR::Product(11, 10),     // 11 = b * a
                     MockExprIR::Arg(ArgNo::from(3)), // 12 = c
-                    MockExprIR::Neg(12),             // 13 = -c
-                    MockExprIR::Sum(11, 13),         // 14 = b * a + (-c)
-                    MockExprIR::Product(14, 8),      // 15 = s * (b * a + (-c))
+                    MockExprIR::Neg(13),             // 13 = -c
+                    MockExprIR::Sum(12, 14),         // 14 = b * a + (-c)
+                    MockExprIR::Product(15, 9),      // 15 = s * (b * a + (-c))
                     MockExprIR::Const(Fr::ZERO),     // 16 = 0
-                    MockExprIR::Constraint(7, 16),   // 17
-                    MockExprIR::Constraint(15, 16)   // 18
+                    MockExprIR::Constraint(7, 8),    // 17
+                    MockExprIR::Constraint(16, 17)   // 18
                 ]
             }],
             main: Some(MockFunc {
@@ -85,13 +86,3 @@ fn test_fibonacci_circuit_picus_codegen() {
     let output = picus_codegen_test!(FibonacciCircuit<Fr>);
     println!("{output}");
 }
-
-//#[test]
-//fn test_mul_circuit_llzk_codegen() {
-//    smoke_test!(MulCircuit<Fr>, LLZKBackend);
-//}
-//
-//#[test]
-//fn test_fibonacci_circuit_llzk_codegen() {
-//    smoke_test!(FibonacciCircuit<Fr>, LLZKBackend);
-//}

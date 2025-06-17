@@ -86,8 +86,125 @@ impl SelectorResolver for GateScopedResolver<'_> {
     }
 }
 
+pub trait CodegenStrategy {
+    fn codegen<'c, F, P, O, B>(&self, backend: &'c B, syn: &CircuitSynthesis<F>) -> Result<()>
+    where
+        F: Field,
+        P: Default,
+        B: Backend<'c, P, O, F = F>;
+
+    fn inter_region_constraints<'c, F, L>(
+        &self,
+        scope: &'c L,
+        syn: &'c CircuitSynthesis<F>,
+    ) -> impl Iterator<Item = Result<CircuitStmt<L::CellOutput>>> + 'c
+    where
+        F: Field,
+        L: Lowering<F = F>,
+    {
+        let lower_cell = |(col, row): &(Column<Any>, usize)| -> Result<Value<L::CellOutput>> {
+            let q = col.query_cell::<L::F>(Rotation::cur());
+            let row = Row::new(*row, syn.advice_io(), syn.instance_io());
+            scope.lower_expr(&q, &row, &row)
+        };
+        let mut constraints = syn.constraints().collect::<Vec<_>>();
+        constraints.sort();
+        constraints.into_iter().map(move |(from, to)| {
+            Ok(CircuitStmt::EqConstraint(
+                lower_cell(from)?,
+                lower_cell(to)?,
+            ))
+        })
+    }
+}
+
+pub struct CallGatesStrat;
+
+impl CallGatesStrat {
+    fn create_call_stmt<F, L>(
+        &self,
+        scope: &L,
+        name: &str,
+        selectors: Vec<&Selector>,
+        queries: Vec<AnyQuery>,
+        r: &RegionRow<F>,
+    ) -> Result<CircuitStmt<L::CellOutput>>
+    where
+        F: Field,
+        L: Lowering<F = F>,
+    {
+        Ok(CircuitStmt::ConstraintCall(
+            name.to_owned(),
+            scope.lower_selectors(&selectors, r)?,
+            scope.lower_any_queries(&queries, r)?,
+        ))
+    }
+
+    fn define_gate<'c, F, P, O, B>(&self, backend: &'c B, gate: &Gate<F>) -> Result<()>
+    where
+        F: Field,
+        P: Default,
+        B: Backend<'c, P, O, F = F>,
+    {
+        let (selectors, queries) = compute_gate_arity(gate.polynomials());
+        let scope = backend.define_gate_function(gate.name(), &selectors, &queries)?;
+
+        let resolver = GateScopedResolver {
+            selectors: &selectors,
+            queries: &queries,
+        };
+        let stmts = scope.lower_constraints(gate, &resolver, &resolver)?;
+        backend.lower_stmts(&scope, stmts)
+    }
+}
+
+impl CodegenStrategy for CallGatesStrat {
+    fn codegen<'c, F, P, O, B>(&self, backend: &'c B, syn: &CircuitSynthesis<F>) -> Result<()>
+    where
+        F: Field,
+        P: Default,
+        B: Backend<'c, P, O, F = F>,
+    {
+        for gate in syn.gates() {
+            self.define_gate(backend, gate)?;
+        }
+
+        backend.within_main(syn.advice_io(), syn.instance_io(), |scope| {
+            let calls = syn.region_gates().map(|(gate, r)| {
+                let (selectors, queries) = compute_gate_arity(gate.polynomials());
+                self.create_call_stmt(scope, gate.name(), selectors, queries, &r)
+            });
+
+            calls
+                .chain(self.inter_region_constraints(scope, &syn))
+                .collect::<Result<Vec<_>>>()
+        })
+    }
+}
+
+pub struct InlineConstraintsStrat;
+
+impl CodegenStrategy for InlineConstraintsStrat {
+    fn codegen<'c, F, P, O, B>(&self, backend: &'c B, syn: &CircuitSynthesis<F>) -> Result<()>
+    where
+        F: Field,
+        P: Default,
+        B: Backend<'c, P, O, F = F>,
+    {
+        backend.within_main(syn.advice_io(), syn.instance_io(), |scope| {
+            let constraints = syn
+                .region_gates()
+                .flat_map(|(gate, r)| scope.lower_constraints(gate, &r, &r));
+
+            self.inter_region_constraints(scope, &syn)
+                .chain(constraints.flat_map(|c| c).map(Ok))
+                .collect::<Result<Vec<_>>>()
+        })
+    }
+}
+
 pub trait Backend<'c, Params: Default, Output>: Sized {
-    type FuncOutput: Lowering< F = Self::F> + Clone;
+    type FuncOutput: Lowering<F = Self::F> + Clone;
     type F: Field;
 
     fn initialize(params: Params) -> Self;
@@ -113,20 +230,21 @@ pub trait Backend<'c, Params: Default, Output>: Sized {
         Self::FuncOutput: 'f,
         'c: 'f;
 
-    fn define_gate(&'c self, gate: &Gate<Self::F>) -> Result<()> {
-        let (selectors, queries) = compute_gate_arity(gate.polynomials());
-        let scope = self.define_gate_function(gate.name(), &selectors, &queries)?;
-
-        let resolver = GateScopedResolver {
-            selectors: &selectors,
-            queries: &queries,
-        };
-        let exprs = scope.lower_exprs(gate.polynomials(), &resolver, &resolver)?;
-        let zero = scope.lower_expr(&Expression::Constant(Self::F::ZERO), &resolver, &resolver)?;
-        for expr in exprs {
-            scope.checked_generate_constraint(&expr, &zero)?;
+    fn lower_stmts(
+        &'c self,
+        scope: &Self::FuncOutput,
+        stmts: CircuitStmts<<Self::FuncOutput as Lowering>::CellOutput>,
+    ) -> Result<()> {
+        for stmt in stmts {
+            match stmt {
+                CircuitStmt::ConstraintCall(name, selectors, queries) => {
+                    scope.generate_call(&name, &selectors, &queries)?;
+                }
+                CircuitStmt::EqConstraint(lhs, rhs) => {
+                    scope.checked_generate_constraint(&lhs, &rhs)?;
+                }
+            };
         }
-
         Ok(())
     }
 
@@ -142,102 +260,18 @@ pub trait Backend<'c, Params: Default, Output>: Sized {
         ) -> Result<CircuitStmts<<Self::FuncOutput as Lowering>::CellOutput>>,
     {
         let main = self.define_main_function(advice_io, instance_io)?;
-        for stmt in f(&main)? {
-            match stmt {
-                CircuitStmt::ConstraintCall(name, selectors, queries) => {
-                    main.generate_call(&name, &selectors, &queries)?;
-                }
-                CircuitStmt::EqConstraint(lhs, rhs) => {
-                    main.checked_generate_constraint(&lhs, &rhs)?;
-                }
-            };
-        }
-
-        Ok(())
+        let stmts = f(&main)?;
+        self.lower_stmts(&main, stmts)
     }
 
-    /// Generate code using the given backend. This function is made pub(crate) to give the option of
-    /// injecting mock backends for testing.
-    fn codegen_impl<C>(&'c self, circuit: &C) -> Result<Output>
+    /// Generate code using the given strategy.
+    fn codegen<C, S>(&'c self, circuit: &C, strat: &S) -> Result<Output>
     where
         C: CircuitWithIO<Self::F>,
+        S: CodegenStrategy,
     {
         let syn = CircuitSynthesis::new(circuit)?;
-        for gate in syn.gates() {
-            self.define_gate(gate)?;
-        }
-
-        self.within_main(syn.advice_io(), syn.instance_io(), |scope| {
-            let create_call_stmt = |name: &str,
-                                    selectors: Vec<&Selector>,
-                                    queries: Vec<AnyQuery>,
-                                    r: &RegionRow<Self::F>| -> Result<CircuitStmt<<Self::FuncOutput as Lowering>::CellOutput>> {
-                Ok(CircuitStmt::ConstraintCall(
-                    name.to_owned(),
-                    scope.lower_selectors(&selectors, r)?,
-                    scope.lower_any_queries(&queries, r)?,
-                ))
-            };
-
-            let lower_gate_call = |gate: &Gate<Self::F>, r: &RegionRow<Self::F>| {
-                let (selectors, queries) = compute_gate_arity(gate.polynomials());
-                if r.gate_is_disabled(&selectors) {
-                    return None;
-                }
-
-                Some(create_call_stmt(gate.name(), selectors, queries, r))
-            };
-
-            let lower_cell =
-                |(col, row): &(Column<Any>, usize)| -> Result<Value<<Self::FuncOutput as Lowering>::CellOutput>> {
-                    let q = col.query_cell::<Self::F>(Rotation::cur());
-                    let row = Row::new(*row, syn.advice_io(), syn.instance_io());
-                    scope.lower_expr(&q, &row, &row)
-                };
-
-            
-
-            let calls = syn
-                .regions()
-                .iter()
-                .flat_map(|region| {
-                    region
-                        .rows()
-                        .map(|row| {
-                            RegionRow::new(region, row, syn.advice_io(), syn.instance_io())})
-                })
-                .flat_map(|r| {
-                    syn.gates()
-                        .iter()
-                        .filter_map(move |gate| lower_gate_call(gate, &r))
-                });
-
-            let mut constraints = syn.constraints().collect::<Vec<_>>();
-    constraints.sort();
-            let constraints = constraints.into_iter().map(|(from, to)| {
-                    Ok(CircuitStmt::EqConstraint(
-                        lower_cell(from)?,
-                        lower_cell(to)?,
-                    ))
-                });
-            
-            calls.chain(constraints)
-                .collect::<Result<Vec<_>>>()
-        })?;
-        // General idea:
-        //  - For each gate generate modules that execute the constraints defined by their polynomials.
-        //  - Then, create a '@Main' struct that has the rest of the circuit's logic.
-        //      - Each input advice is an argument of the struct.
-        //      - Each output advice is a field of the struct.
-        //      - Each input instance is an argument of the struct with the pub attribute.
-        //      - Each output instance is a field of the struct with the pub attribute.
-        //      - Every advice that is neither an input or an output needs to be handled differently.
-        //          - Fields? Probably the easiest way but they then get mixed up with the outputs.
-        //          - Mark the others as columns to differentiate?
-        //      - For each region find what selectors are enabled and create calls to the gate's module
-        //  with the required arguments.
-        //      - For each permutation pair create a constraint between the two elements.
-        //
+        strat.codegen(self, &syn)?;
         self.generate_output()
     }
 }

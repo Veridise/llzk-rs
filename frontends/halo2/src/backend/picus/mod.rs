@@ -21,11 +21,43 @@ pub use output::PicusOutput;
 
 pub struct PicusParams {
     expr_cutoff: usize,
+    entrypoint: String,
+}
+
+impl PicusParams {
+    pub fn builder() -> PicusParamsBuilder {
+        PicusParamsBuilder(Default::default())
+    }
+}
+
+pub struct PicusParamsBuilder(PicusParams);
+
+impl PicusParamsBuilder {
+    pub fn expr_cutoff(self, expr_cutoff: usize) -> Self {
+        let mut p = self.0;
+        p.expr_cutoff = expr_cutoff;
+        Self(p)
+    }
+
+    pub fn extrypoint(self, name: &str) -> Self {
+        let mut p = self.0;
+        p.entrypoint = name.to_owned();
+        Self(p)
+    }
+}
+
+impl Into<PicusParams> for PicusParamsBuilder {
+    fn into(self) -> PicusParams {
+        self.0
+    }
 }
 
 impl Default for PicusParams {
     fn default() -> Self {
-        Self { expr_cutoff: 10 }
+        Self {
+            expr_cutoff: 10,
+            entrypoint: "Main".to_owned(),
+        }
     }
 }
 
@@ -79,7 +111,7 @@ impl<'c, F: Field> Backend<'c, PicusParams, PicusOutput<F>> for PicusBackend<F> 
         'c: 'f,
     {
         let module = PicusModule::shared(
-            "Main".to_owned(),
+            self.params.entrypoint.clone(),
             instance_io.inputs().len() + advice_io.inputs().len(),
             instance_io.outputs().len() + advice_io.outputs().len(),
         );

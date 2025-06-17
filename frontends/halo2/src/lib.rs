@@ -6,6 +6,7 @@ use crate::halo2::{
 };
 use anyhow::{bail, Result};
 use backend::picus::PicusBackend;
+use backend::InlineConstraintsStrat;
 use backend::{lowering::Lowering, Backend};
 use gates::compute_gate_arity;
 use ir::CircuitStmt;
@@ -32,7 +33,7 @@ where
     C: CircuitWithIO<F>,
 {
     let backend = PicusBackend::initialize(params);
-    backend.codegen_impl(circuit)
+    backend.codegen(circuit, &InlineConstraintsStrat)
 }
 
 pub fn picus_codegen<F, C>(circuit: &C) -> Result<PicusOutput<F>>

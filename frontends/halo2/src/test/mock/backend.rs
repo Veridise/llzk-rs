@@ -9,6 +9,7 @@ use crate::{
 use std::{
     cell::{Ref, RefCell},
     collections::{HashMap, HashSet},
+    fmt,
     marker::PhantomData,
     ops::Deref,
     rc::Rc,
@@ -40,15 +41,28 @@ pub struct MockContext {
     gate_names: HashSet<String>,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Eq, PartialEq)]
 pub struct MockOutput {
     pub gates: Vec<MockFunc>,
     pub main: Option<MockFunc>,
 }
 
+impl fmt::Debug for MockOutput {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for gate in &self.gates {
+            writeln!(f, "{gate:?}")?;
+        }
+        if let Some(main) = &self.main {
+            writeln!(f, "{main:?}")
+        } else {
+            writeln!(f, "// No main function")
+        }
+    }
+}
+
 pub struct MockBackend(RefCell<MockContext>);
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum MockExprIR {
     Arg(ArgNo),
     Field(FieldId),
@@ -62,12 +76,67 @@ pub enum MockExprIR {
     Call(String, Vec<usize>),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+impl fmt::Debug for MockExprIR {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MockExprIR::Arg(arg_no) => write!(f, "arg{arg_no}"),
+            MockExprIR::Field(field_id) => write!(f, "field{field_id}"),
+            MockExprIR::Sum(lhs, rhs) => write!(f, "t{lhs} + t{rhs}"),
+            MockExprIR::Product(lhs, rhs) => write!(f, "t{lhs} * t{rhs}"),
+            MockExprIR::Neg(e) => write!(f, "-t{e}"),
+            MockExprIR::Scaled(lhs, rhs) => write!(f, "t{lhs} * t{rhs}"),
+            MockExprIR::Const(fp) => write!(f, "{fp:?}"),
+            MockExprIR::Temp(col, row) => write!(f, "temp({col}, {row})"),
+            MockExprIR::Constraint(lhs, rhs) => write!(f, "t{lhs} == t{rhs}"),
+            MockExprIR::Call(name, items) => {
+                write!(f, "{name}(")?;
+                let mut it = items.iter();
+                if let Some(e) = it.next() {
+                    write!(f, "t{e}")?;
+                    for e in it {
+                        write!(f, ", t{e}")?;
+                    }
+                }
+                write!(f, ")")
+            }
+        }
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
 pub struct MockFunc {
     pub name: String,
     pub args: Vec<ArgNo>,
     pub fields: Vec<FieldId>,
     pub exprs: Vec<MockExprIR>,
+}
+
+impl fmt::Debug for MockFunc {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "func {}(", self.name)?;
+        let mut arg_it = self.args.iter();
+        if let Some(arg) = arg_it.next() {
+            write!(f, "arg{}", arg)?;
+            arg_it
+                .map(|arg| write!(f, ", arg{}", arg))
+                .collect::<fmt::Result>()?;
+        }
+        write!(f, ")")?;
+        let mut field_it = self.fields.iter();
+        if let Some(field) = field_it.next() {
+            write!(f, " -> (field{}", field)?;
+            field_it
+                .map(|field| write!(f, ", field{}", field))
+                .collect::<fmt::Result>()?;
+            write!(f, ")")?;
+        }
+        writeln!(f, " {{")?;
+        for (idx, expr) in self.exprs.iter().enumerate() {
+            writeln!(f, "  t{idx} := {expr:?};")?;
+        }
+
+        writeln!(f, "}}")
+    }
 }
 
 impl MockFunc {

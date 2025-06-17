@@ -124,7 +124,7 @@ impl<F: Default + Clone> Regions<F> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct Row<'io> {
     row: usize,
     advice_io: &'io CircuitIO<Advice>,
@@ -227,7 +227,7 @@ impl SelectorResolver for Row<'_> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct RegionRow<'r, 'io, F: Field> {
     region: &'r RegionData<F>,
     row: Row<'io>,
@@ -254,9 +254,8 @@ impl<'r, 'io, F: Field> RegionRow<'r, 'io, F> {
     }
 
     #[inline]
-    pub fn gate_is_disabled(&self, selectors: &[&Selector]) -> bool {
-        self.enabled()
-            .is_disjoint(&selectors.iter().map(|s| *s).collect())
+    pub fn gate_is_disabled(&self, selectors: &HashSet<&Selector>) -> bool {
+        self.enabled().is_disjoint(selectors)
     }
 }
 
