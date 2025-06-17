@@ -191,9 +191,12 @@ impl BinaryOp {
     }
 
     fn fold_mul(&self, lhs: PicusExpr, rhs: PicusExpr) -> Option<PicusExpr> {
-        if let Some(lhs) = lhs.as_const() {
-            if lhs.is_one() {
+        if let Some(lhs_c) = lhs.as_const() {
+            if lhs_c.is_one() {
                 return Some(rhs);
+            }
+            if lhs_c.is_zero() {
+                return Some(lhs);
             }
         }
         None
