@@ -193,9 +193,7 @@ impl PicusModule {
         self.stmts = self
             .stmts()
             .iter()
-            .inspect(|s| eprintln!("Before: {s}"))
             .map(|s| s.fold().unwrap_or(s.clone()))
-            .inspect(|s| eprintln!("After: {s}"))
             .collect();
     }
 
