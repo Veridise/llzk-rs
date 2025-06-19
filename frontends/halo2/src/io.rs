@@ -124,7 +124,7 @@ impl<'a, F: Field> InstanceIOValidator<'a, F> {
     ) -> Result<()> {
         let inputs = self.column_set(inputs);
         let outputs = self.column_set(outputs);
-        let union = inputs.union(&outputs);
+        let union = inputs.union(&outputs).count();
         let n_queried = self
             .0
             .instance_queries()
@@ -132,9 +132,11 @@ impl<'a, F: Field> InstanceIOValidator<'a, F> {
             .map(|(c, _)| c.index())
             .collect::<HashSet<_>>()
             .len();
-        if union.count() != n_queried {
+        if union != n_queried {
             bail!(
-                "The number of IO instance columns is not equal to the number of queried instance columns in the constraint system"
+                "The number of IO instance columns is not equal to the number of queried instance columns in the constraint system. {} != {}",
+                union,
+                n_queried
             );
         }
         Ok(())
