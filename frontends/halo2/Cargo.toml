@@ -12,6 +12,7 @@ anyhow = "^1"
 group = "0.13"
 ff = "0.13"
 rug = "1.27.0"
+rand = "0.8.5"
 
 # Different halo2 implementations
 [dependencies.axiom_halo2_proofs]

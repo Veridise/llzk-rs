@@ -56,6 +56,13 @@ where
     Wrap::new(VarExpr(allocator.allocate(kind)))
 }
 
+pub fn lifted_input<A>(allocator: &A) -> PicusExpr
+where
+    A: VarAllocator,
+{
+    Wrap::new(VarExpr(allocator.allocate_lifted_input()))
+}
+
 fn binop<K: Clone + fmt::Display + OpFolder + 'static>(
     kind: K,
     lhs: &PicusExpr,

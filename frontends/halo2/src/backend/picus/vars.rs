@@ -16,6 +16,15 @@ impl From<VarKey> for VarStr {
         match value {
             VarKey::IO(func_io) => func_io.into(),
             VarKey::Temp(n) => format!("temp_{n}").into(),
+            VarKey::Lifted(f) => format!(
+                "lifted_{}",
+                match f {
+                    FuncIO::Arg(arg_no) => format!("{arg_no}"),
+                    FuncIO::Field(field_id) => format!("{field_id}"),
+                    FuncIO::Temp(c, r) => format!("{c}_{r}"),
+                }
+            )
+            .into(),
         }
     }
 }
@@ -54,6 +63,8 @@ pub trait VarAllocator {
     fn allocate<K: Into<Self::Kind>>(&self, kind: K) -> VarStr;
 
     fn allocate_temp(&self) -> VarStr;
+
+    fn allocate_lifted_input(&self) -> VarStr;
 }
 
 pub trait VarIO {
@@ -65,6 +76,7 @@ pub trait VarIO {
 pub enum VarKey {
     IO(FuncIO),
     Temp(usize),
+    Lifted(FuncIO),
 }
 
 impl VarIO for VarKey {
@@ -74,6 +86,7 @@ impl VarIO for VarKey {
                 FuncIO::Arg(_) => true,
                 _ => false,
             },
+            VarKey::Lifted(FuncIO::Arg(_)) => true,
             _ => false,
         }
     }
@@ -84,6 +97,7 @@ impl VarIO for VarKey {
                 FuncIO::Field(_) => true,
                 _ => false,
             },
+            VarKey::Lifted(FuncIO::Field(_)) => true,
             _ => false,
         }
     }

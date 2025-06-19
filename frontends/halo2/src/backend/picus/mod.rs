@@ -22,6 +22,7 @@ pub use output::PicusOutput;
 pub struct PicusParams {
     expr_cutoff: usize,
     entrypoint: String,
+    lift_fixed: bool,
 }
 
 impl PicusParams {
@@ -48,6 +49,18 @@ impl PicusParamsBuilder {
         p.entrypoint = name.to_owned();
         Self(p)
     }
+
+    pub fn lift_fixed(self) -> Self {
+        let mut p = self.0;
+        p.lift_fixed = true;
+        Self(p)
+    }
+
+    pub fn no_lift_fixed(self) -> Self {
+        let mut p = self.0;
+        p.lift_fixed = false;
+        Self(p)
+    }
 }
 
 impl Into<PicusParams> for PicusParamsBuilder {
@@ -61,6 +74,7 @@ impl Default for PicusParams {
         Self {
             expr_cutoff: 10,
             entrypoint: "Main".to_owned(),
+            lift_fixed: false,
         }
     }
 }
@@ -103,7 +117,12 @@ impl<'c, F: Field> Backend<'c, PicusParams, PicusOutput<F>> for PicusBackend<F> 
         Self::FuncOutput: 'f,
         'c: 'f,
     {
-        let module = PicusModule::shared(name.to_owned(), selectors.len() + queries.len(), 0);
+        let module = PicusModule::shared(
+            name.to_owned(),
+            selectors.len() + queries.len(),
+            0,
+            self.params.lift_fixed,
+        );
         self.modules.borrow_mut().push(module.clone());
         Ok(Self::FuncOutput::from(module))
     }
@@ -121,6 +140,7 @@ impl<'c, F: Field> Backend<'c, PicusParams, PicusOutput<F>> for PicusBackend<F> 
             self.params.entrypoint.clone(),
             instance_io.inputs().len() + advice_io.inputs().len(),
             instance_io.outputs().len() + advice_io.outputs().len(),
+            self.params.lift_fixed,
         );
         self.modules.borrow_mut().push(module.clone());
         Ok(Self::FuncOutput::from(module))

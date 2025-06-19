@@ -87,7 +87,8 @@ pub fn load_llzk_dialects<Ctx: AsRef<MlirContext>>(ctx: &Ctx) {
         llzkRegisterAllDialects(registry);
         mlirContextAppendDialectRegistry(ctx, registry);
 
-        mlirContextLoadAllAvailableDialects(ctx)
+        mlirContextLoadAllAvailableDialects(ctx);
+        mlirDialectRegistryDestroy(registry);
     }
 }
 

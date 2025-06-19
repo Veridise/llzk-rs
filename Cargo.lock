@@ -560,6 +560,7 @@ dependencies = [
  "llzk-sys",
  "melior",
  "mlir-sys",
+ "rand",
  "rug",
 ]
 

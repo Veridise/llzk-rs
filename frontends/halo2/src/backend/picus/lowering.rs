@@ -51,7 +51,13 @@ impl<'a, F: Field> PicusModuleLowering<F> {
 
     fn lower_resolved_query(&self, query: ResolvedQuery<F>) -> Result<Value<PicusExpr>> {
         Ok(match query {
-            ResolvedQuery::Lit(value) => value.map(expr::r#const),
+            ResolvedQuery::Lit(value) => {
+                if self.module.borrow().lift_fixed() {
+                    Value::known(expr::lifted_input(self))
+                } else {
+                    value.map(expr::r#const)
+                }
+            }
             ResolvedQuery::IO(func_io) => Value::known(expr::var(self, func_io)),
         })
     }
@@ -217,5 +223,10 @@ impl<F> VarAllocator for PicusModuleLowering<F> {
     fn allocate_temp(&self) -> VarStr {
         let mut module = self.module.borrow_mut();
         module.add_var(None)
+    }
+
+    fn allocate_lifted_input(&self) -> VarStr {
+        let mut module = self.module.borrow_mut();
+        module.add_lifted_input()
     }
 }

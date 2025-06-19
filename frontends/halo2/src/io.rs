@@ -114,9 +114,9 @@ impl<'a, F: Field> InstanceIOValidator<'a, F> {
         Self(cs)
     }
 
-    /// Validates that the size of the union of the columns set is equal to the number of instance columns.
+    /// Validates that the size of the union of the columns set is equal to
+    /// the number of queried instance columns.
     /// Assumes that the given sets are disjoint.
-    /// TODO: Can we validate this property with the instance_queries method?
     fn validate_union_invariant(
         &self,
         inputs: &HashSet<IOCell<<InstanceIOValidator<'_, F> as IOValidator>::C>>,
@@ -125,9 +125,16 @@ impl<'a, F: Field> InstanceIOValidator<'a, F> {
         let inputs = self.column_set(inputs);
         let outputs = self.column_set(outputs);
         let union = inputs.union(&outputs);
-        if union.count() != self.0.num_instance_columns() {
+        let n_queried = self
+            .0
+            .instance_queries()
+            .iter()
+            .map(|(c, _)| c.index())
+            .collect::<HashSet<_>>()
+            .len();
+        if union.count() != n_queried {
             bail!(
-                "The number of IO instance columns is not equal to the number of instance columns in the constraint system"
+                "The number of IO instance columns is not equal to the number of queried instance columns in the constraint system"
             );
         }
         Ok(())
