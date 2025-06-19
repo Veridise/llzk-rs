@@ -6,7 +6,7 @@ use std::{
 
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 
-use crate::halo2::{Field, Value};
+use crate::halo2::{Field, PrimeField, Value};
 
 /// IR for operations that occur in the main circuit.
 pub enum CircuitStmt<T> {
@@ -47,7 +47,7 @@ impl<F: Add<Output = F>> Add for Lift<F> {
 
     fn add(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Lift::Const(lhs), Lift::Const(rhs)) => (lhs + rhs).into(),
+            (Lift::Const(lhs), Lift::Const(rhs)) => Self::Const(lhs + rhs),
             _ => Lift::Unk,
         }
     }
@@ -58,7 +58,7 @@ impl<F: Sub<Output = F>> Sub for Lift<F> {
 
     fn sub(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Lift::Const(lhs), Lift::Const(rhs)) => (lhs - rhs).into(),
+            (Lift::Const(lhs), Lift::Const(rhs)) => Self::Const(lhs - rhs),
             _ => Lift::Unk,
         }
     }
@@ -69,7 +69,7 @@ impl<F: Mul<Output = F>> Mul for Lift<F> {
 
     fn mul(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Lift::Const(lhs), Lift::Const(rhs)) => (lhs * rhs).into(),
+            (Lift::Const(lhs), Lift::Const(rhs)) => Self::Const(lhs * rhs),
             _ => Lift::Unk,
         }
     }
@@ -184,7 +184,7 @@ impl<'a, F: Add<&'a F, Output = F>> Add<&'a Self> for Lift<F> {
 
     fn add(self, rhs: &'a Self) -> Self::Output {
         match (self, rhs) {
-            (Lift::Const(lhs), Lift::Const(rhs)) => (lhs + rhs).into(),
+            (Lift::Const(lhs), Lift::Const(rhs)) => Self::Const(lhs + rhs),
             _ => Lift::Unk,
         }
     }
@@ -195,7 +195,7 @@ impl<'a, F: Sub<&'a F, Output = F>> Sub<&'a Self> for Lift<F> {
 
     fn sub(self, rhs: &'a Self) -> Self::Output {
         match (self, rhs) {
-            (Lift::Const(lhs), Lift::Const(rhs)) => (lhs - rhs).into(),
+            (Lift::Const(lhs), Lift::Const(rhs)) => Self::Const(lhs - rhs),
             _ => Lift::Unk,
         }
     }
@@ -206,7 +206,7 @@ impl<'a, F: Mul<&'a F, Output = F>> Mul<&'a Self> for Lift<F> {
 
     fn mul(self, rhs: &'a Self) -> Self::Output {
         match (self, rhs) {
-            (Lift::Const(lhs), Lift::Const(rhs)) => (lhs * rhs).into(),
+            (Lift::Const(lhs), Lift::Const(rhs)) => Self::Const(lhs * rhs),
             _ => Lift::Unk,
         }
     }
@@ -221,7 +221,7 @@ impl<F: Default> Default for Lift<F> {
 impl<F: ConditionallySelectable> ConditionallySelectable for Lift<F> {
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         match (a, b) {
-            (Lift::Const(a), Lift::Const(b)) => F::conditional_select(a, b, choice).into(),
+            (Lift::Const(a), Lift::Const(b)) => Self::Const(F::conditional_select(a, b, choice)),
             _ => Lift::Unk,
         }
     }
@@ -313,12 +313,6 @@ impl<F> From<Option<F>> for Lift<F> {
     }
 }
 
-impl<F> From<F> for Lift<F> {
-    fn from(f: F) -> Self {
-        Self::Const(f)
-    }
-}
-
 impl<F: Field> Field for Lift<F> {
     const ZERO: Self = Self::Const(F::ZERO);
 
@@ -338,7 +332,7 @@ impl<F: Field> Field for Lift<F> {
 
     fn invert(&self) -> CtOption<Self> {
         match self.as_const().map(|f| f.invert()) {
-            Some(f) => f.map(From::from),
+            Some(f) => f.map(Self::Const),
             None => CtOption::new(self.clone(), 1.into()),
         }
     }
@@ -347,9 +341,100 @@ impl<F: Field> Field for Lift<F> {
         match (num, div) {
             (Lift::Const(num), Lift::Const(div)) => {
                 let (c, s) = F::sqrt_ratio(num, div);
-                (c, s.into())
+                (c, Self::Const(s))
             }
             _ => (1.into(), Lift::Unk),
         }
     }
+}
+
+#[derive(Copy, Clone, Default)]
+pub struct LiftRepr<F: PrimeField> {
+    tag: [u8; 1],
+    inner: Option<F::Repr>,
+}
+
+impl<F: PrimeField> AsRef<[u8]> for LiftRepr<F> {
+    fn as_ref(&self) -> &[u8] {
+        self.inner
+            .as_ref()
+            .map(|i| i.as_ref())
+            .unwrap_or_else(|| &self.tag)
+    }
+}
+
+impl<F: PrimeField> AsMut<[u8]> for LiftRepr<F> {
+    fn as_mut(&mut self) -> &mut [u8] {
+        self.inner
+            .as_mut()
+            .map(|i| i.as_mut())
+            .unwrap_or_else(|| &mut self.tag)
+    }
+}
+
+impl<F: From<u64>> From<u64> for Lift<F> {
+    fn from(value: u64) -> Self {
+        Self::Const(value.into())
+    }
+}
+
+impl<F: PrimeField> PrimeField for Lift<F> {
+    type Repr = LiftRepr<F>;
+
+    fn from_repr(repr: Self::Repr) -> CtOption<Self> {
+        match repr {
+            LiftRepr { inner: Some(r), .. } => F::from_repr(r).map(Self::Const),
+            LiftRepr {
+                inner: None,
+                tag: [1],
+            } => CtOption::new(Lift::Unk, 1.into()),
+            LiftRepr {
+                inner: None,
+                tag: [2],
+            } => CtOption::new(Lift::Lift, 1.into()),
+            _ => CtOption::new(Lift::Unk, 0.into()),
+        }
+    }
+
+    fn to_repr(&self) -> Self::Repr {
+        match self {
+            Lift::Unk => Self::Repr {
+                tag: [1],
+                inner: None,
+            },
+            Lift::Lift => Self::Repr {
+                tag: [2],
+                inner: None,
+            },
+            Lift::Const(f) => Self::Repr {
+                tag: [0],
+                inner: Some(f.to_repr()),
+            },
+        }
+    }
+
+    fn is_odd(&self) -> Choice {
+        match self {
+            Lift::Const(f) => f.is_odd(),
+            _ => 0.into(),
+        }
+    }
+
+    const MODULUS: &'static str = F::MODULUS;
+
+    const NUM_BITS: u32 = F::NUM_BITS;
+
+    const CAPACITY: u32 = F::CAPACITY;
+
+    const TWO_INV: Self = Self::Const(F::TWO_INV);
+
+    const MULTIPLICATIVE_GENERATOR: Self = Self::Const(F::MULTIPLICATIVE_GENERATOR);
+
+    const S: u32 = F::S;
+
+    const ROOT_OF_UNITY: Self = Self::Const(F::ROOT_OF_UNITY);
+
+    const ROOT_OF_UNITY_INV: Self = Self::Const(F::ROOT_OF_UNITY_INV);
+
+    const DELTA: Self = Self::Const(F::DELTA);
 }
