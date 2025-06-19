@@ -562,6 +562,7 @@ dependencies = [
  "mlir-sys",
  "rand",
  "rug",
+ "subtle",
 ]
 
 [[package]]

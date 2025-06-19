@@ -6,6 +6,7 @@ use crate::backend::func::FuncIO;
 use crate::backend::lowering::Lowering;
 use crate::backend::resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver};
 use crate::halo2::{AdviceQuery, Challenge, Field, FixedQuery, InstanceQuery, Selector, Value};
+use crate::ir::Lift;
 use crate::value::{steal, steal_many};
 use anyhow::{anyhow, Result};
 use std::cell::RefCell;
@@ -49,15 +50,15 @@ impl<'a, F: Field> PicusModuleLowering<F> {
         Ok(expr.clone().map(|e| f(&e)))
     }
 
-    fn lower_resolved_query(&self, query: ResolvedQuery<F>) -> Result<Value<PicusExpr>> {
+    fn lower_resolved_query(&self, query: ResolvedQuery<Lift<F>>) -> Result<Value<PicusExpr>> {
         Ok(match query {
-            ResolvedQuery::Lit(value) => {
-                if self.module.borrow().lift_fixed() {
-                    Value::known(expr::lifted_input(self))
+            ResolvedQuery::Lit(value) => value.map(|value| {
+                if self.module.borrow().lift_fixed() && value.is_lift() {
+                    expr::lifted_input(self)
                 } else {
-                    value.map(expr::r#const)
+                    expr::r#const(value)
                 }
-            }
+            }),
             ResolvedQuery::IO(func_io) => Value::known(expr::var(self, func_io)),
         })
     }
@@ -66,7 +67,7 @@ impl<'a, F: Field> PicusModuleLowering<F> {
 impl<F: Field> Lowering for PicusModuleLowering<F> {
     type CellOutput = PicusExpr;
 
-    type F = F;
+    type F = Lift<F>;
 
     fn generate_constraint(
         &self,

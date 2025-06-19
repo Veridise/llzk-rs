@@ -1,5 +1,3 @@
-use std::fmt;
-
 use crate::halo2::Field;
 use anyhow::Result;
 use backend::picus::PicusBackend;
@@ -20,20 +18,24 @@ pub use backend::picus::PicusOutput;
 pub use backend::picus::PicusParams;
 pub use backend::picus::PicusParamsBuilder;
 pub use io::{CircuitIO, CircuitWithIO};
+pub use ir::Lift;
 
-pub fn picus_codegen_with_params<F, C>(circuit: &C, params: PicusParams) -> Result<PicusOutput<F>>
+pub fn picus_codegen_with_params<F, C>(
+    circuit: &C,
+    params: PicusParams,
+) -> Result<PicusOutput<Lift<F>>>
 where
     F: Field,
-    C: CircuitWithIO<F>,
+    C: CircuitWithIO<Lift<F>>,
 {
     let backend = PicusBackend::initialize(params);
     backend.codegen(circuit, &InlineConstraintsStrat)
 }
 
-pub fn picus_codegen<F, C>(circuit: &C) -> Result<PicusOutput<F>>
+pub fn picus_codegen<F, C>(circuit: &C) -> Result<PicusOutput<Lift<F>>>
 where
     F: Field,
-    C: CircuitWithIO<F>,
+    C: CircuitWithIO<Lift<F>>,
 {
     picus_codegen_with_params(circuit, Default::default())
 }

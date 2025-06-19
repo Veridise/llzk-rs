@@ -4,6 +4,7 @@ use super::Backend;
 use crate::{
     gates::AnyQuery,
     halo2::{Advice, Field, Instance, Selector},
+    ir::Lift,
     CircuitIO,
 };
 use anyhow::Result;
@@ -50,15 +51,15 @@ impl PicusParamsBuilder {
         Self(p)
     }
 
-    pub fn lift_fixed(self) -> Self {
-        let mut p = self.0;
-        p.lift_fixed = true;
-        Self(p)
-    }
-
     pub fn no_lift_fixed(self) -> Self {
         let mut p = self.0;
         p.lift_fixed = false;
+        Self(p)
+    }
+
+    pub fn lift_fixed(self) -> Self {
+        let mut p = self.0;
+        p.lift_fixed = true;
         Self(p)
     }
 }
@@ -85,9 +86,9 @@ pub struct PicusBackend<F> {
     _marker: PhantomData<F>,
 }
 
-impl<'c, F: Field> Backend<'c, PicusParams, PicusOutput<F>> for PicusBackend<F> {
+impl<'c, F: Field> Backend<'c, PicusParams, PicusOutput<Lift<F>>> for PicusBackend<F> {
     type FuncOutput = PicusModuleLowering<F>;
-    type F = F;
+    type F = Lift<F>;
 
     fn initialize(params: PicusParams) -> Self {
         Self {
