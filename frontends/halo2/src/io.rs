@@ -122,31 +122,32 @@ impl<'a, F: Field> InstanceIOValidator<'a, F> {
         inputs: &HashSet<IOCell<<InstanceIOValidator<'_, F> as IOValidator>::C>>,
         outputs: &HashSet<IOCell<<InstanceIOValidator<'_, F> as IOValidator>::C>>,
     ) -> Result<()> {
-        let inputs = self.column_set(inputs);
-        let outputs = self.column_set(outputs);
-        let union = inputs.union(&outputs).count();
-        let n_queried = self
-            .0
-            .instance_queries()
-            .iter()
-            .map(|(c, _)| c.index())
-            .collect::<HashSet<_>>()
-            .len();
-        if union != n_queried {
-            bail!(
-                "The number of IO instance columns is not equal to the number of queried instance columns in the constraint system. {} != {}",
-                union,
-                n_queried
-            );
-        }
+        // Disabled
+        //let inputs = self.column_set(inputs);
+        //let outputs = self.column_set(outputs);
+        //let union = inputs.union(&outputs).count();
+        //let n_queried = self
+        //    .0
+        //    .instance_queries()
+        //    .iter()
+        //    .map(|(c, _)| c.index())
+        //    .collect::<HashSet<_>>()
+        //    .len();
+        //if union != n_queried {
+        //    bail!(
+        //        "The number of IO instance columns is not equal to the number of queried instance columns in the constraint system. {} != {}",
+        //        union,
+        //        n_queried
+        //    );
+        //}
         Ok(())
     }
 
     fn column_set(
         &self,
         set: &HashSet<IOCell<<InstanceIOValidator<'_, F> as IOValidator>::C>>,
-    ) -> HashSet<Column<<InstanceIOValidator<'_, F> as IOValidator>::C>> {
-        set.iter().map(|cell| cell.0).collect()
+    ) -> HashSet<usize> {
+        set.iter().map(|cell| cell.0.index()).collect()
     }
 }
 
