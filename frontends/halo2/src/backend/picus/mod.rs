@@ -3,9 +3,8 @@ use std::{cell::RefCell, marker::PhantomData};
 use super::Backend;
 use crate::{
     gates::AnyQuery,
-    halo2::{Advice, Field, Instance, Selector},
-    ir::Lift,
-    CircuitIO,
+    halo2::{Advice, Instance, PrimeField, Selector},
+    CircuitIO, Lift,
 };
 use anyhow::Result;
 
@@ -86,7 +85,7 @@ pub struct PicusBackend<F> {
     _marker: PhantomData<F>,
 }
 
-impl<'c, F: Field> Backend<'c, PicusParams, PicusOutput<Lift<F>>> for PicusBackend<F> {
+impl<'c, F: PrimeField> Backend<'c, PicusParams, PicusOutput<Lift<F>>> for PicusBackend<F> {
     type FuncOutput = PicusModuleLowering<F>;
     type F = Lift<F>;
 

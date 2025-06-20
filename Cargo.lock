@@ -556,6 +556,7 @@ dependencies = [
  "halo2_proofs 1.1.0",
  "halo2curves 0.2.1",
  "halo2curves 0.7.0",
+ "lazy_static",
  "llzk",
  "llzk-sys",
  "melior",

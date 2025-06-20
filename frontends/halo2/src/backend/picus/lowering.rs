@@ -5,9 +5,11 @@ use super::vars::{VarAllocator, VarStr};
 use crate::backend::func::FuncIO;
 use crate::backend::lowering::Lowering;
 use crate::backend::resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver};
-use crate::halo2::{AdviceQuery, Challenge, Field, FixedQuery, InstanceQuery, Selector, Value};
-use crate::ir::Lift;
+use crate::halo2::{
+    AdviceQuery, Challenge, FixedQuery, InstanceQuery, PrimeField, Selector, Value,
+};
 use crate::value::{steal, steal_many};
+use crate::Lift;
 use anyhow::{anyhow, Result};
 use std::cell::RefCell;
 use std::marker::PhantomData;
@@ -30,7 +32,7 @@ impl<F> From<PicusModuleRef> for PicusModuleLowering<F> {
     }
 }
 
-impl<'a, F: Field> PicusModuleLowering<F> {
+impl<'a, F: PrimeField> PicusModuleLowering<F> {
     fn lower_binary_op<Fn, T: Clone>(
         &self,
         lhs: &Value<T>,
@@ -53,7 +55,9 @@ impl<'a, F: Field> PicusModuleLowering<F> {
     fn lower_resolved_query(&self, query: ResolvedQuery<Lift<F>>) -> Result<Value<PicusExpr>> {
         Ok(match query {
             ResolvedQuery::Lit(value) => value.map(|value| {
-                if self.module.borrow().lift_fixed() && value.is_lift() {
+                if self.module.borrow().lift_fixed()
+                /*&& value.is_lift()*/
+                {
                     expr::lifted_input(self)
                 } else {
                     expr::r#const(value)
@@ -64,7 +68,7 @@ impl<'a, F: Field> PicusModuleLowering<F> {
     }
 }
 
-impl<F: Field> Lowering for PicusModuleLowering<F> {
+impl<F: PrimeField> Lowering for PicusModuleLowering<F> {
     type CellOutput = PicusExpr;
 
     type F = Lift<F>;
