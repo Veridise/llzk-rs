@@ -60,27 +60,63 @@ impl<F> From<Index> for Lift<F> {
 
 impl<F: PrimeField> Lift<F> {
     fn unwrap<'a, 'b: 'a>(&self, arena: &'b mut MutexGuard<BumpArena>) -> Unwrapped<'a, F> {
+        match self.canonicalize_in_arena(arena) {
+            Lift::Assigned { index, .. } => Unwrapped::new(arena.get(&index)),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn evaluate<T>(
+        &self,
+        constant: &impl Fn(F) -> T,
+        lift: &impl Fn(usize) -> T,
+        add: &impl Fn(T, T) -> T,
+        sub: &impl Fn(T, T) -> T,
+        mul: &impl Fn(T, T) -> T,
+        neg: &impl Fn(T) -> T,
+        square: &impl Fn(T) -> T,
+        double: &impl Fn(T) -> T,
+        invert: &impl Fn(T) -> T,
+        sqrt_ratio: &impl Fn(T, T) -> T,
+        cond_select: &impl Fn(bool, T, T) -> T,
+    ) -> T {
+        arena!(|arena: &mut MutexGuard<BumpArena>| {
+            self.unwrap(arena).evaluate(
+                constant,
+                lift,
+                add,
+                sub,
+                mul,
+                neg,
+                square,
+                double,
+                invert,
+                sqrt_ratio,
+                cond_select,
+            )
+        })
+    }
+
+    pub fn lift(id: usize) -> Self {
+        arena!(|arena: &mut MutexGuard<BumpArena>| { arena.insert(LiftInner::lift(id)).into() })
+    }
+
+    pub fn canonicalize(&self) -> Self {
+        arena!(|arena: &mut MutexGuard<BumpArena>| { self.canonicalize_in_arena(arena) })
+    }
+
+    fn canonicalize_in_arena(&self, arena: &mut MutexGuard<BumpArena>) -> Self {
         match self {
-            Lift::Assigned { index, .. } => Unwrapped::new(arena.get(index)),
-            Lift::Zero => {
-                lazy_init_zero::<F, _>(arena, |arena, idx| Unwrapped::new(arena.get(idx)))
-            }
-            Lift::One => lazy_init_one::<F, _>(arena, |arena, idx| Unwrapped::new(arena.get(idx))),
-            Lift::TwoInv => {
-                lazy_init_two_inv::<F, _>(arena, |arena, idx| Unwrapped::new(arena.get(idx)))
-            }
+            s @ Lift::Assigned { .. } => s.clone(),
+            Lift::Zero => lazy_init_zero::<F, Self>(arena, |_, idx| (*idx).into()),
+            Lift::One => lazy_init_one::<F, Self>(arena, |_, idx| (*idx).into()),
+            Lift::TwoInv => lazy_init_two_inv::<F, Self>(arena, |_, idx| (*idx).into()),
             Lift::MultiplicativeGenerator => {
-                lazy_init_mult_gen::<F, _>(arena, |arena, idx| Unwrapped::new(arena.get(idx)))
+                lazy_init_mult_gen::<F, Self>(arena, |_, idx| (*idx).into())
             }
-            Lift::RootOfUnity => {
-                lazy_init_root::<F, _>(arena, |arena, idx| Unwrapped::new(arena.get(idx)))
-            }
-            Lift::RootOfUnityInv => {
-                lazy_init_root_inv::<F, _>(arena, |arena, idx| Unwrapped::new(arena.get(idx)))
-            }
-            Lift::Delta => {
-                lazy_init_delta::<F, _>(arena, |arena, idx| Unwrapped::new(arena.get(idx)))
-            }
+            Lift::RootOfUnity => lazy_init_root::<F, Self>(arena, |_, idx| (*idx).into()),
+            Lift::RootOfUnityInv => lazy_init_root_inv::<F, Self>(arena, |_, idx| (*idx).into()),
+            Lift::Delta => lazy_init_delta::<F, Self>(arena, |_, idx| (*idx).into()),
         }
     }
 
@@ -90,42 +126,7 @@ impl<F: PrimeField> Lift<F> {
     ) -> [Unwrapped<'a, F>; N] {
         let assigned = values
             .into_iter()
-            .map(|s| *s)
-            .map(|s| match s {
-                s @ Lift::Assigned { .. } => s.clone(),
-                Lift::Zero => lazy_init_zero::<F, _>(arena, |_, idx| Lift::Assigned {
-                    index: idx.clone(),
-                    _marker: Default::default(),
-                }),
-                Lift::One => lazy_init_one::<F, _>(arena, |_, idx| Lift::Assigned {
-                    index: idx.clone(),
-                    _marker: Default::default(),
-                }),
-                Lift::TwoInv => lazy_init_two_inv::<F, _>(arena, |_, idx| Lift::Assigned {
-                    index: idx.clone(),
-                    _marker: Default::default(),
-                }),
-                Lift::MultiplicativeGenerator => {
-                    lazy_init_mult_gen::<F, _>(arena, |_, idx| Lift::Assigned {
-                        index: idx.clone(),
-                        _marker: Default::default(),
-                    })
-                }
-                Lift::RootOfUnity => lazy_init_root::<F, _>(arena, |_, idx| Lift::Assigned {
-                    index: idx.clone(),
-                    _marker: Default::default(),
-                }),
-                Lift::RootOfUnityInv => {
-                    lazy_init_root_inv::<F, _>(arena, |_, idx| Lift::Assigned {
-                        index: idx.clone(),
-                        _marker: Default::default(),
-                    })
-                }
-                Lift::Delta => lazy_init_delta::<F, _>(arena, |_, idx| Lift::Assigned {
-                    index: idx.clone(),
-                    _marker: Default::default(),
-                }),
-            })
+            .map(|s| s.canonicalize_in_arena(arena))
             .collect::<Vec<_>>();
 
         assigned

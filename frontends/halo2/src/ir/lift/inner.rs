@@ -24,7 +24,7 @@ impl InnerConst {
 #[derive(Clone, Debug)]
 pub enum LiftInner {
     Const(InnerConst),
-    Lift,
+    Lift(usize),
     Add(Box<LiftInner>, Box<LiftInner>),
     Sub(Box<LiftInner>, Box<LiftInner>),
     Mul(Box<LiftInner>, Box<LiftInner>),
@@ -37,8 +37,52 @@ pub enum LiftInner {
 }
 
 impl LiftInner {
-    pub fn lift() -> Self {
-        Self::Lift
+    pub fn evaluate<F: Clone + 'static, T>(
+        &self,
+        constant: &impl Fn(F) -> T,
+        lift: &impl Fn(usize) -> T,
+        add: &impl Fn(T, T) -> T,
+        sub: &impl Fn(T, T) -> T,
+        mul: &impl Fn(T, T) -> T,
+        neg: &impl Fn(T) -> T,
+        square: &impl Fn(T) -> T,
+        double: &impl Fn(T) -> T,
+        invert: &impl Fn(T) -> T,
+        sqrt_ratio: &impl Fn(T, T) -> T,
+        cond_select: &impl Fn(bool, T, T) -> T,
+    ) -> T {
+        let eval = |e: &LiftInner| {
+            e.evaluate(
+                constant,
+                lift,
+                add,
+                sub,
+                mul,
+                neg,
+                square,
+                double,
+                invert,
+                sqrt_ratio,
+                cond_select,
+            )
+        };
+        match self {
+            LiftInner::Const(i) => constant(i.as_f()),
+            LiftInner::Lift(id) => lift(*id),
+            LiftInner::Add(lhs, rhs) => add(eval(lhs), eval(rhs)),
+            LiftInner::Sub(lhs, rhs) => sub(eval(lhs), eval(rhs)),
+            LiftInner::Mul(lhs, rhs) => mul(eval(lhs), eval(rhs)),
+            LiftInner::Neg(expr) => neg(eval(expr)),
+            LiftInner::Square(expr) => square(eval(expr)),
+            LiftInner::Double(expr) => double(eval(expr)),
+            LiftInner::Invert(expr) => invert(eval(expr)),
+            LiftInner::SqrtRatio(lhs, rhs) => sqrt_ratio(eval(lhs), eval(rhs)),
+            LiftInner::CondSelect(cond, lhs, rhs) => cond_select(*cond, eval(lhs), eval(rhs)),
+        }
+    }
+
+    pub fn lift(id: usize) -> Self {
+        Self::Lift(id)
     }
 
     pub fn r#const<'a, F: 'static>(f: F) -> Self {

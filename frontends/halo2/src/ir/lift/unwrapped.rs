@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::Deref};
 
 use subtle::{Choice, ConstantTimeEq};
 
@@ -8,6 +8,14 @@ use super::inner::LiftInner;
 pub struct Unwrapped<'a, F> {
     inner: &'a LiftInner,
     _marker: PhantomData<F>,
+}
+
+impl<'a, F> Deref for Unwrapped<'a, F> {
+    type Target = LiftInner;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner
+    }
 }
 
 impl<'a, F> Unwrapped<'a, F> {
@@ -34,7 +42,7 @@ impl<F: ConstantTimeEq + Clone + 'static> ConstantTimeEq for Unwrapped<'_, F> {
                     _ => false,
                 }
             }
-            (LiftInner::Lift, LiftInner::Lift) => true,
+            (LiftInner::Lift(id1), LiftInner::Lift(id2)) => id1 == id2,
             (LiftInner::Add(l1, r1), LiftInner::Add(l2, r2)) => {
                 ct_eq_box::<F>(l1, l2) && ct_eq_box::<F>(r1, r2)
             }
@@ -68,7 +76,7 @@ impl<F: PartialEq + Clone + 'static> PartialEq for Unwrapped<'_, F> {
                     _ => false,
                 }
             }
-            (LiftInner::Lift, LiftInner::Lift) => true,
+            (LiftInner::Lift(id1), LiftInner::Lift(id2)) => id1 == id2,
             (LiftInner::Add(l1, r1), LiftInner::Add(l2, r2)) => {
                 eq_box::<F>(l1, l2) && eq_box::<F>(r1, r2)
             }
