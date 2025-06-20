@@ -1,10 +1,8 @@
 use std::{
-    any::Any,
     fmt,
     iter::{Product, Sum},
     marker::PhantomData,
-    ops::{Add, AddAssign, Deref, DerefMut, Mul, MulAssign, Neg, Sub, SubAssign},
-    rc::Rc,
+    ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     sync::{Mutex, MutexGuard},
 };
 
@@ -18,7 +16,7 @@ use unwrapped::Unwrapped;
 
 use crate::{
     arena::{BumpArena, Index},
-    halo2::{Field, PrimeField, Value},
+    halo2::{Field, PrimeField},
 };
 
 mod inner;

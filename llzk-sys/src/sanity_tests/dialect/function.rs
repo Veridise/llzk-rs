@@ -15,7 +15,7 @@ use crate::{
     sanity_tests::{context, str_ref, TestContext},
 };
 use mlir_sys::{
-    mlirArrayAttrGet, mlirDenseI32ArrayGet, mlirDictionaryAttrGet, mlirFlatSymbolRefAttrGet,
+    mlirDenseI32ArrayGet, mlirDictionaryAttrGet, mlirFlatSymbolRefAttrGet,
     mlirFunctionTypeGet, mlirIndexTypeGet, mlirLocationUnknownGet, mlirOperationDestroy,
     mlirOperationGetContext, mlirOperationVerify, mlirStringRefCreateFromCString, mlirTypeEqual,
     MlirAttribute, MlirContext, MlirNamedAttribute, MlirOperation, MlirType,

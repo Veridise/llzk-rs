@@ -1,7 +1,7 @@
 use melior::{
     dialect::arith,
     ir::{
-        attribute::IntegerAttribute, operation::OperationLike, Attribute, Location, Module, Type,
+        attribute::IntegerAttribute, operation::OperationLike, Location, Module, Type,
         Value,
     },
     Context,

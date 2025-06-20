@@ -8,9 +8,9 @@ use mlir_sys::{
     mlirFlatSymbolRefAttrGet, mlirIdentifierGet, mlirIndexTypeGet, mlirIntegerAttrGet,
     mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate, mlirOperationDestroy,
     mlirOperationGetContext, mlirOperationGetResult, mlirOperationStateAddAttributes,
-    mlirOperationStateAddResults, mlirOperationStateEnableResultTypeInference,
-    mlirOperationStateGet, mlirStringAttrGet, mlirStringRefCreateFromCString, mlirSymbolRefAttrGet,
-    MlirOperation, MlirOperationState,
+    mlirOperationStateAddResults,
+    mlirOperationStateGet, mlirStringRefCreateFromCString,
+    MlirOperation,
 };
 use rstest::{fixture, rstest};
 use std::alloc::{alloc, dealloc, Layout};

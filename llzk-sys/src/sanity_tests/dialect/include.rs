@@ -1,6 +1,6 @@
 use std::ptr::null_mut;
 
-use mlir_sys::{mlirLocationUnknownGet, mlirOperationDestroy, mlirOperationVerify};
+use mlir_sys::{mlirLocationUnknownGet, mlirOperationDestroy};
 use rstest::rstest;
 
 use crate::{

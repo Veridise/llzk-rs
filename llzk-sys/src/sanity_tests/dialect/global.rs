@@ -3,10 +3,8 @@ use std::ptr::null_mut;
 use mlir_sys::{
     mlirAttributeGetContext, mlirFlatSymbolRefAttrGet, mlirIdentifierGet, mlirIndexTypeGet,
     mlirIntegerAttrGet, mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate,
-    mlirOperationDestroy, mlirOperationStateAddAttributes, mlirOperationStateGet,
-    mlirOperationVerify, mlirStringRefCreateFromCString, mlirTypeAttrGet, mlirUnitAttrGet,
-    MlirAttribute, MlirContext, MlirNamedAttribute, MlirOperation, MlirOperationState,
-    MlirStringRef, MlirType,
+    mlirOperationDestroy, mlirOperationStateAddAttributes, mlirOperationStateGet, mlirTypeAttrGet, mlirUnitAttrGet,
+    MlirAttribute, MlirContext, MlirNamedAttribute, MlirOperation, MlirType,
 };
 use rstest::rstest;
 

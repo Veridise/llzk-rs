@@ -5,7 +5,7 @@
 use mlir_sys::{
     MlirAffineExpr, MlirAffineMap, MlirAttribute, MlirBlock, MlirContext, MlirDialectHandle,
     MlirDialectRegistry, MlirLocation, MlirLogicalResult, MlirNamedAttribute, MlirOperation,
-    MlirPass, MlirRegion, MlirStringRef, MlirType, MlirValue,
+    MlirPass, MlirStringRef, MlirType, MlirValue,
 };
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));

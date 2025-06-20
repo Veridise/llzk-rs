@@ -3,8 +3,7 @@ use std::ptr::{null, null_mut};
 use mlir_sys::{
     mlirAffineConstantExprGet, mlirAffineMapAttrGet, mlirAffineMapEqual, mlirAffineMapGet,
     mlirAttributeEqual, mlirFlatSymbolRefAttrGet, mlirLocationUnknownGet, mlirOperationDestroy,
-    mlirOperationVerify, mlirStringAttrGet, mlirStringRefCreateFromCString, mlirStringRefEqual,
-    MlirStringRef, MlirValue,
+    mlirOperationVerify, mlirStringAttrGet, mlirStringRefEqual, MlirValue,
 };
 use rstest::rstest;
 

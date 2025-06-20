@@ -6,17 +6,17 @@ use crate::{
     sanity_tests::{context, load_llzk_dialects, TestContext},
 };
 use mlir_sys::{
-    mlirArrayAttrGet, mlirAttributeEqual, mlirIdentifierGet, mlirIndexTypeGet, mlirIntegerAttrGet,
+    mlirAttributeEqual, mlirIdentifierGet, mlirIndexTypeGet, mlirIntegerAttrGet,
     mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate, mlirOperationDestroy,
     mlirOperationGetResult, mlirOperationStateAddAttributes, mlirOperationStateAddResults,
     mlirOperationStateEnableResultTypeInference, mlirOperationStateGet, mlirOperationVerify,
-    mlirStringRefCreateFromCString, mlirTypeEqual, MlirContext, MlirOperation, MlirOperationState,
+    mlirStringRefCreateFromCString, mlirTypeEqual, MlirContext, MlirOperation,
     MlirType,
 };
 use rstest::{fixture, rstest};
 use std::{
     ffi::CString,
-    ptr::{null, null_mut},
+    ptr::null,
 };
 
 #[test]

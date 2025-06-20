@@ -1,19 +1,6 @@
-use std::{
-    any::Any,
-    fmt,
-    iter::{Product, Sum},
-    marker::PhantomData,
-    ops::{Add, AddAssign, Deref, DerefMut, Mul, MulAssign, Neg, Sub, SubAssign},
-    rc::Rc,
-    sync::{Mutex, MutexGuard},
-};
 
-use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 
-use crate::{
-    arena::{BumpArena, Index},
-    halo2::{Field, PrimeField, Value},
-};
+use crate::halo2::Value;
 
 pub mod lift;
 

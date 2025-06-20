@@ -145,8 +145,8 @@ mod tests {
         let idx0 = arena.insert(60usize);
         let idx1 = arena.insert(80u32);
 
-        let val0: usize = *arena.get(idx0);
-        let val1: u32 = *arena.get(idx1);
+        let val0: usize = *arena.get(&idx0);
+        let val1: u32 = *arena.get(&idx1);
 
         assert_eq!(val0, 60usize);
         assert_eq!(val1, 80u32);
@@ -157,7 +157,7 @@ mod tests {
         let mut arena = BumpArena::new();
         let idx1 = arena.insert(80u32);
 
-        let val0: Option<&usize> = arena.try_get(idx1);
+        let val0: Option<&usize> = arena.try_get(&idx1);
 
         assert_eq!(val0, None);
     }

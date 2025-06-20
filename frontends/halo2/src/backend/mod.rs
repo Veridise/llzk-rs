@@ -1,7 +1,7 @@
 use crate::{
     gates::{compute_gate_arity, AnyQuery},
     halo2::{
-        Advice, AdviceQuery, Any, Column, Expression, Field, FixedQuery, Gate, Instance,
+        Advice, AdviceQuery, Any, Column, Field, FixedQuery, Gate, Instance,
         InstanceQuery, Rotation, Selector, Value,
     },
     ir::{CircuitStmt, CircuitStmts},
