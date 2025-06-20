@@ -18,7 +18,10 @@ pub struct PicusFelt(Integer);
 impl<F: Field> From<F> for PicusFelt {
     fn from(value: F) -> Self {
         let s = format!("{:?}", value);
-        Self(Integer::from_str_radix(&s[2..], 16).expect("parse felt hex representation"))
+        Self(
+            Integer::from_str_radix(&s[2..], 16)
+                .expect(format!("parse felt hex representation: {value:?}").as_str()),
+        )
     }
 }
 
