@@ -17,7 +17,7 @@ llzk = { git = "https://github.com/Veridise/llzk-rs" }
 ## Building tips
 
 If you are using homebrew in macos you can access MLIR 18 by installing `llvm@18` with homebrew.
-Setting the following environment variables configures the build system with the correct versions of LMLIR and its dependencies.
+Setting the following environment variables configures the build system with the correct versions of MLIR and its dependencies.
 
 ```
 export MLIR_SYS_180_PREFIX=/opt/homebrew/opt/llvm@18/
