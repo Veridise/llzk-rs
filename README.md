@@ -22,6 +22,7 @@ Setting the following environment variables configures the build system with the
 ```
 export MLIR_SYS_180_PREFIX=/opt/homebrew/opt/llvm@18/
 export TABLEGEN_180_PREFIX=/opt/homebrew/opt/llvm@18/
+export LIBCLANG_PATH=/opt/homebrew/opt/llvm@18/lib
 export RUSTFLAGS='-L /opt/homebrew/lib/'
 ```
 
