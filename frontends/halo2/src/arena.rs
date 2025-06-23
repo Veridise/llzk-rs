@@ -109,7 +109,7 @@ impl BumpArena {
         let ptr = self.cursor as *mut u8;
         self.cursor = unsafe { self.cursor.byte_add(layout.size()) };
         let id = TypeId::of::<T>();
-        Item { layout, ptr, id }
+        Item { ptr, id }
     }
 
     pub fn insert<T: 'static>(&mut self, value: T) -> Index {
