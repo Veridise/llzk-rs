@@ -37,6 +37,10 @@ pub enum LiftInner {
 }
 
 impl LiftInner {
+    pub fn boxed(self) -> Box<Self> {
+        Box::new(self)
+    }
+
     pub fn evaluate<F: Clone + 'static, T>(
         &self,
         constant: &impl Fn(F) -> T,

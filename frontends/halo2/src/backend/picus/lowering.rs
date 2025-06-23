@@ -8,9 +8,10 @@ use crate::backend::resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, 
 use crate::halo2::{
     AdviceQuery, Challenge, FixedQuery, InstanceQuery, PrimeField, Selector, Value,
 };
+use crate::ir::lift::LiftLowering;
 use crate::value::{steal, steal_many};
 use crate::Lift;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::rc::Rc;
@@ -54,17 +55,67 @@ impl<'a, F: PrimeField> PicusModuleLowering<F> {
 
     fn lower_resolved_query(&self, query: ResolvedQuery<Lift<F>>) -> Result<Value<PicusExpr>> {
         Ok(match query {
-            ResolvedQuery::Lit(value) => value.map(|value| {
-                if self.module.borrow().lift_fixed()
-                /*&& value.is_lift()*/
-                {
-                    expr::lifted_input(self)
-                } else {
-                    expr::r#const(value)
-                }
-            }),
+            ResolvedQuery::Lit(value) => {
+                let f = steal(&value).ok_or(anyhow!("Query resolved to an unknown value"));
+                Value::known(self.lower(&f?, true)?)
+            }
             ResolvedQuery::IO(func_io) => Value::known(expr::var(self, func_io)),
         })
+    }
+}
+
+impl<F: PrimeField> LiftLowering for PicusModuleLowering<F> {
+    type F = F;
+
+    type Output = PicusExpr;
+
+    fn lower_constant(&self, f: &Self::F) -> Result<Self::Output> {
+        Ok(expr::r#const(*f))
+    }
+
+    fn lower_lifted(&self, id: usize) -> Result<Self::Output> {
+        Ok(expr::lifted_input(self, id))
+    }
+
+    fn lower_add(&self, lhs: &Self::Output, rhs: &Self::Output) -> Result<Self::Output> {
+        Ok(expr::add(lhs, rhs))
+    }
+
+    fn lower_sub(&self, lhs: &Self::Output, rhs: &Self::Output) -> Result<Self::Output> {
+        Ok(expr::sub(lhs, rhs))
+    }
+
+    fn lower_mul(&self, lhs: &Self::Output, rhs: &Self::Output) -> Result<Self::Output> {
+        Ok(expr::mul(lhs, rhs))
+    }
+
+    fn lower_neg(&self, expr: &Self::Output) -> Result<Self::Output> {
+        Ok(expr::neg(expr))
+    }
+
+    fn lower_double(&self, expr: &Self::Output) -> Result<Self::Output> {
+        Ok(expr::add(expr, expr))
+    }
+
+    fn lower_square(&self, expr: &Self::Output) -> Result<Self::Output> {
+        Ok(expr::mul(expr, expr))
+    }
+
+    fn lower_invert(&self, _expr: &Self::Output) -> Result<Self::Output> {
+        bail!("Inversion operation is not expressible in Picus")
+    }
+
+    fn lower_sqrt_ratio(&self, _lhs: &Self::Output, _rhs: &Self::Output) -> Result<Self::Output> {
+        todo!()
+    }
+
+    fn lower_cond_select(
+        &self,
+        _cond: bool,
+        _then: &Self::Output,
+        _else: &Self::Output,
+    ) -> Result<Self::Output> {
+        bail!("Conditional select operation is not expressible in Picus")
     }
 }
 
@@ -170,7 +221,7 @@ impl<F: PrimeField> Lowering for PicusModuleLowering<F> {
         PicusExpr: 'a,
     {
         match resolver.resolve_selector(sel)? {
-            ResolvedSelector::Const(value) => self.lower_constant(&value.to_f()),
+            ResolvedSelector::Const(value) => Lowering::lower_constant(self, &value.to_f()),
             ResolvedSelector::Arg(arg_no) => Ok(Value::known(expr::var(self, arg_no))),
         }
     }
@@ -213,7 +264,7 @@ impl<F: PrimeField> Lowering for PicusModuleLowering<F> {
         Self::CellOutput: 'a,
         'a: 'f,
     {
-        Ok(Value::known(expr::r#const(*f)))
+        Ok(Value::known(self.lower(&f, true)?))
     }
 }
 
@@ -230,8 +281,8 @@ impl<F> VarAllocator for PicusModuleLowering<F> {
         module.add_var(None)
     }
 
-    fn allocate_lifted_input(&self) -> VarStr {
+    fn allocate_lifted_input(&self, id: usize) -> VarStr {
         let mut module = self.module.borrow_mut();
-        module.add_lifted_input()
+        module.add_lifted_input(id)
     }
 }

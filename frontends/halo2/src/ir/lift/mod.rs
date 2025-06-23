@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::{
     fmt,
     iter::{Product, Sum},
@@ -34,6 +35,62 @@ macro_rules! arena {
     }};
 }
 
+pub trait LiftLowering {
+    type F: PrimeField;
+    type Output;
+
+    fn lower_constant(&self, f: &Self::F) -> Result<Self::Output>;
+
+    fn lower_lifted(&self, id: usize) -> Result<Self::Output>;
+
+    fn lower_add(&self, lhs: &Self::Output, rhs: &Self::Output) -> Result<Self::Output>;
+
+    fn lower_sub(&self, lhs: &Self::Output, rhs: &Self::Output) -> Result<Self::Output>;
+
+    fn lower_mul(&self, lhs: &Self::Output, rhs: &Self::Output) -> Result<Self::Output>;
+
+    fn lower_neg(&self, expr: &Self::Output) -> Result<Self::Output>;
+
+    fn lower_double(&self, expr: &Self::Output) -> Result<Self::Output>;
+
+    fn lower_square(&self, expr: &Self::Output) -> Result<Self::Output>;
+
+    fn lower_invert(&self, expr: &Self::Output) -> Result<Self::Output>;
+
+    fn lower_sqrt_ratio(&self, lhs: &Self::Output, rhs: &Self::Output) -> Result<Self::Output>;
+
+    fn lower_cond_select(
+        &self,
+        cond: bool,
+        then: &Self::Output,
+        r#else: &Self::Output,
+    ) -> Result<Self::Output>;
+
+    fn lower(&self, value: &Lift<Self::F>, simplify_first: bool) -> Result<Self::Output> {
+        arena!(|arena: &mut MutexGuard<BumpArena>| {
+            if simplify_first {
+                value.simplified_in_arena(arena)
+            } else {
+                *value
+            }
+            .evaluate_in_arena(
+                arena,
+                &|f| self.lower_constant(&f),
+                &|id| self.lower_lifted(id),
+                &|lhs, rhs| self.lower_add(&lhs?, &rhs?),
+                &|lhs, rhs| self.lower_sub(&lhs?, &rhs?),
+                &|lhs, rhs| self.lower_mul(&lhs?, &rhs?),
+                &|expr| self.lower_neg(&expr?),
+                &|expr| self.lower_square(&expr?),
+                &|expr| self.lower_double(&expr?),
+                &|expr| self.lower_invert(&expr?),
+                &|lhs, rhs| self.lower_sqrt_ratio(&lhs?, &rhs?),
+                &|cond, lhs, rhs| self.lower_cond_select(cond, &lhs?, &rhs?),
+            )
+        })
+    }
+}
+
 #[derive(Clone, Copy)]
 pub enum Lift<F> {
     Assigned {
@@ -60,7 +117,7 @@ impl<F> From<Index> for Lift<F> {
 
 impl<F: PrimeField> Lift<F> {
     fn unwrap<'a, 'b: 'a>(&self, arena: &'b mut MutexGuard<BumpArena>) -> Unwrapped<'a, F> {
-        match self.canonicalize_in_arena(arena) {
+        match self.canonicalized_in_arena(arena) {
             Lift::Assigned { index, .. } => Unwrapped::new(arena.get(&index)),
             _ => unreachable!(),
         }
@@ -80,8 +137,9 @@ impl<F: PrimeField> Lift<F> {
         sqrt_ratio: &impl Fn(T, T) -> T,
         cond_select: &impl Fn(bool, T, T) -> T,
     ) -> T {
-        arena!(|arena: &mut MutexGuard<BumpArena>| {
-            self.unwrap(arena).evaluate(
+        arena!(|arena| {
+            self.evaluate_in_arena(
+                arena,
                 constant,
                 lift,
                 add,
@@ -97,15 +155,166 @@ impl<F: PrimeField> Lift<F> {
         })
     }
 
+    fn evaluate_in_arena<T>(
+        &self,
+        arena: &mut MutexGuard<BumpArena>,
+        constant: &impl Fn(F) -> T,
+        lift: &impl Fn(usize) -> T,
+        add: &impl Fn(T, T) -> T,
+        sub: &impl Fn(T, T) -> T,
+        mul: &impl Fn(T, T) -> T,
+        neg: &impl Fn(T) -> T,
+        square: &impl Fn(T) -> T,
+        double: &impl Fn(T) -> T,
+        invert: &impl Fn(T) -> T,
+        sqrt_ratio: &impl Fn(T, T) -> T,
+        cond_select: &impl Fn(bool, T, T) -> T,
+    ) -> T {
+        self.unwrap(arena).evaluate(
+            constant,
+            lift,
+            add,
+            sub,
+            mul,
+            neg,
+            square,
+            double,
+            invert,
+            sqrt_ratio,
+            cond_select,
+        )
+    }
+
+    pub fn simplify(&mut self) {
+        *self = self.simplified();
+    }
+
+    fn simplify_impl(&self, arena: &mut MutexGuard<BumpArena>) -> Result<F, LiftInner> {
+        fn handle_binop<F, F1, F2>(
+            lhs: Result<F, LiftInner>,
+            rhs: Result<F, LiftInner>,
+            f1: &F1,
+            f2: &F2,
+        ) -> Result<F, LiftInner>
+        where
+            F: 'static,
+            F1: Fn(F, F) -> F,
+            F2: Fn(Box<LiftInner>, Box<LiftInner>) -> LiftInner,
+        {
+            match (lhs, rhs) {
+                (Ok(lhs), Ok(rhs)) => Ok(f1(lhs, rhs)),
+                (Ok(lhs), Err(rhs)) => Err(f2(LiftInner::r#const(lhs).boxed(), rhs.boxed())),
+                (Err(lhs), Ok(rhs)) => Err(f2(lhs.boxed(), LiftInner::r#const(rhs).boxed())),
+                (Err(lhs), Err(rhs)) => Err(f2(lhs.boxed(), rhs.boxed())),
+            }
+        }
+
+        fn handle_unary_op<F, F1, F2>(
+            e: Result<F, LiftInner>,
+            f1: &F1,
+            f2: &F2,
+        ) -> Result<F, LiftInner>
+        where
+            F: 'static,
+            F1: Fn(&F) -> F,
+            F2: Fn(Box<LiftInner>) -> LiftInner,
+        {
+            match e {
+                Ok(f) => Ok(f1(&f)),
+                Err(e) => Err(f2(e.boxed())),
+            }
+        }
+
+        fn mk_binop_handler<F, F1, F2>(
+            f1: &F1,
+            f2: &F2,
+        ) -> impl Fn(Result<F, LiftInner>, Result<F, LiftInner>) -> Result<F, LiftInner>
+        where
+            F: 'static,
+            F1: Fn(F, F) -> F,
+            F2: Fn(Box<LiftInner>, Box<LiftInner>) -> LiftInner,
+        {
+            |lhs, rhs| handle_binop::<F, F1, F2>(lhs, rhs, f1, f2)
+        }
+
+        fn mk_unop_handler<F, F1, F2>(
+            f1: &F1,
+            f2: &F2,
+        ) -> impl Fn(Result<F, LiftInner>) -> Result<F, LiftInner>
+        where
+            F: 'static,
+            F1: Fn(&F) -> F,
+            F2: Fn(Box<LiftInner>) -> LiftInner,
+        {
+            |e| handle_unary_op::<F, F1, F2>(e, f1, f2)
+        }
+
+        self.evaluate_in_arena(
+            arena,
+            &|f| Ok(f),
+            &|id| Err(LiftInner::lift(id)),
+            &mk_binop_handler(&|lhs, rhs| lhs + rhs, &LiftInner::Add),
+            &mk_binop_handler(&|lhs, rhs| lhs - rhs, &LiftInner::Sub),
+            &mk_binop_handler(&|lhs, rhs| lhs * rhs, &LiftInner::Mul),
+            &mk_unop_handler(&|f: &F| f.neg(), &LiftInner::Neg),
+            &mk_unop_handler(&F::square, &LiftInner::Square),
+            &mk_unop_handler(&F::double, &LiftInner::Double),
+            &mk_unop_handler(&|f: &F| f.invert().unwrap_or(F::ZERO), &LiftInner::Invert),
+            &mk_binop_handler(
+                &|lhs, rhs| F::sqrt_ratio(&lhs, &rhs).1,
+                &LiftInner::SqrtRatio,
+            ),
+            &|cond, lhs, rhs| if cond { lhs } else { rhs },
+        )
+    }
+
+    pub fn simplified(&self) -> Self {
+        arena!(|arena: &mut MutexGuard<BumpArena>| { self.simplified_in_arena(arena) })
+    }
+
+    fn simplified_in_arena(&self, arena: &mut MutexGuard<BumpArena>) -> Self {
+        let r = match self.simplify_impl(arena) {
+            Ok(f) => LiftInner::r#const(f),
+            Err(e) => e,
+        };
+        arena.insert(r).into()
+    }
+
+    pub fn concretized(&self) -> Option<F> {
+        arena!(|arena| self.simplify_impl(arena).ok())
+    }
+
+    pub fn is_symbolic(&self) -> bool {
+        let or = |lhs, rhs| lhs || rhs;
+        let ident = |e| e;
+        self.evaluate(
+            &|_| false,
+            &|_| true,
+            &or,
+            &or,
+            &or,
+            &ident,
+            &ident,
+            &ident,
+            &ident,
+            &or,
+            &|_, lhs, rhs| lhs || rhs,
+        )
+    }
+
     pub fn lift(id: usize) -> Self {
         arena!(|arena: &mut MutexGuard<BumpArena>| { arena.insert(LiftInner::lift(id)).into() })
     }
 
-    pub fn canonicalize(&self) -> Self {
-        arena!(|arena: &mut MutexGuard<BumpArena>| { self.canonicalize_in_arena(arena) })
+    pub fn canonicalize(&mut self) {
+        *self = self.canonicalized();
     }
 
-    fn canonicalize_in_arena(&self, arena: &mut MutexGuard<BumpArena>) -> Self {
+    pub fn canonicalized(&self) -> Self {
+        arena!(|arena: &mut MutexGuard<BumpArena>| { self.canonicalized_in_arena(arena) })
+    }
+
+    fn canonicalized_in_arena(&self, arena: &mut MutexGuard<BumpArena>) -> Self {
         match self {
             s @ Lift::Assigned { .. } => s.clone(),
             Lift::Zero => lazy_init_zero::<F, Self>(arena, |_, idx| (*idx).into()),
@@ -126,7 +335,7 @@ impl<F: PrimeField> Lift<F> {
     ) -> [Unwrapped<'a, F>; N] {
         let assigned = values
             .into_iter()
-            .map(|s| s.canonicalize_in_arena(arena))
+            .map(|s| s.canonicalized_in_arena(arena))
             .collect::<Vec<_>>();
 
         assigned
@@ -356,8 +565,11 @@ impl<F: PrimeField> ConditionallySelectable for Lift<F> {
     }
 }
 
-impl<F: fmt::Debug> fmt::Debug for Lift<F> {
+impl<F: fmt::Debug + PrimeField> fmt::Debug for Lift<F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(v) = self.concretized() {
+            return write!(f, "{v:?}");
+        }
         match self {
             Lift::Assigned { index, .. } => {
                 arena!(|arena: &mut MutexGuard<BumpArena>| {

@@ -250,9 +250,8 @@ impl PicusModule {
         key.into()
     }
 
-    pub fn add_lifted_input(&mut self) -> VarStr {
-        let tmp_no = self.vars.len();
-        let key = VarKey::Lifted(FuncIO::Arg(tmp_no.into()));
+    pub fn add_lifted_input(&mut self, id: usize) -> VarStr {
+        let key = VarKey::Lifted(FuncIO::Arg(0.into()), id);
         self.vars.insert(key, key.into());
         key.into()
     }
