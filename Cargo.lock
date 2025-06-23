@@ -563,6 +563,7 @@ dependencies = [
  "mlir-sys",
  "rand",
  "rug",
+ "serde",
  "subtle",
 ]
 

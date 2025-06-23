@@ -12,6 +12,8 @@ use lazy::{
     lazy_init_delta, lazy_init_mult_gen, lazy_init_one, lazy_init_root, lazy_init_root_inv,
     lazy_init_two_inv, lazy_init_zero,
 };
+use serde::Deserialize;
+use serde::Serialize;
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 use unwrapped::Unwrapped;
 
@@ -643,17 +645,17 @@ where
 }
 
 #[derive(Copy, Clone, Default)]
-pub struct LiftRepr<F: PrimeField>(PhantomData<F>);
+pub struct LiftRepr([u8; 8]);
 
-impl<F: PrimeField> AsRef<[u8]> for LiftRepr<F> {
+impl AsRef<[u8]> for LiftRepr {
     fn as_ref(&self) -> &[u8] {
-        unreachable!()
+        &self.0
     }
 }
 
-impl<F: PrimeField> AsMut<[u8]> for LiftRepr<F> {
+impl AsMut<[u8]> for LiftRepr {
     fn as_mut(&mut self) -> &mut [u8] {
-        unreachable!()
+        &mut self.0
     }
 }
 
@@ -666,14 +668,26 @@ impl<F: From<u64> + 'static> From<u64> for Lift<F> {
 }
 
 impl<F: PrimeField> PrimeField for Lift<F> {
-    type Repr = LiftRepr<F>;
+    type Repr = LiftRepr;
 
-    fn from_repr(_repr: Self::Repr) -> CtOption<Self> {
-        unreachable!()
+    fn from_repr(repr: Self::Repr) -> CtOption<Self> {
+        let index = usize::from_le_bytes(repr.0).into();
+        arena!(|arena: &mut MutexGuard<BumpArena>| {
+            let (index, choice) = if arena.contains::<LiftInner>(&index) {
+                (index, 1.into())
+            } else {
+                (0usize.into(), 0.into())
+            };
+            CtOption::new(index.into(), choice)
+        })
     }
 
     fn to_repr(&self) -> Self::Repr {
-        unreachable!()
+        let s = self.canonicalized();
+        match s {
+            Lift::Assigned { index, .. } => LiftRepr(index.to_le_bytes()),
+            _ => unreachable!(),
+        }
     }
 
     fn is_odd(&self) -> Choice {

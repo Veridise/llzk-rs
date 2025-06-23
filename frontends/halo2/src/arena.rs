@@ -1,7 +1,7 @@
 use std::{
     alloc::{alloc, dealloc, Layout, LayoutError},
     any::TypeId,
-    ops::Range,
+    ops::{Deref, Range},
     ptr,
 };
 
@@ -14,9 +14,16 @@ impl<T: Into<usize>> From<T> for Index {
     }
 }
 
+impl Deref for Index {
+    type Target = usize;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 struct Item {
     ptr: *mut u8,
-    layout: Layout,
     id: TypeId,
 }
 
@@ -126,6 +133,10 @@ impl BumpArena {
             return None;
         }
         Some(unsafe { (item.ptr as *const T).as_ref().unwrap() })
+    }
+
+    pub fn contains<T: 'static>(&self, idx: &Index) -> bool {
+        self.items.len() > idx.0 && self.items[idx.0].id == TypeId::of::<T>()
     }
 }
 
