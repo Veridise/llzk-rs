@@ -9,7 +9,7 @@ pub mod module {
     use std::ffi::CStr;
 
     use llzk_sys::LLZK_LANG_ATTR_NAME;
-    use melior::ir::{operation::OperationMutLike, Attribute, Location, Module};
+    use melior::ir::{attribute::StringAttribute, operation::OperationMutLike, Location, Module};
 
     pub fn llzk_module<'c>(location: Location<'c>) -> Module<'c> {
         let mut module = Module::new(location);
@@ -18,7 +18,10 @@ pub mod module {
         let attr_name = unsafe { CStr::from_ptr(LLZK_LANG_ATTR_NAME) }
             .to_str()
             .unwrap();
-        op.set_attribute(attr_name, Attribute::unit(unsafe { ctx.to_ref() }));
+        op.set_attribute(
+            attr_name,
+            StringAttribute::new(unsafe { ctx.to_ref() }, "llzk").into(),
+        );
         module
     }
 }
