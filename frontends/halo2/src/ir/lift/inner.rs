@@ -1,6 +1,15 @@
-use std::{any::Any, rc::Rc};
+use std::{any::Any, ops::RangeFrom, rc::Rc};
 
 use super::unwrapped::Unwrapped;
+use std::sync::Mutex;
+
+pub trait AsF<F> {
+    fn as_f(&self) -> &F {
+        self.try_as_f().unwrap()
+    }
+
+    fn try_as_f(&self) -> Option<&F>;
+}
 
 #[derive(Clone, Debug)]
 pub struct InnerConst(Rc<Box<dyn Any>>);
@@ -9,22 +18,24 @@ impl InnerConst {
     pub fn new<F: 'static>(value: F) -> Self {
         Self(Rc::new(Box::new(value)))
     }
-    pub fn as_f<F: Clone + 'static>(&self) -> F {
-        self.0
-            .downcast_ref::<F>()
-            .expect("const is not of the expected type")
-            .clone()
-    }
+}
 
-    pub fn try_as_f<F: Clone + 'static>(&self) -> Option<F> {
-        self.0.downcast_ref::<F>().map(|f| f.clone())
+impl<F: 'static> AsF<F> for InnerConst {
+    fn try_as_f(&self) -> Option<&F> {
+        self.0.downcast_ref::<F>()
+    }
+}
+
+impl<F, T: AsF<F>> AsF<F> for Option<T> {
+    fn try_as_f(&self) -> Option<&F> {
+        self.as_ref().map(T::try_as_f).flatten()
     }
 }
 
 #[derive(Clone, Debug)]
 pub enum LiftInner {
     Const(InnerConst),
-    Lift(usize),
+    Lift(usize, Option<InnerConst>),
     Add(Box<LiftInner>, Box<LiftInner>),
     Sub(Box<LiftInner>, Box<LiftInner>),
     Mul(Box<LiftInner>, Box<LiftInner>),
@@ -43,8 +54,8 @@ impl LiftInner {
 
     pub fn evaluate<F: Clone + 'static, T>(
         &self,
-        constant: &impl Fn(F) -> T,
-        lift: &impl Fn(usize) -> T,
+        constant: &impl Fn(&F) -> T,
+        lift: &impl Fn(usize, Option<&F>) -> T,
         add: &impl Fn(T, T) -> T,
         sub: &impl Fn(T, T) -> T,
         mul: &impl Fn(T, T) -> T,
@@ -72,7 +83,7 @@ impl LiftInner {
         };
         match self {
             LiftInner::Const(i) => constant(i.as_f()),
-            LiftInner::Lift(id) => lift(*id),
+            LiftInner::Lift(id, f) => lift(*id, f.as_ref().map(|f| f.as_f())),
             LiftInner::Add(lhs, rhs) => add(eval(lhs), eval(rhs)),
             LiftInner::Sub(lhs, rhs) => sub(eval(lhs), eval(rhs)),
             LiftInner::Mul(lhs, rhs) => mul(eval(lhs), eval(rhs)),
@@ -85,40 +96,61 @@ impl LiftInner {
         }
     }
 
-    pub fn lift(id: usize) -> Self {
-        Self::Lift(id)
+    pub fn lift() -> Self {
+        Self::Lift(next_lift_id(), None)
+    }
+
+    pub fn lift_value<F: 'static>(f: F) -> Self {
+        Self::Lift(next_lift_id(), Some(InnerConst::new(f)))
     }
 
     pub fn r#const<'a, F: 'static>(f: F) -> Self {
         Self::Const(InnerConst::new(f))
     }
 
-    pub fn neg<'a, F>(w: Unwrapped<'a, F>) -> Self {
+    pub fn neg<'a, F: 'static>(w: Unwrapped<'a, F>) -> Self {
         Self::Neg(w.boxed())
     }
-    pub fn square<'a, F>(w: Unwrapped<'a, F>) -> Self {
+    pub fn square<'a, F: 'static>(w: Unwrapped<'a, F>) -> Self {
         Self::Square(w.boxed())
     }
-    pub fn double<'a, F>(w: Unwrapped<'a, F>) -> Self {
+    pub fn double<'a, F: 'static>(w: Unwrapped<'a, F>) -> Self {
         Self::Double(w.boxed())
     }
-    pub fn inv<'a, F>(w: Unwrapped<'a, F>) -> Self {
+    pub fn inv<'a, F: 'static>(w: Unwrapped<'a, F>) -> Self {
         Self::Invert(w.boxed())
     }
 
-    pub fn add<'a, 'b, F>(lhs: Unwrapped<'a, F>, rhs: Unwrapped<'b, F>) -> Self {
+    pub fn add<'a, 'b, F: 'static>(lhs: Unwrapped<'a, F>, rhs: Unwrapped<'b, F>) -> Self {
         Self::Add(lhs.boxed(), rhs.boxed())
     }
-    pub fn sub<'a, 'b, F>(lhs: Unwrapped<'a, F>, rhs: Unwrapped<'b, F>) -> Self {
+    pub fn sub<'a, 'b, F: 'static>(lhs: Unwrapped<'a, F>, rhs: Unwrapped<'b, F>) -> Self {
         Self::Sub(lhs.boxed(), rhs.boxed())
     }
-    pub fn mul<'a, 'b, F>(lhs: Unwrapped<'a, F>, rhs: Unwrapped<'b, F>) -> Self {
+    pub fn mul<'a, 'b, F: 'static>(lhs: Unwrapped<'a, F>, rhs: Unwrapped<'b, F>) -> Self {
         Self::Mul(lhs.boxed(), rhs.boxed())
     }
-    pub fn sqrt_ratio<'a, 'b, F>(lhs: Unwrapped<'a, F>, rhs: Unwrapped<'b, F>) -> Self {
+    pub fn sqrt_ratio<'a, 'b, F: 'static>(lhs: Unwrapped<'a, F>, rhs: Unwrapped<'b, F>) -> Self {
         Self::SqrtRatio(lhs.boxed(), rhs.boxed())
     }
-    pub fn cond_sel<'a, 'b, F>(cond: bool, lhs: Unwrapped<'a, F>, rhs: Unwrapped<'b, F>) -> Self {
+    pub fn cond_sel<'a, 'b, F: 'static>(
+        cond: bool,
+        lhs: Unwrapped<'a, F>,
+        rhs: Unwrapped<'b, F>,
+    ) -> Self {
         Self::CondSelect(cond, lhs.boxed(), rhs.boxed())
     }
+}
+
+impl<F: 'static> From<(usize, Option<F>)> for LiftInner {
+    fn from(value: (usize, Option<F>)) -> Self {
+        LiftInner::Lift(value.0, value.1.map(InnerConst::new::<F>))
+    }
+}
+
+fn next_lift_id() -> usize {
+    static COUNTER: Mutex<RangeFrom<usize>> = Mutex::new(0..);
+
+    let mut guard = COUNTER.lock().unwrap();
+    guard.next().unwrap()
 }

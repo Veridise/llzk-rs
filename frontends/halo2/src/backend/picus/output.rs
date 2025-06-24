@@ -169,7 +169,6 @@ pub struct PicusModule {
     name: String,
     stmts: Vec<PicusStmt>,
     vars: HashMap<VarKey, VarStr>,
-    lift_fixed: bool,
 }
 
 impl From<PicusModuleRef> for PicusModule {
@@ -184,7 +183,6 @@ impl From<String> for PicusModule {
             name,
             stmts: Default::default(),
             vars: Default::default(),
-            lift_fixed: Default::default(),
         }
     }
 }
@@ -202,22 +200,12 @@ impl PicusModule {
             .collect();
     }
 
-    pub fn lift_fixed(&self) -> bool {
-        self.lift_fixed
+    pub fn shared(name: String, n_inputs: usize, n_outputs: usize) -> PicusModuleRef {
+        Rc::new(Self::new(name, n_inputs, n_outputs).into())
     }
 
-    pub fn shared(
-        name: String,
-        n_inputs: usize,
-        n_outputs: usize,
-        lift_fixed: bool,
-    ) -> PicusModuleRef {
-        Rc::new(Self::new(name, n_inputs, n_outputs, lift_fixed).into())
-    }
-
-    pub fn new(name: String, n_inputs: usize, n_outputs: usize, lift_fixed: bool) -> Self {
+    pub fn new(name: String, n_inputs: usize, n_outputs: usize) -> Self {
         let mut m = Self::from(name);
-        m.lift_fixed = lift_fixed;
         (0..n_inputs).map(ArgNo::from).for_each(|a| {
             m.vars.insert(a.into(), a.into());
         });

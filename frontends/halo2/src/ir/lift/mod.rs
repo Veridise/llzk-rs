@@ -43,7 +43,7 @@ pub trait LiftLowering {
 
     fn lower_constant(&self, f: &Self::F) -> Result<Self::Output>;
 
-    fn lower_lifted(&self, id: usize) -> Result<Self::Output>;
+    fn lower_lifted(&self, id: usize, f: Option<&Self::F>) -> Result<Self::Output>;
 
     fn lower_add(&self, lhs: &Self::Output, rhs: &Self::Output) -> Result<Self::Output>;
 
@@ -77,8 +77,8 @@ pub trait LiftLowering {
             }
             .evaluate_in_arena(
                 arena,
-                &|f| self.lower_constant(&f),
-                &|id| self.lower_lifted(id),
+                &|f| self.lower_constant(f),
+                &|id, f| self.lower_lifted(id, f),
                 &|lhs, rhs| self.lower_add(&lhs?, &rhs?),
                 &|lhs, rhs| self.lower_sub(&lhs?, &rhs?),
                 &|lhs, rhs| self.lower_mul(&lhs?, &rhs?),
@@ -127,8 +127,8 @@ impl<F: PrimeField> Lift<F> {
 
     pub fn evaluate<T>(
         &self,
-        constant: &impl Fn(F) -> T,
-        lift: &impl Fn(usize) -> T,
+        constant: &impl Fn(&F) -> T,
+        lift: &impl Fn(usize, Option<&F>) -> T,
         add: &impl Fn(T, T) -> T,
         sub: &impl Fn(T, T) -> T,
         mul: &impl Fn(T, T) -> T,
@@ -160,8 +160,8 @@ impl<F: PrimeField> Lift<F> {
     fn evaluate_in_arena<T>(
         &self,
         arena: &mut MutexGuard<BumpArena>,
-        constant: &impl Fn(F) -> T,
-        lift: &impl Fn(usize) -> T,
+        constant: &impl Fn(&F) -> T,
+        lift: &impl Fn(usize, Option<&F>) -> T,
         add: &impl Fn(T, T) -> T,
         sub: &impl Fn(T, T) -> T,
         mul: &impl Fn(T, T) -> T,
@@ -191,7 +191,11 @@ impl<F: PrimeField> Lift<F> {
         *self = self.simplified();
     }
 
-    fn simplify_impl(&self, arena: &mut MutexGuard<BumpArena>) -> Result<F, LiftInner> {
+    fn simplify_impl(
+        &self,
+        arena: &mut MutexGuard<BumpArena>,
+        keep_lifted: bool,
+    ) -> Result<F, LiftInner> {
         fn handle_binop<F, F1, F2>(
             lhs: Result<F, LiftInner>,
             rhs: Result<F, LiftInner>,
@@ -253,8 +257,14 @@ impl<F: PrimeField> Lift<F> {
 
         self.evaluate_in_arena(
             arena,
-            &|f| Ok(f),
-            &|id| Err(LiftInner::lift(id)),
+            &|f| Ok(*f),
+            &|id, f| {
+                if keep_lifted || f.is_none() {
+                    Err((id, f.map(Clone::clone)).into())
+                } else {
+                    Ok(*f.unwrap())
+                }
+            },
             &mk_binop_handler(&|lhs, rhs| lhs + rhs, &LiftInner::Add),
             &mk_binop_handler(&|lhs, rhs| lhs - rhs, &LiftInner::Sub),
             &mk_binop_handler(&|lhs, rhs| lhs * rhs, &LiftInner::Mul),
@@ -275,7 +285,7 @@ impl<F: PrimeField> Lift<F> {
     }
 
     fn simplified_in_arena(&self, arena: &mut MutexGuard<BumpArena>) -> Self {
-        let r = match self.simplify_impl(arena) {
+        let r = match self.simplify_impl(arena, true) {
             Ok(f) => LiftInner::r#const(f),
             Err(e) => e,
         };
@@ -283,7 +293,7 @@ impl<F: PrimeField> Lift<F> {
     }
 
     pub fn concretized(&self) -> Option<F> {
-        arena!(|arena| self.simplify_impl(arena).ok())
+        arena!(|arena| self.simplify_impl(arena, false).ok())
     }
 
     pub fn is_symbolic(&self) -> bool {
@@ -291,7 +301,7 @@ impl<F: PrimeField> Lift<F> {
         let ident = |e| e;
         self.evaluate(
             &|_| false,
-            &|_| true,
+            &|_, _| true,
             &or,
             &or,
             &or,
@@ -304,8 +314,14 @@ impl<F: PrimeField> Lift<F> {
         )
     }
 
-    pub fn lift(id: usize) -> Self {
-        arena!(|arena: &mut MutexGuard<BumpArena>| { arena.insert(LiftInner::lift(id)).into() })
+    pub fn lift() -> Self {
+        arena!(|arena: &mut MutexGuard<BumpArena>| { arena.insert(LiftInner::lift()).into() })
+    }
+
+    pub fn lift_value(f: F) -> Self {
+        arena!(|arena: &mut MutexGuard<BumpArena>| {
+            arena.insert(LiftInner::lift_value(f)).into()
+        })
     }
 
     pub fn canonicalize(&mut self) {
@@ -668,30 +684,22 @@ impl<F: From<u64> + 'static> From<u64> for Lift<F> {
 }
 
 impl<F: PrimeField> PrimeField for Lift<F> {
-    type Repr = LiftRepr;
+    type Repr = F::Repr;
 
+    /// Uses the inner representation of F and loads a lifted value that represents that it comes
+    /// from off-circuit.
     fn from_repr(repr: Self::Repr) -> CtOption<Self> {
-        let index = usize::from_le_bytes(repr.0).into();
         arena!(|arena: &mut MutexGuard<BumpArena>| {
-            let (index, choice) = if arena.contains::<LiftInner>(&index) {
-                (index, 1.into())
-            } else {
-                (0usize.into(), 0.into())
-            };
-            CtOption::new(index.into(), choice)
+            F::from_repr(repr).map(|f| arena.insert(LiftInner::lift_value(f)).into())
         })
     }
 
     fn to_repr(&self) -> Self::Repr {
-        let s = self.canonicalized();
-        match s {
-            Lift::Assigned { index, .. } => LiftRepr(index.to_le_bytes()),
-            _ => unreachable!(),
-        }
+        self.concretized().unwrap().to_repr()
     }
 
     fn is_odd(&self) -> Choice {
-        0.into()
+        unimplemented!()
     }
 
     const MODULUS: &'static str = F::MODULUS;

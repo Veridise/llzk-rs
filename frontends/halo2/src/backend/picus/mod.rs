@@ -117,14 +117,9 @@ impl<'c, F: PrimeField> Backend<'c, PicusParams, PicusOutput<Lift<F>>> for Picus
         Self::FuncOutput: 'f,
         'c: 'f,
     {
-        let module = PicusModule::shared(
-            name.to_owned(),
-            selectors.len() + queries.len(),
-            0,
-            self.params.lift_fixed,
-        );
+        let module = PicusModule::shared(name.to_owned(), selectors.len() + queries.len(), 0);
         self.modules.borrow_mut().push(module.clone());
-        Ok(Self::FuncOutput::from(module))
+        Ok(Self::FuncOutput::new(module, self.params.lift_fixed))
     }
 
     fn define_main_function<'f>(
@@ -140,9 +135,8 @@ impl<'c, F: PrimeField> Backend<'c, PicusParams, PicusOutput<Lift<F>>> for Picus
             self.params.entrypoint.clone(),
             instance_io.inputs().len() + advice_io.inputs().len(),
             instance_io.outputs().len() + advice_io.outputs().len(),
-            self.params.lift_fixed,
         );
         self.modules.borrow_mut().push(module.clone());
-        Ok(Self::FuncOutput::from(module))
+        Ok(Self::FuncOutput::new(module, self.params.lift_fixed))
     }
 }

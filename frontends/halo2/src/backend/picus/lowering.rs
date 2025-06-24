@@ -21,13 +21,15 @@ pub type PicusModuleRef = Rc<RefCell<PicusModule>>;
 #[derive(Clone)]
 pub struct PicusModuleLowering<F> {
     module: PicusModuleRef,
+    lift_fixed: bool,
     _field: PhantomData<F>,
 }
 
-impl<F> From<PicusModuleRef> for PicusModuleLowering<F> {
-    fn from(module: PicusModuleRef) -> Self {
+impl<F> PicusModuleLowering<F> {
+    pub fn new(module: PicusModuleRef, lift_fixed: bool) -> Self {
         Self {
             module,
+            lift_fixed,
             _field: Default::default(),
         }
     }
@@ -73,8 +75,16 @@ impl<F: PrimeField> LiftLowering for PicusModuleLowering<F> {
         Ok(expr::r#const(*f))
     }
 
-    fn lower_lifted(&self, id: usize) -> Result<Self::Output> {
-        Ok(expr::lifted_input(self, id))
+    fn lower_lifted(&self, id: usize, f: Option<&Self::F>) -> Result<Self::Output> {
+        if self.lift_fixed {
+            Ok(expr::lifted_input(self, id))
+        } else if let Some(f) = f {
+            Ok(expr::r#const(*f))
+        } else {
+            bail!(
+                "Lifted value did not have an inner value and the lowerer was not configured to lift"
+            )
+        }
     }
 
     fn lower_add(&self, lhs: &Self::Output, rhs: &Self::Output) -> Result<Self::Output> {
