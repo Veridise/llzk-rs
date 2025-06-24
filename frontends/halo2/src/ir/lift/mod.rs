@@ -324,6 +324,10 @@ impl<F: PrimeField> Lift<F> {
         })
     }
 
+    pub fn lifted(self) -> Option<Self> {
+        self.concretized().map(Self::lift_value)
+    }
+
     pub fn canonicalize(&mut self) {
         *self = self.canonicalized();
     }
