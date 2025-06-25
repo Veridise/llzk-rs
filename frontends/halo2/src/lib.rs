@@ -15,28 +15,30 @@ mod synthesis;
 mod test;
 mod value;
 
-pub use crate::ir::lift::Lift;
+pub use crate::ir::lift::{Lift, LiftLike};
 pub use backend::picus::PicusOutput;
 pub use backend::picus::PicusParams;
 pub use backend::picus::PicusParamsBuilder;
 pub use io::{CircuitIO, CircuitWithIO};
 
-pub fn picus_codegen_with_params<F, C>(
+pub fn picus_codegen_with_params<F, L, C>(
     circuit: &C,
     params: PicusParams,
-) -> Result<PicusOutput<Lift<F>>>
+) -> Result<PicusOutput<L>>
 where
     F: PrimeField,
-    C: CircuitWithIO<Lift<F>>,
+    L: LiftLike<F>,
+    C: CircuitWithIO<L>,
 {
     let backend = PicusBackend::initialize(params);
     backend.codegen(circuit, &InlineConstraintsStrat)
 }
 
-pub fn picus_codegen<F, C>(circuit: &C) -> Result<PicusOutput<Lift<F>>>
+pub fn picus_codegen<F, L, C>(circuit: &C) -> Result<PicusOutput<L>>
 where
     F: PrimeField,
-    C: CircuitWithIO<Lift<F>>,
+    L: LiftLike<F>,
+    C: CircuitWithIO<L>,
 {
     picus_codegen_with_params(circuit, Default::default())
 }

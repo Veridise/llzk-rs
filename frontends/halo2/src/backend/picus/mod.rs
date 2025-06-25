@@ -4,7 +4,7 @@ use super::Backend;
 use crate::{
     gates::AnyQuery,
     halo2::{Advice, Instance, PrimeField, Selector},
-    CircuitIO, Lift,
+    CircuitIO, Lift, LiftLike,
 };
 use anyhow::Result;
 
@@ -79,15 +79,17 @@ impl Default for PicusParams {
     }
 }
 
-pub struct PicusBackend<F> {
+pub struct PicusBackend<F, L> {
     params: PicusParams,
     modules: RefCell<Vec<PicusModuleRef>>,
-    _marker: PhantomData<F>,
+    _marker: PhantomData<(F, L)>,
 }
 
-impl<'c, F: PrimeField> Backend<'c, PicusParams, PicusOutput<Lift<F>>> for PicusBackend<F> {
-    type FuncOutput = PicusModuleLowering<F>;
-    type F = Lift<F>;
+impl<'c, F: PrimeField, L: LiftLike<F>> Backend<'c, PicusParams, PicusOutput<L>>
+    for PicusBackend<F, L>
+{
+    type FuncOutput = PicusModuleLowering<F, L>;
+    type F = L;
 
     fn initialize(params: PicusParams) -> Self {
         Self {

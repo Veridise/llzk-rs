@@ -37,7 +37,7 @@ macro_rules! arena {
     }};
 }
 
-pub trait LiftLike<F>: Sized {
+pub trait LiftLike<F: PrimeField>: Sized + PrimeField {
     fn evaluate<T>(
         &self,
         constant: &impl Fn(&F) -> T,
@@ -123,28 +123,27 @@ pub trait LiftLowering {
         r#else: &Self::Output,
     ) -> Result<Self::Output>;
 
-    fn lower(&self, value: &Lift<Self::F>, simplify_first: bool) -> Result<Self::Output> {
-        arena!(|arena: &mut MutexGuard<BumpArena>| {
-            if simplify_first {
-                value.simplified_in_arena(arena)
-            } else {
-                *value
-            }
-            .evaluate_in_arena(
-                arena,
-                &|f| self.lower_constant(f),
-                &|id, f| self.lower_lifted(id, f),
-                &|lhs, rhs| self.lower_add(&lhs?, &rhs?),
-                &|lhs, rhs| self.lower_sub(&lhs?, &rhs?),
-                &|lhs, rhs| self.lower_mul(&lhs?, &rhs?),
-                &|expr| self.lower_neg(&expr?),
-                &|expr| self.lower_square(&expr?),
-                &|expr| self.lower_double(&expr?),
-                &|expr| self.lower_invert(&expr?),
-                &|lhs, rhs| self.lower_sqrt_ratio(&lhs?, &rhs?),
-                &|cond, lhs, rhs| self.lower_cond_select(cond, &lhs?, &rhs?),
-            )
-        })
+    fn lower(&self, value: &impl LiftLike<Self::F>, simplify_first: bool) -> Result<Self::Output> {
+        //arena!(|arena: &mut MutexGuard<BumpArena>| {
+        if simplify_first {
+            value.simplified()
+        } else {
+            *value
+        }
+        .evaluate(
+            &|f| self.lower_constant(f),
+            &|id, f| self.lower_lifted(id, f),
+            &|lhs, rhs| self.lower_add(&lhs?, &rhs?),
+            &|lhs, rhs| self.lower_sub(&lhs?, &rhs?),
+            &|lhs, rhs| self.lower_mul(&lhs?, &rhs?),
+            &|expr| self.lower_neg(&expr?),
+            &|expr| self.lower_square(&expr?),
+            &|expr| self.lower_double(&expr?),
+            &|expr| self.lower_invert(&expr?),
+            &|lhs, rhs| self.lower_sqrt_ratio(&lhs?, &rhs?),
+            &|cond, lhs, rhs| self.lower_cond_select(cond, &lhs?, &rhs?),
+        )
+        //})
     }
 }
 

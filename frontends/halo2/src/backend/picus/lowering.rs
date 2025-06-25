@@ -10,7 +10,7 @@ use crate::halo2::{
 };
 use crate::ir::lift::LiftLowering;
 use crate::value::{steal, steal_many};
-use crate::Lift;
+use crate::{Lift, LiftLike};
 use anyhow::{anyhow, bail, Result};
 use std::cell::RefCell;
 use std::marker::PhantomData;
@@ -19,13 +19,13 @@ use std::rc::Rc;
 pub type PicusModuleRef = Rc<RefCell<PicusModule>>;
 
 #[derive(Clone)]
-pub struct PicusModuleLowering<F> {
+pub struct PicusModuleLowering<F, L> {
     module: PicusModuleRef,
     lift_fixed: bool,
-    _field: PhantomData<F>,
+    _field: PhantomData<(F, L)>,
 }
 
-impl<F> PicusModuleLowering<F> {
+impl<F, L> PicusModuleLowering<F, L> {
     pub fn new(module: PicusModuleRef, lift_fixed: bool) -> Self {
         Self {
             module,
@@ -35,7 +35,7 @@ impl<F> PicusModuleLowering<F> {
     }
 }
 
-impl<'a, F: PrimeField> PicusModuleLowering<F> {
+impl<'a, F: PrimeField, L: LiftLike<F>> PicusModuleLowering<F, L> {
     fn lower_binary_op<Fn, T: Clone>(
         &self,
         lhs: &Value<T>,
@@ -55,7 +55,7 @@ impl<'a, F: PrimeField> PicusModuleLowering<F> {
         Ok(expr.clone().map(|e| f(&e)))
     }
 
-    fn lower_resolved_query(&self, query: ResolvedQuery<Lift<F>>) -> Result<Value<PicusExpr>> {
+    fn lower_resolved_query(&self, query: ResolvedQuery<L>) -> Result<Value<PicusExpr>> {
         Ok(match query {
             ResolvedQuery::Lit(value) => {
                 let f = steal(&value).ok_or(anyhow!("Query resolved to an unknown value"));
@@ -66,7 +66,7 @@ impl<'a, F: PrimeField> PicusModuleLowering<F> {
     }
 }
 
-impl<F: PrimeField> LiftLowering for PicusModuleLowering<F> {
+impl<F: PrimeField, L: LiftLike<F>> LiftLowering for PicusModuleLowering<F, L> {
     type F = F;
 
     type Output = PicusExpr;
@@ -129,10 +129,10 @@ impl<F: PrimeField> LiftLowering for PicusModuleLowering<F> {
     }
 }
 
-impl<F: PrimeField> Lowering for PicusModuleLowering<F> {
+impl<F: PrimeField, L: LiftLike<F>> Lowering for PicusModuleLowering<F, L> {
     type CellOutput = PicusExpr;
 
-    type F = Lift<F>;
+    type F = L;
 
     fn generate_constraint(
         &self,
@@ -274,11 +274,11 @@ impl<F: PrimeField> Lowering for PicusModuleLowering<F> {
         Self::CellOutput: 'a,
         'a: 'f,
     {
-        Ok(Value::known(self.lower(&f, true)?))
+        Ok(Value::known(self.lower(f, true)?))
     }
 }
 
-impl<F> VarAllocator for PicusModuleLowering<F> {
+impl<F, L> VarAllocator for PicusModuleLowering<F, L> {
     type Kind = FuncIO;
 
     fn allocate<K: Into<Self::Kind>>(&self, kind: K) -> VarStr {

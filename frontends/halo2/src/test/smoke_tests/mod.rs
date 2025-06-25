@@ -22,6 +22,6 @@ macro_rules! mock_codegen_test {
 #[macro_export]
 macro_rules! picus_codegen_test {
     ($c:ty) => {
-        codegen_test!($c, PicusBackend<Fr>, InlineConstraintsStrat)
+        codegen_test!($c, PicusBackend<Fr, Lift<Fr>>, InlineConstraintsStrat)
     };
 }
