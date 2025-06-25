@@ -37,6 +37,61 @@ macro_rules! arena {
     }};
 }
 
+pub trait LiftLike<F>: Sized {
+    fn evaluate<T>(
+        &self,
+        constant: &impl Fn(&F) -> T,
+        lift: &impl Fn(usize, Option<&F>) -> T,
+        add: &impl Fn(T, T) -> T,
+        sub: &impl Fn(T, T) -> T,
+        mul: &impl Fn(T, T) -> T,
+        neg: &impl Fn(T) -> T,
+        square: &impl Fn(T) -> T,
+        double: &impl Fn(T) -> T,
+        invert: &impl Fn(T) -> T,
+        sqrt_ratio: &impl Fn(T, T) -> T,
+        cond_select: &impl Fn(bool, T, T) -> T,
+    ) -> T;
+
+    fn simplify(&mut self) {
+        *self = self.simplified();
+    }
+    fn simplified(&self) -> Self;
+
+    fn concretized(&self) -> Option<F>;
+
+    fn is_symbolic(&self) -> bool {
+        let or = |lhs, rhs| lhs || rhs;
+        let ident = |e| e;
+        self.evaluate(
+            &|_| false,
+            &|_, _| true,
+            &or,
+            &or,
+            &or,
+            &ident,
+            &ident,
+            &ident,
+            &ident,
+            &or,
+            &|_, lhs, rhs| lhs || rhs,
+        )
+    }
+
+    fn lift() -> Self;
+
+    fn lift_value(f: F) -> Self;
+
+    fn lifted(self) -> Option<Self> {
+        self.concretized().map(Self::lift_value)
+    }
+
+    fn canonicalize(&mut self) {
+        *self = self.canonicalized();
+    }
+    fn canonicalized(&self) -> Self;
+}
+
 pub trait LiftLowering {
     type F: PrimeField;
     type Output;
@@ -126,38 +181,6 @@ impl<F: PrimeField> Lift<F> {
         }
     }
 
-    pub fn evaluate<T>(
-        &self,
-        constant: &impl Fn(&F) -> T,
-        lift: &impl Fn(usize, Option<&F>) -> T,
-        add: &impl Fn(T, T) -> T,
-        sub: &impl Fn(T, T) -> T,
-        mul: &impl Fn(T, T) -> T,
-        neg: &impl Fn(T) -> T,
-        square: &impl Fn(T) -> T,
-        double: &impl Fn(T) -> T,
-        invert: &impl Fn(T) -> T,
-        sqrt_ratio: &impl Fn(T, T) -> T,
-        cond_select: &impl Fn(bool, T, T) -> T,
-    ) -> T {
-        arena!(|arena| {
-            self.evaluate_in_arena(
-                arena,
-                constant,
-                lift,
-                add,
-                sub,
-                mul,
-                neg,
-                square,
-                double,
-                invert,
-                sqrt_ratio,
-                cond_select,
-            )
-        })
-    }
-
     fn evaluate_in_arena<T>(
         &self,
         arena: &mut MutexGuard<BumpArena>,
@@ -190,10 +213,6 @@ impl<F: PrimeField> Lift<F> {
 
     pub const fn from_const(f: F) -> Self {
         Self::Const(f)
-    }
-
-    pub fn simplify(&mut self) {
-        *self = self.simplified();
     }
 
     fn simplify_impl(
@@ -285,60 +304,12 @@ impl<F: PrimeField> Lift<F> {
         )
     }
 
-    pub fn simplified(&self) -> Self {
-        arena!(|arena: &mut MutexGuard<BumpArena>| { self.simplified_in_arena(arena) })
-    }
-
     fn simplified_in_arena(&self, arena: &mut MutexGuard<BumpArena>) -> Self {
         let r = match self.simplify_impl(arena, true) {
             Ok(f) => LiftInner::r#const(f),
             Err(e) => e,
         };
         arena.insert(r).into()
-    }
-
-    pub fn concretized(&self) -> Option<F> {
-        arena!(|arena| self.simplify_impl(arena, false).ok())
-    }
-
-    pub fn is_symbolic(&self) -> bool {
-        let or = |lhs, rhs| lhs || rhs;
-        let ident = |e| e;
-        self.evaluate(
-            &|_| false,
-            &|_, _| true,
-            &or,
-            &or,
-            &or,
-            &ident,
-            &ident,
-            &ident,
-            &ident,
-            &or,
-            &|_, lhs, rhs| lhs || rhs,
-        )
-    }
-
-    pub fn lift() -> Self {
-        arena!(|arena: &mut MutexGuard<BumpArena>| { arena.insert(LiftInner::lift()).into() })
-    }
-
-    pub fn lift_value(f: F) -> Self {
-        arena!(|arena: &mut MutexGuard<BumpArena>| {
-            arena.insert(LiftInner::lift_value(f)).into()
-        })
-    }
-
-    pub fn lifted(self) -> Option<Self> {
-        self.concretized().map(Self::lift_value)
-    }
-
-    pub fn canonicalize(&mut self) {
-        *self = self.canonicalized();
-    }
-
-    pub fn canonicalized(&self) -> Self {
-        arena!(|arena: &mut MutexGuard<BumpArena>| { self.canonicalized_in_arena(arena) })
     }
 
     fn canonicalized_in_arena(&self, arena: &mut MutexGuard<BumpArena>) -> Self {
@@ -375,6 +346,62 @@ impl<F: PrimeField> Lift<F> {
             .collect::<Vec<_>>()
             .try_into()
             .unwrap()
+    }
+}
+
+impl<F: PrimeField + 'static> LiftLike<F> for Lift<F> {
+    fn evaluate<T>(
+        &self,
+        constant: &impl Fn(&F) -> T,
+        lift: &impl Fn(usize, Option<&F>) -> T,
+        add: &impl Fn(T, T) -> T,
+        sub: &impl Fn(T, T) -> T,
+        mul: &impl Fn(T, T) -> T,
+        neg: &impl Fn(T) -> T,
+        square: &impl Fn(T) -> T,
+        double: &impl Fn(T) -> T,
+        invert: &impl Fn(T) -> T,
+        sqrt_ratio: &impl Fn(T, T) -> T,
+        cond_select: &impl Fn(bool, T, T) -> T,
+    ) -> T {
+        arena!(|arena| {
+            self.evaluate_in_arena(
+                arena,
+                constant,
+                lift,
+                add,
+                sub,
+                mul,
+                neg,
+                square,
+                double,
+                invert,
+                sqrt_ratio,
+                cond_select,
+            )
+        })
+    }
+
+    fn simplified(&self) -> Self {
+        arena!(|arena: &mut MutexGuard<BumpArena>| { self.simplified_in_arena(arena) })
+    }
+
+    fn concretized(&self) -> Option<F> {
+        arena!(|arena| self.simplify_impl(arena, false).ok())
+    }
+
+    fn lift() -> Self {
+        arena!(|arena: &mut MutexGuard<BumpArena>| { arena.insert(LiftInner::lift()).into() })
+    }
+
+    fn lift_value(f: F) -> Self {
+        arena!(|arena: &mut MutexGuard<BumpArena>| {
+            arena.insert(LiftInner::lift_value(f)).into()
+        })
+    }
+
+    fn canonicalized(&self) -> Self {
+        arena!(|arena: &mut MutexGuard<BumpArena>| { self.canonicalized_in_arena(arena) })
     }
 }
 
