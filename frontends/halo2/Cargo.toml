@@ -27,12 +27,13 @@ optional = true
 git = "https://github.com/midnightntwrk/halo2.git"
 package = "halo2_proofs"
 optional = true
-rev = "8303031"
+rev = "92d9356"
 default-features = false
 features = [
     "bits",
     "cost-estimator",
     "circuit-params",
+    "committed-instances",
 ]
 
 [dependencies.pse_halo2_proofs]
