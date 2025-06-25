@@ -1,3 +1,5 @@
+use ff::PrimeField;
+
 use super::{
     output::PicusFelt,
     vars::{VarAllocator, VarStr},
@@ -44,7 +46,7 @@ pub type PicusExpr = Wrap<dyn PicusExprLike>;
 // Factories
 //===----------------------------------------------------------------------===//
 
-pub fn r#const<F: Field>(f: F) -> PicusExpr {
+pub fn r#const<F: PrimeField>(f: F) -> PicusExpr {
     Wrap::new(ConstExpr(f.into()))
 }
 

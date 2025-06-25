@@ -11,7 +11,7 @@ llzk = { path = "../../llzk/", version = "0.1.0"}
 anyhow = "^1"
 group = "0.13"
 ff = "0.13"
-rug = "1.27.0"
+num-bigint = "0.4"
 rand = "0.8.5"
 subtle = "2.6.1"
 lazy_static = "1.5"

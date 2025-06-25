@@ -3,7 +3,7 @@ use std::ops::Add;
 use std::{collections::HashMap, fmt, marker::PhantomData, rc::Rc};
 
 use anyhow::Result;
-use rug::Integer;
+use num_bigint::BigUint;
 
 use super::stmt::{self, CallLike, PicusStmt};
 use super::vars::VarKey;
@@ -13,15 +13,12 @@ use crate::backend::picus::vars::VarIO;
 use crate::halo2::{Field, PrimeField};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct PicusFelt(Integer);
+pub struct PicusFelt(BigUint);
 
-impl<F: Field> From<F> for PicusFelt {
+impl<F: PrimeField> From<F> for PicusFelt {
     fn from(value: F) -> Self {
-        let s = format!("{:?}", value);
-        Self(
-            Integer::from_str_radix(&s[2..], 16)
-                .expect(format!("parse felt hex representation: {value:?}").as_str()),
-        )
+        let r = value.to_repr();
+        Self(BigUint::from_bytes_le(r.as_ref()))
     }
 }
 
@@ -30,18 +27,18 @@ impl PicusFelt {
         Self(value.into())
     }
 
-    pub fn prime<F: Field>() -> Self {
+    pub fn prime<F: PrimeField>() -> Self {
         let mut f = Self::from(-F::ONE);
-        f.0 += 1;
+        f.0 += 1u32;
         f
     }
 
     pub fn is_one(&self) -> bool {
-        self.0 == 1
+        self.0 == 1u32.into()
     }
 
     pub fn is_zero(&self) -> bool {
-        self.0.is_zero()
+        self.0 == 0u32.into()
     }
 }
 
