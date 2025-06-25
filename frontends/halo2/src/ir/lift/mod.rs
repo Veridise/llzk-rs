@@ -106,6 +106,7 @@ pub enum Lift<F> {
     RootOfUnity,
     RootOfUnityInv,
     Delta,
+    Const(F),
 }
 
 impl<F> From<Index> for Lift<F> {
@@ -185,6 +186,10 @@ impl<F: PrimeField> Lift<F> {
             sqrt_ratio,
             cond_select,
         )
+    }
+
+    pub const fn from_const(f: F) -> Self {
+        Self::Const(f)
     }
 
     pub fn simplify(&mut self) {
@@ -348,6 +353,7 @@ impl<F: PrimeField> Lift<F> {
             Lift::RootOfUnity => lazy_init_root::<F, Self>(arena, |_, idx| (*idx).into()),
             Lift::RootOfUnityInv => lazy_init_root_inv::<F, Self>(arena, |_, idx| (*idx).into()),
             Lift::Delta => lazy_init_delta::<F, Self>(arena, |_, idx| (*idx).into()),
+            Lift::Const(f) => arena.insert(LiftInner::r#const(*f)).into(),
         }
     }
 
@@ -610,6 +616,7 @@ impl<F: fmt::Debug + PrimeField> fmt::Debug for Lift<F> {
             Lift::RootOfUnity => write!(f, "Lift<F> {{ RootOfUnity }}"),
             Lift::RootOfUnityInv => write!(f, "Lift<F> {{ RootOfUnityInv }}"),
             Lift::Delta => write!(f, "Lift<F> {{ Delta }}"),
+            Lift::Const(v) => write!(f, "{v:?}"),
         }
     }
 }
