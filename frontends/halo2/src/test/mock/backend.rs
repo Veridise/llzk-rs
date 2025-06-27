@@ -1,36 +1,19 @@
 use crate::{
     backend::{
-        func::FuncIO,
-        resolvers::{QueryResolver, ResolvedQuery},
-    },
-    halo2::{Fr, Value},
-    value::{steal, steal_many},
-};
-use std::{
-    cell::{Ref, RefCell},
-    collections::{HashMap, HashSet},
-    fmt,
-    marker::PhantomData,
-    ops::Deref,
-    rc::Rc,
-};
-
-use crate::{
-    backend::{
-        func::{ArgNo, FieldId},
+        func::{ArgNo, FieldId, FuncIO},
         lowering::Lowering,
-        resolvers::ResolvedSelector,
+        resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector},
         Backend,
     },
     gates::AnyQuery,
     halo2::{
-        Advice, AdviceQuery, Challenge, Expression, Field, FixedQuery, Instance, InstanceQuery,
-        Selector,
+        Advice, AdviceQuery, Challenge, FixedQuery, Fr, Instance, InstanceQuery, Selector, Value,
     },
-    ir::CircuitStmt,
+    value::{steal, steal_many},
     CircuitIO,
 };
 use anyhow::{bail, Result};
+use std::{cell::RefCell, collections::HashSet, fmt, rc::Rc};
 
 type SharedFuncRef = Rc<RefCell<MockFunc>>;
 

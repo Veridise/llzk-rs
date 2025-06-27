@@ -107,47 +107,11 @@ impl IOValidator for AdviceIOValidator {
     }
 }
 
-pub(crate) struct InstanceIOValidator<'a, F: Field>(&'a ConstraintSystem<F>);
+pub(crate) struct InstanceIOValidator<'a, F: Field>(#[allow(dead_code)] &'a ConstraintSystem<F>);
 
 impl<'a, F: Field> InstanceIOValidator<'a, F> {
     pub fn new(cs: &'a ConstraintSystem<F>) -> Self {
         Self(cs)
-    }
-
-    /// Validates that the size of the union of the columns set is equal to
-    /// the number of queried instance columns.
-    /// Assumes that the given sets are disjoint.
-    fn validate_union_invariant(
-        &self,
-        inputs: &HashSet<IOCell<<InstanceIOValidator<'_, F> as IOValidator>::C>>,
-        outputs: &HashSet<IOCell<<InstanceIOValidator<'_, F> as IOValidator>::C>>,
-    ) -> Result<()> {
-        // Disabled
-        //let inputs = self.column_set(inputs);
-        //let outputs = self.column_set(outputs);
-        //let union = inputs.union(&outputs).count();
-        //let n_queried = self
-        //    .0
-        //    .instance_queries()
-        //    .iter()
-        //    .map(|(c, _)| c.index())
-        //    .collect::<HashSet<_>>()
-        //    .len();
-        //if union != n_queried {
-        //    bail!(
-        //        "The number of IO instance columns is not equal to the number of queried instance columns in the constraint system. {} != {}",
-        //        union,
-        //        n_queried
-        //    );
-        //}
-        Ok(())
-    }
-
-    fn column_set(
-        &self,
-        set: &HashSet<IOCell<<InstanceIOValidator<'_, F> as IOValidator>::C>>,
-    ) -> HashSet<usize> {
-        set.iter().map(|cell| cell.0.index()).collect()
     }
 }
 
@@ -157,9 +121,7 @@ impl<F: Field> IOValidator for InstanceIOValidator<'_, F> {
     /// The instance IO specification is valid iff the set of inputs and outputs is disjoint and their
     /// union contains all the instance columns in the circuit.
     fn validate(&self, io: &CircuitIO<Self::C>) -> Result<()> {
-        let (inputs, outputs) = self.sets_are_disjoint(io)?;
-
-        self.validate_union_invariant(&inputs, &outputs)
+        self.sets_are_disjoint(io).map(|_| {})
     }
 }
 

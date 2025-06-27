@@ -135,6 +135,7 @@ impl BumpArena {
         Some(unsafe { (item.ptr as *const T).as_ref().unwrap() })
     }
 
+    #[allow(dead_code)]
     pub fn contains<T: 'static>(&self, idx: &Index) -> bool {
         self.items.len() > idx.0 && self.items[idx.0].id == TypeId::of::<T>()
     }

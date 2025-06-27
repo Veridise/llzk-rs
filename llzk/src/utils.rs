@@ -10,6 +10,7 @@ pub trait FromRaw<RawT> {
     unsafe fn from_raw(raw: RawT) -> Self;
 }
 
+#[allow(dead_code)]
 pub(crate) unsafe extern "C" fn print_callback(string: MlirStringRef, data: *mut c_void) {
     unsafe {
         let (formatter, result) = &mut *(data as *mut (&mut Formatter, fmt::Result));

@@ -12,8 +12,6 @@ use lazy::{
     lazy_init_delta, lazy_init_mult_gen, lazy_init_one, lazy_init_root, lazy_init_root_inv,
     lazy_init_two_inv, lazy_init_zero,
 };
-use serde::Deserialize;
-use serde::Serialize;
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 use unwrapped::Unwrapped;
 

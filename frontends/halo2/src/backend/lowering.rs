@@ -154,6 +154,7 @@ pub trait Lowering {
         )
     }
 
+    #[allow(dead_code)]
     fn lower_exprs<'a, 'l: 'a>(
         &'l self,
         exprs: &[Expression<Self::F>],

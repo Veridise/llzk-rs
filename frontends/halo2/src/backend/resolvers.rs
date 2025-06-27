@@ -49,6 +49,7 @@ pub trait SelectorResolver {
     fn resolve_selector(&self, selector: &Selector) -> Result<ResolvedSelector>;
 }
 
+#[allow(dead_code)]
 pub enum QueryKind {
     Advice,
     Fixed,
@@ -81,6 +82,7 @@ pub trait QueryResolver<F: Field> {
 
     fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>>;
 
+    #[allow(dead_code)]
     fn resolve_any_query(&self, query: &AnyQuery) -> Result<ResolvedQuery<F>> {
         match query {
             AnyQuery::Advice(advice_query) => self.resolve_advice_query(advice_query),

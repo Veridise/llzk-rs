@@ -15,6 +15,7 @@ use std::{
 
 #[derive(Debug)]
 pub struct RegionData<F> {
+    #[allow(dead_code)]
     /// The name of the region. Not required to be unique.
     name: String,
     /// The selectors that have been enabled in this region. All other selectors are by

@@ -29,9 +29,3 @@ pub use pse_v1::*;
 pub use scroll::*;
 #[cfg(feature = "zcash")]
 pub use zcash::*;
-
-// Conditionally require `Group` based on the presence of a feature flag
-#[cfg(feature = "pse-v1")]
-pub trait CodegenField: Field + Group {}
-#[cfg(not(feature = "pse-v1"))]
-pub trait CodegenField: Field {}
