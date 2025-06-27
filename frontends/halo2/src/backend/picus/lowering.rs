@@ -1,22 +1,21 @@
-use super::expr::{self, PicusExpr};
-use super::output::PicusModule;
-use super::stmt;
-use super::vars::{VarAllocator, VarStr};
-use crate::backend::func::FuncIO;
-use crate::backend::lowering::Lowering;
-use crate::backend::resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver};
-use crate::halo2::{
-    AdviceQuery, Challenge, FixedQuery, InstanceQuery, PrimeField, Selector, Value,
+use super::{vars::VarKey, FeltWrap};
+use crate::{
+    backend::{
+        func::FuncIO,
+        lowering::Lowering,
+        resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
+    },
+    halo2::{AdviceQuery, Challenge, FixedQuery, InstanceQuery, PrimeField, Selector, Value},
+    ir::lift::LiftLowering,
+    value::{steal, steal_many},
+    LiftLike,
 };
-use crate::ir::lift::LiftLowering;
-use crate::value::{steal, steal_many};
-use crate::{Lift, LiftLike};
 use anyhow::{anyhow, bail, Result};
-use std::cell::RefCell;
+use picus::{expr, stmt, ModuleLike as _};
 use std::marker::PhantomData;
-use std::rc::Rc;
 
-pub type PicusModuleRef = Rc<RefCell<PicusModule>>;
+pub type PicusModuleRef = picus::ModuleRef<VarKey>;
+type PicusExpr = picus::expr::Expr;
 
 #[derive(Clone)]
 pub struct PicusModuleLowering<F, L> {
@@ -61,7 +60,7 @@ impl<'a, F: PrimeField, L: LiftLike<F>> PicusModuleLowering<F, L> {
                 let f = steal(&value).ok_or(anyhow!("Query resolved to an unknown value"));
                 Value::known(self.lower(&f?, true)?)
             }
-            ResolvedQuery::IO(func_io) => Value::known(expr::var(self, func_io)),
+            ResolvedQuery::IO(func_io) => Value::known(expr::var(&self.module, func_io)),
         })
     }
 }
@@ -72,14 +71,17 @@ impl<F: PrimeField, L: LiftLike<F>> LiftLowering for PicusModuleLowering<F, L> {
     type Output = PicusExpr;
 
     fn lower_constant(&self, f: &Self::F) -> Result<Self::Output> {
-        Ok(expr::r#const(*f))
+        Ok(expr::r#const(FeltWrap(*f)))
     }
 
     fn lower_lifted(&self, id: usize, f: Option<&Self::F>) -> Result<Self::Output> {
         if self.lift_fixed {
-            Ok(expr::lifted_input(self, id))
+            Ok(expr::var(
+                &self.module,
+                VarKey::Lifted(FuncIO::Arg(0.into()), id),
+            ))
         } else if let Some(f) = f {
-            Ok(expr::r#const(*f))
+            Ok(expr::r#const(FeltWrap(*f)))
         } else {
             bail!(
                 "Lifted value did not have an inner value and the lowerer was not configured to lift"
@@ -148,7 +150,7 @@ impl<F: PrimeField, L: LiftLike<F>> Lowering for PicusModuleLowering<F, L> {
     }
 
     fn num_constraints(&self) -> usize {
-        self.module.borrow().constraints_len()
+        self.module.constraints_len()
     }
 
     fn generate_call(
@@ -157,7 +159,7 @@ impl<F: PrimeField, L: LiftLike<F>> Lowering for PicusModuleLowering<F, L> {
         selectors: &[Value<Self::CellOutput>],
         queries: &[Value<Self::CellOutput>],
     ) -> Result<()> {
-        self.module.borrow_mut().add_call(stmt::call(
+        self.module.borrow_mut().add_stmt(stmt::call(
             name.to_owned(),
             steal_many(selectors)
                 .ok_or_else(|| anyhow!("some selector value was unknown"))?
@@ -170,7 +172,7 @@ impl<F: PrimeField, L: LiftLike<F>> Lowering for PicusModuleLowering<F, L> {
                 .map(Clone::clone)
                 .collect(),
             0,
-            self,
+            &self.module,
         ));
         Ok(())
     }
@@ -232,7 +234,7 @@ impl<F: PrimeField, L: LiftLike<F>> Lowering for PicusModuleLowering<F, L> {
     {
         match resolver.resolve_selector(sel)? {
             ResolvedSelector::Const(value) => Lowering::lower_constant(self, &value.to_f()),
-            ResolvedSelector::Arg(arg_no) => Ok(Value::known(expr::var(self, arg_no))),
+            ResolvedSelector::Arg(arg_no) => Ok(Value::known(expr::var(&self.module, arg_no))),
         }
     }
 
@@ -275,24 +277,5 @@ impl<F: PrimeField, L: LiftLike<F>> Lowering for PicusModuleLowering<F, L> {
         'a: 'f,
     {
         Ok(Value::known(self.lower(f, true)?))
-    }
-}
-
-impl<F, L> VarAllocator for PicusModuleLowering<F, L> {
-    type Kind = FuncIO;
-
-    fn allocate<K: Into<Self::Kind>>(&self, kind: K) -> VarStr {
-        let mut module = self.module.borrow_mut();
-        module.add_var(Some(kind.into()))
-    }
-
-    fn allocate_temp(&self) -> VarStr {
-        let mut module = self.module.borrow_mut();
-        module.add_var(None)
-    }
-
-    fn allocate_lifted_input(&self, id: usize) -> VarStr {
-        let mut module = self.module.borrow_mut();
-        module.add_lifted_input(id)
     }
 }

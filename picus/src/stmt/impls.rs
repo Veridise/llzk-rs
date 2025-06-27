@@ -1,123 +1,46 @@
-use super::{
-    expr::{ConstantFolding, ExprSize, PicusExpr, PicusExprLike},
-    vars::{VarAllocator, VarStr},
+use std::fmt;
+
+use crate::{
+    expr::{
+        traits::{ConstantFolding, ExprLike, ExprSize},
+        Expr,
+    },
+    felt::Felt,
+    vars::VarStr,
 };
-use std::{fmt, rc::Rc};
 
-//===----------------------------------------------------------------------===//
-// Main traits
-//===----------------------------------------------------------------------===//
-
-pub type Wrap<T> = Rc<T>;
-
-pub trait ExprArgs {
-    fn args(&self) -> Vec<PicusExpr>;
-}
-
-pub trait ConstraintLike {
-    fn is_constraint(&self) -> bool;
-}
-
-pub trait CallLike {
-    fn callee(&self) -> &str;
-
-    fn with_new_callee(&self, new_name: String) -> PicusStmt;
-}
-
-pub trait StmtConstantFolding {
-    fn fold(&self) -> Option<PicusStmt>;
-}
-
-pub trait CallLikeMut: CallLike {
-    fn set_callee(&mut self, new_name: String);
-}
-
-pub struct CallLikeAdaptor<'a>(&'a dyn CallLike);
-
-pub struct CallLikeAdaptorMut<'a>(&'a mut dyn CallLikeMut);
-
-impl CallLike for CallLikeAdaptor<'_> {
-    fn callee(&self) -> &str {
-        self.0.callee()
-    }
-
-    fn with_new_callee(&self, new_name: String) -> PicusStmt {
-        self.0.with_new_callee(new_name)
-    }
-}
-
-impl CallLike for CallLikeAdaptorMut<'_> {
-    fn callee(&self) -> &str {
-        self.0.callee()
-    }
-
-    fn with_new_callee(&self, new_name: String) -> PicusStmt {
-        self.0.with_new_callee(new_name)
-    }
-}
-
-impl CallLikeMut for CallLikeAdaptorMut<'_> {
-    fn set_callee(&mut self, new_name: String) {
-        self.0.set_callee(new_name)
-    }
-}
-
-pub trait MaybeCallLike {
-    fn as_call<'a>(&'a self) -> Option<CallLikeAdaptor<'a>>;
-
-    fn as_call_mut<'a>(&'a mut self) -> Option<CallLikeAdaptorMut<'a>>;
-}
-
-pub trait PicusStmtLike:
-    ExprArgs + ConstraintLike + MaybeCallLike + StmtConstantFolding + fmt::Display
-{
-}
-
-pub type PicusStmt = Wrap<dyn PicusStmtLike>;
-
-//===----------------------------------------------------------------------===//
-// Factories
-//===----------------------------------------------------------------------===//
-
-pub fn call<A>(callee: String, inputs: Vec<PicusExpr>, n_outputs: usize, allocator: &A) -> PicusStmt
-where
-    A: VarAllocator,
-{
-    Wrap::new(CallStmt {
-        callee,
-        inputs,
-        outputs: (0..n_outputs).map(|_| allocator.allocate_temp()).collect(),
-    })
-}
-
-pub fn constrain(expr: PicusExpr) -> PicusStmt {
-    Wrap::new(PicusConstraint(expr))
-}
+use super::{
+    traits::{
+        CallLike, CallLikeAdaptor, CallLikeAdaptorMut, CallLikeMut, ConstraintLike, ExprArgs,
+        MaybeCallLike, StmtConstantFolding, StmtLike,
+    },
+    Stmt, Wrap,
+};
 
 //===----------------------------------------------------------------------===//
 // TempVarExpr
 //===----------------------------------------------------------------------===//
 
-pub struct TempVarExpr(VarStr);
+struct TempVarExpr(VarStr);
 
 impl TempVarExpr {
-    pub fn new(s: &VarStr) -> PicusExpr {
-        super::expr::Wrap::new(Self(s.clone()))
+    pub fn new(s: &VarStr) -> Expr {
+        Wrap::new(Self(s.clone()))
     }
 }
 
 impl ExprSize for TempVarExpr {
-    fn depth(&self) -> usize {
+    fn size(&self) -> usize {
         1
     }
 }
 
 impl ConstantFolding for TempVarExpr {
-    fn as_const(&self) -> Option<super::output::PicusFelt> {
+    fn as_const(&self) -> Option<Felt> {
         None
     }
 
-    fn fold(&self) -> Option<PicusExpr> {
+    fn fold(&self) -> Option<Expr> {
         None
     }
 }
@@ -128,20 +51,30 @@ impl fmt::Display for TempVarExpr {
     }
 }
 
-impl PicusExprLike for TempVarExpr {}
+impl ExprLike for TempVarExpr {}
 
 //===----------------------------------------------------------------------===//
 // CallStmt
 //===----------------------------------------------------------------------===//
 
-struct CallStmt {
+pub struct CallStmt {
     callee: String,
-    inputs: Vec<PicusExpr>,
+    inputs: Vec<Expr>,
     outputs: Vec<VarStr>,
 }
 
+impl CallStmt {
+    pub fn new(callee: String, inputs: Vec<Expr>, outputs: Vec<VarStr>) -> Self {
+        Self {
+            callee,
+            inputs,
+            outputs,
+        }
+    }
+}
+
 impl ExprArgs for CallStmt {
-    fn args(&self) -> Vec<PicusExpr> {
+    fn args(&self) -> Vec<Expr> {
         self.outputs
             .iter()
             .map(TempVarExpr::new)
@@ -161,7 +94,7 @@ impl CallLike for CallStmt {
         &self.callee
     }
 
-    fn with_new_callee(&self, callee: String) -> PicusStmt {
+    fn with_new_callee(&self, callee: String) -> Stmt {
         Wrap::new(Self {
             callee,
             inputs: self.inputs.clone(),
@@ -178,16 +111,16 @@ impl CallLikeMut for CallStmt {
 
 impl MaybeCallLike for CallStmt {
     fn as_call<'a>(&'a self) -> Option<CallLikeAdaptor<'a>> {
-        Some(CallLikeAdaptor(self))
+        Some(CallLikeAdaptor::new(self))
     }
 
     fn as_call_mut<'a>(&'a mut self) -> Option<CallLikeAdaptorMut<'a>> {
-        Some(CallLikeAdaptorMut(self))
+        Some(CallLikeAdaptorMut::new(self))
     }
 }
 
 impl StmtConstantFolding for CallStmt {
-    fn fold(&self) -> Option<PicusStmt> {
+    fn fold(&self) -> Option<Stmt> {
         Some(Wrap::new(Self {
             callee: self.callee.clone(),
             inputs: self
@@ -229,27 +162,33 @@ impl fmt::Display for CallStmt {
     }
 }
 
-impl PicusStmtLike for CallStmt {}
+impl StmtLike for CallStmt {}
 
 //===----------------------------------------------------------------------===//
 // ConstraintStmt
 //===----------------------------------------------------------------------===//
 
-struct PicusConstraint(PicusExpr);
+pub struct ConstraintStmt(Expr);
 
-impl ExprArgs for PicusConstraint {
-    fn args(&self) -> Vec<PicusExpr> {
+impl ConstraintStmt {
+    pub fn new(e: Expr) -> Self {
+        Self(e)
+    }
+}
+
+impl ExprArgs for ConstraintStmt {
+    fn args(&self) -> Vec<Expr> {
         vec![self.0.clone()]
     }
 }
 
-impl ConstraintLike for PicusConstraint {
+impl ConstraintLike for ConstraintStmt {
     fn is_constraint(&self) -> bool {
         true
     }
 }
 
-impl MaybeCallLike for PicusConstraint {
+impl MaybeCallLike for ConstraintStmt {
     fn as_call<'a>(&'a self) -> Option<CallLikeAdaptor<'a>> {
         None
     }
@@ -259,16 +198,16 @@ impl MaybeCallLike for PicusConstraint {
     }
 }
 
-impl fmt::Display for PicusConstraint {
+impl fmt::Display for ConstraintStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "(assert {})", self.0)
     }
 }
 
-impl StmtConstantFolding for PicusConstraint {
-    fn fold(&self) -> Option<PicusStmt> {
+impl StmtConstantFolding for ConstraintStmt {
+    fn fold(&self) -> Option<Stmt> {
         Some(Wrap::new(Self(self.0.fold().unwrap_or(self.0.clone()))))
     }
 }
 
-impl PicusStmtLike for PicusConstraint {}
+impl StmtLike for ConstraintStmt {}

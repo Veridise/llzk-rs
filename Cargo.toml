@@ -3,7 +3,7 @@ members = [
   "frontends/halo2", 
   "llzk",
   "llzk-sys"
-]
+, "picus"]
 resolver = "2"
 
 [patch.crates-io]
