@@ -4,7 +4,7 @@ use crate::{backend::func::FuncIO, synthesis::regions::FQN};
 
 fn prepend_fqn(fqn: Option<FQN>) -> String {
     match fqn {
-        Some(fqn) => format!("{fqn} :: "),
+        Some(fqn) => format!("{fqn}__"),
         None => "".to_string(),
     }
 }
@@ -29,23 +29,25 @@ impl Into<VarStr> for VarKey {
                 "{}{}",
                 prepend_fqn(fqn),
                 match func_io {
-                    FuncIO::Arg(arg_no) => format!("Input[{arg_no}]"),
-                    FuncIO::Field(field_id) => format!("Output[{field_id}]"),
-                    FuncIO::Temp(col, row) => format!("Temp[{col}, {row}]"),
+                    FuncIO::Arg(arg_no) => format!("Input_{arg_no}"),
+                    FuncIO::Field(field_id) => format!("Output_{field_id}"),
+                    FuncIO::Temp(col, row) => format!("Temp_{col}_{row}"),
                 }
             )
-            .into(),
-            VarKey::Temp => "Temp ".to_owned().into(),
+            .try_into()
+            .unwrap(),
+            VarKey::Temp => "Temp_".to_owned().try_into().unwrap(),
             VarKey::Lifted(f, id) => format!(
-                "Lifted {}{}",
+                "Lifted_{}{}",
                 match f {
-                    FuncIO::Arg(_) => "Input ",
-                    FuncIO::Field(_) => "Output ",
+                    FuncIO::Arg(_) => "Input_",
+                    FuncIO::Field(_) => "Output_",
                     FuncIO::Temp(_, _) => "",
                 },
                 id
             )
-            .into(),
+            .try_into()
+            .unwrap(),
         }
     }
 }

@@ -23,12 +23,16 @@ pub struct FQN {
 
 impl fmt::Display for FQN {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.region)?;
+        fn clean_string(s: &String) -> String {
+            s.trim()
+                .replace(|c: char| !c.is_ascii_alphanumeric() && c != '_', "_")
+        }
+        write!(f, "{}", clean_string(&self.region))?;
         if !self.namespaces.is_empty() {
-            write!(f, " :: {}", self.namespaces.join(" :: "))?;
+            write!(f, "__{}", clean_string(&self.namespaces.join("__")))?;
         }
         if let Some(name) = &self.tail {
-            write!(f, " :: {name}")?;
+            write!(f, "__{}", clean_string(name))?;
         }
         write!(f, "")
     }

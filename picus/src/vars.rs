@@ -9,24 +9,21 @@ use regex::Regex;
 #[derive(Clone)]
 pub struct VarStr(String);
 
-impl From<String> for VarStr {
-    fn from(value: String) -> Self {
-        Self(value)
+impl TryFrom<String> for VarStr {
+    type Error = anyhow::Error;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let re = Regex::new(r"^[A-Za-z0-9_]+$").unwrap();
+        if !re.is_match(value.as_str()) {
+            anyhow::bail!("String \"{value}\" is not a valid Picus identifier");
+        }
+        Ok(Self(value))
     }
 }
 
 impl fmt::Display for VarStr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let re = Regex::new(r"^[A-Za-z0-9_]+$").unwrap();
-        let is_ident = re.is_match(self.0.as_str());
-        if !is_ident {
-            write!(f, "\"")?;
-        }
-        write!(f, "{}", self.0)?;
-        if !is_ident {
-            write!(f, "\"")?;
-        }
-        write!(f, "")
+        write!(f, "{}", self.0)
     }
 }
 
@@ -98,7 +95,9 @@ impl<K: VarKind + Into<VarStr> + Clone> Vars<K> {
                 if c < 0 {
                     v
                 } else {
-                    format!("{}{}", v.0, c).into()
+                    format!("{}{}", v.0, c)
+                        .try_into()
+                        .expect("valid identifier")
                 }
             })
             .skip_while(|v| unique_names.contains(v.0.as_str()))
