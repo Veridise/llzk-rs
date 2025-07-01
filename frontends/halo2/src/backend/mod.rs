@@ -1,12 +1,12 @@
 use crate::{
     gates::{compute_gate_arity, AnyQuery},
     halo2::{
-        Advice, AdviceQuery, Any, Column, Field, FixedQuery, Gate, Instance,
-        InstanceQuery, Rotation, Selector, Value,
+        Advice, AdviceQuery, Any, Column, Field, FixedQuery, Gate, Instance, InstanceQuery,
+        Rotation, Selector, Value,
     },
     ir::{CircuitStmt, CircuitStmts},
     synthesis::{
-        regions::{RegionRow, Row},
+        regions::{RegionRow, Row, FQN},
         CircuitSynthesis,
     },
     CircuitIO, CircuitWithIO,
@@ -56,13 +56,16 @@ impl<F: Field> QueryResolver<F> for GateScopedResolver<'_> {
         )
     }
 
-    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<ResolvedQuery<F>> {
-        resolve(
-            self.queries.iter(),
-            query,
-            self.selectors.len(),
-            "Query as argument not found",
-        )
+    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<(ResolvedQuery<F>, Option<FQN>)> {
+        Ok((
+            resolve(
+                self.queries.iter(),
+                query,
+                self.selectors.len(),
+                "Query as argument not found",
+            )?,
+            None,
+        ))
     }
 
     fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>> {

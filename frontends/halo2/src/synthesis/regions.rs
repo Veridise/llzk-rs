@@ -10,14 +10,42 @@ use crate::{
 use anyhow::{bail, Result};
 use std::{
     collections::{HashMap, HashSet},
+    fmt,
     ops::Range,
 };
 
-#[derive(Debug)]
-pub struct RegionData<F> {
-    #[allow(dead_code)]
-    /// The name of the region. Not required to be unique.
-    name: String,
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct FQN {
+    region: String,
+    namespaces: Vec<String>,
+    tail: Option<String>,
+}
+
+impl fmt::Display for FQN {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.region)?;
+        if !self.namespaces.is_empty() {
+            write!(f, " :: {}", self.namespaces.join(" :: "))?;
+        }
+        if let Some(name) = &self.tail {
+            write!(f, " :: {name}")?;
+        }
+        write!(f, "")
+    }
+}
+
+impl FQN {
+    pub fn new(region: &str, namespaces: &[String], tail: Option<String>) -> Self {
+        Self {
+            region: region.to_string(),
+            namespaces: namespaces.to_vec(),
+            tail,
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct RegionDataInner<F> {
     /// The selectors that have been enabled in this region. All other selectors are by
     /// construction not enabled.
     enabled_selectors: HashMap<Selector, Vec<usize>>,
@@ -27,21 +55,30 @@ pub struct RegionData<F> {
     rows: Option<(usize, usize)>,
     /// Constant values assigned to fixed columns in the region.
     fixed: HashMap<(usize, usize), Value<F>>,
+    advice_names: HashMap<(usize, usize), FQN>,
+    advice_columns: HashSet<Column<Advice>>,
+    namespaces: Vec<String>,
+}
+
+#[derive(Debug)]
+pub struct RegionData<F> {
+    #[allow(dead_code)]
+    /// The name of the region. Not required to be unique.
+    name: String,
+    inner: RegionDataInner<F>,
 }
 
 impl<F: Default + Clone> RegionData<F> {
     pub fn new<S: Into<String>>(name: S) -> Self {
         Self {
             name: name.into(),
-            enabled_selectors: Default::default(),
-            columns: Default::default(),
-            rows: Default::default(),
-            fixed: Default::default(),
+            inner: Default::default(),
         }
     }
 
     pub fn selectors_enabled_for_row(&self, row: usize) -> Vec<&Selector> {
-        self.enabled_selectors
+        self.inner
+            .enabled_selectors
             .iter()
             .filter(|(_, rows)| rows.contains(&row))
             .map(|(sel, _)| sel)
@@ -49,11 +86,11 @@ impl<F: Default + Clone> RegionData<F> {
     }
 
     pub fn update_extent(&mut self, column: Column<Any>, row: usize) {
-        self.columns.insert(column);
+        self.inner.columns.insert(column);
 
         // The region start is the earliest row assigned to.
         // The region end is the latest row assigned to.
-        let (mut start, mut end) = self.rows.unwrap_or((row, row));
+        let (mut start, mut end) = self.inner.rows.unwrap_or((row, row));
         if row < start {
             // The first row assigned was not at start 0 within the region.
             start = row;
@@ -61,11 +98,32 @@ impl<F: Default + Clone> RegionData<F> {
         if row > end {
             end = row;
         }
-        self.rows = Some((start, end));
+        self.inner.rows = Some((start, end));
+
+        if let Any::Advice(_) = column.column_type() {
+            self.inner.advice_columns.insert(column.try_into().unwrap());
+            self.allocate_advice_names();
+        }
+    }
+
+    /// Creates anonymous advice cells in the cells that are within the confines of the region.
+    /// If in a later stage the cell has a proper name it will overwrite this anonymous name.
+    fn allocate_advice_names(&mut self) {
+        if let Some((start, end)) = self.inner.rows {
+            for row in start..=end {
+                for col in &self.inner.advice_columns {
+                    if self.inner.advice_names.contains_key(&(col.index(), row)) {
+                        continue;
+                    }
+                    let anon_fqn = FQN::new(self.name.as_str(), &self.inner.namespaces, None);
+                    self.inner.advice_names.insert((col.index(), row), anon_fqn);
+                }
+            }
+        }
     }
 
     pub fn enable_selector(&mut self, s: Selector, row: usize) {
-        self.enabled_selectors.entry(s).or_default().push(row);
+        self.inner.enabled_selectors.entry(s).or_default().push(row);
     }
 
     pub fn assign_fixed<VR>(&mut self, fixed: Column<Fixed>, row: usize, value: Value<VR>)
@@ -73,20 +131,59 @@ impl<F: Default + Clone> RegionData<F> {
         F: Field,
         VR: Into<Assigned<F>>,
     {
-        self.fixed
+        self.inner
+            .fixed
             .insert((fixed.index(), row), value.map(|vr| vr.into().evaluate()));
     }
 
     pub fn rows(&self) -> Range<usize> {
-        self.rows.map(|(begin, end)| begin..end + 1).unwrap_or(0..0)
+        self.inner
+            .rows
+            .map(|(begin, end)| begin..end + 1)
+            .unwrap_or(0..0)
     }
 
     pub fn resolve_fixed(&self, column: &usize, row: &usize) -> Value<&F> {
-        self.fixed
+        self.inner
+            .fixed
             .get(&(*column, *row))
             .and_then(|v| Some(v.as_ref()))
             .or_else(|| Some(Value::unknown()))
             .unwrap()
+    }
+
+    pub fn note_advice(&mut self, column: Column<Advice>, row: usize, name: String) {
+        let fqn = FQN::new(self.name.as_str(), &self.inner.namespaces, name.into());
+        self.inner.advice_names.insert((column.index(), row), fqn);
+    }
+
+    pub fn push_namespace<NR, N>(&mut self, name: N)
+    where
+        NR: Into<String>,
+        N: FnOnce() -> NR,
+    {
+        self.inner.namespaces.push(name().into())
+    }
+
+    pub fn pop_namespace(&mut self, name: Option<String>) {
+        match name {
+            Some(name) => {
+                if let Some(idx) = self.inner.namespaces.iter().rposition(|e| *e == name) {
+                    self.inner.namespaces.remove(idx);
+                }
+            }
+            None => {
+                self.inner.namespaces.pop();
+            }
+        }
+    }
+
+    pub fn find_advice_name(&self, col: usize, row: usize) -> FQN {
+        self.inner
+            .advice_names
+            .get(&(col, row))
+            .cloned()
+            .unwrap_or(FQN::new(&self.name, &[], None))
     }
 }
 
@@ -208,12 +305,12 @@ impl<F: Field> QueryResolver<F> for Row<'_> {
         unreachable!()
     }
 
-    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<ResolvedQuery<F>> {
+    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<(ResolvedQuery<F>, Option<FQN>)> {
         let r = self.resolve(self.advice_io, query.column_index(), query.rotation())?;
         // Advice cells go second so we need to step the value by the number of instance cells
         // that are of the same type (input or output)
         let r = self.step_advice_io(r);
-        Ok(r.into())
+        Ok((r.into(), None))
     }
 
     fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>> {
@@ -268,8 +365,19 @@ impl<F: Field> QueryResolver<F> for RegionRow<'_, '_, F> {
         Ok(ResolvedQuery::Lit(value.copied()))
     }
 
-    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<ResolvedQuery<F>> {
-        self.row.resolve_advice_query(query)
+    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<(ResolvedQuery<F>, Option<FQN>)> {
+        let (r, _): (ResolvedQuery<F>, _) = self.row.resolve_advice_query(query)?;
+
+        match r {
+            l @ ResolvedQuery::Lit(_) => Ok((l, None)),
+            io @ ResolvedQuery::IO(func_io) => Ok((
+                io,
+                Some(match func_io {
+                    FuncIO::Temp(col, row) => self.region.find_advice_name(col, row),
+                    _ => FQN::new(&self.region.name, &[], None),
+                }),
+            )),
+        }
     }
 
     fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>> {
@@ -281,6 +389,7 @@ impl<F: Field> SelectorResolver for RegionRow<'_, '_, F> {
     fn resolve_selector(&self, selector: &Selector) -> Result<ResolvedSelector> {
         let selected = self
             .region
+            .inner
             .enabled_selectors
             .get(selector)
             .map(|rows| rows.contains(&self.row.row))

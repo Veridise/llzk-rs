@@ -290,7 +290,7 @@ impl Lowering for MockFuncRef {
     where
         Self::CellOutput: 'a,
     {
-        let resolved = resolver.resolve_advice_query(query)?;
+        let (resolved, _) = resolver.resolve_advice_query(query)?;
 
         Ok(match resolved {
             ResolvedQuery::Lit(_) => unreachable!(),

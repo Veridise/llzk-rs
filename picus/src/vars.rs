@@ -4,6 +4,8 @@ use std::{
     hash::Hash,
 };
 
+use regex::Regex;
+
 #[derive(Clone)]
 pub struct VarStr(String);
 
@@ -15,7 +17,16 @@ impl From<String> for VarStr {
 
 impl fmt::Display for VarStr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+        let re = Regex::new(r"^[A-Za-z0-9_]+$").unwrap();
+        let is_ident = re.is_match(self.0.as_str());
+        if !is_ident {
+            write!(f, "\"")?;
+        }
+        write!(f, "{}", self.0)?;
+        if !is_ident {
+            write!(f, "\"")?;
+        }
+        write!(f, "")
     }
 }
 

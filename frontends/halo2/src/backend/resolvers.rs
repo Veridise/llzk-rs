@@ -2,6 +2,7 @@ use super::func::{ArgNo, FuncIO};
 use crate::{
     gates::AnyQuery,
     halo2::{AdviceQuery, Field, FixedQuery, InstanceQuery, Selector, Value},
+    synthesis::regions::FQN,
 };
 use anyhow::Result;
 
@@ -78,14 +79,16 @@ impl<F: Field> From<FuncIO> for ResolvedQuery<F> {
 pub trait QueryResolver<F: Field> {
     fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>>;
 
-    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<ResolvedQuery<F>>;
+    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<(ResolvedQuery<F>, Option<FQN>)>;
 
     fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>>;
 
     #[allow(dead_code)]
     fn resolve_any_query(&self, query: &AnyQuery) -> Result<ResolvedQuery<F>> {
         match query {
-            AnyQuery::Advice(advice_query) => self.resolve_advice_query(advice_query),
+            AnyQuery::Advice(advice_query) => {
+                self.resolve_advice_query(advice_query).map(|(r, _)| r)
+            }
             AnyQuery::Instance(instance_query) => self.resolve_instance_query(instance_query),
             AnyQuery::Fixed(fixed_query) => self.resolve_fixed_query(fixed_query),
         }

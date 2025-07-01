@@ -1,32 +1,17 @@
 pub use picus::vars::{VarKind, VarStr};
 
-use crate::backend::func::{ArgNo, FieldId, FuncIO};
+use crate::{backend::func::FuncIO, synthesis::regions::FQN};
 
-impl Into<VarStr> for FuncIO {
-    fn into(self) -> VarStr {
-        match self {
-            FuncIO::Arg(arg_no) => arg_no.into(),
-            FuncIO::Field(field_id) => field_id.into(),
-            FuncIO::Temp(col, row) => format!("temp_{col}_{row}").into(),
-        }
+fn prepend_fqn(fqn: Option<FQN>) -> String {
+    match fqn {
+        Some(fqn) => format!("{fqn} :: "),
+        None => "".to_string(),
     }
 }
 
-impl Into<VarStr> for ArgNo {
-    fn into(self) -> VarStr {
-        format!("input_{self}").into()
-    }
-}
-
-impl Into<VarStr> for FieldId {
-    fn into(self) -> VarStr {
-        format!("output_{self}").into()
-    }
-}
-
-#[derive(Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Clone, Hash, Eq, PartialEq)]
 pub enum VarKey {
-    IO(FuncIO),
+    IO(FuncIO, Option<FQN>),
     Temp,
     Lifted(FuncIO, usize),
 }
@@ -40,13 +25,22 @@ impl Default for VarKey {
 impl Into<VarStr> for VarKey {
     fn into(self) -> VarStr {
         match self {
-            VarKey::IO(func_io) => func_io.into(),
-            VarKey::Temp => "temp".to_owned().into(),
+            VarKey::IO(func_io, fqn) => format!(
+                "{}{}",
+                prepend_fqn(fqn),
+                match func_io {
+                    FuncIO::Arg(arg_no) => format!("Input[{arg_no}]"),
+                    FuncIO::Field(field_id) => format!("Output[{field_id}]"),
+                    FuncIO::Temp(col, row) => format!("Temp[{col}, {row}]"),
+                }
+            )
+            .into(),
+            VarKey::Temp => "Temp ".to_owned().into(),
             VarKey::Lifted(f, id) => format!(
-                "lifted_{}{}",
+                "Lifted {}{}",
                 match f {
-                    FuncIO::Arg(_) => "input_",
-                    FuncIO::Field(_) => "output_",
+                    FuncIO::Arg(_) => "Input ",
+                    FuncIO::Field(_) => "Output ",
                     FuncIO::Temp(_, _) => "",
                 },
                 id
@@ -59,7 +53,7 @@ impl Into<VarStr> for VarKey {
 impl VarKind for VarKey {
     fn is_input(&self) -> bool {
         match self {
-            VarKey::IO(func_io) => match func_io {
+            VarKey::IO(func_io, _) => match func_io {
                 FuncIO::Arg(_) => true,
                 _ => false,
             },
@@ -70,7 +64,7 @@ impl VarKind for VarKey {
 
     fn is_output(&self) -> bool {
         match self {
-            VarKey::IO(func_io) => match func_io {
+            VarKey::IO(func_io, _) => match func_io {
                 FuncIO::Field(_) => true,
                 _ => false,
             },
@@ -81,7 +75,7 @@ impl VarKind for VarKey {
 
     fn is_temp(&self) -> bool {
         match self {
-            VarKey::IO(func_io) => match func_io {
+            VarKey::IO(func_io, _) => match func_io {
                 FuncIO::Temp(_, _) => true,
                 _ => false,
             },
@@ -95,8 +89,14 @@ impl VarKind for VarKey {
     }
 }
 
+impl From<(FuncIO, Option<FQN>)> for VarKey {
+    fn from(value: (FuncIO, Option<FQN>)) -> Self {
+        Self::IO(value.0, value.1)
+    }
+}
+
 impl<T: Into<FuncIO>> From<T> for VarKey {
     fn from(value: T) -> Self {
-        Self::IO(value.into())
+        Self::IO(value.into(), None)
     }
 }

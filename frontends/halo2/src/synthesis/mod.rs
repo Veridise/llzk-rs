@@ -162,7 +162,7 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
 
     fn assign_advice<V, VR, A, AR>(
         &mut self,
-        _name: A,
+        name: A,
         advice: Column<Advice>,
         row: usize,
         _value: V,
@@ -174,7 +174,8 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         A: FnOnce() -> AR,
     {
         self.regions.edit(|region| {
-            region.update_extent(advice.into(), row);
+            region.note_advice(advice, row, name().into());
+            region.update_extent(advice.clone().into(), row);
         });
         Ok(())
     }
@@ -221,14 +222,17 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         todo!()
     }
 
-    fn push_namespace<NR, N>(&mut self, _nm: N)
+    fn push_namespace<NR, N>(&mut self, name: N)
     where
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
+        self.regions.edit(|region| region.push_namespace(name));
     }
 
-    fn pop_namespace(&mut self, _: Option<String>) {}
+    fn pop_namespace(&mut self, name: Option<String>) {
+        self.regions.edit(|region| region.pop_namespace(name));
+    }
 
     #[cfg(feature = "annotate-column")]
     fn annotate_column<A, AR>(&mut self, _: A, _: Column<Any>)

@@ -7,6 +7,7 @@ use crate::{
     },
     halo2::{AdviceQuery, Challenge, FixedQuery, InstanceQuery, PrimeField, Selector, Value},
     ir::lift::LiftLowering,
+    synthesis::regions::FQN,
     value::{steal, steal_many},
     LiftLike,
 };
@@ -54,13 +55,17 @@ impl<'a, F: PrimeField, L: LiftLike<Inner = F>> PicusModuleLowering<F, L> {
         Ok(expr.clone().map(|e| f(&e)))
     }
 
-    fn lower_resolved_query(&self, query: ResolvedQuery<L>) -> Result<Value<PicusExpr>> {
+    fn lower_resolved_query(
+        &self,
+        query: ResolvedQuery<L>,
+        fqn: Option<FQN>,
+    ) -> Result<Value<PicusExpr>> {
         Ok(match query {
             ResolvedQuery::Lit(value) => {
                 let f = steal(&value).ok_or(anyhow!("Query resolved to an unknown value"));
                 Value::known(self.lower(&f?, true)?)
             }
-            ResolvedQuery::IO(func_io) => Value::known(expr::var(&self.module, func_io)),
+            ResolvedQuery::IO(func_io) => Value::known(expr::var(&self.module, (func_io, fqn))),
         })
     }
 }
@@ -246,7 +251,8 @@ impl<F: PrimeField, L: LiftLike<Inner = F>> Lowering for PicusModuleLowering<F, 
     where
         Self::CellOutput: 'a,
     {
-        self.lower_resolved_query(resolver.resolve_advice_query(query)?)
+        let (res, fqn) = resolver.resolve_advice_query(query)?;
+        self.lower_resolved_query(res, fqn)
     }
 
     fn lower_instance_query<'a>(
@@ -257,7 +263,7 @@ impl<F: PrimeField, L: LiftLike<Inner = F>> Lowering for PicusModuleLowering<F, 
     where
         Self::CellOutput: 'a,
     {
-        self.lower_resolved_query(resolver.resolve_instance_query(query)?)
+        self.lower_resolved_query(resolver.resolve_instance_query(query)?, None)
     }
 
     fn lower_fixed_query<'a>(
@@ -268,7 +274,7 @@ impl<F: PrimeField, L: LiftLike<Inner = F>> Lowering for PicusModuleLowering<F, 
     where
         Self::CellOutput: 'a,
     {
-        self.lower_resolved_query(resolver.resolve_fixed_query(query)?)
+        self.lower_resolved_query(resolver.resolve_fixed_query(query)?, None)
     }
 
     fn lower_constant<'a, 'f>(&'a self, f: &'f Self::F) -> Result<Value<Self::CellOutput>>
