@@ -1,5 +1,5 @@
 use std::{
-    any::{Any, TypeId},
+    any::{type_name, Any, TypeId},
     ops::RangeFrom,
     rc::Rc,
 };
@@ -14,23 +14,29 @@ where
     fn as_f(&self) -> &F {
         self.try_as_f().expect(
             format!(
-                "Failed to convert to {:?}. Self is {:?}",
+                "Failed to convert to '{}' ({:?}). Inner is '{}' ({:?})",
+                type_name::<F>(),
                 TypeId::of::<F>(),
-                self.type_id(),
+                self.raw_name(),
+                self.raw().type_id(),
             )
             .as_str(),
         )
     }
 
+    fn raw<'a>(&'a self) -> &'a dyn Any;
+
+    fn raw_name(&self) -> &'static str;
+
     fn try_as_f(&self) -> Option<&F>;
 }
 
 #[derive(Clone, Debug)]
-pub struct InnerConst(Rc<Box<dyn Any>>);
+pub struct InnerConst(Rc<Box<dyn Any>>, &'static str);
 
 impl InnerConst {
     pub fn new<F: 'static>(value: F) -> Self {
-        Self(Rc::new(Box::new(value)))
+        Self(Rc::new(Box::new(value)), type_name::<F>())
     }
 }
 
@@ -38,11 +44,27 @@ impl<F: 'static> AsF<F> for InnerConst {
     fn try_as_f(&self) -> Option<&F> {
         self.0.downcast_ref::<F>()
     }
+
+    fn raw<'a>(&'a self) -> &'a dyn Any {
+        &self.0
+    }
+
+    fn raw_name(&self) -> &'static str {
+        self.1
+    }
 }
 
 impl<F: 'static, T: AsF<F>> AsF<F> for Option<T> {
     fn try_as_f(&self) -> Option<&F> {
         self.as_ref().map(T::try_as_f).flatten()
+    }
+
+    fn raw(&self) -> &dyn Any {
+        unimplemented!()
+    }
+
+    fn raw_name(&self) -> &'static str {
+        unimplemented!()
     }
 }
 
