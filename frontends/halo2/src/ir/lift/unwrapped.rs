@@ -48,7 +48,7 @@ impl<'a, F: 'static> Unwrapped<'a, F> {
             eq(&lhs, &rhs).into()
         }
 
-        fn as_f_eq<F, FN, FO>(lhs: &impl AsF<F>, rhs: &impl AsF<F>, eq: &FN) -> bool
+        fn as_f_eq<F: 'static, FN, FO>(lhs: &impl AsF<F>, rhs: &impl AsF<F>, eq: &FN) -> bool
         where
             FN: Fn(&F, &F) -> FO,
             FO: Into<bool>,

@@ -1,11 +1,25 @@
-use std::{any::Any, ops::RangeFrom, rc::Rc};
+use std::{
+    any::{Any, TypeId},
+    ops::RangeFrom,
+    rc::Rc,
+};
 
 use super::unwrapped::Unwrapped;
 use std::sync::Mutex;
 
-pub trait AsF<F> {
+pub trait AsF<F: 'static>
+where
+    Self: 'static,
+{
     fn as_f(&self) -> &F {
-        self.try_as_f().unwrap()
+        self.try_as_f().expect(
+            format!(
+                "Failed to convert to {:?}. Self is {:?}",
+                TypeId::of::<F>(),
+                self.type_id(),
+            )
+            .as_str(),
+        )
     }
 
     fn try_as_f(&self) -> Option<&F>;
@@ -26,7 +40,7 @@ impl<F: 'static> AsF<F> for InnerConst {
     }
 }
 
-impl<F, T: AsF<F>> AsF<F> for Option<T> {
+impl<F: 'static, T: AsF<F>> AsF<F> for Option<T> {
     fn try_as_f(&self) -> Option<&F> {
         self.as_ref().map(T::try_as_f).flatten()
     }
