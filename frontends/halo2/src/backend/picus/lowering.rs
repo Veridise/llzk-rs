@@ -34,7 +34,7 @@ impl<F, L> PicusModuleLowering<F, L> {
     }
 }
 
-impl<'a, F: PrimeField, L: LiftLike<F>> PicusModuleLowering<F, L> {
+impl<'a, F: PrimeField, L: LiftLike<Inner = F>> PicusModuleLowering<F, L> {
     fn lower_binary_op<Fn, T: Clone>(
         &self,
         lhs: &Value<T>,
@@ -65,7 +65,7 @@ impl<'a, F: PrimeField, L: LiftLike<F>> PicusModuleLowering<F, L> {
     }
 }
 
-impl<F: PrimeField, L: LiftLike<F>> LiftLowering for PicusModuleLowering<F, L> {
+impl<F: PrimeField, L: LiftLike<Inner = F>> LiftLowering for PicusModuleLowering<F, L> {
     type F = F;
 
     type Output = PicusExpr;
@@ -131,7 +131,7 @@ impl<F: PrimeField, L: LiftLike<F>> LiftLowering for PicusModuleLowering<F, L> {
     }
 }
 
-impl<F: PrimeField, L: LiftLike<F>> Lowering for PicusModuleLowering<F, L> {
+impl<F: PrimeField, L: LiftLike<Inner = F>> Lowering for PicusModuleLowering<F, L> {
     type CellOutput = PicusExpr;
 
     type F = L;

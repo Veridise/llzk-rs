@@ -127,7 +127,7 @@ where
     (0..count).map(move |i| f(i.into()))
 }
 
-impl<'c, F: PrimeField, L: LiftLike<F>> Backend<'c, PicusParams, PicusOutput<L>>
+impl<'c, F: PrimeField, L: LiftLike<Inner = F>> Backend<'c, PicusParams, PicusOutput<L>>
     for PicusBackend<F, L>
 {
     type FuncOutput = PicusModuleLowering<F, L>;

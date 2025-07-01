@@ -35,11 +35,13 @@ macro_rules! arena {
     }};
 }
 
-pub trait LiftLike<F: PrimeField>: Sized + PrimeField {
+pub trait LiftLike: Sized + PrimeField {
+    type Inner: PrimeField;
+
     fn evaluate<T>(
         &self,
-        constant: &impl Fn(&F) -> T,
-        lift: &impl Fn(usize, Option<&F>) -> T,
+        constant: &impl Fn(&Self::Inner) -> T,
+        lift: &impl Fn(usize, Option<&Self::Inner>) -> T,
         add: &impl Fn(T, T) -> T,
         sub: &impl Fn(T, T) -> T,
         mul: &impl Fn(T, T) -> T,
@@ -56,7 +58,7 @@ pub trait LiftLike<F: PrimeField>: Sized + PrimeField {
     }
     fn simplified(&self) -> Self;
 
-    fn concretized(&self) -> Option<F>;
+    fn concretized(&self) -> Option<Self::Inner>;
 
     fn is_symbolic(&self) -> bool {
         let or = |lhs, rhs| lhs || rhs;
@@ -78,7 +80,7 @@ pub trait LiftLike<F: PrimeField>: Sized + PrimeField {
 
     fn lift() -> Self;
 
-    fn lift_value(f: F) -> Self;
+    fn lift_value(f: Self::Inner) -> Self;
 
     fn lifted(self) -> Option<Self> {
         self.concretized().map(Self::lift_value)
@@ -121,7 +123,11 @@ pub trait LiftLowering {
         r#else: &Self::Output,
     ) -> Result<Self::Output>;
 
-    fn lower(&self, value: &impl LiftLike<Self::F>, simplify_first: bool) -> Result<Self::Output> {
+    fn lower(
+        &self,
+        value: &impl LiftLike<Inner = Self::F>,
+        simplify_first: bool,
+    ) -> Result<Self::Output> {
         //arena!(|arena: &mut MutexGuard<BumpArena>| {
         if simplify_first {
             value.simplified()
@@ -346,7 +352,9 @@ impl<F: PrimeField> Lift<F> {
     }
 }
 
-impl<F: PrimeField + 'static> LiftLike<F> for Lift<F> {
+impl<F: PrimeField + 'static> LiftLike for Lift<F> {
+    type Inner = F;
+
     fn evaluate<T>(
         &self,
         constant: &impl Fn(&F) -> T,

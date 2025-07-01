@@ -27,7 +27,7 @@ pub fn picus_codegen_with_params<F, L, C>(
 ) -> Result<PicusOutput<L>>
 where
     F: PrimeField,
-    L: LiftLike<F>,
+    L: LiftLike<Inner = F>,
     C: CircuitWithIO<L>,
 {
     let backend = PicusBackend::initialize(params);
@@ -37,7 +37,7 @@ where
 pub fn picus_codegen<F, L, C>(circuit: &C) -> Result<PicusOutput<L>>
 where
     F: PrimeField,
-    L: LiftLike<F>,
+    L: LiftLike<Inner = F>,
     C: CircuitWithIO<L>,
 {
     picus_codegen_with_params(circuit, Default::default())
