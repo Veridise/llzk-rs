@@ -60,7 +60,7 @@ impl<F: Field> CircuitSynthesis<F> {
         self.cs.gates()
     }
 
-    pub fn regions(&self) -> &[RegionData<F>] {
+    pub fn regions<'a>(&'a self) -> Vec<RegionData<'a, F>> {
         self.regions.regions()
     }
 
@@ -80,11 +80,11 @@ impl<F: Field> CircuitSynthesis<F> {
         &'a self,
     ) -> impl Iterator<Item = (&'a Gate<F>, RegionRow<'a, 'a, F>)> + 'a {
         self.regions()
-            .iter()
-            .flat_map(|region| {
-                region
-                    .rows()
-                    .map(|row| RegionRow::new(region, row, self.advice_io(), self.instance_io()))
+            .into_iter()
+            .flat_map(move |region| {
+                region.rows().map(move |row| {
+                    RegionRow::new(region, row, self.advice_io(), self.instance_io())
+                })
             })
             .flat_map(|r| {
                 self.gates().iter().filter_map(move |gate| {
@@ -215,12 +215,14 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
 
     fn fill_from_row(
         &mut self,
-        col: Column<Fixed>,
+        column: Column<Fixed>,
         row: usize,
         value: Value<Assigned<F>>,
     ) -> Result<(), Error> {
-        log::debug!("fill_from_row{:?}", (col, row, value));
-        todo!()
+        log::debug!("fill_from_row{:?}", (column, row, value));
+        self.regions
+            .edit(|region| region.blanket_fill(column, row, value.map(|f| f.evaluate())));
+        Ok(())
     }
 
     fn push_namespace<NR, N>(&mut self, name: N)
