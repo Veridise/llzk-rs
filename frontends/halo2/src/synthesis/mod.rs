@@ -215,10 +215,11 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
 
     fn fill_from_row(
         &mut self,
-        _: Column<Fixed>,
-        _: usize,
-        _: Value<Assigned<F>>,
+        col: Column<Fixed>,
+        row: usize,
+        value: Value<Assigned<F>>,
     ) -> Result<(), Error> {
+        log::debug!("fill_from_row{:?}", (col, row, value));
         todo!()
     }
 
