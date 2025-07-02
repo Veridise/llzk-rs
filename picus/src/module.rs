@@ -17,6 +17,22 @@ impl<Key: VarKind + Into<VarStr> + Default + Clone> VarAllocator for ModuleRef<K
     }
 }
 
+struct ModuleSummary {
+    input_count: usize,
+    output_count: usize,
+    temp_count: usize,
+    constraint_count: usize,
+}
+
+impl fmt::Display for ModuleSummary {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "; Number of inputs:      {}", self.input_count)?;
+        writeln!(f, "; Number of outputs:     {}", self.output_count)?;
+        writeln!(f, "; Number of temporaries: {}", self.temp_count)?;
+        writeln!(f, "; Number of constraints: {}", self.constraint_count)
+    }
+}
+
 pub struct Module<K: VarKind> {
     pub(crate) name: String,
     pub(crate) stmts: Vec<Stmt>,
@@ -105,6 +121,20 @@ impl<K: VarKind> Module<K> {
     pub fn stmts(&self) -> &[Stmt] {
         &self.stmts
     }
+
+    fn summarize(&self) -> ModuleSummary {
+        let input_count = self.vars.inputs().count();
+        let output_count = self.vars.outputs().count();
+        let temp_count = self.vars.temporaries().count();
+        let constraint_count = self.stmts.iter().filter(|s| s.is_constraint()).count();
+
+        ModuleSummary {
+            input_count,
+            output_count,
+            temp_count,
+            constraint_count,
+        }
+    }
 }
 
 impl<K: VarKind + Default + Into<VarStr> + Clone> Module<K> {
@@ -137,6 +167,7 @@ impl<K: VarKind + Default + Into<VarStr> + Clone> ModuleWithVars<K> for Module<K
 impl<K: VarKind> fmt::Display for Module<K> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "(begin-module {})", self.name)?;
+        writeln!(f, "{}", self.summarize())?;
         for i in self.vars.inputs() {
             writeln!(f, "(input {i})")?;
         }
@@ -144,7 +175,7 @@ impl<K: VarKind> fmt::Display for Module<K> {
             writeln!(f, "(output {o})")?;
         }
         for c in &self.stmts {
-            writeln!(f, "{c}")?;
+            write!(f, "{c}")?;
         }
         writeln!(f, "(end-module)")
     }

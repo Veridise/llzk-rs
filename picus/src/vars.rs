@@ -55,6 +55,10 @@ impl<K: VarKind> Vars<K> {
         self.filter(|k, _| k.is_output())
     }
 
+    pub fn temporaries(&self) -> impl Iterator<Item = &str> {
+        self.filter(|k, _| k.is_temp())
+    }
+
     fn filter<'a, P>(&'a self, p: P) -> impl Iterator<Item = &'a str>
     where
         P: Fn(&'a K, &'a VarStr) -> bool + 'a,

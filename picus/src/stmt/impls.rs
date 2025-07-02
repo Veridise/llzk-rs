@@ -158,7 +158,7 @@ impl fmt::Display for CallStmt {
         print_list(&self.outputs, f)?;
         write!(f, " {} ", self.callee)?;
         print_list(&self.inputs, f)?;
-        write!(f, ")")
+        writeln!(f, ")")
     }
 }
 
@@ -200,7 +200,7 @@ impl MaybeCallLike for ConstraintStmt {
 
 impl fmt::Display for ConstraintStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "(assert {})", self.0)
+        writeln!(f, "(assert {})", self.0)
     }
 }
 
@@ -254,7 +254,6 @@ impl StmtConstantFolding for CommentLine {
 
 impl fmt::Display for CommentLine {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "")?;
         writeln!(f, "; {}", self.0)
     }
 }
