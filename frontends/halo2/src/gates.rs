@@ -10,10 +10,10 @@ where
     Q: Fn(&'a Expression<F>) -> HashSet<QR>,
     QR: Hash + Eq + Clone,
 {
-    q(lhs).union(&q(rhs)).map(|e| e.clone()).collect()
+    q(lhs).union(&q(rhs)).cloned().collect()
 }
 
-fn find_selectors<'a, F: Field>(poly: &'a Expression<F>) -> HashSet<&'a Selector> {
+fn find_selectors<F: Field>(poly: &Expression<F>) -> HashSet<&Selector> {
     match poly {
         Expression::Selector(selector) => [selector].into(),
         Expression::Negated(expression) => find_selectors(expression),
@@ -126,19 +126,19 @@ impl Hash for AnyQuery {
 
 impl From<&AdviceQuery> for AnyQuery {
     fn from(query: &AdviceQuery) -> Self {
-        Self::Advice(query.clone())
+        Self::Advice(*query)
     }
 }
 
 impl From<&InstanceQuery> for AnyQuery {
     fn from(query: &InstanceQuery) -> Self {
-        Self::Instance(query.clone())
+        Self::Instance(*query)
     }
 }
 
 impl From<&FixedQuery> for AnyQuery {
     fn from(query: &FixedQuery) -> Self {
-        Self::Fixed(query.clone())
+        Self::Fixed(*query)
     }
 }
 
@@ -157,9 +157,7 @@ fn find_queries<F: Field>(poly: &Expression<F>) -> HashSet<AnyQuery> {
 
 pub type GateArity<'a> = (Vec<&'a Selector>, Vec<AnyQuery>);
 
-pub fn find_gate_selector_set<'a, F: Field>(
-    constraints: &'a [Expression<F>],
-) -> HashSet<&'a Selector> {
+pub fn find_gate_selector_set<F: Field>(constraints: &[Expression<F>]) -> HashSet<&Selector> {
     constraints.iter().flat_map(find_selectors).collect()
 }
 
@@ -167,12 +165,12 @@ pub fn find_gate_query_selector_set<F: Field>(constraints: &[Expression<F>]) -> 
     constraints.iter().flat_map(find_queries).collect()
 }
 
-pub fn find_gate_selectors<'a, F: Field>(constraints: &'a [Expression<F>]) -> Vec<&'a Selector> {
+pub fn find_gate_selectors<F: Field>(constraints: &[Expression<F>]) -> Vec<&Selector> {
     let mut selectors: Vec<&Selector> = find_gate_selector_set(constraints)
         .iter()
-        .map(|s| *s)
+        .copied()
         .collect();
-    selectors.sort_by(|lhs, rhs| lhs.index().cmp(&rhs.index()));
+    selectors.sort_by_key(|lhs| lhs.index());
     selectors
 }
 

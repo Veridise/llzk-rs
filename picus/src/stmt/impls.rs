@@ -211,3 +211,52 @@ impl StmtConstantFolding for ConstraintStmt {
 }
 
 impl StmtLike for ConstraintStmt {}
+
+//===----------------------------------------------------------------------===//
+// CommentLine
+//===----------------------------------------------------------------------===//
+
+pub struct CommentLine(String);
+
+impl CommentLine {
+    pub fn new(s: String) -> Self {
+        Self(s)
+    }
+}
+
+impl ExprArgs for CommentLine {
+    fn args(&self) -> Vec<Expr> {
+        vec![]
+    }
+}
+
+impl ConstraintLike for CommentLine {
+    fn is_constraint(&self) -> bool {
+        false
+    }
+}
+
+impl MaybeCallLike for CommentLine {
+    fn as_call<'a>(&'a self) -> Option<CallLikeAdaptor<'a>> {
+        None
+    }
+
+    fn as_call_mut<'a>(&'a mut self) -> Option<CallLikeAdaptorMut<'a>> {
+        None
+    }
+}
+
+impl StmtConstantFolding for CommentLine {
+    fn fold(&self) -> Option<Stmt> {
+        None
+    }
+}
+
+impl fmt::Display for CommentLine {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "")?;
+        writeln!(f, "; {}", self.0)
+    }
+}
+
+impl StmtLike for CommentLine {}

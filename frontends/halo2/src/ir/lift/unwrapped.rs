@@ -37,7 +37,7 @@ impl<'a, F: 'static> Unwrapped<'a, F> {
         Beq: Fn(&Unwrapped<'_, F>, &Unwrapped<'_, F>) -> BeqO,
         BeqO: Into<bool>,
     {
-        fn eq_box<F, FN, FO>(lhs: &Box<LiftInner>, rhs: &Box<LiftInner>, eq: &FN) -> bool
+        fn eq_box<F, FN, FO>(lhs: &LiftInner, rhs: &LiftInner, eq: &FN) -> bool
         where
             F: 'static,
             FN: Fn(&Unwrapped<'_, F>, &Unwrapped<'_, F>) -> FO,
@@ -54,7 +54,7 @@ impl<'a, F: 'static> Unwrapped<'a, F> {
             FO: Into<bool>,
         {
             match (lhs.try_as_f(), rhs.try_as_f()) {
-                (Some(lhs), Some(rhs)) => eq(&lhs, &rhs).into(),
+                (Some(lhs), Some(rhs)) => eq(lhs, rhs).into(),
                 _ => false,
             }
         }

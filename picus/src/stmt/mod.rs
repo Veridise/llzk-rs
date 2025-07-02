@@ -1,5 +1,5 @@
 use crate::vars::VarKind as _;
-use impls::{CallStmt, ConstraintStmt};
+use impls::{CallStmt, CommentLine, ConstraintStmt};
 use std::rc::Rc;
 use traits::StmtLike;
 
@@ -31,4 +31,8 @@ where
 
 pub fn constrain(expr: Expr) -> Stmt {
     Wrap::new(ConstraintStmt::new(expr))
+}
+
+pub fn comment(s: String) -> Stmt {
+    Wrap::new(CommentLine::new(s))
 }

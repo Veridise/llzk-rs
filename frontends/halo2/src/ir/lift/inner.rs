@@ -12,19 +12,18 @@ where
     Self: 'static,
 {
     fn as_f(&self) -> &F {
-        self.try_as_f().expect(
-            format!(
+        self.try_as_f().unwrap_or_else(|| {
+            panic!(
                 "Failed to convert to '{}' ({:?}). Inner is '{}' ({:?})",
                 type_name::<F>(),
                 TypeId::of::<F>(),
                 self.raw_name(),
-                self.raw().type_id(),
+                self.raw().type_id()
             )
-            .as_str(),
-        )
+        })
     }
 
-    fn raw<'a>(&'a self) -> &'a dyn Any;
+    fn raw(&self) -> &dyn Any;
 
     fn raw_name(&self) -> &'static str;
 
@@ -45,7 +44,7 @@ impl<F: 'static> AsF<F> for InnerConst {
         self.0.downcast_ref::<F>()
     }
 
-    fn raw<'a>(&'a self) -> &'a dyn Any {
+    fn raw(&self) -> &dyn Any {
         &self.0
     }
 
@@ -56,7 +55,7 @@ impl<F: 'static> AsF<F> for InnerConst {
 
 impl<F: 'static, T: AsF<F>> AsF<F> for Option<T> {
     fn try_as_f(&self) -> Option<&F> {
-        self.as_ref().map(T::try_as_f).flatten()
+        self.as_ref().and_then(T::try_as_f)
     }
 
     fn raw(&self) -> &dyn Any {
@@ -88,6 +87,7 @@ impl LiftInner {
         Box::new(self)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn evaluate<F: Clone + 'static, T>(
         &self,
         constant: &impl Fn(&F) -> T,
@@ -140,7 +140,7 @@ impl LiftInner {
         Self::Lift(next_lift_id(), Some(InnerConst::new(f)))
     }
 
-    pub fn r#const<'a, F: 'static>(f: F) -> Self {
+    pub fn r#const<F: 'static>(f: F) -> Self {
         Self::Const(InnerConst::new(f))
     }
 

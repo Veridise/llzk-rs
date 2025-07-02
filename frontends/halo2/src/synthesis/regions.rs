@@ -14,6 +14,7 @@ use std::{
     ops::{AddAssign, Range, RangeFrom},
 };
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct FQN {
     region: String,
@@ -23,7 +24,7 @@ pub struct FQN {
 
 impl fmt::Display for FQN {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn clean_string(s: &String) -> String {
+        fn clean_string(s: &str) -> String {
             s.trim()
                 .replace(|c: char| !c.is_ascii_alphanumeric() && c != '_', "_")
         }
@@ -62,6 +63,8 @@ impl AddAssign for SharedRegionData {
     }
 }
 
+type BlanketFills<F> = Vec<(RangeFrom<usize>, Value<F>)>;
+
 #[derive(Debug, Default)]
 struct RegionDataInner<F> {
     /// The selectors that have been enabled in this region. All other selectors are by
@@ -78,7 +81,7 @@ struct RegionDataInner<F> {
     /// Represents the circuit filling rows with a single value.
     /// Row start offsets are maintained in chronological order, so when
     /// querying a row the latest that matches is the correct value.
-    blanket_fills: HashMap<usize, Vec<(RangeFrom<usize>, Value<F>)>>,
+    blanket_fills: HashMap<usize, BlanketFills<F>>,
 }
 
 #[derive(Debug)]
@@ -430,6 +433,11 @@ impl<'r, 'io, F: Field> RegionRow<'r, 'io, F> {
     #[inline]
     pub fn gate_is_disabled(&self, selectors: &HashSet<&Selector>) -> bool {
         self.enabled().is_disjoint(selectors)
+    }
+
+    #[inline]
+    pub fn row_number(&self) -> usize {
+        self.row.row
     }
 }
 

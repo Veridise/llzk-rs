@@ -38,6 +38,7 @@ macro_rules! arena {
 pub trait LiftLike: Sized + PrimeField {
     type Inner: PrimeField;
 
+    #[allow(clippy::too_many_arguments)]
     fn evaluate<T>(
         &self,
         constant: &impl Fn(&Self::Inner) -> T,
@@ -184,6 +185,7 @@ impl<F: PrimeField> Lift<F> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn evaluate_in_arena<T>(
         &self,
         arena: &mut MutexGuard<BumpArena>,
@@ -285,12 +287,9 @@ impl<F: PrimeField> Lift<F> {
         self.evaluate_in_arena(
             arena,
             &|f| Ok(*f),
-            &|id, f| {
-                if keep_lifted || f.is_none() {
-                    Err((id, f.map(Clone::clone)).into())
-                } else {
-                    Ok(*f.unwrap())
-                }
+            &|id, f| match f {
+                Some(inner) if !keep_lifted => Ok(*inner),
+                _ => Err((id, f.copied()).into()),
             },
             &mk_binop_handler(&|lhs, rhs| lhs + rhs, &LiftInner::Add),
             &mk_binop_handler(&|lhs, rhs| lhs - rhs, &LiftInner::Sub),
@@ -317,7 +316,7 @@ impl<F: PrimeField> Lift<F> {
 
     fn canonicalized_in_arena(&self, arena: &mut MutexGuard<BumpArena>) -> Self {
         match self {
-            s @ Lift::Assigned { .. } => s.clone(),
+            s @ Lift::Assigned { .. } => *s,
             Lift::Zero => lazy_init_zero::<F, Self>(arena, |_, idx| (*idx).into()),
             Lift::One => lazy_init_one::<F, Self>(arena, |_, idx| (*idx).into()),
             Lift::TwoInv => lazy_init_two_inv::<F, Self>(arena, |_, idx| (*idx).into()),
@@ -507,7 +506,7 @@ impl<F: Product + Mul<Output = F> + Default + PrimeField> Product for Lift<F> {
 impl<'a, F: PrimeField + 'static> Product<&'a Self> for Lift<F> {
     fn product<I: Iterator<Item = &'a Self>>(mut iter: I) -> Self {
         match iter.next() {
-            Some(it) => iter.fold(it.clone(), |acc, f| acc * f),
+            Some(it) => iter.fold(*it, |acc, f| acc * f),
             None => Default::default(),
         }
     }
@@ -526,7 +525,7 @@ impl<F: PrimeField> AddAssign for Lift<F> {
 impl<'a, F: PrimeField> AddAssign<&'a Self> for Lift<F> {
     fn add_assign(&mut self, rhs: &'a Self) {
         arena!(|arena: &mut MutexGuard<BumpArena>| {
-            let [lhs, rhs] = Self::unwrap_many([self, &rhs], arena);
+            let [lhs, rhs] = Self::unwrap_many([self, rhs], arena);
             let r = LiftInner::add(lhs, rhs);
             *self = arena.insert(r).into()
         });
@@ -546,7 +545,7 @@ impl<F: PrimeField> SubAssign for Lift<F> {
 impl<'a, F: PrimeField> SubAssign<&'a Self> for Lift<F> {
     fn sub_assign(&mut self, rhs: &'a Self) {
         arena!(|arena: &mut MutexGuard<BumpArena>| {
-            let [lhs, rhs] = Self::unwrap_many([self, &rhs], arena);
+            let [lhs, rhs] = Self::unwrap_many([self, rhs], arena);
             let r = LiftInner::sub(lhs, rhs);
             *self = arena.insert(r).into()
         });
@@ -602,7 +601,7 @@ impl<'a, F: PrimeField> Mul<&'a Self> for Lift<F> {
 
     fn mul(self, rhs: &'a Self) -> Self::Output {
         arena!(|arena: &mut MutexGuard<BumpArena>| {
-            let [lhs, rhs] = Self::unwrap_many([&self, &rhs], arena);
+            let [lhs, rhs] = Self::unwrap_many([&self, rhs], arena);
             let r = LiftInner::mul(lhs, rhs);
             arena.insert(r).into()
         })

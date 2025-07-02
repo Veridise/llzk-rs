@@ -47,11 +47,11 @@ pub trait VarAllocator {
 pub struct Vars<K: VarKind>(HashMap<K, VarStr>);
 
 impl<K: VarKind> Vars<K> {
-    pub fn inputs<'a>(&'a self) -> impl Iterator<Item = &'a str> {
+    pub fn inputs(&self) -> impl Iterator<Item = &str> {
         self.filter(|k, _| k.is_input())
     }
 
-    pub fn outputs<'a>(&'a self) -> impl Iterator<Item = &'a str> {
+    pub fn outputs(&self) -> impl Iterator<Item = &str> {
         self.filter(|k, _| k.is_output())
     }
 

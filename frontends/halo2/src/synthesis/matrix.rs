@@ -29,17 +29,17 @@ impl<T: ColumnType, V: Default> Index<(Column<T>, usize)> for Matrix<T, V> {
     fn index(&self, index: (Column<T>, usize)) -> &Self::Output {
         self.data
             .get(&(index.0.index(), index.1))
-            .or_else(|| Some(&self.default))
-            .unwrap()
+            .unwrap_or(&self.default)
     }
 }
 
 impl<T: ColumnType, V: Default> IndexMut<(Column<T>, usize)> for Matrix<T, V> {
     fn index_mut(&mut self, index: (Column<T>, usize)) -> &mut Self::Output {
         let key = (index.0.index(), index.1);
-        if !self.data.contains_key(&key) {
-            self.data.insert(key.clone(), V::default());
-        }
+        //if !self.data.contains_key(&key) {
+        //    self.data.insert(key, V::default());
+        //}
+        self.data.entry(key).or_insert_with(|| V::default());
         self.data.get_mut(&key).unwrap()
     }
 }

@@ -158,6 +158,11 @@ impl<F: PrimeField, L: LiftLike<Inner = F>> Lowering for PicusModuleLowering<F, 
         self.module.constraints_len()
     }
 
+    fn generate_comment(&self, s: String) -> Result<()> {
+        self.module.borrow_mut().add_stmt(stmt::comment(s));
+        Ok(())
+    }
+
     fn generate_call(
         &self,
         name: &str,

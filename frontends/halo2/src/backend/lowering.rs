@@ -35,6 +35,8 @@ pub trait Lowering {
         Ok(())
     }
 
+    fn generate_comment(&self, s: String) -> Result<()>;
+
     fn generate_call(
         &self,
         name: &str,
@@ -214,22 +216,30 @@ pub trait Lowering {
             .collect()
     }
 
-    fn lower_constraints<'c>(
+    fn lower_constraints<'c, R>(
         &'c self,
         gate: &Gate<Self::F>,
-        query_resolver: &impl QueryResolver<Self::F>,
-        selector_resolver: &dyn SelectorResolver,
-    ) -> Result<CircuitStmts<Self::CellOutput>> {
-        gate.polynomials()
-            .iter()
-            .map(|lhs| (lhs, Expression::Constant(Self::F::ZERO)))
-            .map(|(lhs, rhs)| {
-                (
-                    self.lower_expr(lhs, query_resolver, selector_resolver),
-                    self.lower_expr(&rhs, query_resolver, selector_resolver),
-                )
-            })
-            .map(|(lhs, rhs)| Ok(CircuitStmt::EqConstraint(lhs?, rhs?)))
-            .collect()
+        resolver: R,
+        row: Option<usize>,
+    ) -> impl Iterator<Item = Result<CircuitStmt<Self::CellOutput>>>
+    where
+        R: QueryResolver<Self::F> + SelectorResolver,
+    {
+        let stmts = match row {
+            Some(row) => vec![Ok(CircuitStmt::Comment(format!(
+                "gate '{}' @ row {}",
+                gate.name(),
+                row
+            )))],
+            None => vec![],
+        };
+        stmts
+            .into_iter()
+            .chain(gate.polynomials().iter().map(move |lhs| {
+                Ok(CircuitStmt::EqConstraint(
+                    self.lower_expr(lhs, &resolver, &resolver)?,
+                    self.lower_expr(&Expression::Constant(Self::F::ZERO), &resolver, &resolver)?,
+                ))
+            }))
     }
 }

@@ -34,17 +34,17 @@ fn test_mul_circuit_codegen() {
                     MockExprIR::Sum(3, 5),           // 6  = f * a + (-b)
                     MockExprIR::Product(6, 0),       // 7  = s * (f * a + (-b))
                     MockExprIR::Const(Fr::ZERO),     // 16 = 0
+                    MockExprIR::Constraint(7, 8),    // 9
                     MockExprIR::Arg(ArgNo::from(0)), // 8  = s
-                    MockExprIR::Arg(ArgNo::from(1)), // 9  = a
+                    MockExprIR::Arg(ArgNo::from(1)), // 10  = a
                     MockExprIR::Arg(ArgNo::from(2)), // 10 = b
-                    MockExprIR::Product(11, 10),     // 11 = b * a
+                    MockExprIR::Product(12, 11),     // 11 = b * a
                     MockExprIR::Arg(ArgNo::from(3)), // 12 = c
-                    MockExprIR::Neg(13),             // 13 = -c
-                    MockExprIR::Sum(12, 14),         // 14 = b * a + (-c)
-                    MockExprIR::Product(15, 9),      // 15 = s * (b * a + (-c))
+                    MockExprIR::Neg(14),             // 13 = -c
+                    MockExprIR::Sum(13, 15),         // 14 = b * a + (-c)
+                    MockExprIR::Product(16, 10),     // 15 = s * (b * a + (-c))
                     MockExprIR::Const(Fr::ZERO),     // 16 = 0
-                    MockExprIR::Constraint(7, 8),    // 17
-                    MockExprIR::Constraint(16, 17)   // 18
+                    MockExprIR::Constraint(17, 18)   // 18
                 ]
             }],
             main: Some(MockFunc {

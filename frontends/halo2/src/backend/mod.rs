@@ -81,7 +81,7 @@ impl<F: Field> QueryResolver<F> for GateScopedResolver<'_> {
 impl SelectorResolver for GateScopedResolver<'_> {
     fn resolve_selector(&self, selector: &Selector) -> Result<ResolvedSelector> {
         resolve(
-            self.selectors.iter().map(|s| *s),
+            self.selectors.iter().copied(),
             selector,
             0,
             "Selector as argument not found",
@@ -156,7 +156,7 @@ impl CallGatesStrat {
             selectors: &selectors,
             queries: &queries,
         };
-        let stmts = scope.lower_constraints(gate, &resolver, &resolver)?;
+        let stmts = scope.lower_constraints(gate, resolver, None);
         backend.lower_stmts(&scope, stmts)
     }
 }
@@ -177,9 +177,8 @@ impl CodegenStrategy for CallGatesStrat {
                 let (selectors, queries) = compute_gate_arity(gate.polynomials());
                 self.create_call_stmt(scope, gate.name(), selectors, queries, &r)
             });
-
             calls
-                .chain(self.inter_region_constraints(scope, &syn))
+                .chain(self.inter_region_constraints(scope, syn))
                 .collect::<Result<Vec<_>>>()
         })
     }
@@ -197,14 +196,16 @@ impl CodegenStrategy for InlineConstraintsStrat {
         backend.within_main(syn.advice_io(), syn.instance_io(), |scope| {
             let constraints = syn
                 .region_gates()
-                .flat_map(|(gate, r)| scope.lower_constraints(gate, &r, &r));
+                .flat_map(|(gate, r)| scope.lower_constraints(gate, r, Some(r.row_number())));
 
-            self.inter_region_constraints(scope, &syn)
-                .chain(constraints.flat_map(|c| c).map(Ok))
+            self.inter_region_constraints(scope, syn)
+                .chain(constraints)
                 .collect::<Result<Vec<_>>>()
         })
     }
 }
+
+pub type WithinMainResult<O> = Result<Vec<CircuitStmt<O>>>;
 
 pub trait Backend<'c, Params: Default, Output>: Sized {
     type FuncOutput: Lowering<F = Self::F> + Clone;
@@ -213,6 +214,22 @@ pub trait Backend<'c, Params: Default, Output>: Sized {
     fn initialize(params: Params) -> Self;
 
     fn generate_output(&'c self) -> Result<Output>;
+
+    fn within_main<FN>(
+        &'c self,
+        advice_io: &CircuitIO<Advice>,
+        instance_io: &CircuitIO<Instance>,
+        f: FN,
+    ) -> Result<()>
+    where
+        FN: FnOnce(
+            &Self::FuncOutput,
+        ) -> WithinMainResult<<Self::FuncOutput as Lowering>::CellOutput>,
+    {
+        let main = self.define_main_function(advice_io, instance_io)?;
+        let stmts = f(&main)?;
+        self.lower_stmts(&main, stmts.into_iter().map(Ok))
+    }
 
     fn define_gate_function<'f>(
         &'c self,
@@ -236,9 +253,10 @@ pub trait Backend<'c, Params: Default, Output>: Sized {
     fn lower_stmts(
         &'c self,
         scope: &Self::FuncOutput,
-        stmts: CircuitStmts<<Self::FuncOutput as Lowering>::CellOutput>,
+        stmts: impl Iterator<Item = Result<CircuitStmt<<Self::FuncOutput as Lowering>::CellOutput>>>,
     ) -> Result<()> {
         for stmt in stmts {
+            let stmt = stmt?;
             match stmt {
                 CircuitStmt::ConstraintCall(name, selectors, queries) => {
                     scope.generate_call(&name, &selectors, &queries)?;
@@ -246,25 +264,10 @@ pub trait Backend<'c, Params: Default, Output>: Sized {
                 CircuitStmt::EqConstraint(lhs, rhs) => {
                     scope.checked_generate_constraint(&lhs, &rhs)?;
                 }
+                CircuitStmt::Comment(s) => scope.generate_comment(s)?,
             };
         }
         Ok(())
-    }
-
-    fn within_main<FN>(
-        &'c self,
-        advice_io: &CircuitIO<Advice>,
-        instance_io: &CircuitIO<Instance>,
-        f: FN,
-    ) -> Result<()>
-    where
-        FN: FnOnce(
-            &Self::FuncOutput,
-        ) -> Result<CircuitStmts<<Self::FuncOutput as Lowering>::CellOutput>>,
-    {
-        let main = self.define_main_function(advice_io, instance_io)?;
-        let stmts = f(&main)?;
-        self.lower_stmts(&main, stmts)
     }
 
     /// Generate code using the given strategy.

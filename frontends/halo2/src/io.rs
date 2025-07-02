@@ -49,7 +49,7 @@ impl<C: ColumnType> CircuitIO<C> {
 
     fn map(m: &[(Column<C>, &[usize])]) -> Vec<IOCell<C>> {
         m.iter()
-            .flat_map(|(col, rows)| rows.iter().map(|row| (col.clone(), *row)))
+            .flat_map(|(col, rows)| rows.iter().map(|row| (*col, *row)))
             .collect()
     }
 
@@ -61,16 +61,16 @@ impl<C: ColumnType> CircuitIO<C> {
     }
 }
 
+type CellSet<C> = HashSet<IOCell<C>>;
+type CellSetPair<C> = (CellSet<C>, CellSet<C>);
+
 /// A validator for a particular column type.
 pub(crate) trait IOValidator {
     type C: ColumnType + Hash;
 
     fn validate(&self, io: &CircuitIO<Self::C>) -> Result<()>;
 
-    fn sets_are_disjoint(
-        &self,
-        io: &CircuitIO<Self::C>,
-    ) -> Result<(HashSet<IOCell<Self::C>>, HashSet<IOCell<Self::C>>)> {
+    fn sets_are_disjoint(&self, io: &CircuitIO<Self::C>) -> Result<CellSetPair<Self::C>> {
         let inputs = self.input_set(io);
         let outputs = self.output_set(io);
 
@@ -81,8 +81,8 @@ pub(crate) trait IOValidator {
     }
 
     #[inline]
-    fn cell_set(&self, cells: &Vec<IOCell<Self::C>>) -> HashSet<IOCell<Self::C>> {
-        cells.clone().into_iter().collect()
+    fn cell_set(&self, cells: &[IOCell<Self::C>]) -> HashSet<IOCell<Self::C>> {
+        cells.iter().copied().collect()
     }
 
     #[inline]

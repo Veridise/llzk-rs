@@ -106,7 +106,7 @@ impl BumpArena {
         if !self.object_fits(layout) {
             self.new_page();
         }
-        let ptr = self.cursor as *mut u8;
+        let ptr = self.cursor;
         self.cursor = unsafe { self.cursor.byte_add(layout.size()) };
         let id = TypeId::of::<T>();
         Item { ptr, id }

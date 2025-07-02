@@ -214,6 +214,10 @@ impl Lowering for MockFuncRef {
         Ok(())
     }
 
+    fn generate_comment(&self, _: String) -> Result<()> {
+        Ok(())
+    }
+
     fn lower_sum<'a, 'l: 'a>(
         &'l self,
         lhs: &Value<Self::CellOutput>,

@@ -15,7 +15,7 @@ impl From<bool> for Bool {
 }
 
 impl Bool {
-    pub fn to_f<F>(self) -> F
+    pub fn to_f<F>(&self) -> F
     where
         F: Field,
     {

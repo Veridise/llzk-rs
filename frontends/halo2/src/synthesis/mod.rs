@@ -26,6 +26,8 @@ pub struct CircuitSynthesis<F: Field> {
     instance_io: CircuitIO<Instance>,
 }
 
+pub type AnyCell = (Column<Any>, usize);
+
 impl<F: Field> CircuitSynthesis<F> {
     fn init<C: CircuitWithIO<F>>() -> (Self, C::Config) {
         let mut cs = ConstraintSystem::default();
@@ -72,7 +74,7 @@ impl<F: Field> CircuitSynthesis<F> {
         &self.instance_io
     }
 
-    pub fn constraints<'a>(&'a self) -> Iter<'a, ((Column<Any>, usize), (Column<Any>, usize))> {
+    pub fn constraints<'a>(&'a self) -> Iter<'a, (AnyCell, AnyCell)> {
         self.eq_constraints.iter()
     }
 
@@ -151,7 +153,7 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         A: FnOnce() -> AR,
     {
         self.regions.edit(|region| {
-            region.enable_selector(selector.clone(), row);
+            region.enable_selector(*selector, row);
         });
         Ok(())
     }
@@ -175,7 +177,7 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
     {
         self.regions.edit(|region| {
             region.note_advice(advice, row, name().into());
-            region.update_extent(advice.clone().into(), row);
+            region.update_extent(advice.into(), row);
         });
         Ok(())
     }
