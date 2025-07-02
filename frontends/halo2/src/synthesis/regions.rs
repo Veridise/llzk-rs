@@ -114,6 +114,7 @@ impl<F: Default + Clone> RegionDataImpl<F> {
             .entry(column.index())
             .or_default()
             .push((row.., value));
+        self.update_extent(column.into(), row);
     }
 
     pub fn update_extent(&mut self, column: Column<Any>, row: usize) {
