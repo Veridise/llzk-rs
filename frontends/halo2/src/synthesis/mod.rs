@@ -83,9 +83,21 @@ impl<F: Field> CircuitSynthesis<F> {
     ) -> impl Iterator<Item = (&'a Gate<F>, RegionRow<'a, 'a, F>)> + 'a {
         self.regions()
             .into_iter()
-            .flat_map(move |region| {
-                region.rows().map(move |row| {
-                    RegionRow::new(region, row, self.advice_io(), self.instance_io())
+            .map(|r| r.rows())
+            .reduce(|lhs, rhs| std::cmp::min(lhs.start, rhs.start)..std::cmp::max(lhs.end, rhs.end))
+            .unwrap_or(0..0)
+            .flat_map(move |row| {
+                self.regions().into_iter().filter_map(move |region| {
+                    if region.rows().contains(&row) {
+                        Some(RegionRow::new(
+                            region,
+                            row,
+                            self.advice_io(),
+                            self.instance_io(),
+                        ))
+                    } else {
+                        None
+                    }
                 })
             })
             .flat_map(|r| {
