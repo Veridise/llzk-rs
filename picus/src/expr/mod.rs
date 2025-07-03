@@ -3,7 +3,11 @@ use std::{fmt, rc::Rc};
 use impls::{BinaryExpr, BinaryOp, ConstExpr, ConstraintKind, NegExpr, OpFolder, VarExpr};
 use traits::{ConstantFolding, ExprLike, ExprSize};
 
-use crate::{felt::Felt, stmt::display::TextRepresentable, vars::VarAllocator};
+use crate::{
+    felt::Felt,
+    stmt::display::TextRepresentable,
+    vars::{VarAllocator, VarStr},
+};
 
 mod impls;
 pub mod traits;
@@ -42,7 +46,7 @@ pub fn r#const<I: Into<Felt>>(i: I) -> Expr {
 pub fn var<A, K>(allocator: &A, kind: K) -> Expr
 where
     A: VarAllocator,
-    K: Into<A::Kind>,
+    K: Into<A::Kind> + Into<VarStr> + Clone,
 {
     Wrap::new(VarExpr::new(allocator.allocate(kind)))
 }

@@ -8,7 +8,7 @@ use regex::Regex;
 
 use crate::stmt::display::{TextRepresentable, TextRepresentation};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VarStr(String);
 
 impl TryFrom<String> for VarStr {
@@ -45,20 +45,32 @@ pub trait VarKind: Hash + Eq + PartialEq {
     fn is_output(&self) -> bool;
 
     fn is_temp(&self) -> bool;
+}
 
-    fn temp() -> Self;
+pub trait Temp: VarKind + Sized {
+    type Output: Into<Self> + Into<VarStr> + Clone;
+
+    fn temp() -> Self::Output;
 }
 
 pub trait VarAllocator {
-    type Kind: VarKind + Into<VarStr>;
+    type Kind: VarKind;
 
-    fn allocate<K: Into<Self::Kind>>(&self, kind: K) -> VarStr;
+    fn allocate<K: Into<Self::Kind> + Into<VarStr> + Clone>(&self, kind: K) -> VarStr;
 }
 
 #[derive(Clone, Default)]
 pub struct Vars<K: VarKind>(HashMap<K, VarStr>);
 
 impl<K: VarKind> Vars<K> {
+    pub fn keys(&self) -> impl Iterator<Item = &K> {
+        self.0.keys()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&K, &VarStr)> {
+        self.0.iter()
+    }
+
     pub fn inputs(&self) -> impl Iterator<Item = &str> {
         self.filter(|k, _| k.is_input())
     }
@@ -90,11 +102,33 @@ impl<K: VarKind> Vars<K> {
     }
 }
 
-impl<K: VarKind + Into<VarStr> + Clone> Vars<K> {
-    /// Inserts a variable deriving its value from the key. If the key creates a var name that is
+impl<K: VarKind> IntoIterator for Vars<K> {
+    type Item = <HashMap<K, VarStr> as IntoIterator>::Item;
+
+    type IntoIter = <HashMap<K, VarStr> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a, K: VarKind> IntoIterator for &'a Vars<K> {
+    type Item = <&'a HashMap<K, VarStr> as IntoIterator>::Item;
+
+    type IntoIter = <&'a HashMap<K, VarStr> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+impl<K: VarKind + Clone> Vars<K> {
+    /// Inserts a variable deriving its value from the key seed. If the key creates a var name that is
     /// already in use it gets uniqued. If the key was already in the vars table returns the
     /// preexisting value.
-    pub fn insert(&mut self, key: K) -> VarStr {
+    pub fn insert<S: Into<K> + Into<VarStr> + Clone>(&mut self, seed: S) -> VarStr {
+        let key = seed.clone().into();
+
         if self.0.contains_key(&key) {
             return self.0[&key].clone();
         }
@@ -103,15 +137,15 @@ impl<K: VarKind + Into<VarStr> + Clone> Vars<K> {
             .values()
             .map(|v| v.0.as_str())
             .collect::<HashSet<_>>();
-        let v = [key.clone().into()]
+        let v = [seed.into()]
             .into_iter()
             .cycle()
-            .zip(-1..)
-            .map(|(v, c)| {
-                if c < 0 {
+            .zip(0..)
+            .map(|(v, c): (VarStr, i32)| {
+                if c == 0 {
                     v
                 } else {
-                    format!("{}{}", v.0, c)
+                    format!("{}{}", v, c + 1)
                         .try_into()
                         .expect("valid identifier")
                 }

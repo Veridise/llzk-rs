@@ -1,4 +1,8 @@
-use std::{cell::RefCell, marker::PhantomData};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    marker::PhantomData,
+};
 
 use super::{func::FuncIO, Backend};
 use crate::{
@@ -16,9 +20,10 @@ use lowering::PicusModuleRef;
 use num_bigint::BigUint;
 use picus::{
     felt::{Felt, IntoPrime},
+    vars::VarStr,
     ModuleLike as _,
 };
-use vars::VarKey;
+use vars::{VarKey, VarKeySeed};
 
 pub type PicusModule = picus::Module<VarKey>;
 pub type PicusOutput<F> = picus::Program<FeltWrap<F>, VarKey>;
@@ -121,7 +126,7 @@ pub struct PicusBackend<F, L> {
 
 fn mk_io<F, I, O>(count: usize, f: F) -> impl Iterator<Item = O>
 where
-    O: Into<VarKey>,
+    O: Into<VarKey> + Into<VarStr>,
     I: From<usize>,
     F: Fn(I) -> O + 'static,
 {
@@ -144,6 +149,51 @@ impl<'c, F: PrimeField, L: LiftLike<Inner = F>> Backend<'c, PicusParams, PicusOu
 
     fn generate_output(&'c self) -> Result<PicusOutput<Self::F>> {
         let mut output = PicusOutput::from(self.modules.borrow().clone());
+        // Var consistency check
+        for module in output.modules() {
+            let vars = module.vars();
+            // Get the set of io variables, without the fqn.
+            // This set will have all the circuit cells that have been queried and resolved
+            // during lowering.
+            let io_vars = vars
+                .keys()
+                .filter_map(|k| match k {
+                    VarKey::IO(func_io) => Some(*func_io),
+                    _ => None,
+                })
+                .collect::<HashSet<_>>();
+
+            // The set of io variables, with names, should be the same length.
+            let io_var_count = vars
+                .iter()
+                .filter_map(|(k, v)| match k {
+                    VarKey::IO(_) => Some(v),
+                    _ => None,
+                })
+                .count();
+            if io_vars.len() != io_var_count {
+                // Inconsistency. Let's see which ones.
+                let mut dups = HashMap::<FuncIO, Vec<&VarStr>>::new();
+                for (k, v) in vars {
+                    if let VarKey::IO(f) = k {
+                        dups.entry(*f).or_default().push(v);
+                    }
+                }
+
+                let dups = dups;
+                for (k, names) in dups {
+                    if names.len() == 1 {
+                        continue;
+                    }
+                    log::error!("Mismatched variable! (key = {k:?}) (names = {names:?})");
+                }
+                anyhow::bail!(
+                    "Inconsistency detected in circuit variables. Was expecting {} IO variables by {} were generated",
+                    io_vars.len(),
+                    io_var_count
+                );
+            }
+        }
 
         for module in output.modules_mut() {
             module.fold_stmts();
@@ -164,8 +214,8 @@ impl<'c, F: PrimeField, L: LiftLike<Inner = F>> Backend<'c, PicusParams, PicusOu
     {
         let module = PicusModule::shared(
             name.to_owned(),
-            mk_io(selectors.len() + queries.len(), FuncIO::Arg),
-            mk_io(0, FuncIO::Field),
+            mk_io(selectors.len() + queries.len(), VarKeySeed::arg),
+            mk_io(0, VarKeySeed::field),
         );
         self.modules.borrow_mut().push(module.clone());
         Ok(Self::FuncOutput::new(module, self.params.lift_fixed))
@@ -184,11 +234,11 @@ impl<'c, F: PrimeField, L: LiftLike<Inner = F>> Backend<'c, PicusParams, PicusOu
             self.params.entrypoint.clone(),
             mk_io(
                 instance_io.inputs().len() + advice_io.inputs().len(),
-                FuncIO::Arg,
+                VarKeySeed::arg,
             ),
             mk_io(
                 instance_io.outputs().len() + advice_io.outputs().len(),
-                FuncIO::Field,
+                VarKeySeed::field,
             ),
         );
         self.modules.borrow_mut().push(module.clone());

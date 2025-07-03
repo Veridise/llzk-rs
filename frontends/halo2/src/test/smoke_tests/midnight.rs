@@ -9,6 +9,7 @@ use crate::{codegen_test, mock_codegen_test, picus_codegen_test, Lift};
 
 #[test]
 fn test_mul_circuit_codegen() {
+    let _ = env_logger::builder().is_test(true).try_init();
     let output = mock_codegen_test!(MulCircuit<Fr>);
 
     assert_eq!(
@@ -72,17 +73,20 @@ fn test_mul_circuit_codegen() {
 
 #[test]
 fn test_mul_circuit_picus_codegen() {
+    let _ = env_logger::builder().is_test(true).try_init();
     let output = picus_codegen_test!(MulCircuit<Lift<Fr>>);
     println!("{output}");
 }
 
 #[test]
 fn test_fibonacci_circuit_codegen() {
+    let _ = env_logger::builder().is_test(true).try_init();
     mock_codegen_test!(FibonacciCircuit<Fr>);
 }
 
 #[test]
 fn test_fibonacci_circuit_picus_codegen() {
+    let _ = env_logger::builder().is_test(true).try_init();
     let output = picus_codegen_test!(FibonacciCircuit<Lift<Fr>>);
     println!("{output}");
 }

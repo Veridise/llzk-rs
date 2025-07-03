@@ -44,7 +44,7 @@ impl fmt::Display for FieldId {
     }
 }
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
 pub enum FuncIO {
     Arg(ArgNo),
     Field(FieldId),

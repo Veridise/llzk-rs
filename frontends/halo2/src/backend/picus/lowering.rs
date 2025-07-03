@@ -1,4 +1,7 @@
-use super::{vars::VarKey, FeltWrap};
+use super::{
+    vars::{VarKey, VarKeySeed},
+    FeltWrap,
+};
 use crate::{
     backend::{
         func::FuncIO,
@@ -65,7 +68,10 @@ impl<F: PrimeField, L: LiftLike<Inner = F>> PicusModuleLowering<F, L> {
                 let f = steal(&value).ok_or(anyhow!("Query resolved to an unknown value"));
                 Value::known(self.lower(&f?, true)?)
             }
-            ResolvedQuery::IO(func_io) => Value::known(expr::var(&self.module, (func_io, fqn))),
+            ResolvedQuery::IO(func_io) => {
+                let seed: VarKeySeed = (func_io, fqn).into();
+                Value::known(expr::var(&self.module, seed))
+            }
         })
     }
 }
@@ -83,7 +89,7 @@ impl<F: PrimeField, L: LiftLike<Inner = F>> LiftLowering for PicusModuleLowering
         if self.lift_fixed {
             Ok(expr::var(
                 &self.module,
-                VarKey::Lifted(FuncIO::Arg(0.into()), id),
+                VarKeySeed::Lifted(FuncIO::Arg(0.into()), id),
             ))
         } else if let Some(f) = f {
             Ok(expr::r#const(FeltWrap(*f)))
@@ -244,7 +250,10 @@ impl<F: PrimeField, L: LiftLike<Inner = F>> Lowering for PicusModuleLowering<F, 
     {
         match resolver.resolve_selector(sel)? {
             ResolvedSelector::Const(value) => Lowering::lower_constant(self, &value.to_f()),
-            ResolvedSelector::Arg(arg_no) => Ok(Value::known(expr::var(&self.module, arg_no))),
+            ResolvedSelector::Arg(arg_no) => Ok(Value::known(expr::var(
+                &self.module,
+                VarKeySeed::IO(arg_no.into(), None),
+            ))),
         }
     }
 

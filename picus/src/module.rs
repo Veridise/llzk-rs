@@ -8,12 +8,12 @@ use crate::{
 
 pub type ModuleRef<K> = Rc<RefCell<Module<K>>>;
 
-impl<Key: VarKind + Into<VarStr> + Default + Clone> VarAllocator for ModuleRef<Key> {
+impl<Key: VarKind + Default + Clone> VarAllocator for ModuleRef<Key> {
     type Kind = Key;
 
-    fn allocate<K: Into<Self::Kind>>(&self, kind: K) -> VarStr {
+    fn allocate<K: Into<Self::Kind> + Into<VarStr> + Clone>(&self, kind: K) -> VarStr {
         let mut r = self.borrow_mut();
-        r.deref_mut().add_var(kind.into())
+        r.deref_mut().add_var(kind)
     }
 }
 
@@ -78,7 +78,7 @@ pub trait ModuleLike<K> {
 }
 
 pub trait ModuleWithVars<K> {
-    fn add_var<I: Into<K>>(&mut self, k: I) -> VarStr;
+    fn add_var<I: Into<K> + Into<VarStr> + Clone>(&mut self, k: I) -> VarStr;
 }
 
 impl<K: VarKind> ModuleLike<K> for Module<K> {
@@ -118,6 +118,10 @@ impl<K: VarKind> Module<K> {
         self.name.as_str()
     }
 
+    pub fn vars(&self) -> &Vars<K> {
+        &self.vars
+    }
+
     pub fn stmts(&self) -> &[Stmt] {
         &self.stmts
     }
@@ -137,30 +141,30 @@ impl<K: VarKind> Module<K> {
     }
 }
 
-impl<K: VarKind + Default + Into<VarStr> + Clone> Module<K> {
-    pub fn new<I: Into<K>, O: Into<K>>(
+impl<K: VarKind + Default + Clone> Module<K> {
+    pub fn new<S: Into<K> + Into<VarStr> + Clone>(
         name: String,
-        inputs: impl Iterator<Item = I>,
-        outputs: impl Iterator<Item = O>,
+        inputs: impl Iterator<Item = S>,
+        outputs: impl Iterator<Item = S>,
     ) -> Self {
         let mut m = Self::from(name);
-        for k in inputs.map(Into::into).chain(outputs.map(Into::into)) {
+        for k in inputs.chain(outputs) {
             m.add_var(k);
         }
         m
     }
-    pub fn shared<I: Into<K>, O: Into<K>>(
+    pub fn shared<S: Into<K> + Into<VarStr> + Clone>(
         name: String,
-        inputs: impl Iterator<Item = I>,
-        outputs: impl Iterator<Item = O>,
+        inputs: impl Iterator<Item = S>,
+        outputs: impl Iterator<Item = S>,
     ) -> ModuleRef<K> {
         Rc::new(Self::new(name, inputs, outputs).into())
     }
 }
 
-impl<K: VarKind + Default + Into<VarStr> + Clone> ModuleWithVars<K> for Module<K> {
-    fn add_var<I: Into<K>>(&mut self, k: I) -> VarStr {
-        self.vars.insert(k.into())
+impl<K: VarKind + Default + Clone> ModuleWithVars<K> for Module<K> {
+    fn add_var<I: Into<K> + Into<VarStr> + Clone>(&mut self, k: I) -> VarStr {
+        self.vars.insert(k)
     }
 }
 

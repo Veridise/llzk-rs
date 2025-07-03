@@ -1,4 +1,4 @@
-use crate::vars::VarKind as _;
+use crate::vars::{Temp, VarKind as _};
 use display::{TextRepresentable, TextRepresentation};
 use impls::{CallStmt, CommentLine, ConstraintStmt};
 use std::rc::Rc;
@@ -62,6 +62,7 @@ impl<T> StmtLike for Wrap<T> where T: StmtLike + ?Sized {}
 pub fn call<A>(callee: String, inputs: Vec<Expr>, n_outputs: usize, allocator: &A) -> Stmt
 where
     A: VarAllocator,
+    A::Kind: Temp,
 {
     Wrap::new(CallStmt::new(
         callee,

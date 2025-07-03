@@ -3,6 +3,9 @@ name = "halo2-llzk-frontend"
 version = "0.1.0"
 edition = "2024"
 
+[dev-dependencies]
+env_logger = "0.11"
+
 [dependencies]
 melior = { workspace = true }
 mlir-sys = { workspace = true }
