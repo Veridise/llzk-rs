@@ -177,6 +177,6 @@ impl<K: VarKind> fmt::Display for Module<K> {
         for c in &self.stmts {
             write!(f, "{}", c.display())?;
         }
-        writeln!(f, "(end-module)")
+        writeln!(f, "(end-module) ; {}", self.name)
     }
 }
