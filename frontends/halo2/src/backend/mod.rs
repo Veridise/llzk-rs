@@ -194,12 +194,14 @@ impl CodegenStrategy for InlineConstraintsStrat {
         B: Backend<'c, P, O, F = F>,
     {
         backend.within_main(syn.advice_io(), syn.instance_io(), |scope| {
-            let constraints = syn.region_gates().flat_map(|(gate, r)| {
-                scope.lower_constraints(gate, r, r.region_name(), Some(r.row_number()))
-            });
-
-            self.inter_region_constraints(scope, syn)
-                .chain(constraints)
+            // Do the region stmts first since backends may have more information about names for
+            // cells there and some backends do not update the name and always use the first
+            // one given.
+            syn.region_gates()
+                .flat_map(|(gate, r)| {
+                    scope.lower_constraints(gate, r, r.region_name(), Some(r.row_number()))
+                })
+                .chain(self.inter_region_constraints(scope, syn))
                 .collect::<Result<Vec<_>>>()
         })
     }
