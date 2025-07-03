@@ -436,6 +436,11 @@ impl<'r, 'io, F: Field> RegionRow<'r, 'io, F> {
     }
 
     #[inline]
+    pub fn region_name(&self) -> &'r str {
+        &self.region.inner.name
+    }
+
+    #[inline]
     pub fn row_number(&self) -> usize {
         self.row.row
     }
