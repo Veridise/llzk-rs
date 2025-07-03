@@ -1,4 +1,4 @@
-use crate::felt::Felt;
+use crate::{felt::Felt, stmt::display::TextRepresentable};
 
 use super::Expr;
 
@@ -32,4 +32,4 @@ pub trait ConstantFolding {
 }
 
 /// Marker interface for a Picus expression.
-pub trait ExprLike: ExprSize + std::fmt::Display + ConstantFolding {}
+pub trait ExprLike: ExprSize + ConstantFolding + TextRepresentable {}

@@ -111,6 +111,7 @@ impl<'a, F, K: VarKind + Clone> From<Vec<ModuleRef<K>>> for Program<F, K> {
 impl<F: IntoPrime, K: VarKind> fmt::Display for Program<F, K> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "(prime-number {})", Felt::prime::<F>())?;
+        writeln!(f, "")?;
         for module in &self.modules {
             writeln!(f, "{module}")?;
         }

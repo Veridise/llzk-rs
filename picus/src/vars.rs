@@ -6,6 +6,8 @@ use std::{
 
 use regex::Regex;
 
+use crate::stmt::display::{TextRepresentable, TextRepresentation};
+
 #[derive(Clone)]
 pub struct VarStr(String);
 
@@ -24,6 +26,16 @@ impl TryFrom<String> for VarStr {
 impl fmt::Display for VarStr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl TextRepresentable for VarStr {
+    fn to_repr(&self) -> TextRepresentation {
+        self.0.to_repr()
+    }
+
+    fn width_hint(&self) -> usize {
+        self.0.len()
     }
 }
 

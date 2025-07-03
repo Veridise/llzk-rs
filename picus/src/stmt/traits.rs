@@ -1,8 +1,14 @@
-use std::fmt;
+use std::{fmt, rc::Rc};
 
-use crate::expr::Expr;
+use crate::{
+    expr::{traits::ExprLike, Expr},
+    vars::VarStr,
+};
 
-use super::Stmt;
+use super::{
+    display::{Display, TextRepresentable, TextRepresentation},
+    Stmt, Wrap,
+};
 
 pub trait ExprArgs {
     fn args(&self) -> Vec<Expr>;
@@ -34,14 +40,6 @@ impl<'a> CallLikeAdaptor<'a> {
     }
 }
 
-pub struct CallLikeAdaptorMut<'a>(&'a mut dyn CallLikeMut);
-
-impl<'a> CallLikeAdaptorMut<'a> {
-    pub fn new(c: &'a mut dyn CallLikeMut) -> Self {
-        Self(c)
-    }
-}
-
 impl CallLike for CallLikeAdaptor<'_> {
     fn callee(&self) -> &str {
         self.0.callee()
@@ -52,29 +50,17 @@ impl CallLike for CallLikeAdaptor<'_> {
     }
 }
 
-impl CallLike for CallLikeAdaptorMut<'_> {
-    fn callee(&self) -> &str {
-        self.0.callee()
-    }
-
-    fn with_new_callee(&self, new_name: String) -> Stmt {
-        self.0.with_new_callee(new_name)
-    }
-}
-
-impl CallLikeMut for CallLikeAdaptorMut<'_> {
-    fn set_callee(&mut self, new_name: String) {
-        self.0.set_callee(new_name)
-    }
-}
-
 pub trait MaybeCallLike {
     fn as_call<'a>(&'a self) -> Option<CallLikeAdaptor<'a>>;
+}
 
-    fn as_call_mut<'a>(&'a mut self) -> Option<CallLikeAdaptorMut<'a>>;
+pub trait StmtDisplay: Clone + AsRef<dyn StmtLike> {
+    fn display(&self) -> Display<Self> {
+        Display::new(self.clone())
+    }
 }
 
 pub trait StmtLike:
-    ExprArgs + ConstraintLike + MaybeCallLike + StmtConstantFolding + fmt::Display
+    ExprArgs + ConstraintLike + MaybeCallLike + StmtConstantFolding + TextRepresentable
 {
 }

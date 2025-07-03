@@ -2,7 +2,7 @@ use std::{cell::RefCell, fmt, ops::DerefMut as _, rc::Rc};
 
 use crate::{
     expr::Expr,
-    stmt::{self, Stmt},
+    stmt::{self, traits::StmtDisplay as _, Stmt},
     vars::{VarAllocator, VarKind, VarStr, Vars},
 };
 
@@ -167,7 +167,7 @@ impl<K: VarKind + Default + Into<VarStr> + Clone> ModuleWithVars<K> for Module<K
 impl<K: VarKind> fmt::Display for Module<K> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "(begin-module {})", self.name)?;
-        writeln!(f, "{}", self.summarize())?;
+        write!(f, "{}", self.summarize())?;
         for i in self.vars.inputs() {
             writeln!(f, "(input {i})")?;
         }
@@ -175,7 +175,7 @@ impl<K: VarKind> fmt::Display for Module<K> {
             writeln!(f, "(output {o})")?;
         }
         for c in &self.stmts {
-            write!(f, "{c}")?;
+            write!(f, "{}", c.display())?;
         }
         writeln!(f, "(end-module)")
     }

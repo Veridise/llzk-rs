@@ -3,6 +3,8 @@ use std::{fmt, ops::AddAssign};
 #[cfg(feature = "bigint-felt")]
 use num_bigint::BigUint;
 
+use crate::stmt::display::{TextRepresentable, TextRepresentation};
+
 pub trait IntoPrime: Into<Felt> {
     fn prime() -> Felt;
 }
@@ -39,6 +41,16 @@ impl Felt {
 
     pub fn is_zero(&self) -> bool {
         self.0 == 0usize.into()
+    }
+}
+
+impl TextRepresentable for Felt {
+    fn to_repr(&self) -> TextRepresentation {
+        TextRepresentation::owned_atom(self.to_string())
+    }
+
+    fn width_hint(&self) -> usize {
+        self.to_string().len()
     }
 }
 

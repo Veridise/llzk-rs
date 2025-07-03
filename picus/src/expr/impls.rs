@@ -1,6 +1,10 @@
 use std::fmt;
 
-use crate::{felt::Felt, vars::VarStr};
+use crate::{
+    felt::Felt,
+    stmt::display::{self, TextRepresentable, TextRepresentation},
+    vars::VarStr,
+};
 
 use super::{
     traits::{ConstantFolding, ExprLike, ExprSize},
@@ -41,6 +45,16 @@ impl ConstantFolding for ConstExpr {
     }
 }
 
+impl TextRepresentable for ConstExpr {
+    fn to_repr(&self) -> TextRepresentation {
+        self.0.to_repr()
+    }
+
+    fn width_hint(&self) -> usize {
+        self.0.width_hint()
+    }
+}
+
 impl ExprLike for ConstExpr {}
 
 //===----------------------------------------------------------------------===//
@@ -74,6 +88,16 @@ impl ConstantFolding for VarExpr {
 impl fmt::Display for VarExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl TextRepresentable for VarExpr {
+    fn to_repr(&self) -> TextRepresentation {
+        self.0.to_repr()
+    }
+
+    fn width_hint(&self) -> usize {
+        self.0.width_hint()
     }
 }
 
@@ -148,6 +172,16 @@ impl fmt::Display for BinaryOp {
     }
 }
 
+impl TextRepresentable for BinaryOp {
+    fn to_repr(&self) -> TextRepresentation {
+        TextRepresentation::owned_atom(self.to_string())
+    }
+
+    fn width_hint(&self) -> usize {
+        1
+    }
+}
+
 #[derive(Clone)]
 pub enum ConstraintKind {
     Lt,
@@ -179,6 +213,19 @@ impl fmt::Display for ConstraintKind {
     }
 }
 
+impl TextRepresentable for ConstraintKind {
+    fn to_repr(&self) -> TextRepresentation {
+        TextRepresentation::owned_atom(self.to_string())
+    }
+
+    fn width_hint(&self) -> usize {
+        match self {
+            ConstraintKind::Lt | ConstraintKind::Gt | ConstraintKind::Eq => 1,
+            ConstraintKind::Le | ConstraintKind::Ge => 2,
+        }
+    }
+}
+
 pub struct BinaryExpr<K>(K, Expr, Expr);
 
 impl<K> BinaryExpr<K> {
@@ -207,7 +254,9 @@ impl<K: Clone> ExprSize for BinaryExpr<K> {
     }
 }
 
-impl<K: OpFolder + Clone + fmt::Display + 'static> ConstantFolding for BinaryExpr<K> {
+impl<K: OpFolder + Clone + fmt::Display + TextRepresentable + 'static> ConstantFolding
+    for BinaryExpr<K>
+{
     fn as_const(&self) -> Option<Felt> {
         None
     }
@@ -222,13 +271,17 @@ impl<K: OpFolder + Clone + fmt::Display + 'static> ConstantFolding for BinaryExp
     }
 }
 
-impl<K: fmt::Display> fmt::Display for BinaryExpr<K> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({} {} {})", self.0, self.1, self.2)
+impl<K: TextRepresentable> TextRepresentable for BinaryExpr<K> {
+    fn to_repr(&self) -> TextRepresentation {
+        TextRepresentation::owned_list(vec![self.op(), self.1.as_ref(), self.2.as_ref()])
+    }
+
+    fn width_hint(&self) -> usize {
+        4 + self.0.width_hint() + self.1.width_hint() + self.2.width_hint()
     }
 }
 
-impl<K: Clone + fmt::Display + OpFolder + 'static> ExprLike for BinaryExpr<K> {}
+impl<K: Clone + fmt::Display + OpFolder + TextRepresentable + 'static> ExprLike for BinaryExpr<K> {}
 
 //===----------------------------------------------------------------------===//
 // NegExpr
@@ -262,9 +315,19 @@ impl ConstantFolding for NegExpr {
     }
 }
 
-impl fmt::Display for NegExpr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "(- {})", self.0)
+//impl fmt::Display for NegExpr {
+//    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//        //write!(f, "(- {})", self.0)
+//    }
+//}
+
+impl TextRepresentable for NegExpr {
+    fn to_repr(&self) -> TextRepresentation {
+        TextRepresentation::owned_list(vec![&"-", self.0.as_ref()])
+    }
+
+    fn width_hint(&self) -> usize {
+        3 + self.0.width_hint()
     }
 }
 
