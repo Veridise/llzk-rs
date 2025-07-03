@@ -22,9 +22,9 @@ impl Default for VarKey {
     }
 }
 
-impl Into<VarStr> for VarKey {
-    fn into(self) -> VarStr {
-        match self {
+impl From<VarKey> for VarStr {
+    fn from(key: VarKey) -> VarStr {
+        match key {
             VarKey::IO(func_io, fqn) => format!(
                 "{}{}",
                 prepend_fqn(fqn),
@@ -55,10 +55,7 @@ impl Into<VarStr> for VarKey {
 impl VarKind for VarKey {
     fn is_input(&self) -> bool {
         match self {
-            VarKey::IO(func_io, _) => match func_io {
-                FuncIO::Arg(_) => true,
-                _ => false,
-            },
+            VarKey::IO(func_io, _) => matches!(func_io, FuncIO::Arg(_)),
             VarKey::Lifted(FuncIO::Arg(_), _) => true,
             _ => false,
         }
@@ -66,10 +63,7 @@ impl VarKind for VarKey {
 
     fn is_output(&self) -> bool {
         match self {
-            VarKey::IO(func_io, _) => match func_io {
-                FuncIO::Field(_) => true,
-                _ => false,
-            },
+            VarKey::IO(func_io, _) => matches!(func_io, FuncIO::Field(_)),
             VarKey::Lifted(FuncIO::Field(_), _) => true,
             _ => false,
         }
@@ -77,10 +71,7 @@ impl VarKind for VarKey {
 
     fn is_temp(&self) -> bool {
         match self {
-            VarKey::IO(func_io, _) => match func_io {
-                FuncIO::Temp(_, _) => true,
-                _ => false,
-            },
+            VarKey::IO(func_io, _) => matches!(func_io, FuncIO::Temp(_, _)),
             VarKey::Temp => true,
             _ => false,
         }

@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::{
     felt::Felt,
-    stmt::display::{self, TextRepresentable, TextRepresentation},
+    stmt::display::{TextRepresentable, TextRepresentation},
     vars::VarStr,
 };
 

@@ -49,9 +49,9 @@ impl<F: PrimeField> From<&F> for FeltWrap<F> {
     }
 }
 
-impl<F: PrimeField> Into<Felt> for FeltWrap<F> {
-    fn into(self) -> Felt {
-        let r = self.0.to_repr();
+impl<F: PrimeField> From<FeltWrap<F>> for Felt {
+    fn from(wrap: FeltWrap<F>) -> Felt {
+        let r = wrap.0.to_repr();
         Felt::new(BigUint::from_bytes_le(r.as_ref()))
     }
 }
@@ -64,6 +64,7 @@ impl<F: PrimeField> IntoPrime for FeltWrap<F> {
     }
 }
 
+#[derive(Default)]
 pub struct PicusParamsBuilder(PicusParams);
 
 impl PicusParamsBuilder {
@@ -96,9 +97,9 @@ impl PicusParamsBuilder {
     }
 }
 
-impl Into<PicusParams> for PicusParamsBuilder {
-    fn into(self) -> PicusParams {
-        self.0
+impl From<PicusParamsBuilder> for PicusParams {
+    fn from(builder: PicusParamsBuilder) -> PicusParams {
+        builder.0
     }
 }
 

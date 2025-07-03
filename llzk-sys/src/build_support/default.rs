@@ -50,11 +50,9 @@ impl<'a> DefaultConfig<'a> {
         let bindgen = self.mlir_functions.iter().fold(bindgen, |bindgen, func| {
             bindgen.allowlist_function(format!("mlir{func}"))
         });
-        let bindgen = self.mlir_types.iter().fold(bindgen, |bindgen, r#type| {
+        self.mlir_types.iter().fold(bindgen, |bindgen, r#type| {
             bindgen.allowlist_type(format!("Mlir{type}"))
-        });
-
-        bindgen
+        })
     }
 }
 

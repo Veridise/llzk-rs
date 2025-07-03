@@ -74,8 +74,8 @@ impl<'c> std::fmt::Display for ArrayType<'c> {
     }
 }
 
-impl<'c> Into<Type<'c>> for ArrayType<'c> {
-    fn into(self) -> Type<'c> {
-        self.r#type
+impl<'c> From<ArrayType<'c>> for Type<'c> {
+    fn from(t: ArrayType<'c>) -> Type<'c> {
+        t.r#type
     }
 }

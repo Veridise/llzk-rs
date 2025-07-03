@@ -27,7 +27,7 @@ impl<F, K: VarKind> Program<F, K> {
         &mut self.modules
     }
 
-    fn module_names<'a>(&'a self) -> HashSet<&'a str> {
+    fn module_names(&self) -> HashSet<&str> {
         self.modules.iter().map(|m| m.name.as_str()).collect()
     }
 
@@ -99,7 +99,7 @@ impl<F, K: VarKind> Add for Program<F, K> {
     }
 }
 
-impl<'a, F, K: VarKind + Clone> From<Vec<ModuleRef<K>>> for Program<F, K> {
+impl<F, K: VarKind + Clone> From<Vec<ModuleRef<K>>> for Program<F, K> {
     fn from(modules: Vec<ModuleRef<K>>) -> Self {
         Self {
             modules: modules.into_iter().map(Into::into).collect(),
@@ -111,7 +111,7 @@ impl<'a, F, K: VarKind + Clone> From<Vec<ModuleRef<K>>> for Program<F, K> {
 impl<F: IntoPrime, K: VarKind> fmt::Display for Program<F, K> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "(prime-number {})", Felt::prime::<F>())?;
-        writeln!(f, "")?;
+        writeln!(f)?;
         for module in &self.modules {
             writeln!(f, "{module}")?;
         }

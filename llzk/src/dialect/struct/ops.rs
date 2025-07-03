@@ -1,4 +1,4 @@
-use std::{fmt, ops::Deref, ptr::null_mut};
+use std::{fmt, ops::Deref};
 
 use llzk_sys::{
     llzkFieldDefOpGetHasPublicAttr, llzkFieldDefOpSetPublicAttr, llzkFieldReadOpBuild,
@@ -58,7 +58,7 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     fn get_field_def(&self, name: &str) -> Option<FieldDefOpRef<'c, '_>> {
         let name = StringRef::new(name);
         let raw_op = unsafe { llzkStructDefOpGetFieldDef(self.to_raw(), name.to_raw()) };
-        if raw_op.ptr == null_mut() {
+        if raw_op.ptr.is_null() {
             return None;
         }
         Some(
@@ -71,8 +71,7 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     /// Fills the given array with the FieldDefOp operations inside this struct.  
     fn get_field_defs(&self) -> Vec<FieldDefOpRef<'c, '_>> {
         let num_fields = unsafe { llzkStructDefOpGetNumFieldDefs(self.to_raw()) };
-        let mut raw_ops: Vec<MlirOperation> = Default::default();
-        raw_ops.reserve(num_fields.try_into().unwrap());
+        let mut raw_ops: Vec<MlirOperation> = Vec::with_capacity(num_fields.try_into().unwrap());
         unsafe { llzkStructDefOpGetFieldDefs(self.to_raw(), raw_ops.as_mut_ptr()) };
         raw_ops
             .into_iter()
@@ -92,7 +91,7 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     /// Returns the FuncDefOp operation that defines the witness computation of the struct.
     fn get_compute_func<'b>(&self) -> Option<FuncDefOpRef<'c, 'b>> {
         let raw_op = unsafe { llzkStructDefOpGetComputeFuncOp(self.to_raw()) };
-        if raw_op.ptr == null_mut() {
+        if raw_op.ptr.is_null() {
             return None;
         }
         Some(
@@ -105,7 +104,7 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     /// Returns the FuncDefOp operation that defines the constraints of the struct.
     fn get_constrain_func<'b>(&self) -> Option<FuncDefOpRef<'c, 'b>> {
         let raw_op = unsafe { llzkStructDefOpGetConstrainFuncOp(self.to_raw()) };
-        if raw_op.ptr == null_mut() {
+        if raw_op.ptr.is_null() {
             return None;
         }
         Some(
@@ -142,6 +141,9 @@ pub struct StructDefOp<'c> {
 }
 
 impl StructDefOp<'_> {
+    /// Constructs Self from a MlirOperation.
+    /// # Safety
+    /// The MLIR operation must be a valid pointer of type llzk::component::StructDefOp.
     pub unsafe fn from_raw(raw: MlirOperation) -> Self {
         unsafe {
             Self {
@@ -173,9 +175,9 @@ impl<'c> Deref for StructDefOp<'c> {
     }
 }
 
-impl<'c> Into<Operation<'c>> for StructDefOp<'c> {
-    fn into(self) -> Operation<'c> {
-        self.inner
+impl<'c> From<StructDefOp<'c>> for Operation<'c> {
+    fn from(op: StructDefOp<'c>) -> Operation<'c> {
+        op.inner
     }
 }
 
@@ -202,6 +204,9 @@ pub struct StructDefOpRef<'c, 'a> {
 }
 
 impl StructDefOpRef<'_, '_> {
+    /// Constructs Self from a MlirOperation.
+    /// # Safety
+    /// The MLIR operation must be a valid pointer of type llzk::component::StructDefOp.
     pub unsafe fn from_raw(raw: MlirOperation) -> Self {
         unsafe {
             Self {
@@ -233,9 +238,9 @@ impl<'a, 'c: 'a> Deref for StructDefOpRef<'c, 'a> {
     }
 }
 
-impl<'a, 'c: 'a> Into<OperationRef<'c, 'a>> for StructDefOpRef<'c, 'a> {
-    fn into(self) -> OperationRef<'c, 'a> {
-        self.inner
+impl<'a, 'c: 'a> From<StructDefOpRef<'c, 'a>> for OperationRef<'c, 'a> {
+    fn from(op: StructDefOpRef<'c, 'a>) -> OperationRef<'c, 'a> {
+        op.inner
     }
 }
 
@@ -278,6 +283,9 @@ pub struct FieldDefOp<'c> {
 }
 
 impl FieldDefOp<'_> {
+    /// Constructs Self from a MlirOperation.
+    /// # Safety
+    /// The MlirOperation must be a valid pointer to a llzk::component::FieldDefOp.
     pub unsafe fn from_raw(raw: MlirOperation) -> Self {
         unsafe {
             Self {
@@ -309,9 +317,9 @@ impl<'c> Deref for FieldDefOp<'c> {
     }
 }
 
-impl<'c> Into<Operation<'c>> for FieldDefOp<'c> {
-    fn into(self) -> Operation<'c> {
-        self.inner
+impl<'c> From<FieldDefOp<'c>> for Operation<'c> {
+    fn from(op: FieldDefOp<'c>) -> Operation<'c> {
+        op.inner
     }
 }
 
@@ -341,6 +349,9 @@ pub struct FieldDefOpRef<'c, 'a> {
 }
 
 impl FieldDefOpRef<'_, '_> {
+    /// Constructs Self from a MlirOperation.
+    /// # Safety
+    /// The MLIR operation must be a valid pointer of type llzk::component::FieldDefOp
     pub unsafe fn from_raw(raw: MlirOperation) -> Self {
         unsafe {
             Self {
@@ -372,9 +383,9 @@ impl<'a, 'c: 'a> Deref for FieldDefOpRef<'c, 'a> {
     }
 }
 
-impl<'a, 'c: 'a> Into<OperationRef<'c, 'a>> for FieldDefOpRef<'c, 'a> {
-    fn into(self) -> OperationRef<'c, 'a> {
-        self.inner
+impl<'a, 'c: 'a> From<FieldDefOpRef<'c, 'a>> for OperationRef<'c, 'a> {
+    fn from(field_ref: FieldDefOpRef<'c, 'a>) -> OperationRef<'c, 'a> {
+        field_ref.inner
     }
 }
 
@@ -404,7 +415,7 @@ pub fn def<'c>(
     params: &[FlatSymbolRefAttribute<'c>],
 ) -> StructDefOp<'c> {
     let ctx = location.context();
-    let params: Vec<Attribute> = params.into_iter().map(|a| (*a).into()).collect();
+    let params: Vec<Attribute> = params.iter().map(|a| (*a).into()).collect();
     let params = ArrayAttribute::new(unsafe { ctx.to_ref() }, &params).into();
     OperationBuilder::new("struct.def", location)
         .add_attributes(&[

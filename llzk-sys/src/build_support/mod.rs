@@ -14,12 +14,12 @@ pub mod wrap_static_fns;
 
 pub fn apply_bindgen_cfg(bindgen: Builder, cfgs: &[&dyn BindgenConfig]) -> Result<Builder> {
     cfgs.iter()
-        .fold(Ok(bindgen), |bindgen, cfg| cfg.apply(bindgen?))
+        .try_fold(bindgen, |bindgen, cfg| cfg.apply(bindgen))
 }
 
-pub fn apply_cc_cfg(mut cc: &mut Build, cfgs: &[&dyn CCConfig]) -> Result<()> {
+pub fn apply_cc_cfg(cc: &mut Build, cfgs: &[&dyn CCConfig]) -> Result<()> {
     for cfg in cfgs {
-        cfg.apply(&mut cc)?;
+        cfg.apply(cc)?;
     }
     Ok(())
 }

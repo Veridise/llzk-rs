@@ -73,8 +73,8 @@ impl<'c> TryFrom<Attribute<'c>> for SymbolRefAttribute<'c> {
     }
 }
 
-impl<'c> Into<Attribute<'c>> for SymbolRefAttribute<'c> {
-    fn into(self) -> Attribute<'c> {
-        self.inner
+impl<'c> From<SymbolRefAttribute<'c>> for Attribute<'c> {
+    fn from(sym: SymbolRefAttribute<'c>) -> Attribute<'c> {
+        sym.inner
     }
 }

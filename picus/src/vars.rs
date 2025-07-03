@@ -100,8 +100,8 @@ impl<K: VarKind + Into<VarStr> + Clone> Vars<K> {
         }
         let unique_names = self
             .0
-            .iter()
-            .map(|(_, v)| v.0.as_str())
+            .values()
+            .map(|v| v.0.as_str())
             .collect::<HashSet<_>>();
         let v = [key.clone().into()]
             .into_iter()
@@ -116,8 +116,7 @@ impl<K: VarKind + Into<VarStr> + Clone> Vars<K> {
                         .expect("valid identifier")
                 }
             })
-            .skip_while(|v| unique_names.contains(v.0.as_str()))
-            .next()
+            .find(|v| !unique_names.contains(v.0.as_str()))
             .unwrap();
 
         self.0.insert(key, v.clone());

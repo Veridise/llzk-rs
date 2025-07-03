@@ -103,6 +103,8 @@ pub struct FuncDefOp<'c> {
 }
 
 impl FuncDefOp<'_> {
+    /// # Safety
+    /// The MLIR operation must be a valid pointer of type llzk::function::FuncDefOp.
     pub unsafe fn from_raw(raw: MlirOperation) -> Self {
         unsafe {
             Self {
@@ -134,9 +136,9 @@ impl<'c> Deref for FuncDefOp<'c> {
     }
 }
 
-impl<'c> Into<Operation<'c>> for FuncDefOp<'c> {
-    fn into(self) -> Operation<'c> {
-        self.inner
+impl<'c> From<FuncDefOp<'c>> for Operation<'c> {
+    fn from(op: FuncDefOp<'c>) -> Operation<'c> {
+        op.inner
     }
 }
 
@@ -166,6 +168,8 @@ pub struct FuncDefOpRef<'c, 'a> {
 }
 
 impl FuncDefOpRef<'_, '_> {
+    /// # Safety
+    /// The MLIR operation must be a valid pointer of type llzk::function::FuncDefOp.
     pub unsafe fn from_raw(raw: MlirOperation) -> Self {
         unsafe {
             Self {
@@ -197,9 +201,9 @@ impl<'a, 'c: 'a> Deref for FuncDefOpRef<'c, 'a> {
     }
 }
 
-impl<'a, 'c: 'a> Into<OperationRef<'c, 'a>> for FuncDefOpRef<'c, 'a> {
-    fn into(self) -> OperationRef<'c, 'a> {
-        self.inner
+impl<'a, 'c: 'a> From<FuncDefOpRef<'c, 'a>> for OperationRef<'c, 'a> {
+    fn from(op: FuncDefOpRef<'c, 'a>) -> OperationRef<'c, 'a> {
+        op.inner
     }
 }
 
@@ -235,6 +239,8 @@ pub struct CallOp<'c> {
 }
 
 impl CallOp<'_> {
+    /// # Safety
+    /// The MLIR operation must be a valid pointer of type llzk::function::CallOp.
     pub unsafe fn from_raw(raw: MlirOperation) -> Self {
         unsafe {
             Self {
@@ -266,9 +272,9 @@ impl<'c> Deref for CallOp<'c> {
     }
 }
 
-impl<'c> Into<Operation<'c>> for CallOp<'c> {
-    fn into(self) -> Operation<'c> {
-        self.inner
+impl<'c> From<CallOp<'c>> for Operation<'c> {
+    fn from(op: CallOp<'c>) -> Operation<'c> {
+        op.inner
     }
 }
 
@@ -298,6 +304,8 @@ pub struct CallOpRef<'c, 'a> {
 }
 
 impl CallOpRef<'_, '_> {
+    /// # Safety
+    /// The MLIR operation must be a valid pointer of type llzk::function::CallOp
     pub unsafe fn from_raw(raw: MlirOperation) -> Self {
         unsafe {
             Self {
@@ -329,9 +337,9 @@ impl<'a, 'c: 'a> Deref for CallOpRef<'c, 'a> {
     }
 }
 
-impl<'a, 'c: 'a> Into<OperationRef<'c, 'a>> for CallOpRef<'c, 'a> {
-    fn into(self) -> OperationRef<'c, 'a> {
-        self.inner
+impl<'a, 'c: 'a> From<CallOpRef<'c, 'a>> for OperationRef<'c, 'a> {
+    fn from(op: CallOpRef<'c, 'a>) -> OperationRef<'c, 'a> {
+        op.inner
     }
 }
 

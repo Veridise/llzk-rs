@@ -4,7 +4,7 @@ use crate::{
         Advice, AdviceQuery, Any, Column, Field, FixedQuery, Gate, Instance, InstanceQuery,
         Rotation, Selector, Value,
     },
-    ir::{CircuitStmt, CircuitStmts},
+    ir::CircuitStmt,
     synthesis::{
         regions::{RegionRow, Row, FQN},
         CircuitSynthesis,

@@ -8,5 +8,3 @@ pub enum CircuitStmt<T> {
     EqConstraint(Value<T>, Value<T>),
     Comment(String),
 }
-
-pub type CircuitStmts<T> = Vec<CircuitStmt<T>>;

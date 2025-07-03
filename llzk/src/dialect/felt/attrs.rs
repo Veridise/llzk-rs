@@ -10,6 +10,8 @@ pub struct FeltConstAttribute<'c> {
 }
 
 impl<'c> FeltConstAttribute<'c> {
+    /// # Safety
+    /// The MLIR attribute must be a valid pointer of type FeltConstAttribute.
     pub unsafe fn from_raw(attr: MlirAttribute) -> Self {
         unsafe {
             Self {
@@ -47,8 +49,8 @@ impl<'c> std::fmt::Display for FeltConstAttribute<'c> {
     }
 }
 
-impl<'c> Into<Attribute<'c>> for FeltConstAttribute<'c> {
-    fn into(self) -> Attribute<'c> {
-        self.inner
+impl<'c> From<FeltConstAttribute<'c>> for Attribute<'c> {
+    fn from(attr: FeltConstAttribute<'c>) -> Attribute<'c> {
+        attr.inner
     }
 }

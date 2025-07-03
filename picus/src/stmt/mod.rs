@@ -1,5 +1,5 @@
 use crate::vars::VarKind as _;
-use display::{Display, TextRepresentable, TextRepresentation};
+use display::{TextRepresentable, TextRepresentation};
 use impls::{CallStmt, CommentLine, ConstraintStmt};
 use std::rc::Rc;
 use traits::{

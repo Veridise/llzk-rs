@@ -1,4 +1,4 @@
-use std::{fmt, ops::Deref, slice::Iter};
+use std::{fmt, slice::Iter};
 
 use crate::{
     expr::{
@@ -10,10 +10,10 @@ use crate::{
 };
 
 use super::{
-    display::{self, ListPunctuation, TextRepresentable, TextRepresentation},
+    display::{ListPunctuation, TextRepresentable, TextRepresentation},
     traits::{
-        CallLike, CallLikeAdaptor, CallLikeMut, ConstraintLike, ExprArgs, MaybeCallLike,
-        StmtConstantFolding, StmtLike,
+        CallLike, CallLikeAdaptor, ConstraintLike, ExprArgs, MaybeCallLike, StmtConstantFolding,
+        StmtLike,
     },
     Stmt, Wrap,
 };
@@ -25,7 +25,7 @@ use super::{
 struct TempVarExpr(VarStr);
 
 impl TempVarExpr {
-    pub fn new(s: &VarStr) -> Expr {
+    pub fn wrapped(s: &VarStr) -> Expr {
         Wrap::new(Self(s.clone()))
     }
 }
@@ -148,8 +148,8 @@ impl ExprArgs for CallStmt {
         self.outputs
             .get()
             .iter()
-            .map(TempVarExpr::new)
-            .chain(self.inputs.clone().into_iter())
+            .map(TempVarExpr::wrapped)
+            .chain(self.inputs.clone())
             .collect()
     }
 }
@@ -192,35 +192,6 @@ impl StmtConstantFolding for CallStmt {
                 .into(),
             outputs: self.outputs.clone(),
         }))
-    }
-}
-
-fn print_list<T: fmt::Display>(lst: &[T], f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let print = |t: &Option<&T>, f: &mut fmt::Formatter| {
-        if let Some(t) = t {
-            write!(f, "{t} ")
-        } else {
-            write!(f, "")
-        }
-    };
-    write!(f, "[")?;
-    let mut iter = lst.iter();
-    let mut it = iter.next();
-    print(&it, f)?;
-    while it.is_some() {
-        it = iter.next();
-        print(&it, f)?;
-    }
-    write!(f, "]")
-}
-
-impl fmt::Display for CallStmt {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "(call ")?;
-        //print_list(&self.outputs, f)?;
-        write!(f, " {} ", self.callee)?;
-        //print_list(&self.inputs, f)?;
-        writeln!(f, ")")
     }
 }
 

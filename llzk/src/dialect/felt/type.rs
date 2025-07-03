@@ -46,8 +46,8 @@ impl<'c> std::fmt::Display for FeltType<'c> {
     }
 }
 
-impl<'c> Into<Type<'c>> for FeltType<'c> {
-    fn into(self) -> Type<'c> {
-        self.r#type
+impl<'c> From<FeltType<'c>> for Type<'c> {
+    fn from(t: FeltType<'c>) -> Type<'c> {
+        t.r#type
     }
 }

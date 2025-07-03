@@ -40,7 +40,7 @@ impl LlzkBuild {
     }
 
     pub fn build(cfgs: &[&dyn CMakeConfig]) -> Result<Self> {
-        let mut cmake = Config::new(&Self::src_path());
+        let mut cmake = Config::new(Self::src_path());
         for cfg in cfgs {
             cfg.apply(&mut cmake)?;
         }
@@ -88,7 +88,7 @@ fn archive_name_from_path(path: Result<PathBuf, GlobError>) -> Result<String> {
     path.file_name()
         .and_then(OsStr::to_str)
         .and_then(parse_archive_name)
-        .and_then(|s| Some(s.to_string()))
+        .map(|s| s.to_string())
         .ok_or(anyhow::anyhow!(
             "Failed to parse archive name of {}",
             path.display()
@@ -98,7 +98,7 @@ fn archive_name_from_path(path: Result<PathBuf, GlobError>) -> Result<String> {
 fn parent_of_lib_path(path: Result<PathBuf, GlobError>) -> Result<PathBuf> {
     let path = path?;
     path.parent()
-        .and_then(|p| Some(p.to_path_buf()))
+        .map(|p| p.to_path_buf())
         .ok_or(anyhow::anyhow!(
             "Failed to get parent from {}",
             path.display()

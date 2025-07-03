@@ -7,6 +7,9 @@ use melior::StringRef;
 use mlir_sys::MlirStringRef;
 
 pub trait FromRaw<RawT> {
+    /// Constructs Self from RawT via some unsafe function.
+    /// # Safety
+    /// The raw value must be a valid reference to some MLIR object.
     unsafe fn from_raw(raw: RawT) -> Self;
 }
 
@@ -33,7 +36,8 @@ pub(crate) unsafe extern "C" fn print_callback(string: MlirStringRef, data: *mut
 
 #[macro_export]
 macro_rules! ident {
-    ($ctx:expr, $name:expr) => {
-        Identifier::new(unsafe { $ctx.to_ref() }, $name)
-    };
+    ($ctx:expr, $name:expr) => {{
+        let ctx = $ctx;
+        Identifier::new(unsafe { ctx.to_ref() }, $name)
+    }};
 }

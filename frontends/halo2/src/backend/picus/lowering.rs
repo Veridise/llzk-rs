@@ -35,7 +35,7 @@ impl<F, L> PicusModuleLowering<F, L> {
     }
 }
 
-impl<'a, F: PrimeField, L: LiftLike<Inner = F>> PicusModuleLowering<F, L> {
+impl<F: PrimeField, L: LiftLike<Inner = F>> PicusModuleLowering<F, L> {
     fn lower_binary_op<Fn, T: Clone>(
         &self,
         lhs: &Value<T>,

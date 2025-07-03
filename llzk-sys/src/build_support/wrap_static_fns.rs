@@ -21,7 +21,7 @@ impl WrapStaticFns {
     pub fn source_file(&self) -> PathBuf {
         let mut copy = self.dst.clone();
         copy.set_extension("c");
-        return copy;
+        copy
     }
 }
 

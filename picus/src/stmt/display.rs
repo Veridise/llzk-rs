@@ -1,11 +1,6 @@
-use std::{cell::Ref, fmt, rc::Rc, slice};
+use std::{fmt, rc::Rc};
 
-use crate::{expr::traits::ExprLike, vars::VarStr};
-
-use super::{
-    traits::{StmtDisplay, StmtLike},
-    Stmt,
-};
+use super::traits::StmtDisplay;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum ListPunctuation {
@@ -375,7 +370,7 @@ where {
             TRInner::OwnedList(lst) => self.fmt_list(&lst.lst, lst.punct),
         }?;
         if breaks_line {
-            writeln!(self.f, "")
+            writeln!(self.f)
         } else {
             write!(self.f, "")
         }

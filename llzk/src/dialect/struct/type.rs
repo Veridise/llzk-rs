@@ -40,8 +40,8 @@ impl<'c> std::fmt::Display for StructType<'c> {
     }
 }
 
-impl<'c> Into<Type<'c>> for StructType<'c> {
-    fn into(self) -> Type<'c> {
-        self.t
+impl<'c> From<StructType<'c>> for Type<'c> {
+    fn from(s: StructType<'c>) -> Type<'c> {
+        s.t
     }
 }

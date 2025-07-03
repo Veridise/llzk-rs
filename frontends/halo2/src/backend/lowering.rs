@@ -3,7 +3,7 @@ use crate::{
     halo2::{
         AdviceQuery, Challenge, Expression, Field, FixedQuery, Gate, InstanceQuery, Selector, Value,
     },
-    ir::{CircuitStmt, CircuitStmts},
+    ir::CircuitStmt,
 };
 use anyhow::{bail, Result};
 
@@ -181,7 +181,7 @@ pub trait Lowering {
         Self::CellOutput: 'a,
     {
         sels.iter()
-            .map(|e| self.lower_selector(*e, resolver))
+            .map(|e| self.lower_selector(e, resolver))
             .collect()
     }
 
@@ -216,6 +216,7 @@ pub trait Lowering {
             .collect()
     }
 
+    #[allow(clippy::needless_lifetimes)]
     fn lower_constraints<'c, R>(
         &'c self,
         gate: &Gate<Self::F>,
