@@ -75,7 +75,7 @@ fn test_mul_circuit_codegen() {
 fn test_mul_circuit_picus_codegen() {
     let _ = env_logger::builder().is_test(true).try_init();
     let output = picus_codegen_test!(MulCircuit<Lift<Fr>>);
-    println!("{output}");
+    println!("{}", output.display());
 }
 
 #[test]
@@ -88,5 +88,5 @@ fn test_fibonacci_circuit_codegen() {
 fn test_fibonacci_circuit_picus_codegen() {
     let _ = env_logger::builder().is_test(true).try_init();
     let output = picus_codegen_test!(FibonacciCircuit<Lift<Fr>>);
-    println!("{output}");
+    println!("{}", output.display());
 }

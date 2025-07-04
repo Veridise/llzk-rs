@@ -21,23 +21,18 @@ pub use backend::picus::PicusParams;
 pub use backend::picus::PicusParamsBuilder;
 pub use io::{CircuitIO, CircuitWithIO};
 
-pub fn picus_codegen_with_params<F, L, C>(
-    circuit: &C,
-    params: PicusParams,
-) -> Result<PicusOutput<L>>
+pub fn picus_codegen_with_params<L, C>(circuit: &C, params: PicusParams) -> Result<PicusOutput<L>>
 where
-    F: PrimeField,
-    L: LiftLike<Inner = F>,
+    L: LiftLike,
     C: CircuitWithIO<L>,
 {
     let backend = PicusBackend::initialize(params);
     backend.codegen(circuit, &InlineConstraintsStrat)
 }
 
-pub fn picus_codegen<F, L, C>(circuit: &C) -> Result<PicusOutput<L>>
+pub fn picus_codegen<L, C>(circuit: &C) -> Result<PicusOutput<L>>
 where
-    F: PrimeField,
-    L: LiftLike<Inner = F>,
+    L: LiftLike,
     C: CircuitWithIO<L>,
 {
     picus_codegen_with_params(circuit, Default::default())

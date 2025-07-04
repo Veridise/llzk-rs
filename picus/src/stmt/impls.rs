@@ -1,8 +1,12 @@
 use std::{fmt, slice::Iter};
 
+use anyhow::{anyhow, bail, Result};
+
 use crate::{
+    display::{ListPunctuation, TextRepresentable, TextRepresentation},
     expr::{
-        traits::{ConstantFolding, ExprLike, ExprSize},
+        known_var,
+        traits::{ConstantFolding, ExprLike, ExprSize, MaybeVarLike, WrappedExpr},
         Expr,
     },
     felt::Felt,
@@ -10,59 +14,12 @@ use crate::{
 };
 
 use super::{
-    display::{ListPunctuation, TextRepresentable, TextRepresentation},
     traits::{
         CallLike, CallLikeAdaptor, ConstraintLike, ExprArgs, MaybeCallLike, StmtConstantFolding,
         StmtLike,
     },
     Stmt, Wrap,
 };
-
-//===----------------------------------------------------------------------===//
-// TempVarExpr
-//===----------------------------------------------------------------------===//
-
-struct TempVarExpr(VarStr);
-
-impl TempVarExpr {
-    pub fn wrapped(s: &VarStr) -> Expr {
-        Wrap::new(Self(s.clone()))
-    }
-}
-
-impl ExprSize for TempVarExpr {
-    fn size(&self) -> usize {
-        1
-    }
-}
-
-impl ConstantFolding for TempVarExpr {
-    fn as_const(&self) -> Option<Felt> {
-        None
-    }
-
-    fn fold(&self) -> Option<Expr> {
-        None
-    }
-}
-
-impl fmt::Display for TempVarExpr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl TextRepresentable for TempVarExpr {
-    fn to_repr(&self) -> TextRepresentation {
-        self.0.to_repr()
-    }
-
-    fn width_hint(&self) -> usize {
-        self.0.width_hint()
-    }
-}
-
-impl ExprLike for TempVarExpr {}
 
 //===----------------------------------------------------------------------===//
 // CallStmt
@@ -76,6 +33,18 @@ struct Inputs(Vec<Expr>);
 impl Outputs {
     fn get(&self) -> &[VarStr] {
         &self.0
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn replace(&mut self, idx: usize, expr: Expr) -> Result<()> {
+        self.0[idx] = expr
+            .var_name()
+            .ok_or_else(|| anyhow!("Call outputs can only be var expressions"))?
+            .clone();
+        Ok(())
     }
 }
 
@@ -98,6 +67,14 @@ impl TextRepresentable for Outputs {
 impl Inputs {
     fn iter(&self) -> Iter<Expr> {
         self.0.iter()
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn replace(&mut self, idx: usize, expr: Expr) {
+        self.0[idx] = expr;
     }
 }
 
@@ -148,9 +125,25 @@ impl ExprArgs for CallStmt {
         self.outputs
             .get()
             .iter()
-            .map(TempVarExpr::wrapped)
+            .map(known_var)
             .chain(self.inputs.clone())
             .collect()
+    }
+
+    fn replace_arg(&mut self, mut idx: usize, expr: Expr) -> Result<()> {
+        if idx < self.outputs.len() {
+            return self.outputs.replace(idx, expr);
+        }
+        idx -= self.outputs.len();
+        if idx < self.inputs.len() {
+            self.inputs.replace(idx, expr);
+            return Ok(());
+        }
+        Err(anyhow!(
+            "Idx {idx} is out of bounds for CallStmt (outputs={}, inputs={})",
+            self.outputs.len(),
+            self.inputs.len()
+        ))
     }
 }
 
@@ -166,11 +159,14 @@ impl CallLike for CallStmt {
     }
 
     fn with_new_callee(&self, callee: String) -> Stmt {
-        Wrap::new(Self {
-            callee,
-            inputs: self.inputs.clone(),
-            outputs: self.outputs.clone(),
-        })
+        Wrap::new(
+            Self {
+                callee,
+                inputs: self.inputs.clone(),
+                outputs: self.outputs.clone(),
+            }
+            .into(),
+        )
     }
 }
 
@@ -182,24 +178,25 @@ impl MaybeCallLike for CallStmt {
 
 impl StmtConstantFolding for CallStmt {
     fn fold(&self) -> Option<Stmt> {
-        Some(Wrap::new(Self {
-            callee: self.callee.clone(),
-            inputs: self
-                .inputs
-                .iter()
-                .map(|e| e.fold().unwrap_or(e.clone()))
-                .collect::<Vec<_>>()
-                .into(),
-            outputs: self.outputs.clone(),
-        }))
+        Some(Wrap::new(
+            Self {
+                callee: self.callee.clone(),
+                inputs: self
+                    .inputs
+                    .iter()
+                    .map(|e| e.fold().unwrap_or(e.clone()))
+                    .collect::<Vec<_>>()
+                    .into(),
+                outputs: self.outputs.clone(),
+            }
+            .into(),
+        ))
     }
 }
 
 impl TextRepresentable for CallStmt {
     fn to_repr(&self) -> TextRepresentation {
-        let exprs: Vec<&dyn TextRepresentable> =
-            vec![&"call", &self.outputs, &self.callee, &self.inputs];
-        TextRepresentation::owned_list(exprs).break_line()
+        owned_list!("call", &self.outputs, &self.callee, &self.inputs).break_line()
     }
 
     fn width_hint(&self) -> usize {
@@ -225,6 +222,14 @@ impl ExprArgs for ConstraintStmt {
     fn args(&self) -> Vec<Expr> {
         vec![self.0.clone()]
     }
+
+    fn replace_arg(&mut self, idx: usize, expr: Expr) -> Result<()> {
+        if idx != 0 {
+            bail!("Index {idx} is out of bounds for constraint statement");
+        }
+        self.0 = expr;
+        Ok(())
+    }
 }
 
 impl ConstraintLike for ConstraintStmt {
@@ -241,13 +246,15 @@ impl MaybeCallLike for ConstraintStmt {
 
 impl StmtConstantFolding for ConstraintStmt {
     fn fold(&self) -> Option<Stmt> {
-        Some(Wrap::new(Self(self.0.fold().unwrap_or(self.0.clone()))))
+        Some(Wrap::new(
+            Self(self.0.fold().unwrap_or(self.0.clone())).into(),
+        ))
     }
 }
 
 impl TextRepresentable for ConstraintStmt {
     fn to_repr(&self) -> TextRepresentation {
-        TextRepresentation::owned_list(vec![&"assert", self.0.as_ref()]).break_line()
+        owned_list!("assert", &self.0).break_line()
     }
 
     fn width_hint(&self) -> usize {
@@ -272,6 +279,10 @@ impl CommentLine {
 impl ExprArgs for CommentLine {
     fn args(&self) -> Vec<Expr> {
         vec![]
+    }
+
+    fn replace_arg(&mut self, _idx: usize, _expr: Expr) -> Result<()> {
+        bail!("Comment statement does not have arguments")
     }
 }
 

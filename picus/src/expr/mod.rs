@@ -1,11 +1,11 @@
 use std::{fmt, rc::Rc};
 
-use impls::{BinaryExpr, BinaryOp, ConstExpr, ConstraintKind, NegExpr, OpFolder, VarExpr};
-use traits::{ConstantFolding, ExprLike, ExprSize};
+use impls::{BinaryExpr, BinaryOp, ConstExpr, ConstraintKind, NegExpr, OpFolder, OpLike, VarExpr};
+use traits::{ConstantFolding, ExprLike, ExprSize, MaybeVarLike, WrappedExpr};
 
 use crate::{
+    display::TextRepresentable,
     felt::Felt,
-    stmt::display::TextRepresentable,
     vars::{VarAllocator, VarStr},
 };
 
@@ -17,7 +17,19 @@ type Wrap<T> = Rc<T>;
 /// A pointer to a picus expression.
 pub type Expr = Wrap<dyn ExprLike>;
 
-impl<T: ExprSize + ?Sized> ExprSize for Wrap<T> {
+impl WrappedExpr for Wrap<dyn ExprLike> {
+    fn wrap(&self) -> Expr {
+        self.as_ref().wrap()
+    }
+}
+
+impl<T: ExprLike + 'static> WrappedExpr for Wrap<T> {
+    fn wrap(&self) -> Expr {
+        self.clone()
+    }
+}
+
+impl<T: ExprLike + 'static + ?Sized> ExprSize for Wrap<T> {
     fn size(&self) -> usize {
         self.as_ref().size()
     }
@@ -33,7 +45,24 @@ impl<T: ConstantFolding + ?Sized> ConstantFolding for Wrap<T> {
     }
 }
 
-impl<T: ExprLike + ?Sized> ExprLike for Wrap<T> {}
+impl<T: MaybeVarLike + ?Sized> MaybeVarLike for Wrap<T> {
+    fn var_name(&self) -> Option<&VarStr> {
+        self.as_ref().var_name()
+    }
+}
+
+impl<T: TextRepresentable + ?Sized> TextRepresentable for Wrap<T> {
+    fn to_repr(&self) -> crate::display::TextRepresentation {
+        self.as_ref().to_repr()
+    }
+
+    fn width_hint(&self) -> usize {
+        self.as_ref().width_hint()
+    }
+}
+
+impl<T: ExprLike + 'static> ExprLike for Wrap<T> {}
+impl ExprLike for Wrap<dyn ExprLike> {}
 
 //===----------------------------------------------------------------------===//
 // Factories
@@ -51,11 +80,11 @@ where
     Wrap::new(VarExpr::new(allocator.allocate(kind)))
 }
 
-fn binop<K: Clone + fmt::Display + OpFolder + TextRepresentable + 'static>(
-    kind: K,
-    lhs: &Expr,
-    rhs: &Expr,
-) -> Expr {
+pub(crate) fn known_var(var: &VarStr) -> Expr {
+    Wrap::new(VarExpr::new(var.clone()))
+}
+
+fn binop<K: OpLike>(kind: K, lhs: &Expr, rhs: &Expr) -> Expr {
     Wrap::new(BinaryExpr::new(kind.clone(), rhs.clone(), lhs.clone()))
 }
 

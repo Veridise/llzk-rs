@@ -3,7 +3,7 @@ use std::{fmt, ops::AddAssign};
 #[cfg(feature = "bigint-felt")]
 use num_bigint::BigUint;
 
-use crate::stmt::display::{TextRepresentable, TextRepresentation};
+use crate::display::{TextRepresentable, TextRepresentation};
 
 pub trait IntoPrime: Into<Felt> {
     fn prime() -> Felt;

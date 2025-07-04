@@ -1,13 +1,13 @@
 use std::fmt;
 
 use crate::{
+    display::{TextRepresentable, TextRepresentation},
     felt::Felt,
-    stmt::display::{TextRepresentable, TextRepresentation},
     vars::VarStr,
 };
 
 use super::{
-    traits::{ConstantFolding, ExprLike, ExprSize},
+    traits::{ConstantFolding, ExprLike, ExprSize, MaybeVarLike, WrappedExpr},
     Expr, Wrap,
 };
 
@@ -15,11 +15,18 @@ use super::{
 // ConstExpr
 //===----------------------------------------------------------------------===//
 
+#[derive(Clone)]
 pub struct ConstExpr(Felt);
 
 impl ConstExpr {
     pub fn new(f: Felt) -> Self {
         Self(f)
+    }
+}
+
+impl WrappedExpr for ConstExpr {
+    fn wrap(&self) -> Expr {
+        Wrap::new(self.clone())
     }
 }
 
@@ -55,13 +62,26 @@ impl TextRepresentable for ConstExpr {
     }
 }
 
+impl MaybeVarLike for ConstExpr {
+    fn var_name(&self) -> Option<&VarStr> {
+        None
+    }
+}
+
 impl ExprLike for ConstExpr {}
 
 //===----------------------------------------------------------------------===//
 // VarExpr
 //===----------------------------------------------------------------------===//
 
+#[derive(Clone)]
 pub struct VarExpr(VarStr);
+
+impl WrappedExpr for VarExpr {
+    fn wrap(&self) -> Expr {
+        Wrap::new(self.clone())
+    }
+}
 
 impl VarExpr {
     pub fn new(s: VarStr) -> Self {
@@ -98,6 +118,12 @@ impl TextRepresentable for VarExpr {
 
     fn width_hint(&self) -> usize {
         self.0.width_hint()
+    }
+}
+
+impl MaybeVarLike for VarExpr {
+    fn var_name(&self) -> Option<&VarStr> {
+        Some(&self.0)
     }
 }
 
@@ -157,24 +183,14 @@ impl OpFolder for BinaryOp {
     }
 }
 
-impl fmt::Display for BinaryOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                BinaryOp::Add => "+",
-                BinaryOp::Sub => "-",
-                BinaryOp::Mul => "*",
-                BinaryOp::Div => "/",
-            }
-        )
-    }
-}
-
 impl TextRepresentable for BinaryOp {
     fn to_repr(&self) -> TextRepresentation {
-        TextRepresentation::owned_atom(self.to_string())
+        TextRepresentation::atom(match self {
+            BinaryOp::Add => "+",
+            BinaryOp::Sub => "-",
+            BinaryOp::Mul => "*",
+            BinaryOp::Div => "/",
+        })
     }
 
     fn width_hint(&self) -> usize {
@@ -197,25 +213,15 @@ impl OpFolder for ConstraintKind {
     }
 }
 
-impl fmt::Display for ConstraintKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                ConstraintKind::Lt => "<",
-                ConstraintKind::Le => "<=",
-                ConstraintKind::Gt => ">",
-                ConstraintKind::Ge => ">=",
-                ConstraintKind::Eq => "=",
-            }
-        )
-    }
-}
-
 impl TextRepresentable for ConstraintKind {
     fn to_repr(&self) -> TextRepresentation {
-        TextRepresentation::owned_atom(self.to_string())
+        TextRepresentation::atom(match self {
+            ConstraintKind::Lt => "<",
+            ConstraintKind::Le => "<=",
+            ConstraintKind::Gt => ">",
+            ConstraintKind::Ge => ">=",
+            ConstraintKind::Eq => "=",
+        })
     }
 
     fn width_hint(&self) -> usize {
@@ -226,15 +232,27 @@ impl TextRepresentable for ConstraintKind {
     }
 }
 
-pub struct BinaryExpr<K>(K, Expr, Expr);
+pub trait OpLike: Clone + OpFolder + TextRepresentable + 'static {}
 
-impl<K> BinaryExpr<K> {
+impl OpLike for BinaryOp {}
+impl OpLike for ConstraintKind {}
+
+#[derive(Clone)]
+pub struct BinaryExpr<K: Clone>(K, Expr, Expr);
+
+impl<K: Clone> BinaryExpr<K> {
     pub fn new(k: K, lhs: Expr, rhs: Expr) -> Self {
         Self(k, lhs, rhs)
     }
 }
 
-impl<K> BinaryExpr<K> {
+impl<K: OpLike> WrappedExpr for BinaryExpr<K> {
+    fn wrap(&self) -> Expr {
+        Wrap::new(self.clone())
+    }
+}
+
+impl<K: Clone> BinaryExpr<K> {
     fn lhs(&self) -> Expr {
         self.1.clone()
     }
@@ -248,15 +266,13 @@ impl<K> BinaryExpr<K> {
     }
 }
 
-impl<K: Clone> ExprSize for BinaryExpr<K> {
+impl<K: OpLike> ExprSize for BinaryExpr<K> {
     fn size(&self) -> usize {
         self.1.size() + self.2.size()
     }
 }
 
-impl<K: OpFolder + Clone + fmt::Display + TextRepresentable + 'static> ConstantFolding
-    for BinaryExpr<K>
-{
+impl<K: OpLike> ConstantFolding for BinaryExpr<K> {
     fn as_const(&self) -> Option<Felt> {
         None
     }
@@ -271,9 +287,9 @@ impl<K: OpFolder + Clone + fmt::Display + TextRepresentable + 'static> ConstantF
     }
 }
 
-impl<K: TextRepresentable> TextRepresentable for BinaryExpr<K> {
+impl<K: OpLike> TextRepresentable for BinaryExpr<K> {
     fn to_repr(&self) -> TextRepresentation {
-        TextRepresentation::owned_list(vec![self.op(), self.1.as_ref(), self.2.as_ref()])
+        owned_list!(self.op(), &self.1, &self.2)
     }
 
     fn width_hint(&self) -> usize {
@@ -281,17 +297,30 @@ impl<K: TextRepresentable> TextRepresentable for BinaryExpr<K> {
     }
 }
 
-impl<K: Clone + fmt::Display + OpFolder + TextRepresentable + 'static> ExprLike for BinaryExpr<K> {}
+impl<K: OpLike> MaybeVarLike for BinaryExpr<K> {
+    fn var_name(&self) -> Option<&VarStr> {
+        None
+    }
+}
+
+impl<K: OpLike> ExprLike for BinaryExpr<K> {}
 
 //===----------------------------------------------------------------------===//
 // NegExpr
 //===----------------------------------------------------------------------===//
 
+#[derive(Clone)]
 pub struct NegExpr(Expr);
 
 impl NegExpr {
     pub fn new(e: Expr) -> Self {
         Self(e)
+    }
+}
+
+impl WrappedExpr for NegExpr {
+    fn wrap(&self) -> Expr {
+        Wrap::new(self.clone())
     }
 }
 
@@ -315,19 +344,19 @@ impl ConstantFolding for NegExpr {
     }
 }
 
-//impl fmt::Display for NegExpr {
-//    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//        //write!(f, "(- {})", self.0)
-//    }
-//}
-
 impl TextRepresentable for NegExpr {
     fn to_repr(&self) -> TextRepresentation {
-        TextRepresentation::owned_list(vec![&"-", self.0.as_ref()])
+        owned_list!("-", &self.0)
     }
 
     fn width_hint(&self) -> usize {
         3 + self.0.width_hint()
+    }
+}
+
+impl MaybeVarLike for NegExpr {
+    fn var_name(&self) -> Option<&VarStr> {
+        None
     }
 }
 

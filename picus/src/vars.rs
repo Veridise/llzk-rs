@@ -6,7 +6,7 @@ use std::{
 
 use regex::Regex;
 
-use crate::stmt::display::{TextRepresentable, TextRepresentation};
+use crate::display::{TextRepresentable, TextRepresentation};
 
 #[derive(Clone, Debug)]
 pub struct VarStr(String);

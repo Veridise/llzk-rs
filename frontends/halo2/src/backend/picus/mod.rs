@@ -20,6 +20,7 @@ use lowering::PicusModuleRef;
 use num_bigint::BigUint;
 use picus::{
     felt::{Felt, IntoPrime},
+    opt::{EnsureMaxExprSizePass, FoldExprsPass, MutOptimizer as _},
     vars::VarStr,
     ModuleLike as _,
 };
@@ -27,6 +28,8 @@ use vars::{VarKey, VarKeySeed};
 
 pub type PicusModule = picus::Module<VarKey>;
 pub type PicusOutput<F> = picus::Program<FeltWrap<F>, VarKey>;
+type PipelineBuilder<F> = picus::opt::OptimizerPipelineBuilder<FeltWrap<F>, VarKey>;
+type Pipeline<F> = picus::opt::OptimizerPipeline<FeltWrap<F>, VarKey>;
 
 pub struct PicusParams {
     expr_cutoff: usize,
@@ -118,10 +121,10 @@ impl Default for PicusParams {
     }
 }
 
-pub struct PicusBackend<F, L> {
+pub struct PicusBackend<L> {
     params: PicusParams,
     modules: RefCell<Vec<PicusModuleRef>>,
-    _marker: PhantomData<(F, L)>,
+    _marker: PhantomData<L>,
 }
 
 fn mk_io<F, I, O>(count: usize, f: F) -> impl Iterator<Item = O>
@@ -133,22 +136,8 @@ where
     (0..count).map(move |i| f(i.into()))
 }
 
-impl<'c, F: PrimeField, L: LiftLike<Inner = F>> Backend<'c, PicusParams, PicusOutput<L>>
-    for PicusBackend<F, L>
-{
-    type FuncOutput = PicusModuleLowering<F, L>;
-    type F = L;
-
-    fn initialize(params: PicusParams) -> Self {
-        Self {
-            params,
-            modules: Default::default(),
-            _marker: Default::default(),
-        }
-    }
-
-    fn generate_output(&'c self) -> Result<PicusOutput<Self::F>> {
-        let mut output = PicusOutput::from(self.modules.borrow().clone());
+impl<L: PrimeField> PicusBackend<L> {
+    fn var_consistency_check(&self, output: &PicusOutput<L>) -> Result<()> {
         // Var consistency check
         for module in output.modules() {
             let vars = module.vars();
@@ -194,11 +183,33 @@ impl<'c, F: PrimeField, L: LiftLike<Inner = F>> Backend<'c, PicusParams, PicusOu
                 );
             }
         }
+        Ok(())
+    }
 
-        for module in output.modules_mut() {
-            module.fold_stmts();
+    fn optimization_pipeline(&self) -> Pipeline<L> {
+        PipelineBuilder::<L>::new()
+            .add_pass::<FoldExprsPass>()
+            .add_pass_with_params::<EnsureMaxExprSizePass>(self.params.expr_cutoff)
+            .into()
+    }
+}
+
+impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<L> {
+    type FuncOutput = PicusModuleLowering<L::Inner, L>;
+    type F = L;
+
+    fn initialize(params: PicusParams) -> Self {
+        Self {
+            params,
+            modules: Default::default(),
+            _marker: Default::default(),
         }
-        // TODO: Cut the expressions that are too big
+    }
+
+    fn generate_output(&'c self) -> Result<PicusOutput<Self::F>> {
+        let mut output = PicusOutput::from(self.modules.borrow().clone());
+        self.var_consistency_check(&output)?;
+        self.optimization_pipeline().optimize(&mut output)?;
         Ok(output)
     }
 

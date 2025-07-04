@@ -1,12 +1,11 @@
-use crate::expr::Expr;
-
-use super::{
-    display::{Display, TextRepresentable},
-    Stmt,
-};
+use super::Stmt;
+use crate::{display::TextRepresentable, expr::Expr, opt::Optimizer};
+use anyhow::Result;
 
 pub trait ExprArgs {
     fn args(&self) -> Vec<Expr>;
+
+    fn replace_arg(&mut self, idx: usize, expr: Expr) -> Result<()>;
 }
 
 pub trait ConstraintLike {
@@ -47,12 +46,6 @@ impl CallLike for CallLikeAdaptor<'_> {
 
 pub trait MaybeCallLike {
     fn as_call<'a>(&'a self) -> Option<CallLikeAdaptor<'a>>;
-}
-
-pub trait StmtDisplay: Clone + AsRef<dyn StmtLike> {
-    fn display(&self) -> Display<Self> {
-        Display::new(self.clone())
-    }
 }
 
 pub trait StmtLike:

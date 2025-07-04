@@ -1,6 +1,9 @@
+#[macro_use]
+pub mod display;
 pub mod expr;
 pub mod felt;
 mod module;
+pub mod opt;
 mod program;
 pub mod stmt;
 pub mod vars;

@@ -1,6 +1,19 @@
-use crate::{felt::Felt, stmt::display::TextRepresentable};
+use crate::{display::TextRepresentable, felt::Felt, opt::Optimizer, vars::VarStr};
 
 use super::Expr;
+use anyhow::Result;
+
+pub trait MaybeVarLike {
+    fn var_name(&self) -> Option<&VarStr>;
+}
+
+pub trait ConstraintEmitter {
+    fn emit(&mut self, lhs: Expr, rhs: Expr);
+}
+
+pub trait WrappedExpr {
+    fn wrap(&self) -> Expr;
+}
 
 pub trait ExprSize {
     /// Returns the number of nodes in the expression.
@@ -32,4 +45,7 @@ pub trait ConstantFolding {
 }
 
 /// Marker interface for a Picus expression.
-pub trait ExprLike: ExprSize + ConstantFolding + TextRepresentable {}
+pub trait ExprLike:
+    ExprSize + ConstantFolding + TextRepresentable + WrappedExpr + MaybeVarLike
+{
+}

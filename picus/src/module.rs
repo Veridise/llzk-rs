@@ -1,8 +1,18 @@
-use std::{cell::RefCell, fmt, ops::DerefMut as _, rc::Rc};
+use std::{
+    cell::RefCell,
+    fmt,
+    ops::{Deref, DerefMut},
+    rc::Rc,
+};
 
 use crate::{
-    expr::Expr,
-    stmt::{self, traits::StmtDisplay as _, Stmt},
+    display::{ListItem, TextRepresentable, TextRepresentation},
+    expr::{self, traits::ConstraintEmitter, Expr},
+    stmt::{
+        self,
+        traits::{ConstraintLike as _, StmtConstantFolding as _},
+        Stmt,
+    },
     vars::{VarAllocator, VarKind, VarStr, Vars},
 };
 
@@ -24,17 +34,52 @@ struct ModuleSummary {
     constraint_count: usize,
 }
 
-impl fmt::Display for ModuleSummary {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "; Number of inputs:      {}", self.input_count)?;
-        writeln!(f, "; Number of outputs:     {}", self.output_count)?;
-        writeln!(f, "; Number of temporaries: {}", self.temp_count)?;
-        writeln!(f, "; Number of constraints: {}", self.constraint_count)
+type TR<'a> = TextRepresentation<'a>;
+
+//impl fmt::Display for ModuleSummary {
+//    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//        writeln!(f, "; Number of inputs:      {}", self.input_count)?;
+//        writeln!(f,)?;
+//        writeln!(f,)?;
+//        writeln!(f,)
+//    }
+//}
+
+#[derive(Clone)]
+pub struct ModuleHeader(String);
+
+impl From<String> for ModuleHeader {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl Deref for ModuleHeader {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ModuleHeader {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl TextRepresentable for ModuleHeader {
+    fn to_repr(&self) -> TextRepresentation {
+        owned_list!("begin-module", &self.0).break_line()
+    }
+
+    fn width_hint(&self) -> usize {
+        15 + self.0.width_hint()
     }
 }
 
 pub struct Module<K: VarKind> {
-    pub(crate) name: String,
+    pub(crate) name: ModuleHeader,
     pub(crate) stmts: Vec<Stmt>,
     pub(crate) vars: Vars<K>,
 }
@@ -58,10 +103,16 @@ impl<K: VarKind + Clone> From<ModuleRef<K>> for Module<K> {
 impl<K: VarKind + Default> From<String> for Module<K> {
     fn from(name: String) -> Self {
         Self {
-            name,
+            name: name.into(),
             stmts: Default::default(),
             vars: Default::default(),
         }
+    }
+}
+
+impl<K: VarKind> ConstraintEmitter for Module<K> {
+    fn emit(&mut self, lhs: Expr, rhs: Expr) {
+        self.stmts.push(stmt::constrain(expr::eq(&lhs, &rhs)))
     }
 }
 
@@ -126,6 +177,14 @@ impl<K: VarKind> Module<K> {
         &self.stmts
     }
 
+    pub fn stmts_mut(&mut self) -> &mut [Stmt] {
+        &mut self.stmts
+    }
+
+    pub fn add_stmts(&mut self, stmts: &[Stmt]) {
+        self.stmts.extend_from_slice(stmts)
+    }
+
     fn summarize(&self) -> ModuleSummary {
         let input_count = self.vars.inputs().count();
         let output_count = self.vars.outputs().count();
@@ -168,19 +227,56 @@ impl<K: VarKind + Default + Clone> ModuleWithVars<K> for Module<K> {
     }
 }
 
-impl<K: VarKind> fmt::Display for Module<K> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "(begin-module {})", self.name)?;
-        write!(f, "{}", self.summarize())?;
-        for i in self.vars.inputs() {
-            writeln!(f, "(input {i})")?;
-        }
-        for o in self.vars.outputs() {
-            writeln!(f, "(output {o})")?;
-        }
-        for c in &self.stmts {
-            write!(f, "{}", c.display())?;
-        }
-        writeln!(f, "(end-module) ; {}", self.name)
+impl<K: VarKind> TextRepresentable for Module<K> {
+    fn to_repr(&self) -> TextRepresentation {
+        let summary = self.summarize();
+        owned_list!(&self.name)
+            + [
+                format!("Number of inputs:      {}", summary.input_count),
+                format!("Number of outputs:     {}", summary.output_count),
+                format!("Number of temporaries: {}", summary.temp_count),
+                format!("Number of constraints: {}", summary.constraint_count),
+            ]
+            .into_iter()
+            .map(TR::owned_comment)
+            .sum()
+            + TR::owned_list(
+                &self
+                    .vars
+                    .inputs()
+                    .map(|i: &str| owned_list!("input", i).break_line().into())
+                    .collect::<Vec<ListItem>>(),
+            )
+            + TR::owned_list(
+                &self
+                    .vars
+                    .outputs()
+                    .map(|o: &str| owned_list!("output", o).break_line().into())
+                    .collect::<Vec<ListItem>>(),
+            )
+            + (&self.stmts).to_repr()
+            + owned_list!(owned_list!("end-module"))
+            + TR::comment(self.name())
+    }
+
+    fn width_hint(&self) -> usize {
+        todo!()
     }
 }
+
+//impl<K: VarKind> fmt::Display for Module<K> {
+//    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//        writeln!(f, "(begin-module {})", self.name)?;
+//        write!(f, "{}", self.summarize())?;
+//        for i in self.vars.inputs() {
+//            writeln!(f, "(input {i})")?;
+//        }
+//        for o in self.vars.outputs() {
+//            writeln!(f, "(output {o})")?;
+//        }
+//        for c in &self.stmts {
+//            write!(f, "{}", c.display())?;
+//        }
+//        writeln!(f, "(end-module) ; {}", self.name)
+//    }
+//}

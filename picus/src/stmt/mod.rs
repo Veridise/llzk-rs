@@ -1,55 +1,56 @@
+use crate::display::{TextRepresentable, TextRepresentation};
 use crate::vars::{Temp, VarKind as _};
-use display::{TextRepresentable, TextRepresentation};
+use anyhow::Result;
 use impls::{CallStmt, CommentLine, ConstraintStmt};
-use std::rc::Rc;
+use std::{cell::RefCell, ops::Deref as _, rc::Rc};
 use traits::{
-    CallLikeAdaptor, ConstraintLike, ExprArgs, MaybeCallLike, StmtConstantFolding, StmtDisplay,
-    StmtLike,
+    CallLikeAdaptor, ConstraintLike, ExprArgs, MaybeCallLike, StmtConstantFolding, StmtLike,
 };
 
 use crate::{expr::Expr, vars::VarAllocator};
 
-pub mod display;
 mod impls;
 pub mod traits;
 
-type Wrap<T> = Rc<T>;
+type Wrap<T> = Rc<RefCell<T>>;
 
 pub type Stmt = Wrap<dyn StmtLike>;
 
-impl StmtDisplay for Stmt {}
-
 impl<S: ExprArgs + ?Sized> ExprArgs for Wrap<S> {
     fn args(&self) -> Vec<Expr> {
-        self.as_ref().args()
+        self.borrow().args()
+    }
+
+    fn replace_arg(&mut self, idx: usize, expr: Expr) -> Result<()> {
+        self.borrow_mut().replace_arg(idx, expr)
     }
 }
 
 impl<S: ConstraintLike + ?Sized> ConstraintLike for Wrap<S> {
     fn is_constraint(&self) -> bool {
-        self.as_ref().is_constraint()
+        self.borrow().is_constraint()
     }
 }
 
 impl<S: MaybeCallLike + ?Sized> MaybeCallLike for Wrap<S> {
     fn as_call<'a>(&'a self) -> Option<CallLikeAdaptor<'a>> {
-        self.as_ref().as_call()
+        unsafe { (*self.as_ptr()).as_call() }
     }
 }
 
 impl<S: StmtConstantFolding + ?Sized> StmtConstantFolding for Wrap<S> {
     fn fold(&self) -> Option<Stmt> {
-        self.as_ref().fold()
+        self.borrow().fold()
     }
 }
 
 impl<S: TextRepresentable + ?Sized> TextRepresentable for Wrap<S> {
     fn to_repr(&self) -> TextRepresentation {
-        self.as_ref().to_repr()
+        unsafe { (*self.as_ptr()).to_repr() }
     }
 
     fn width_hint(&self) -> usize {
-        self.as_ref().width_hint()
+        self.borrow().width_hint()
     }
 }
 
@@ -64,19 +65,22 @@ where
     A: VarAllocator,
     A::Kind: Temp,
 {
-    Wrap::new(CallStmt::new(
-        callee,
-        inputs,
-        (0..n_outputs)
-            .map(|_| allocator.allocate(A::Kind::temp()))
-            .collect(),
-    ))
+    Wrap::new(
+        CallStmt::new(
+            callee,
+            inputs,
+            (0..n_outputs)
+                .map(|_| allocator.allocate(A::Kind::temp()))
+                .collect(),
+        )
+        .into(),
+    )
 }
 
 pub fn constrain(expr: Expr) -> Stmt {
-    Wrap::new(ConstraintStmt::new(expr))
+    Wrap::new(ConstraintStmt::new(expr).into())
 }
 
 pub fn comment(s: String) -> Stmt {
-    Wrap::new(CommentLine::new(s))
+    Wrap::new(CommentLine::new(s).into())
 }
