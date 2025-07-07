@@ -33,6 +33,10 @@ impl<T: ExprLike + 'static + ?Sized> ExprSize for Wrap<T> {
     fn size(&self) -> usize {
         self.as_ref().size()
     }
+
+    fn extraible(&self) -> bool {
+        self.as_ref().extraible()
+    }
 }
 
 impl<T: ConstantFolding + ?Sized> ConstantFolding for Wrap<T> {

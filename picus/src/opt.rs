@@ -289,7 +289,7 @@ where
     /// equates that fresh temporary with the expression.
     /// If not returns itself.
     fn optimize(&mut self, expr: &dyn ExprLike) -> Result<Expr> {
-        if expr.size() < self.limit {
+        if expr.size() < self.limit || !expr.extraible() {
             return Ok(expr.wrap());
         }
         let temp = known_var(

@@ -22,6 +22,9 @@ pub trait WrappedExpr {
 pub trait ExprSize {
     /// Returns the number of nodes in the expression.
     fn size(&self) -> usize;
+
+    /// True if the expression can be extracted to a temporary
+    fn extraible(&self) -> bool;
 }
 
 pub trait ConstantFolding {

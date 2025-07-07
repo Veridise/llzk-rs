@@ -34,6 +34,10 @@ impl ExprSize for ConstExpr {
     fn size(&self) -> usize {
         1
     }
+
+    fn extraible(&self) -> bool {
+        false
+    }
 }
 
 impl fmt::Display for ConstExpr {
@@ -96,6 +100,10 @@ impl VarExpr {
 impl ExprSize for VarExpr {
     fn size(&self) -> usize {
         1
+    }
+
+    fn extraible(&self) -> bool {
+        false
     }
 }
 
@@ -243,10 +251,20 @@ impl TextRepresentable for ConstraintKind {
     }
 }
 
-pub trait OpLike: Clone + OpFolder + TextRepresentable + 'static {}
+pub trait OpLike: Clone + OpFolder + TextRepresentable + 'static {
+    fn extraible(&self) -> bool;
+}
 
-impl OpLike for BinaryOp {}
-impl OpLike for ConstraintKind {}
+impl OpLike for BinaryOp {
+    fn extraible(&self) -> bool {
+        true
+    }
+}
+impl OpLike for ConstraintKind {
+    fn extraible(&self) -> bool {
+        false
+    }
+}
 
 #[derive(Clone)]
 pub struct BinaryExpr<K: Clone>(K, Expr, Expr);
@@ -280,6 +298,10 @@ impl<K: Clone> BinaryExpr<K> {
 impl<K: OpLike> ExprSize for BinaryExpr<K> {
     fn size(&self) -> usize {
         self.1.size() + self.2.size()
+    }
+
+    fn extraible(&self) -> bool {
+        self.0.extraible()
     }
 }
 
@@ -348,6 +370,10 @@ impl WrappedExpr for NegExpr {
 impl ExprSize for NegExpr {
     fn size(&self) -> usize {
         self.0.size() + 1
+    }
+
+    fn extraible(&self) -> bool {
+        true
     }
 }
 
