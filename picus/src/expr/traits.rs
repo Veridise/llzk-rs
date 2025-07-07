@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{display::TextRepresentable, felt::Felt, opt::Optimizer, vars::VarStr};
 
 use super::Expr;
@@ -5,6 +7,8 @@ use anyhow::Result;
 
 pub trait MaybeVarLike {
     fn var_name(&self) -> Option<&VarStr>;
+
+    fn renamed(&self, map: &HashMap<VarStr, VarStr>) -> Option<Expr>;
 }
 
 pub trait ConstraintEmitter {

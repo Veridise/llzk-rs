@@ -15,24 +15,123 @@ use crate::{
     LiftLike,
 };
 use anyhow::{anyhow, bail, Result};
-use picus::{expr, stmt, ModuleLike as _};
-use std::marker::PhantomData;
+use disjoint::{DisjointSet, DisjointSetVec};
+use picus::{expr, stmt, vars::VarStr, ModuleLike as _};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    marker::PhantomData,
+    rc::Rc,
+};
 
 pub type PicusModuleRef = picus::ModuleRef<VarKey>;
 type PicusExpr = picus::expr::Expr;
 
+#[derive(Default)]
+struct VarEqvClasses {
+    classes: DisjointSetVec<VarStr>,
+    meta: HashMap<usize, VarKey>,
+}
+
+impl VarEqvClasses {
+    pub fn join(&mut self, lhs: VarStr, rhs: VarStr) {
+        let lhs = self.get_idx(lhs);
+        let rhs = self.get_idx(rhs);
+        self.classes.join(lhs, rhs);
+    }
+
+    fn get_idx(&mut self, var: VarStr) -> usize {
+        self.classes.push(var)
+    }
+
+    pub fn add<V>(&mut self, var: V)
+    where
+        V: Into<VarStr> + Into<VarKey> + Clone,
+    {
+        let var_str: VarStr = var.clone().into();
+
+        let var_key = var.into();
+        let idx = self.classes.push(var_str.clone()); // Ensure the var has an id
+        assert!(!self.meta.contains_key(&idx));
+        self.meta.insert(idx, var_key);
+    }
+
+    pub fn rename_sets(&self) -> HashMap<VarStr, VarStr> {
+        self.classes
+            .indices()
+            .sets()
+            .iter()
+            .flat_map(|set| {
+                let leaders = set
+                    .iter()
+                    .filter_map(|idx| {
+                        if self.meta[idx].is_temp() {
+                            None
+                        } else {
+                            Some(*idx)
+                        }
+                    })
+                    .collect::<HashSet<_>>();
+                let leader = leaders.iter().next().copied().unwrap_or_default();
+                let leader_name = self.classes.get(leader).unwrap();
+                let is_not_leader =
+                    move |idx: &usize| -> bool { *idx != leader && !leaders.contains(idx) };
+
+                set.iter()
+                    .copied()
+                    .filter(is_not_leader)
+                    .map(move |idx| (self.classes[idx].clone(), leader_name.clone()))
+            })
+            .collect()
+    }
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct VarEqvClassesRef(Rc<RefCell<VarEqvClasses>>);
+
+impl VarEqvClassesRef {
+    pub fn join(&self, lhs: VarStr, rhs: VarStr) {
+        self.0.borrow_mut().join(lhs, rhs);
+    }
+
+    pub fn add<V>(&self, var: V) -> V
+    where
+        V: Into<VarStr> + Into<VarKey> + Clone,
+    {
+        self.0.borrow_mut().add(var.clone());
+        var
+    }
+    pub fn rename_sets(&self) -> HashMap<VarStr, VarStr> {
+        self.0.borrow().rename_sets()
+    }
+}
+
+pub(crate) struct RenameEqvVarsInModulePass {
+    eqv_vars: VarEqvClassesRef,
+}
+
+impl<'a, F, L> From<&'a PicusModuleLowering<F, L>> for RenameEqvVarsInModulePass {
+    fn from(value: &'a PicusModuleLowering<F, L>) -> Self {
+        Self {
+            eqv_vars: value.eqv_vars.clone(),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct PicusModuleLowering<F, L> {
     module: PicusModuleRef,
+    eqv_vars: VarEqvClassesRef,
     lift_fixed: bool,
     _field: PhantomData<(F, L)>,
 }
 
 impl<F, L> PicusModuleLowering<F, L> {
-    pub fn new(module: PicusModuleRef, lift_fixed: bool) -> Self {
+    pub fn new(module: PicusModuleRef, lift_fixed: bool, eqv_vars: VarEqvClassesRef) -> Self {
         Self {
             module,
             lift_fixed,
+            eqv_vars,
             _field: Default::default(),
         }
     }
@@ -70,7 +169,7 @@ impl<F: PrimeField, L: LiftLike<Inner = F>> PicusModuleLowering<F, L> {
             }
             ResolvedQuery::IO(func_io) => {
                 let seed: VarKeySeed = (func_io, fqn).into();
-                Value::known(expr::var(&self.module, seed))
+                Value::known(expr::var(&self.module, self.eqv_vars.add(seed)))
             }
         })
     }
@@ -89,7 +188,8 @@ impl<F: PrimeField, L: LiftLike<Inner = F>> LiftLowering for PicusModuleLowering
         if self.lift_fixed {
             Ok(expr::var(
                 &self.module,
-                VarKeySeed::Lifted(FuncIO::Arg(0.into()), id),
+                self.eqv_vars
+                    .add(VarKeySeed::Lifted(FuncIO::Arg(0.into()), id)),
             ))
         } else if let Some(f) = f {
             Ok(expr::r#const(FeltWrap(*f)))
@@ -157,6 +257,12 @@ impl<F: PrimeField, L: LiftLike<Inner = F>> Lowering for PicusModuleLowering<F, 
         self.module
             .borrow_mut()
             .add_constraint(expr::eq(&lhs, &rhs));
+        match (lhs.var_name(), rhs.var_name()) {
+            (Some(lhs), Some(rhs)) => {
+                self.eqv_vars.join(lhs.clone(), rhs.clone());
+            }
+            _ => {}
+        }
         Ok(())
     }
 
@@ -252,7 +358,7 @@ impl<F: PrimeField, L: LiftLike<Inner = F>> Lowering for PicusModuleLowering<F, 
             ResolvedSelector::Const(value) => Lowering::lower_constant(self, &value.to_f()),
             ResolvedSelector::Arg(arg_no) => Ok(Value::known(expr::var(
                 &self.module,
-                VarKeySeed::IO(arg_no.into(), None),
+                self.eqv_vars.add(VarKeySeed::IO(arg_no.into(), None)),
             ))),
         }
     }

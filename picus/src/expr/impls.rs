@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 use crate::{
     display::{TextRepresentable, TextRepresentation},
@@ -66,6 +66,10 @@ impl MaybeVarLike for ConstExpr {
     fn var_name(&self) -> Option<&VarStr> {
         None
     }
+
+    fn renamed(&self, _: &HashMap<VarStr, VarStr>) -> Option<Expr> {
+        None
+    }
 }
 
 impl ExprLike for ConstExpr {}
@@ -124,6 +128,13 @@ impl TextRepresentable for VarExpr {
 impl MaybeVarLike for VarExpr {
     fn var_name(&self) -> Option<&VarStr> {
         Some(&self.0)
+    }
+
+    fn renamed(&self, map: &HashMap<VarStr, VarStr>) -> Option<Expr> {
+        if let Some(new_name) = map.get(&self.0).cloned() {
+            return Some(Wrap::new(VarExpr(new_name)));
+        }
+        None
     }
 }
 
@@ -301,6 +312,16 @@ impl<K: OpLike> MaybeVarLike for BinaryExpr<K> {
     fn var_name(&self) -> Option<&VarStr> {
         None
     }
+
+    fn renamed(&self, map: &HashMap<VarStr, VarStr>) -> Option<Expr> {
+        match (self.lhs().renamed(map), self.rhs().renamed(map)) {
+            (None, None) => None,
+            (None, Some(rhs)) => Some((self.1.clone(), rhs)),
+            (Some(lhs), None) => Some((lhs, self.2.clone())),
+            (Some(lhs), Some(rhs)) => Some((lhs, rhs)),
+        }
+        .map(|(lhs, rhs)| -> Expr { Wrap::new(Self(self.0.clone(), lhs, rhs)) })
+    }
 }
 
 impl<K: OpLike> ExprLike for BinaryExpr<K> {}
@@ -357,6 +378,10 @@ impl TextRepresentable for NegExpr {
 impl MaybeVarLike for NegExpr {
     fn var_name(&self) -> Option<&VarStr> {
         None
+    }
+
+    fn renamed(&self, map: &HashMap<VarStr, VarStr>) -> Option<Expr> {
+        self.0.renamed(map).map(|e| -> Expr { Wrap::new(Self(e)) })
     }
 }
 

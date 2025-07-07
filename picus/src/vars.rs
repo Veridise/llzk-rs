@@ -8,7 +8,7 @@ use regex::Regex;
 
 use crate::display::{TextRepresentable, TextRepresentation};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct VarStr(String);
 
 impl TryFrom<String> for VarStr {

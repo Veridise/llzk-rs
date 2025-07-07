@@ -24,7 +24,7 @@ pub trait MutOptimizer<T: ?Sized> {
 
 pub struct OptimizerPipelineBuilder<F: IntoPrime, K: VarKind>(OptimizerPipeline<F, K>);
 
-impl<F: IntoPrime, K: VarKind> OptimizerPipelineBuilder<F, K> {
+impl<F: IntoPrime, K: VarKind + 'static> OptimizerPipelineBuilder<F, K> {
     pub fn new() -> Self {
         Self(OptimizerPipeline {
             passes: Default::default(),
@@ -44,6 +44,47 @@ impl<F: IntoPrime, K: VarKind> OptimizerPipelineBuilder<F, K> {
         let mut b = self;
         b.0.passes.push(P::create(P::default()));
         b
+    }
+
+    pub fn add_module_scope_expr_pass_fn<FN, FN2>(self, f: FN) -> Self
+    where
+        FN: FnMut(&str) -> FN2 + 'static,
+        FN2: FnMut(&dyn ExprLike) -> Result<Expr> + 'static,
+    {
+        self.add_pass_with_params::<AnonModuleScopedExprPass<K, FN, FN2>>(f)
+    }
+}
+
+struct AnonModuleScopedExprPass<K, FN, FN2>(FN, PhantomData<(K, FN2)>)
+where
+    K: VarKind,
+    FN: FnMut(&str) -> FN2,
+    FN2: FnMut(&dyn ExprLike) -> Result<Expr>;
+
+impl<K, FN, FN2> From<FN> for AnonModuleScopedExprPass<K, FN, FN2>
+where
+    K: VarKind,
+    FN: FnMut(&str) -> FN2,
+    FN2: FnMut(&dyn ExprLike) -> Result<Expr>,
+{
+    fn from(value: FN) -> Self {
+        Self(value, Default::default())
+    }
+}
+
+impl<K, FN, FN2> MutOptimizer<Module<K>> for AnonModuleScopedExprPass<K, FN, FN2>
+where
+    K: VarKind,
+    FN: FnMut(&str) -> FN2,
+    FN2: FnMut(&dyn ExprLike) -> Result<Expr>,
+{
+    fn optimize(&mut self, module: &mut Module<K>) -> Result<()> {
+        let name = module.name();
+        let mut f = self.0(name);
+        for stmt in module.stmts_mut() {
+            apply_to_args(stmt, &mut f)?;
+        }
+        Ok(())
     }
 }
 
@@ -83,7 +124,7 @@ pub trait StmtOptimizer: MutOptimizer<dyn StmtLike> {
     }
 }
 
-pub trait ModuleOptimizer<K: VarKind>: MutOptimizer<Module<K>> {
+pub trait ModuleOptimizer<F, K: VarKind>: MutOptimizer<Module<K>> {
     fn create<I>(i: I) -> Box<dyn MutOptimizer<Module<K>>>
     where
         I: Into<Self>,
@@ -103,6 +144,17 @@ pub trait ProgramOptimizer<F: IntoPrime, K: VarKind>: MutOptimizer<Program<F, K>
     }
 }
 
+fn apply_to_args<F>(stmt: &mut dyn StmtLike, f: &mut F) -> Result<()>
+where
+    F: FnMut(&dyn ExprLike) -> Result<Expr>,
+{
+    for (idx, expr) in stmt.args().iter().enumerate() {
+        let new_expr = f(expr)?;
+        stmt.replace_arg(idx, new_expr)?;
+    }
+    Ok(())
+}
+
 impl<T> ExprOptimizer for T where T: Optimizer<dyn ExprLike, Expr> {}
 
 impl<T> MutOptimizer<dyn StmtLike> for T
@@ -114,15 +166,15 @@ where
             let new_expr = self.optimize(expr)?;
             stmt.replace_arg(idx, new_expr)?;
         }
-
         Ok(())
     }
 }
 impl<T> StmtOptimizer for T where T: MutOptimizer<dyn StmtLike> {}
 
-impl<T, K: VarKind> MutOptimizer<Module<K>> for T
+impl<T, K> MutOptimizer<Module<K>> for T
 where
     T: MutOptimizer<dyn StmtLike>,
+    K: VarKind,
 {
     fn optimize(&mut self, module: &mut Module<K>) -> Result<()> {
         for stmt in module.stmts_mut() {
@@ -131,10 +183,11 @@ where
         Ok(())
     }
 }
-impl<T, K> ModuleOptimizer<K> for T
+impl<T, F, K> ModuleOptimizer<F, K> for T
 where
     T: MutOptimizer<Module<K>>,
     K: VarKind,
+    F: IntoPrime,
 {
 }
 
@@ -203,7 +256,9 @@ impl<K: Temp> MutOptimizer<Module<K>> for EnsureMaxExprSizePass {
         let temporaries = [K::temp()]
             .into_iter()
             .cycle()
-            .map(|t| -> VarStr { t.into() });
+            .map(|k| -> VarStr { k.into() })
+            .enumerate()
+            .map(|(idx, t)| -> Result<VarStr> { format!("{t}{idx}").try_into() });
         let mut new_constraints = vec![];
         let mut r#impl = EnsureMaxExprSizePassImpl {
             limit: self.limit,
@@ -227,7 +282,7 @@ struct EnsureMaxExprSizePassImpl<'a, E, T> {
 impl<E, T> Optimizer<dyn ExprLike, Expr> for EnsureMaxExprSizePassImpl<'_, E, T>
 where
     E: ConstraintEmitter,
-    T: Iterator<Item = VarStr>,
+    T: Iterator<Item = Result<VarStr>>,
 {
     /// If the expression's size is larger than the threshold
     /// replaces the expression with a temporary and emit a constraint that
@@ -241,7 +296,7 @@ where
             &self
                 .temporaries
                 .next()
-                .ok_or_else(|| anyhow!("Temporaries generator is exhausted"))?,
+                .ok_or_else(|| anyhow!("Temporaries generator is exhausted"))??,
         );
         self.emitter.emit(temp.clone(), expr.wrap());
         Ok(temp)

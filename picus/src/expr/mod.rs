@@ -1,4 +1,4 @@
-use std::{fmt, rc::Rc};
+use std::{collections::HashMap, fmt, rc::Rc};
 
 use impls::{BinaryExpr, BinaryOp, ConstExpr, ConstraintKind, NegExpr, OpFolder, OpLike, VarExpr};
 use traits::{ConstantFolding, ExprLike, ExprSize, MaybeVarLike, WrappedExpr};
@@ -48,6 +48,10 @@ impl<T: ConstantFolding + ?Sized> ConstantFolding for Wrap<T> {
 impl<T: MaybeVarLike + ?Sized> MaybeVarLike for Wrap<T> {
     fn var_name(&self) -> Option<&VarStr> {
         self.as_ref().var_name()
+    }
+
+    fn renamed(&self, map: &HashMap<VarStr, VarStr>) -> Option<Expr> {
+        self.as_ref().renamed(map)
     }
 }
 

@@ -27,11 +27,21 @@ impl VarKeySeed {
     }
 }
 
-#[derive(Clone, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq)]
 pub enum VarKey {
     IO(FuncIO),
     Temp,
     Lifted(FuncIO, usize),
+}
+
+impl VarKey {
+    pub fn is_temp(&self) -> bool {
+        match self {
+            VarKey::IO(func_io) => matches!(func_io, FuncIO::Temp(_, _)),
+            VarKey::Temp => true,
+            VarKey::Lifted(func_io, _) => matches!(func_io, FuncIO::Temp(_, _)),
+        }
+    }
 }
 
 impl Default for VarKeySeed {

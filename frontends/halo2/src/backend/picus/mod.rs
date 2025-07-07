@@ -16,9 +16,10 @@ mod lowering;
 mod vars;
 
 pub use lowering::PicusModuleLowering;
-use lowering::PicusModuleRef;
+use lowering::{PicusModuleRef, VarEqvClassesRef};
 use num_bigint::BigUint;
 use picus::{
+    expr::Expr,
     felt::{Felt, IntoPrime},
     opt::{EnsureMaxExprSizePass, FoldExprsPass, MutOptimizer as _},
     vars::VarStr,
@@ -124,6 +125,7 @@ impl Default for PicusParams {
 pub struct PicusBackend<L> {
     params: PicusParams,
     modules: RefCell<Vec<PicusModuleRef>>,
+    eqv_vars: RefCell<HashMap<String, VarEqvClassesRef>>,
     _marker: PhantomData<L>,
 }
 
@@ -190,7 +192,41 @@ impl<L: PrimeField> PicusBackend<L> {
         PipelineBuilder::<L>::new()
             .add_pass::<FoldExprsPass>()
             .add_pass_with_params::<EnsureMaxExprSizePass>(self.params.expr_cutoff)
+            //.add_module_scope_expr_pass_fn(|name| {
+            //    let eqv_classes = self
+            //        .eqv_vars
+            //        .borrow()
+            //        .get(name)
+            //        .cloned()
+            //        .unwrap_or_default();
+            //    let renames = eqv_classes.rename_sets();
+            //    move |expr| Ok(expr.renamed(&renames).unwrap_or_else(|| expr.wrap()))
+            //})
             .into()
+    }
+}
+
+impl<L: LiftLike> PicusBackend<L> {
+    fn add_module<O>(
+        &self,
+        name: &str,
+        inputs: impl Iterator<Item = O>,
+        outputs: impl Iterator<Item = O>,
+    ) -> Result<PicusModuleLowering<L::Inner, L>>
+    where
+        O: Into<VarKey> + Into<VarStr> + Clone,
+    {
+        let module = PicusModule::shared(name.to_owned(), inputs, outputs);
+        self.modules.borrow_mut().push(module.clone());
+        let eqv_vars = VarEqvClassesRef::default();
+        self.eqv_vars
+            .borrow_mut()
+            .insert(name.to_owned(), eqv_vars.clone());
+        Ok(PicusModuleLowering::new(
+            module,
+            self.params.lift_fixed,
+            eqv_vars,
+        ))
     }
 }
 
@@ -201,6 +237,7 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<
     fn initialize(params: PicusParams) -> Self {
         Self {
             params,
+            eqv_vars: Default::default(),
             modules: Default::default(),
             _marker: Default::default(),
         }
@@ -223,13 +260,11 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<
         Self::FuncOutput: 'f,
         'c: 'f,
     {
-        let module = PicusModule::shared(
-            name.to_owned(),
+        self.add_module(
+            name,
             mk_io(selectors.len() + queries.len(), VarKeySeed::arg),
             mk_io(0, VarKeySeed::field),
-        );
-        self.modules.borrow_mut().push(module.clone());
-        Ok(Self::FuncOutput::new(module, self.params.lift_fixed))
+        )
     }
 
     fn define_main_function<'f>(
@@ -241,8 +276,8 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<
         Self::FuncOutput: 'f,
         'c: 'f,
     {
-        let module = PicusModule::shared(
-            self.params.entrypoint.clone(),
+        self.add_module(
+            &self.params.entrypoint,
             mk_io(
                 instance_io.inputs().len() + advice_io.inputs().len(),
                 VarKeySeed::arg,
@@ -251,8 +286,6 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<
                 instance_io.outputs().len() + advice_io.outputs().len(),
                 VarKeySeed::field,
             ),
-        );
-        self.modules.borrow_mut().push(module.clone());
-        Ok(Self::FuncOutput::new(module, self.params.lift_fixed))
+        )
     }
 }
