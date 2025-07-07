@@ -1,5 +1,7 @@
 use std::{collections::HashMap, fmt};
 
+use anyhow::{anyhow, bail, Result};
+
 use crate::{
     display::{TextRepresentable, TextRepresentation},
     felt::Felt,
@@ -15,7 +17,7 @@ use super::{
 // ConstExpr
 //===----------------------------------------------------------------------===//
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ConstExpr(Felt);
 
 impl ConstExpr {
@@ -37,6 +39,17 @@ impl ExprSize for ConstExpr {
 
     fn extraible(&self) -> bool {
         false
+    }
+
+    fn args(&self) -> Vec<Expr> {
+        vec![]
+    }
+
+    fn replace_args(&self, args: &[Option<Expr>]) -> Result<Option<Expr>> {
+        if args.is_empty() {
+            return Ok(None);
+        }
+        Err(anyhow!("ConstExpr does not have arguments"))
     }
 }
 
@@ -82,7 +95,7 @@ impl ExprLike for ConstExpr {}
 // VarExpr
 //===----------------------------------------------------------------------===//
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VarExpr(VarStr);
 
 impl WrappedExpr for VarExpr {
@@ -104,6 +117,17 @@ impl ExprSize for VarExpr {
 
     fn extraible(&self) -> bool {
         false
+    }
+
+    fn args(&self) -> Vec<Expr> {
+        vec![]
+    }
+
+    fn replace_args(&self, args: &[Option<Expr>]) -> Result<Option<Expr>> {
+        if args.is_empty() {
+            return Ok(None);
+        }
+        Err(anyhow!("VarExpr does not have arguments"))
     }
 }
 
@@ -156,7 +180,7 @@ pub trait OpFolder {
     fn fold(&self, lhs: Expr, rhs: Expr) -> Option<Expr>;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum BinaryOp {
     Add,
     Sub,
@@ -217,7 +241,7 @@ impl TextRepresentable for BinaryOp {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ConstraintKind {
     Lt,
     Le,
@@ -251,7 +275,7 @@ impl TextRepresentable for ConstraintKind {
     }
 }
 
-pub trait OpLike: Clone + OpFolder + TextRepresentable + 'static {
+pub trait OpLike: Clone + OpFolder + TextRepresentable + std::fmt::Debug + 'static {
     fn extraible(&self) -> bool;
 }
 
@@ -266,7 +290,7 @@ impl OpLike for ConstraintKind {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BinaryExpr<K: Clone>(K, Expr, Expr);
 
 impl<K: Clone> BinaryExpr<K> {
@@ -302,6 +326,21 @@ impl<K: OpLike> ExprSize for BinaryExpr<K> {
 
     fn extraible(&self) -> bool {
         self.0.extraible()
+    }
+
+    fn args(&self) -> Vec<Expr> {
+        vec![self.1.clone(), self.2.clone()]
+    }
+
+    fn replace_args(&self, args: &[Option<Expr>]) -> Result<Option<Expr>> {
+        Ok(match args {
+            [None, None] => None,
+            [Some(lhs), None] => Some((lhs.clone(), self.rhs())),
+            [None, Some(rhs)] => Some((self.lhs(), rhs.clone())),
+            [Some(lhs), Some(rhs)] => Some((lhs.clone(), rhs.clone())),
+            _ => bail!("BinaryExpr expects 2 arguments"),
+        }
+        .map(|(lhs, rhs)| -> Expr { Wrap::new(Self(self.0.clone(), lhs, rhs)) }))
     }
 }
 
@@ -352,7 +391,7 @@ impl<K: OpLike> ExprLike for BinaryExpr<K> {}
 // NegExpr
 //===----------------------------------------------------------------------===//
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct NegExpr(Expr);
 
 impl NegExpr {
@@ -374,6 +413,19 @@ impl ExprSize for NegExpr {
 
     fn extraible(&self) -> bool {
         true
+    }
+
+    fn args(&self) -> Vec<Expr> {
+        vec![self.0.clone()]
+    }
+
+    fn replace_args(&self, args: &[Option<Expr>]) -> Result<Option<Expr>> {
+        Ok(match args {
+            [None] => None,
+            [Some(expr)] => Some(expr),
+            _ => bail!("NegExpr expects 1 argument"),
+        }
+        .map(|expr| -> Expr { Wrap::new(Self(expr.clone())) }))
     }
 }
 

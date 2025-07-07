@@ -1198,6 +1198,7 @@ name = "picus"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "log",
  "num-bigint",
  "regex",
 ]

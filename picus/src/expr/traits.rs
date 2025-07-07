@@ -25,6 +25,10 @@ pub trait ExprSize {
 
     /// True if the expression can be extracted to a temporary
     fn extraible(&self) -> bool;
+
+    fn args(&self) -> Vec<Expr>;
+
+    fn replace_args(&self, args: &[Option<Expr>]) -> Result<Option<Expr>>;
 }
 
 pub trait ConstantFolding {
@@ -53,6 +57,6 @@ pub trait ConstantFolding {
 
 /// Marker interface for a Picus expression.
 pub trait ExprLike:
-    ExprSize + ConstantFolding + TextRepresentable + WrappedExpr + MaybeVarLike
+    ExprSize + ConstantFolding + TextRepresentable + WrappedExpr + MaybeVarLike + std::fmt::Debug
 {
 }

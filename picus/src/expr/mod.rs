@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fmt, rc::Rc};
 
+use anyhow::Result;
 use impls::{BinaryExpr, BinaryOp, ConstExpr, ConstraintKind, NegExpr, OpFolder, OpLike, VarExpr};
 use traits::{ConstantFolding, ExprLike, ExprSize, MaybeVarLike, WrappedExpr};
 
@@ -36,6 +37,14 @@ impl<T: ExprLike + 'static + ?Sized> ExprSize for Wrap<T> {
 
     fn extraible(&self) -> bool {
         self.as_ref().extraible()
+    }
+
+    fn args(&self) -> Vec<Expr> {
+        self.as_ref().args()
+    }
+
+    fn replace_args(&self, args: &[Option<Expr>]) -> Result<Option<Expr>> {
+        self.as_ref().replace_args(args)
     }
 }
 

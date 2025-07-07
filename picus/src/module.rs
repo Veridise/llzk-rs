@@ -260,7 +260,7 @@ impl<K: VarKind> TextRepresentable for Module<K> {
     }
 
     fn width_hint(&self) -> usize {
-        todo!()
+        self.name.width_hint()
     }
 }
 

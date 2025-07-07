@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{any::Any as _, marker::PhantomData};
 
 use anyhow::{anyhow, Result};
 
@@ -288,7 +288,25 @@ where
     /// replaces the expression with a temporary and emit a constraint that
     /// equates that fresh temporary with the expression.
     /// If not returns itself.
-    fn optimize(&mut self, expr: &dyn ExprLike) -> Result<Expr> {
+    fn optimize(&mut self, expr: &(dyn ExprLike)) -> Result<Expr> {
+        log::debug!("Optimizing expr {expr:?}");
+
+        let args: Vec<Option<Expr>> = expr
+            .args()
+            .iter()
+            .map(|arg| Optimizer::<dyn ExprLike, Expr>::optimize(self, arg.as_ref()))
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .map(Some)
+            .collect();
+        let transformed = expr.replace_args(&args)?;
+
+        log::debug!("Optimized args first");
+        let expr = match &transformed {
+            Some(expr) => expr.as_ref(),
+            None => expr,
+        };
+
         if expr.size() < self.limit || !expr.extraible() {
             return Ok(expr.wrap());
         }
