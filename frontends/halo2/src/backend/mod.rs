@@ -4,7 +4,7 @@ use crate::{
         Advice, AdviceQuery, Any, Column, Field, FixedQuery, Gate, Instance, InstanceQuery,
         Rotation, Selector, Value,
     },
-    ir::CircuitStmt,
+    ir::{BinaryBoolOp, CircuitStmt},
     synthesis::{
         regions::{RegionRow, Row, FQN},
         CircuitSynthesis,
@@ -13,14 +13,17 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 
+pub mod events;
 pub mod func;
 pub mod llzk;
 pub mod lowering;
 pub mod picus;
 pub mod resolvers;
 
+use events::{EmitStmtsMessage, EventReceiver};
 use func::ArgNo;
 use lowering::Lowering;
+use midnight_halo2_proofs::plonk::Expression;
 use resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver};
 
 struct GateScopedResolver<'a> {
@@ -100,7 +103,7 @@ pub trait CodegenStrategy {
         &self,
         scope: &'c L,
         syn: &'c CircuitSynthesis<F>,
-    ) -> impl Iterator<Item = Result<CircuitStmt<L::CellOutput>>> + 'c
+    ) -> impl Iterator<Item = Result<CircuitStmt<Value<L::CellOutput>>>> + 'c
     where
         F: Field,
         L: Lowering<F = F>,
@@ -113,7 +116,8 @@ pub trait CodegenStrategy {
         let mut constraints = syn.constraints().collect::<Vec<_>>();
         constraints.sort();
         constraints.into_iter().map(move |(from, to)| {
-            Ok(CircuitStmt::EqConstraint(
+            Ok(CircuitStmt::Constraint(
+                BinaryBoolOp::Eq,
                 lower_cell(from)?,
                 lower_cell(to)?,
             ))
@@ -131,7 +135,7 @@ impl CallGatesStrat {
         selectors: Vec<&Selector>,
         queries: Vec<AnyQuery>,
         r: &RegionRow<F>,
-    ) -> Result<CircuitStmt<L::CellOutput>>
+    ) -> Result<CircuitStmt<Value<L::CellOutput>>>
     where
         F: Field,
         L: Lowering<F = F>,
@@ -241,15 +245,11 @@ impl CodegenStrategy for InlineConstraintsStrat {
     }
 }
 
-pub type WithinMainResult<O> = Result<Vec<CircuitStmt<O>>>;
+pub type WithinMainResult<O> = Result<Vec<CircuitStmt<Value<O>>>>;
 
-pub trait Backend<'c, Params: Default, Output>: Sized {
+pub trait Codegen<'c>: EventReceiver<'c, Message = EmitStmtsMessage<Self::F>> + Sized {
     type FuncOutput: Lowering<F = Self::F> + Clone;
-    type F: Field;
-
-    fn initialize(params: Params) -> Self;
-
-    fn generate_output(&'c self) -> Result<Output>;
+    type F: Field + Clone;
 
     fn within_main<FN>(
         &'c self,
@@ -289,7 +289,9 @@ pub trait Backend<'c, Params: Default, Output>: Sized {
     fn lower_stmts(
         &'c self,
         scope: &Self::FuncOutput,
-        stmts: impl Iterator<Item = Result<CircuitStmt<<Self::FuncOutput as Lowering>::CellOutput>>>,
+        stmts: impl Iterator<
+            Item = Result<CircuitStmt<Value<<Self::FuncOutput as Lowering>::CellOutput>>>,
+        >,
     ) -> Result<()> {
         for stmt in stmts {
             let stmt = stmt?;
@@ -297,8 +299,8 @@ pub trait Backend<'c, Params: Default, Output>: Sized {
                 CircuitStmt::ConstraintCall(name, selectors, queries) => {
                     scope.generate_call(&name, &selectors, &queries)?;
                 }
-                CircuitStmt::EqConstraint(lhs, rhs) => {
-                    scope.checked_generate_constraint(&lhs, &rhs)?;
+                CircuitStmt::Constraint(op, lhs, rhs) => {
+                    scope.checked_generate_constraint(op, &lhs, &rhs)?;
                 }
                 CircuitStmt::Comment(s) => scope.generate_comment(s)?,
             };
@@ -306,8 +308,26 @@ pub trait Backend<'c, Params: Default, Output>: Sized {
         Ok(())
     }
 
+    fn on_current_scope<FN, FO>(&'c self, f: FN) -> Option<FO>
+    where
+        FN: FnOnce(&Self::FuncOutput, &dyn QueryResolver<Self::F>, &dyn SelectorResolver) -> FO;
+}
+
+pub trait Backend<'c, Params: Default, Output>: Codegen<'c> {
+    fn initialize(params: Params) -> Self;
+
+    fn generate_output(&'c self) -> Result<Output>;
+
     /// Generate code using the given strategy.
-    fn codegen<C, S>(&'c self, circuit: &C, strat: &S) -> Result<Output>
+    fn codegen<C>(&'c self, circuit: &C) -> Result<Output>
+    where
+        C: CircuitWithIO<Self::F>,
+    {
+        self.codegen_with_strat(circuit, &InlineConstraintsStrat)
+    }
+
+    /// Generate code using the given strategy.
+    fn codegen_with_strat<C, S>(&'c self, circuit: &C, strat: &S) -> Result<Output>
     where
         C: CircuitWithIO<Self::F>,
         S: CodegenStrategy,
@@ -315,5 +335,39 @@ pub trait Backend<'c, Params: Default, Output>: Sized {
         let syn = CircuitSynthesis::new(circuit)?;
         strat.codegen(self, &syn)?;
         self.generate_output()
+    }
+}
+
+impl<'c, T> EventReceiver<'c> for T
+where
+    T: Codegen<'c>,
+{
+    type Message = EmitStmtsMessage<T::F>;
+
+    fn accept(&'c self, msg: &Self::Message) -> Result<()> {
+        self.on_current_scope(move |scope, qr, sr| -> Result<()> {
+            let stmts = msg.0.iter().map(|stmt| {
+                Ok(match stmt {
+                    CircuitStmt::ConstraintCall(callee, inputs, outputs) => {
+                        CircuitStmt::ConstraintCall(
+                            callee.clone(),
+                            scope.lower_exprs(inputs, qr, sr)?,
+                            scope.lower_exprs(outputs, qr, sr)?,
+                        )
+                    }
+                    CircuitStmt::Constraint(op, lhs, rhs) => CircuitStmt::Constraint(
+                        *op,
+                        scope.lower_expr(lhs, qr, sr)?,
+                        scope.lower_expr(rhs, qr, sr)?,
+                    ),
+                    CircuitStmt::Comment(s) => CircuitStmt::Comment(s.clone()),
+                })
+            });
+            //for stmt in &msg.0 {
+            //    let lowered_stmt = match stmt {};
+            self.lower_stmts(scope, stmts)
+            //}
+        })
+        .ok_or_else(|| anyhow!("No scope where to emit statements"))?
     }
 }

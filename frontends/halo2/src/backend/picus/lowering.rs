@@ -9,7 +9,7 @@ use crate::{
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     },
     halo2::{AdviceQuery, Challenge, FixedQuery, InstanceQuery, PrimeField, Selector, Value},
-    ir::lift::LiftLowering,
+    ir::{lift::LiftLowering, BinaryBoolOp},
     synthesis::regions::FQN,
     value::{steal, steal_many},
     LiftLike,
@@ -110,8 +110,8 @@ pub(crate) struct RenameEqvVarsInModulePass {
     eqv_vars: VarEqvClassesRef,
 }
 
-impl<'a, F, L> From<&'a PicusModuleLowering<F, L>> for RenameEqvVarsInModulePass {
-    fn from(value: &'a PicusModuleLowering<F, L>) -> Self {
+impl<'a, L> From<&'a PicusModuleLowering<L>> for RenameEqvVarsInModulePass {
+    fn from(value: &'a PicusModuleLowering<L>) -> Self {
         Self {
             eqv_vars: value.eqv_vars.clone(),
         }
@@ -119,14 +119,14 @@ impl<'a, F, L> From<&'a PicusModuleLowering<F, L>> for RenameEqvVarsInModulePass
 }
 
 #[derive(Clone)]
-pub struct PicusModuleLowering<F, L> {
+pub struct PicusModuleLowering<L> {
     module: PicusModuleRef,
     eqv_vars: VarEqvClassesRef,
     lift_fixed: bool,
-    _field: PhantomData<(F, L)>,
+    _field: PhantomData<L>,
 }
 
-impl<F, L> PicusModuleLowering<F, L> {
+impl<L> PicusModuleLowering<L> {
     pub fn new(module: PicusModuleRef, lift_fixed: bool, eqv_vars: VarEqvClassesRef) -> Self {
         Self {
             module,
@@ -137,7 +137,7 @@ impl<F, L> PicusModuleLowering<F, L> {
     }
 }
 
-impl<F: PrimeField, L: LiftLike<Inner = F>> PicusModuleLowering<F, L> {
+impl<L: LiftLike> PicusModuleLowering<L> {
     fn lower_binary_op<Fn, T: Clone>(
         &self,
         lhs: &Value<T>,
@@ -175,8 +175,8 @@ impl<F: PrimeField, L: LiftLike<Inner = F>> PicusModuleLowering<F, L> {
     }
 }
 
-impl<F: PrimeField, L: LiftLike<Inner = F>> LiftLowering for PicusModuleLowering<F, L> {
-    type F = F;
+impl<L: LiftLike> LiftLowering for PicusModuleLowering<L> {
+    type F = L::Inner;
 
     type Output = PicusExpr;
 
@@ -242,21 +242,27 @@ impl<F: PrimeField, L: LiftLike<Inner = F>> LiftLowering for PicusModuleLowering
     }
 }
 
-impl<F: PrimeField, L: LiftLike<Inner = F>> Lowering for PicusModuleLowering<F, L> {
+impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
     type CellOutput = PicusExpr;
 
     type F = L;
 
     fn generate_constraint(
         &self,
+        op: BinaryBoolOp,
         lhs: &Value<Self::CellOutput>,
         rhs: &Value<Self::CellOutput>,
     ) -> Result<()> {
         let lhs = steal(lhs).ok_or_else(|| anyhow!("lhs value is unknown"))?;
         let rhs = steal(rhs).ok_or_else(|| anyhow!("rhs value is unknown"))?;
-        self.module
-            .borrow_mut()
-            .add_constraint(expr::eq(&lhs, &rhs));
+        self.module.borrow_mut().add_constraint(match op {
+            BinaryBoolOp::Eq => expr::eq(&lhs, &rhs),
+            BinaryBoolOp::Lt => expr::lt(&lhs, &rhs),
+            BinaryBoolOp::Le => expr::le(&lhs, &rhs),
+            BinaryBoolOp::Gt => expr::gt(&lhs, &rhs),
+            BinaryBoolOp::Ge => expr::ge(&lhs, &rhs),
+            BinaryBoolOp::Ne => unimplemented!(),
+        });
         match (lhs.var_name(), rhs.var_name()) {
             (Some(lhs), Some(rhs)) => {
                 self.eqv_vars.join(lhs.clone(), rhs.clone());

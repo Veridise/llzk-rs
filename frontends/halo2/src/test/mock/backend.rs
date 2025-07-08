@@ -1,14 +1,16 @@
 use crate::{
     backend::{
+        events::EventReceiver,
         func::{ArgNo, FieldId, FuncIO},
         lowering::Lowering,
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector},
-        Backend,
+        Backend, Codegen,
     },
     gates::AnyQuery,
     halo2::{
         Advice, AdviceQuery, Challenge, FixedQuery, Fr, Instance, InstanceQuery, Selector, Value,
     },
+    ir::BinaryBoolOp,
     value::{steal, steal_many},
     CircuitIO,
 };
@@ -193,9 +195,11 @@ impl Lowering for MockFuncRef {
 
     fn generate_constraint(
         &self,
+        op: BinaryBoolOp,
         lhs: &Value<Self::CellOutput>,
         rhs: &Value<Self::CellOutput>,
     ) -> Result<()> {
+        assert!(matches!(op, BinaryBoolOp::Eq));
         self.add_constraint(*lhs, *rhs);
         Ok(())
     }
@@ -355,21 +359,9 @@ impl Lowering for MockFuncRef {
     }
 }
 
-impl<'c> Backend<'c, (), MockOutput> for MockBackend {
+impl<'c> Codegen<'c> for MockBackend {
     type FuncOutput = MockFuncRef;
     type F = Fr;
-
-    fn initialize(_: ()) -> Self {
-        Self(Default::default())
-    }
-
-    fn generate_output(&'c self) -> Result<MockOutput> {
-        let clone_func = |func: &SharedFuncRef| func.borrow().clone();
-        let ctx = self.0.borrow();
-        let gates = ctx.gates.iter().map(clone_func).collect();
-        let main = ctx.main.as_ref().map(clone_func);
-        Ok(MockOutput { gates, main })
-    }
 
     fn define_gate_function<'f>(
         &'c self,
@@ -410,5 +402,30 @@ impl<'c> Backend<'c, (), MockOutput> for MockBackend {
         let func = MockFunc::shared("Main", arg_count, Some(field_count));
         self.0.borrow_mut().main.replace(func.clone());
         Ok(MockFuncRef(func))
+    }
+
+    fn on_current_scope<FN, FO>(&'c self, f: FN) -> Option<FO>
+    where
+        FN: FnOnce(
+            &Self::FuncOutput,
+            &dyn QueryResolver<Self::F>,
+            &dyn crate::backend::resolvers::SelectorResolver,
+        ) -> FO,
+    {
+        todo!()
+    }
+}
+
+impl<'c> Backend<'c, (), MockOutput> for MockBackend {
+    fn initialize(_: ()) -> Self {
+        Self(Default::default())
+    }
+
+    fn generate_output(&'c self) -> Result<MockOutput> {
+        let clone_func = |func: &SharedFuncRef| func.borrow().clone();
+        let ctx = self.0.borrow();
+        let gates = ctx.gates.iter().map(clone_func).collect();
+        let main = ctx.main.as_ref().map(clone_func);
+        Ok(MockOutput { gates, main })
     }
 }

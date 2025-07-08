@@ -6,7 +6,7 @@ macro_rules! codegen_test {
     ($c:ty, $b:ty, $s:expr) => {{
         let circuit = <$c>::default();
         let backend = <$b>::initialize(Default::default());
-        let output = backend.codegen(&circuit, &$s);
+        let output = backend.codegen_with_strat(&circuit, &$s);
 
         output.unwrap()
     }};

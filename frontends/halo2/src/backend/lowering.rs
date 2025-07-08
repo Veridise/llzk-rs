@@ -5,18 +5,19 @@ use crate::{
     halo2::{
         AdviceQuery, Challenge, Expression, Field, FixedQuery, Gate, InstanceQuery, Selector, Value,
     },
-    ir::CircuitStmt,
+    ir::{BinaryBoolOp, CircuitStmt},
 };
 use anyhow::{bail, Result};
 
 use super::{QueryResolver, SelectorResolver};
 
 pub trait Lowering {
-    type CellOutput: fmt::Debug;
+    type CellOutput: fmt::Debug + Clone;
     type F: Field;
 
     fn generate_constraint(
         &self,
+        op: BinaryBoolOp,
         lhs: &Value<Self::CellOutput>,
         rhs: &Value<Self::CellOutput>,
     ) -> Result<()>;
@@ -25,11 +26,12 @@ pub trait Lowering {
 
     fn checked_generate_constraint(
         &self,
+        op: BinaryBoolOp,
         lhs: &Value<Self::CellOutput>,
         rhs: &Value<Self::CellOutput>,
     ) -> Result<()> {
         let before = self.num_constraints();
-        self.generate_constraint(lhs, rhs)?;
+        self.generate_constraint(op, lhs, rhs)?;
         let after = self.num_constraints();
         if before >= after {
             bail!("Last constraint was not generated!");
@@ -118,7 +120,7 @@ pub trait Lowering {
     fn lower_expr<'a, 'l: 'a>(
         &'l self,
         expr: &Expression<Self::F>,
-        query_resolver: &impl QueryResolver<Self::F>,
+        query_resolver: &dyn QueryResolver<Self::F>,
         selector_resolver: &dyn SelectorResolver,
     ) -> Result<Value<Self::CellOutput>>
     where
@@ -162,7 +164,7 @@ pub trait Lowering {
     fn lower_exprs<'a, 'l: 'a>(
         &'l self,
         exprs: &[Expression<Self::F>],
-        query_resolver: &impl QueryResolver<Self::F>,
+        query_resolver: &dyn QueryResolver<Self::F>,
         selector_resolver: &dyn SelectorResolver,
     ) -> Result<Vec<Value<Self::CellOutput>>>
     where
@@ -225,7 +227,7 @@ pub trait Lowering {
         resolver: R,
         region_name: &str,
         row: Option<usize>,
-    ) -> impl Iterator<Item = Result<CircuitStmt<Self::CellOutput>>>
+    ) -> impl Iterator<Item = Result<CircuitStmt<Value<Self::CellOutput>>>>
     where
         R: QueryResolver<Self::F> + SelectorResolver,
     {
@@ -241,7 +243,8 @@ pub trait Lowering {
         stmts
             .into_iter()
             .chain(gate.polynomials().iter().map(move |lhs| {
-                Ok(CircuitStmt::EqConstraint(
+                Ok(CircuitStmt::Constraint(
+                    BinaryBoolOp::Eq,
                     self.lower_expr(lhs, &resolver, &resolver)?,
                     self.lower_expr(&Expression::Constant(Self::F::ZERO), &resolver, &resolver)?,
                 ))
