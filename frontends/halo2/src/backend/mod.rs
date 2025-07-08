@@ -202,6 +202,13 @@ impl CodegenStrategy for InlineConstraintsStrat {
                     lookup.input_expressions(),
                     lookup.table_expressions()
                 );
+                let row = Row::new(0, syn.advice_io(), syn.instance_io());
+                let lowered_inputs =
+                    scope.lower_exprs(lookup.input_expressions().as_ref(), &row, &row)?;
+                log::debug!("lowered exprs: {:?}", lowered_inputs);
+                let lowered_table =
+                    scope.lower_exprs(lookup.table_expressions().as_ref(), &row, &row)?;
+                log::debug!("lowered table: {:?}", lowered_table);
             }
             // Do the region stmts first since backends may have more information about names for
             // cells there and some backends do not update the name and always use the first

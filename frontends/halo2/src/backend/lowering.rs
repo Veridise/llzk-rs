@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::{
     gates::AnyQuery,
     halo2::{
@@ -10,7 +12,7 @@ use anyhow::{bail, Result};
 use super::{QueryResolver, SelectorResolver};
 
 pub trait Lowering {
-    type CellOutput;
+    type CellOutput: fmt::Debug;
     type F: Field;
 
     fn generate_constraint(
