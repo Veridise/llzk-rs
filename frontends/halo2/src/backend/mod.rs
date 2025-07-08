@@ -194,6 +194,15 @@ impl CodegenStrategy for InlineConstraintsStrat {
         B: Backend<'c, P, O, F = F>,
     {
         backend.within_main(syn.advice_io(), syn.instance_io(), |scope| {
+            let lookups = syn.cs().lookups();
+            for lookup in lookups {
+                log::debug!(
+                    "lookup {}: exprs {:?} | table {:?}",
+                    lookup.name(),
+                    lookup.input_expressions(),
+                    lookup.table_expressions()
+                );
+            }
             // Do the region stmts first since backends may have more information about names for
             // cells there and some backends do not update the name and always use the first
             // one given.

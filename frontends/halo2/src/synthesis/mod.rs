@@ -6,6 +6,7 @@ use std::collections::hash_set::Iter;
 
 use anyhow::Result;
 use constraint::{EqConstraint, Graph};
+use midnight_halo2_proofs::plonk::permutation::Argument;
 use regions::{RegionData, RegionRow, Regions};
 
 use crate::{
@@ -60,6 +61,10 @@ impl<F: Field> CircuitSynthesis<F> {
 
     pub fn gates(&self) -> &[Gate<F>] {
         self.cs.gates()
+    }
+
+    pub fn cs(&self) -> &ConstraintSystem<F> {
+        &self.cs
     }
 
     pub fn regions<'a>(&'a self) -> Vec<RegionData<'a, F>> {
