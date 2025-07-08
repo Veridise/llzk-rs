@@ -24,7 +24,7 @@ pub use io::{CircuitIO, CircuitWithIO};
 
 pub fn create_picus_backend<'b, L: LiftLike>(
     params: PicusParams,
-) -> impl Backend<'b, PicusParams, PicusOutput<L>> {
+) -> impl Backend<'b, PicusParams, PicusOutput<L>, F = L> {
     PicusBackend::initialize(params)
 }
 
