@@ -17,7 +17,7 @@ use unwrapped::Unwrapped;
 
 use crate::{
     arena::{BumpArena, Index},
-    halo2::{Field, PrimeField},
+    halo2::{Field, FromUniformBytes, PrimeField},
 };
 
 mod inner;
@@ -182,6 +182,13 @@ impl<F: PrimeField> Lift<F> {
         match self.canonicalized_in_arena(arena) {
             Lift::Assigned { index, .. } => Unwrapped::new(arena.get(&index)),
             _ => unreachable!(),
+        }
+    }
+
+    fn get_index(&self) -> Option<Index> {
+        match self {
+            Lift::Assigned { index, .. } => Some(*index),
+            _ => None,
         }
     }
 
@@ -761,4 +768,26 @@ impl<F: PrimeField> PrimeField for Lift<F> {
     const ROOT_OF_UNITY_INV: Self = Self::RootOfUnityInv;
 
     const DELTA: Self = Self::Delta;
+}
+
+impl<F: PrimeField + Ord> Ord for Lift<F> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let cself = self.canonicalized();
+        let cother = other.canonicalized();
+        cself.get_index().unwrap().cmp(&cother.get_index().unwrap())
+    }
+}
+
+impl<F: PrimeField + PartialOrd> PartialOrd for Lift<F> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.get_index()
+            .zip(other.get_index())
+            .and_then(|(lhs, rhs)| lhs.partial_cmp(&rhs))
+    }
+}
+
+impl<F: PrimeField + FromUniformBytes<64>> FromUniformBytes<64> for Lift<F> {
+    fn from_uniform_bytes(bytes: &[u8; 64]) -> Self {
+        Self::from_const(F::from_uniform_bytes(bytes))
+    }
 }
