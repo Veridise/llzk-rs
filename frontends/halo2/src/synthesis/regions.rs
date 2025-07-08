@@ -194,7 +194,10 @@ impl<F: Default + Clone> RegionDataImpl<F> {
             .get(&column)
             .and_then(|values| values.iter().rfind(|(range, _)| range.contains(&row)))
             .map(|(_, v)| v.clone())
-            .unwrap_or_else(|| Value::unknown())
+            .unwrap_or_else(|| {
+                log::warn!("Resolved Fixed query (col {column}, row {row}) with an unknown value");
+                Value::unknown()
+            })
     }
 
     pub fn resolve_fixed(&self, column: usize, row: usize) -> Value<F> {
@@ -236,7 +239,7 @@ impl<F: Default + Clone> RegionDataImpl<F> {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct RegionData<'a, F> {
     shared: &'a SharedRegionData,
     inner: &'a RegionDataImpl<F>,
@@ -300,7 +303,7 @@ impl<F: Default + Clone> Regions<F> {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Row<'io> {
     row: usize,
     advice_io: &'io CircuitIO<Advice>,
@@ -403,7 +406,7 @@ impl SelectorResolver for Row<'_> {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct RegionRow<'r, 'io, F: Field> {
     region: RegionData<'r, F>,
     row: Row<'io>,

@@ -209,11 +209,17 @@ impl CodegenStrategy for InlineConstraintsStrat {
                     lookup.input_expressions(),
                     lookup.table_expressions()
                 );
-                let lowered_inputs = scope.lower_exprs(
-                    lookup.input_expressions().as_ref(),
-                    &region_row,
-                    &region_row,
-                )?;
+                let lowered_inputs = scope
+                    .lower_exprs(
+                        lookup.input_expressions().as_ref(),
+                        &region_row,
+                        &region_row,
+                    )
+                    .map_err(|err| {
+                        log::error!("Failed to lower expressions: {err}");
+                        log::error!("Region data: {:?}", region_row);
+                        err
+                    })?;
                 log::debug!("lowered exprs: {:?}", lowered_inputs);
                 let lowered_table = scope.lower_exprs(
                     lookup.table_expressions().as_ref(),

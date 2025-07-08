@@ -6,6 +6,7 @@ use std::hash::Hash;
 pub type IOCell<C> = (Column<C>, usize);
 
 /// Records what cells of the given column type are inputs and what cells are outputs.
+#[derive(Debug)]
 pub struct CircuitIO<C: ColumnType> {
     inputs: Vec<IOCell<C>>,
     outputs: Vec<IOCell<C>>,
