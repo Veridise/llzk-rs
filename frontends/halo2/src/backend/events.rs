@@ -19,9 +19,17 @@ pub trait EventReceiver<'c> {
     fn accept(&'c self, msg: &Self::Message) -> Result<<Self::Message as Message>::Response>;
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy)]
 pub struct EventSender<'r, R> {
     receiver: &'r R,
+}
+
+impl<'r, R> Clone for EventSender<'r, R> {
+    fn clone(&self) -> Self {
+        EventSender {
+            receiver: self.receiver,
+        }
+    }
 }
 
 impl<'r, R> EventSender<'r, R> {
