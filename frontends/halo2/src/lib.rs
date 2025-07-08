@@ -34,7 +34,7 @@ where
     C: CircuitWithIO<L>,
 {
     let backend = PicusBackend::initialize(params);
-    backend.codegen_with_strat(circuit, &InlineConstraintsStrat)
+    backend.codegen_with_strat::<C, InlineConstraintsStrat>(circuit)
 }
 
 pub fn picus_codegen<L, C>(circuit: &C) -> Result<PicusOutput<L>>

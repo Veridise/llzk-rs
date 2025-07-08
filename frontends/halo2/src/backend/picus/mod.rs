@@ -247,7 +247,7 @@ impl<'c, L: LiftLike> Codegen<'c> for PicusBackend<L> {
     type F = L;
 
     fn define_gate_function<'f>(
-        &'c self,
+        &self,
         name: &str,
         selectors: &[&Selector],
         queries: &[AnyQuery],
@@ -264,7 +264,7 @@ impl<'c, L: LiftLike> Codegen<'c> for PicusBackend<L> {
     }
 
     fn define_main_function<'f>(
-        &'c self,
+        &self,
         advice_io: &CircuitIO<Advice>,
         instance_io: &CircuitIO<Instance>,
     ) -> Result<Self::FuncOutput>
@@ -286,7 +286,7 @@ impl<'c, L: LiftLike> Codegen<'c> for PicusBackend<L> {
         )
     }
 
-    fn on_current_scope<FN, FO>(&'c self, f: FN) -> Option<FO>
+    fn on_current_scope<FN, FO>(&self, f: FN) -> Option<FO>
     where
         FN: FnOnce(&Self::FuncOutput, &dyn QueryResolver<Self::F>, &dyn SelectorResolver) -> FO,
     {
@@ -351,7 +351,7 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<
         }
     }
 
-    fn generate_output(&'c self) -> Result<PicusOutput<Self::F>> {
+    fn generate_output(self) -> Result<PicusOutput<Self::F>> {
         let mut output = PicusOutput::from(self.inner.borrow().modules.clone());
         self.var_consistency_check(&output)?;
         self.optimization_pipeline().optimize(&mut output)?;

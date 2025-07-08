@@ -364,7 +364,7 @@ impl<'c> Codegen<'c> for MockBackend {
     type F = Fr;
 
     fn define_gate_function<'f>(
-        &'c self,
+        &self,
         name: &str,
         selectors: &[&Selector],
         queries: &[AnyQuery],
@@ -385,7 +385,7 @@ impl<'c> Codegen<'c> for MockBackend {
     }
 
     fn define_main_function<'f>(
-        &'c self,
+        &self,
         advice_io: &CircuitIO<Advice>,
         instance_io: &CircuitIO<Instance>,
     ) -> Result<Self::FuncOutput>
@@ -404,7 +404,7 @@ impl<'c> Codegen<'c> for MockBackend {
         Ok(MockFuncRef(func))
     }
 
-    fn on_current_scope<FN, FO>(&'c self, f: FN) -> Option<FO>
+    fn on_current_scope<FN, FO>(&self, f: FN) -> Option<FO>
     where
         FN: FnOnce(
             &Self::FuncOutput,
@@ -421,7 +421,7 @@ impl<'c> Backend<'c, (), MockOutput> for MockBackend {
         Self(Default::default())
     }
 
-    fn generate_output(&'c self) -> Result<MockOutput> {
+    fn generate_output(self) -> Result<MockOutput> {
         let clone_func = |func: &SharedFuncRef| func.borrow().clone();
         let ctx = self.0.borrow();
         let gates = ctx.gates.iter().map(clone_func).collect();

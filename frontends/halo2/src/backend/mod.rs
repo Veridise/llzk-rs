@@ -92,8 +92,8 @@ impl SelectorResolver for GateScopedResolver<'_> {
     }
 }
 
-pub trait CodegenStrategy {
-    fn codegen<'c, F, P, O, B>(&self, backend: &'c B, syn: &CircuitSynthesis<F>) -> Result<()>
+pub trait CodegenStrategy: Default {
+    fn codegen<'c, 'a, F, P, O, B>(&self, backend: &B, syn: &CircuitSynthesis<F>) -> Result<()>
     where
         F: Field,
         P: Default,
@@ -125,6 +125,7 @@ pub trait CodegenStrategy {
     }
 }
 
+#[derive(Default)]
 pub struct CallGatesStrat;
 
 impl CallGatesStrat {
@@ -147,7 +148,7 @@ impl CallGatesStrat {
         ))
     }
 
-    fn define_gate<'c, F, P, O, B>(&self, backend: &'c B, gate: &Gate<F>) -> Result<()>
+    fn define_gate<'c, 'a, F, P, O, B>(&self, backend: &B, gate: &Gate<F>) -> Result<()>
     where
         F: Field,
         P: Default,
@@ -166,7 +167,7 @@ impl CallGatesStrat {
 }
 
 impl CodegenStrategy for CallGatesStrat {
-    fn codegen<'c, F, P, O, B>(&self, backend: &'c B, syn: &CircuitSynthesis<F>) -> Result<()>
+    fn codegen<'c, 'a, F, P, O, B>(&self, backend: &B, syn: &CircuitSynthesis<F>) -> Result<()>
     where
         F: Field,
         P: Default,
@@ -188,10 +189,11 @@ impl CodegenStrategy for CallGatesStrat {
     }
 }
 
+#[derive(Default)]
 pub struct InlineConstraintsStrat;
 
 impl CodegenStrategy for InlineConstraintsStrat {
-    fn codegen<'c, F, P, O, B>(&self, backend: &'c B, syn: &CircuitSynthesis<F>) -> Result<()>
+    fn codegen<'c, 'a, F, P, O, B>(&self, backend: &B, syn: &CircuitSynthesis<F>) -> Result<()>
     where
         F: Field,
         P: Default,
@@ -252,7 +254,7 @@ pub trait Codegen<'c>: EventReceiver<'c, Message = EmitStmtsMessage<Self::F>> + 
     type F: Field + Clone;
 
     fn within_main<FN>(
-        &'c self,
+        &self,
         advice_io: &CircuitIO<Advice>,
         instance_io: &CircuitIO<Instance>,
         f: FN,
@@ -268,7 +270,7 @@ pub trait Codegen<'c>: EventReceiver<'c, Message = EmitStmtsMessage<Self::F>> + 
     }
 
     fn define_gate_function<'f>(
-        &'c self,
+        &self,
         name: &str,
         selectors: &[&Selector],
         queries: &[AnyQuery],
@@ -278,7 +280,7 @@ pub trait Codegen<'c>: EventReceiver<'c, Message = EmitStmtsMessage<Self::F>> + 
         'c: 'f;
 
     fn define_main_function<'f>(
-        &'c self,
+        &self,
         advice_io: &CircuitIO<Advice>,
         instance_io: &CircuitIO<Instance>,
     ) -> Result<Self::FuncOutput>
@@ -287,7 +289,7 @@ pub trait Codegen<'c>: EventReceiver<'c, Message = EmitStmtsMessage<Self::F>> + 
         'c: 'f;
 
     fn lower_stmts(
-        &'c self,
+        &self,
         scope: &Self::FuncOutput,
         stmts: impl Iterator<
             Item = Result<CircuitStmt<Value<<Self::FuncOutput as Lowering>::CellOutput>>>,
@@ -308,7 +310,7 @@ pub trait Codegen<'c>: EventReceiver<'c, Message = EmitStmtsMessage<Self::F>> + 
         Ok(())
     }
 
-    fn on_current_scope<FN, FO>(&'c self, f: FN) -> Option<FO>
+    fn on_current_scope<FN, FO>(&self, f: FN) -> Option<FO>
     where
         FN: FnOnce(&Self::FuncOutput, &dyn QueryResolver<Self::F>, &dyn SelectorResolver) -> FO;
 }
@@ -316,24 +318,26 @@ pub trait Codegen<'c>: EventReceiver<'c, Message = EmitStmtsMessage<Self::F>> + 
 pub trait Backend<'c, Params: Default, Output>: Codegen<'c> {
     fn initialize(params: Params) -> Self;
 
-    fn generate_output(&'c self) -> Result<Output>;
+    fn generate_output(self) -> Result<Output>;
 
     /// Generate code using the given strategy.
-    fn codegen<C>(&'c self, circuit: &C) -> Result<Output>
+    fn codegen<C>(self, circuit: &C) -> Result<Output>
     where
         C: CircuitWithIO<Self::F>,
     {
-        self.codegen_with_strat(circuit, &InlineConstraintsStrat)
+        self.codegen_with_strat::<C, InlineConstraintsStrat>(circuit)
     }
 
     /// Generate code using the given strategy.
-    fn codegen_with_strat<C, S>(&'c self, circuit: &C, strat: &S) -> Result<Output>
+    fn codegen_with_strat<C, S>(self, circuit: &C) -> Result<Output>
     where
         C: CircuitWithIO<Self::F>,
         S: CodegenStrategy,
     {
         let syn = CircuitSynthesis::new(circuit)?;
-        strat.codegen(self, &syn)?;
+
+        S::default().codegen(&self, &syn)?;
+
         self.generate_output()
     }
 }

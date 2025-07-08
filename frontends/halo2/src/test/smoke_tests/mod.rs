@@ -3,10 +3,10 @@ pub mod midnight;
 
 #[macro_export]
 macro_rules! codegen_test {
-    ($c:ty, $b:ty, $s:expr) => {{
+    ($c:ty, $b:ty, $s:ty) => {{
         let circuit = <$c>::default();
         let backend = <$b>::initialize(Default::default());
-        let output = backend.codegen_with_strat(&circuit, &$s);
+        let output = backend.codegen_with_strat::<_, $s>(&circuit);
 
         output.unwrap()
     }};
