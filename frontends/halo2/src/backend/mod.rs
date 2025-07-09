@@ -249,7 +249,7 @@ impl CodegenStrategy for InlineConstraintsStrat {
 
 pub type WithinMainResult<O> = Result<Vec<CircuitStmt<Value<O>>>>;
 
-pub trait Codegen<'c>: EventReceiver<'c, Message = EmitStmtsMessage<Self::F>> + Sized {
+pub trait Codegen<'c>: Sized {
     type FuncOutput: Lowering<F = Self::F> + Clone;
     type F: Field + Clone;
 
@@ -339,39 +339,5 @@ pub trait Backend<'c, Params: Default, Output>: Codegen<'c> {
         S::default().codegen(&self, &syn)?;
 
         self.generate_output()
-    }
-}
-
-impl<'c, T> EventReceiver<'c> for T
-where
-    T: Codegen<'c>,
-{
-    type Message = EmitStmtsMessage<T::F>;
-
-    fn accept(&'c self, msg: &Self::Message) -> Result<()> {
-        self.on_current_scope(move |scope, qr, sr| -> Result<()> {
-            let stmts = msg.0.iter().map(|stmt| {
-                Ok(match stmt {
-                    CircuitStmt::ConstraintCall(callee, inputs, outputs) => {
-                        CircuitStmt::ConstraintCall(
-                            callee.clone(),
-                            scope.lower_exprs(inputs, qr, sr)?,
-                            scope.lower_exprs(outputs, qr, sr)?,
-                        )
-                    }
-                    CircuitStmt::Constraint(op, lhs, rhs) => CircuitStmt::Constraint(
-                        *op,
-                        scope.lower_expr(lhs, qr, sr)?,
-                        scope.lower_expr(rhs, qr, sr)?,
-                    ),
-                    CircuitStmt::Comment(s) => CircuitStmt::Comment(s.clone()),
-                })
-            });
-            //for stmt in &msg.0 {
-            //    let lowered_stmt = match stmt {};
-            self.lower_stmts(scope, stmts)
-            //}
-        })
-        .ok_or_else(|| anyhow!("No scope where to emit statements"))?
     }
 }

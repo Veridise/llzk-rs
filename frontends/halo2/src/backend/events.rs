@@ -13,10 +13,10 @@ pub trait Message {
     type Response;
 }
 
-pub trait EventReceiver<'c> {
+pub trait EventReceiver {
     type Message: Message;
 
-    fn accept(&'c self, msg: &Self::Message) -> Result<<Self::Message as Message>::Response>;
+    fn accept<'c>(&'c self, msg: &Self::Message) -> Result<<Self::Message as Message>::Response>;
 }
 
 #[derive(Copy)]
@@ -40,7 +40,7 @@ impl<'r, R> EventSender<'r, R> {
     pub fn send<M>(&self, msg: &M) -> Result<M::Response>
     where
         M: Message,
-        R: EventReceiver<'r, Message = M>,
+        R: EventReceiver<Message = M>,
     {
         self.receiver.accept(msg)
     }
@@ -51,7 +51,44 @@ impl<'r, R> EventSender<'r, R> {
     ) -> impl Iterator<Item = Result<M::Response>>
     where
         M: Message + 'a,
-        R: EventReceiver<'r, Message = M>,
+        R: EventReceiver<Message = M>,
+    {
+        msgs.map(|msg| self.receiver.accept(msg))
+    }
+}
+
+pub struct OwnedEventSender<R> {
+    receiver: R,
+}
+
+impl<'r, R: Clone> Clone for OwnedEventSender<R> {
+    fn clone(&self) -> Self {
+        OwnedEventSender {
+            receiver: self.receiver.clone(),
+        }
+    }
+}
+
+impl<R> OwnedEventSender<R> {
+    pub fn new(receiver: R) -> Self {
+        Self { receiver }
+    }
+
+    pub fn send<M>(&self, msg: &M) -> Result<M::Response>
+    where
+        M: Message,
+        R: EventReceiver<Message = M>,
+    {
+        self.receiver.accept(msg)
+    }
+
+    pub fn send_iter<'a, M>(
+        &self,
+        msgs: impl Iterator<Item = &'a M>,
+    ) -> impl Iterator<Item = Result<M::Response>>
+    where
+        M: Message + 'a,
+        R: EventReceiver<Message = M>,
     {
         msgs.map(|msg| self.receiver.accept(msg))
     }

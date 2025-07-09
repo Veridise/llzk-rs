@@ -13,7 +13,7 @@ mod test;
 mod value;
 
 pub use crate::ir::lift::{Lift, LiftLike};
-pub use backend::events::{EmitStmtsMessage, EventReceiver, EventSender};
+pub use backend::events::{EmitStmtsMessage, EventReceiver, EventSender, OwnedEventSender};
 pub use backend::picus::PicusBackend;
 pub use backend::picus::PicusEventReceiver;
 pub use backend::picus::PicusOutput;

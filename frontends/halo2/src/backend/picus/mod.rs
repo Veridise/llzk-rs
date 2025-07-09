@@ -8,12 +8,14 @@ use std::{
 use super::{
     events::{EmitStmtsMessage, EventReceiver},
     func::FuncIO,
+    lowering::Lowering as _,
     resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     Backend, Codegen,
 };
 use crate::{
     gates::AnyQuery,
     halo2::{Advice, Field, Instance, PrimeField, Selector},
+    ir::CircuitStmt,
     synthesis::regions::FQN,
     CircuitIO, EventSender, LiftLike,
 };
@@ -379,5 +381,36 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<
         self.var_consistency_check(&output)?;
         self.optimization_pipeline().optimize(&mut output)?;
         Ok(output)
+    }
+}
+
+impl<L: LiftLike> EventReceiver for PicusEventReceiver<L> {
+    type Message = EmitStmtsMessage<L>;
+
+    fn accept(&self, msg: &Self::Message) -> Result<()> {
+        self.on_current_scope(move |scope, qr, sr| -> Result<()> {
+            let stmts = msg.0.iter().map(|stmt| {
+                Ok(match stmt {
+                    CircuitStmt::ConstraintCall(callee, inputs, outputs) => {
+                        CircuitStmt::ConstraintCall(
+                            callee.clone(),
+                            scope.lower_exprs(inputs, qr, sr)?,
+                            scope.lower_exprs(outputs, qr, sr)?,
+                        )
+                    }
+                    CircuitStmt::Constraint(op, lhs, rhs) => CircuitStmt::Constraint(
+                        *op,
+                        scope.lower_expr(lhs, qr, sr)?,
+                        scope.lower_expr(rhs, qr, sr)?,
+                    ),
+                    CircuitStmt::Comment(s) => CircuitStmt::Comment(s.clone()),
+                })
+            });
+            //for stmt in &msg.0 {
+            //    let lowered_stmt = match stmt {};
+            self.lower_stmts(scope, stmts)
+            //}
+        })
+        .ok_or_else(|| anyhow!("No scope where to emit statements"))?
     }
 }
