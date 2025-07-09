@@ -218,8 +218,8 @@ impl<L: PrimeField> PicusBackend<L> {
 
     fn optimization_pipeline(&self) -> Pipeline<L> {
         PipelineBuilder::<L>::new()
-            .add_pass::<FoldExprsPass>()
-            .add_pass_with_params::<EnsureMaxExprSizePass>(self.inner.borrow().params.expr_cutoff)
+            //.add_pass::<FoldExprsPass>()
+            //.add_pass_with_params::<EnsureMaxExprSizePass>(self.inner.borrow().params.expr_cutoff)
             //.add_module_scope_expr_pass_fn(|name| {
             //    let eqv_classes = self
             //        .eqv_vars
