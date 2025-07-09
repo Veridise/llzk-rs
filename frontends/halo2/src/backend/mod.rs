@@ -201,40 +201,40 @@ impl CodegenStrategy for InlineConstraintsStrat {
         B: Backend<'c, P, O, F = F>,
     {
         backend.within_main(syn.advice_io(), syn.instance_io(), |scope| {
-            let lookups = syn.cs().lookups();
-            let region = syn
-                .regions()
-                .into_iter()
-                .next()
-                .ok_or_else(|| anyhow!("No regions"))?;
-            let row0 = region.rows().start;
-            let region_row = RegionRow::new(region, row0, syn.advice_io(), syn.instance_io());
-            for lookup in lookups {
-                log::debug!(
-                    "lookup {}: exprs {:?} | table {:?}",
-                    lookup.name(),
-                    lookup.input_expressions(),
-                    lookup.table_expressions()
-                );
-                let lowered_inputs = scope
-                    .lower_exprs(
-                        lookup.input_expressions().as_ref(),
-                        &region_row,
-                        &region_row,
-                    )
-                    .map_err(|err| {
-                        log::error!("Failed to lower expressions: {err}");
-                        log::error!("Region data: {:?}", region_row);
-                        err
-                    })?;
-                log::debug!("lowered exprs: {:?}", lowered_inputs);
-                let lowered_table = scope.lower_exprs(
-                    lookup.table_expressions().as_ref(),
-                    &region_row,
-                    &region_row,
-                )?;
-                log::debug!("lowered table: {:?}", lowered_table);
-            }
+            //let lookups = syn.cs().lookups();
+            //let region = syn
+            //    .regions()
+            //    .into_iter()
+            //    .next()
+            //    .ok_or_else(|| anyhow!("No regions"))?;
+            //let row0 = region.rows().start;
+            //let region_row = RegionRow::new(region, row0, syn.advice_io(), syn.instance_io());
+            //for lookup in lookups {
+            //    log::debug!(
+            //        "lookup {}: exprs {:?} | table {:?}",
+            //        lookup.name(),
+            //        lookup.input_expressions(),
+            //        lookup.table_expressions()
+            //    );
+            //    let lowered_inputs = scope
+            //        .lower_exprs(
+            //            lookup.input_expressions().as_ref(),
+            //            &region_row,
+            //            &region_row,
+            //        )
+            //        .map_err(|err| {
+            //            log::error!("Failed to lower expressions: {err}");
+            //            log::error!("Region data: {:?}", region_row);
+            //            err
+            //        })?;
+            //    log::debug!("lowered exprs: {:?}", lowered_inputs);
+            //    let lowered_table = scope.lower_exprs(
+            //        lookup.table_expressions().as_ref(),
+            //        &region_row,
+            //        &region_row,
+            //    )?;
+            //    log::debug!("lowered table: {:?}", lowered_table);
+            //}
             // Do the region stmts first since backends may have more information about names for
             // cells there and some backends do not update the name and always use the first
             // one given.
