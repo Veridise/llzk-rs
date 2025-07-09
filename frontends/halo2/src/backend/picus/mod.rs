@@ -2,6 +2,7 @@ use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
     marker::PhantomData,
+    rc::Rc,
 };
 
 use super::{
@@ -14,7 +15,7 @@ use crate::{
     gates::AnyQuery,
     halo2::{Advice, Field, Instance, PrimeField, Selector},
     synthesis::regions::FQN,
-    CircuitIO, LiftLike,
+    CircuitIO, EventSender, LiftLike,
 };
 use anyhow::{anyhow, Result};
 
@@ -137,8 +138,12 @@ struct PicusBackendInner<L> {
     _marker: PhantomData<L>,
 }
 
+pub struct PicusEventReceiver<L> {
+    inner: Rc<RefCell<PicusBackendInner<L>>>,
+}
+
 pub struct PicusBackend<L> {
-    inner: RefCell<PicusBackendInner<L>>,
+    inner: Rc<RefCell<PicusBackendInner<L>>>,
 }
 
 fn mk_io<F, I, O>(count: usize, f: F) -> impl Iterator<Item = O>
@@ -151,6 +156,12 @@ where
 }
 
 impl<L: PrimeField> PicusBackend<L> {
+    pub fn event_receiver(&self) -> PicusEventReceiver<L> {
+        PicusEventReceiver {
+            inner: self.inner.clone(),
+        }
+    }
+
     fn var_consistency_check(&self, output: &PicusOutput<L>) -> Result<()> {
         // Var consistency check
         for module in output.modules() {
@@ -242,63 +253,74 @@ impl<L: LiftLike> PicusBackendInner<L> {
     }
 }
 
-impl<'c, L: LiftLike> Codegen<'c> for PicusBackend<L> {
-    type FuncOutput = PicusModuleLowering<L>;
-    type F = L;
+macro_rules! codegen_impl {
+    ($t:ident) => {
+        impl<'c, L: LiftLike> Codegen<'c> for $t<L> {
+            type FuncOutput = PicusModuleLowering<L>;
+            type F = L;
 
-    fn define_gate_function<'f>(
-        &self,
-        name: &str,
-        selectors: &[&Selector],
-        queries: &[AnyQuery],
-    ) -> Result<Self::FuncOutput>
-    where
-        Self::FuncOutput: 'f,
-        'c: 'f,
-    {
-        self.inner.borrow_mut().add_module(
-            name.to_owned(),
-            mk_io(selectors.len() + queries.len(), VarKeySeed::arg),
-            mk_io(0, VarKeySeed::field),
-        )
-    }
+            fn define_gate_function<'f>(
+                &self,
+                name: &str,
+                selectors: &[&Selector],
+                queries: &[AnyQuery],
+            ) -> Result<Self::FuncOutput>
+            where
+                Self::FuncOutput: 'f,
+                'c: 'f,
+            {
+                self.inner.borrow_mut().add_module(
+                    name.to_owned(),
+                    mk_io(selectors.len() + queries.len(), VarKeySeed::arg),
+                    mk_io(0, VarKeySeed::field),
+                )
+            }
 
-    fn define_main_function<'f>(
-        &self,
-        advice_io: &CircuitIO<Advice>,
-        instance_io: &CircuitIO<Instance>,
-    ) -> Result<Self::FuncOutput>
-    where
-        Self::FuncOutput: 'f,
-        'c: 'f,
-    {
-        let ep = self.inner.borrow().entrypoint();
-        self.inner.borrow_mut().add_module(
-            ep,
-            mk_io(
-                instance_io.inputs().len() + advice_io.inputs().len(),
-                VarKeySeed::arg,
-            ),
-            mk_io(
-                instance_io.outputs().len() + advice_io.outputs().len(),
-                VarKeySeed::field,
-            ),
-        )
-    }
+            fn define_main_function<'f>(
+                &self,
+                advice_io: &CircuitIO<Advice>,
+                instance_io: &CircuitIO<Instance>,
+            ) -> Result<Self::FuncOutput>
+            where
+                Self::FuncOutput: 'f,
+                'c: 'f,
+            {
+                let ep = self.inner.borrow().entrypoint();
+                self.inner.borrow_mut().add_module(
+                    ep,
+                    mk_io(
+                        instance_io.inputs().len() + advice_io.inputs().len(),
+                        VarKeySeed::arg,
+                    ),
+                    mk_io(
+                        instance_io.outputs().len() + advice_io.outputs().len(),
+                        VarKeySeed::field,
+                    ),
+                )
+            }
 
-    fn on_current_scope<FN, FO>(&self, f: FN) -> Option<FO>
-    where
-        FN: FnOnce(&Self::FuncOutput, &dyn QueryResolver<Self::F>, &dyn SelectorResolver) -> FO,
-    {
-        self.inner.borrow().current_scope.as_ref().map(|scope| {
-            f(
-                scope,
-                &OnlyAdviceQueriesResolver::default(),
-                &NullSelectorResolver,
-            )
-        })
-    }
+            fn on_current_scope<FN, FO>(&self, f: FN) -> Option<FO>
+            where
+                FN: FnOnce(
+                    &Self::FuncOutput,
+                    &dyn QueryResolver<Self::F>,
+                    &dyn SelectorResolver,
+                ) -> FO,
+            {
+                self.inner.borrow().current_scope.as_ref().map(|scope| {
+                    f(
+                        scope,
+                        &OnlyAdviceQueriesResolver::default(),
+                        &NullSelectorResolver,
+                    )
+                })
+            }
+        }
+    };
 }
+
+codegen_impl!(PicusBackend);
+codegen_impl!(PicusEventReceiver);
 
 #[derive(Default)]
 struct OnlyAdviceQueriesResolver<F>(PhantomData<F>);
@@ -339,16 +361,17 @@ impl SelectorResolver for NullSelectorResolver {
 
 impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<L> {
     fn initialize(params: PicusParams) -> Self {
-        let inner = PicusBackendInner {
-            params,
-            eqv_vars: Default::default(),
-            modules: Default::default(),
-            _marker: Default::default(),
-            current_scope: None,
-        };
-        PicusBackend {
-            inner: inner.into(),
-        }
+        let inner: Rc<RefCell<PicusBackendInner<L>>> = Rc::new(
+            PicusBackendInner {
+                params,
+                eqv_vars: Default::default(),
+                modules: Default::default(),
+                _marker: Default::default(),
+                current_scope: None,
+            }
+            .into(),
+        );
+        PicusBackend { inner }
     }
 
     fn generate_output(self) -> Result<PicusOutput<Self::F>> {
