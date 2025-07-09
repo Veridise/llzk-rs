@@ -3,7 +3,7 @@ use crate::ir::CircuitStmt;
 use anyhow::Result;
 
 #[derive(Clone)]
-pub struct EmitStmtsMessage<F: Clone>(pub(super) Vec<CircuitStmt<Expression<F>>>);
+pub struct EmitStmtsMessage<F: Clone>(pub Vec<CircuitStmt<Expression<F>>>);
 
 impl<F: Clone> Message for EmitStmtsMessage<F> {
     type Response = ();
