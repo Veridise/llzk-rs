@@ -102,7 +102,7 @@ pub(crate) fn known_var(var: &VarStr) -> Expr {
 }
 
 fn binop<K: OpLike>(kind: K, lhs: &Expr, rhs: &Expr) -> Expr {
-    Wrap::new(BinaryExpr::new(kind.clone(), rhs.clone(), lhs.clone()))
+    Wrap::new(BinaryExpr::new(kind.clone(), lhs.clone(), rhs.clone()))
 }
 
 pub fn add(lhs: &Expr, rhs: &Expr) -> Expr {
