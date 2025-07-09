@@ -306,6 +306,7 @@ macro_rules! codegen_impl {
             }
 
             fn on_scope_end(&self, scope: &Self::FuncOutput) -> Result<()> {
+                log::debug!("Closing scope");
                 self.inner.borrow_mut().dequeue_stmts(scope)
             }
         }
@@ -427,6 +428,11 @@ fn dequeue_stmts_impl<L: LiftLike>(
 impl<L: LiftLike> PicusBackendInner<L> {
     pub fn enqueue_stmts(&mut self, stmts: &[CircuitStmt<Expression<L>>]) -> Result<()> {
         self.enqueued_stmts.extend_from_slice(&stmts);
+        log::debug!(
+            "Enqueueing {} statements. Currently enqueued: {}",
+            stmts.len(),
+            self.enqueued_stmts.len()
+        );
         self.current_scope
             .as_ref()
             .map(|scope| dequeue_stmts_impl(scope, &mut self.enqueued_stmts))

@@ -28,13 +28,11 @@ struct LazyConstants {
 
 impl LazyConstants {
     pub fn find<F: 'static>(&self) -> Option<&Index> {
-        log::debug!("Looking for a constant of type {}", type_name::<F>());
         let id = TypeId::of::<F>();
         self.constants.get(&id)
     }
 
     pub fn insert<F: 'static>(&mut self, idx: Index) {
-        log::debug!("Storing a constant of type {}", type_name::<F>());
         self.constants.insert(TypeId::of::<F>(), idx);
     }
 }
