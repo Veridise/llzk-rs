@@ -140,6 +140,7 @@ struct PicusBackendInner<L> {
     _marker: PhantomData<L>,
 }
 
+#[derive(Clone)]
 pub struct PicusEventReceiver<L> {
     inner: Rc<RefCell<PicusBackendInner<L>>>,
 }
