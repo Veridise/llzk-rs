@@ -432,8 +432,9 @@ fn dequeue_stmts_impl<L: LiftLike>(
             .into_iter()
             .flat_map(|(region, stmts)| {
                 [Ok(CircuitStmt::Comment(format!(
-                    "In-flight statements @ Region {}",
-                    *region
+                    "In-flight statements @ Region {} (start row: {})",
+                    *region,
+                    *scope.find_region(&region).unwrap()
                 )))]
                 .into_iter()
                 .chain(stmts.into_iter().map(move |stmt| {
