@@ -8,13 +8,14 @@ use std::{
 use super::{
     events::{EmitStmtsMessage, EventReceiver},
     func::FuncIO,
+    lower_stmts,
     lowering::Lowering as _,
     resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     Backend, Codegen,
 };
 use crate::{
     gates::AnyQuery,
-    halo2::{Advice, Field, Instance, PrimeField, Selector},
+    halo2::{Advice, Expression, Field, Instance, PrimeField, Selector, Value},
     ir::CircuitStmt,
     synthesis::regions::FQN,
     CircuitIO, EventSender, LiftLike,
@@ -25,7 +26,7 @@ mod lowering;
 mod vars;
 
 pub use lowering::PicusModuleLowering;
-use lowering::{PicusModuleRef, VarEqvClassesRef};
+use lowering::{PicusExpr, PicusModuleRef, VarEqvClassesRef};
 use midnight_halo2_proofs::plonk::{AdviceQuery, FixedQuery, InstanceQuery};
 use num_bigint::BigUint;
 use picus::{
@@ -137,6 +138,7 @@ struct PicusBackendInner<L> {
     modules: Vec<PicusModuleRef>,
     eqv_vars: HashMap<String, VarEqvClassesRef>,
     current_scope: Option<PicusModuleLowering<L>>,
+    enqueued_stmts: Vec<CircuitStmt<Expression<L>>>,
     _marker: PhantomData<L>,
 }
 
@@ -303,21 +305,8 @@ macro_rules! codegen_impl {
                 )
             }
 
-            fn on_current_scope<FN, FO>(&self, f: FN) -> Option<FO>
-            where
-                FN: FnOnce(
-                    &Self::FuncOutput,
-                    &dyn QueryResolver<Self::F>,
-                    &dyn SelectorResolver,
-                ) -> FO,
-            {
-                self.inner.borrow().current_scope.as_ref().map(|scope| {
-                    f(
-                        scope,
-                        &OnlyAdviceQueriesResolver::default(),
-                        &NullSelectorResolver,
-                    )
-                })
+            fn on_scope_end(&self, scope: &Self::FuncOutput) -> Result<()> {
+                self.inner.borrow_mut().dequeue_stmts(scope)
             }
         }
     };
@@ -326,8 +315,13 @@ macro_rules! codegen_impl {
 codegen_impl!(PicusBackend);
 codegen_impl!(PicusEventReceiver);
 
-#[derive(Default)]
 struct OnlyAdviceQueriesResolver<F>(PhantomData<F>);
+
+impl<F> Default for OnlyAdviceQueriesResolver<F> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
 
 impl<F: Field> QueryResolver<F> for OnlyAdviceQueriesResolver<F> {
     fn resolve_fixed_query(&self, _: &FixedQuery) -> Result<ResolvedQuery<F>> {
@@ -371,6 +365,7 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<
                 eqv_vars: Default::default(),
                 modules: Default::default(),
                 _marker: Default::default(),
+                enqueued_stmts: Default::default(),
                 current_scope: None,
             }
             .into(),
@@ -386,33 +381,67 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<
     }
 }
 
+fn lowering_helpers<L: Field, FO>(
+    f: impl FnOnce(&dyn QueryResolver<L>, &dyn SelectorResolver) -> FO,
+) -> FO {
+    f(&OnlyAdviceQueriesResolver::default(), &NullSelectorResolver)
+}
+
+fn lower_stmt<L: LiftLike>(
+    stmt: &CircuitStmt<Expression<L>>,
+    scope: &PicusModuleLowering<L>,
+    qr: &dyn QueryResolver<L>,
+    sr: &dyn SelectorResolver,
+) -> Result<CircuitStmt<Value<PicusExpr>>> {
+    Ok(match stmt {
+        CircuitStmt::ConstraintCall(callee, inputs, outputs) => CircuitStmt::ConstraintCall(
+            callee.clone(),
+            scope.lower_exprs(inputs, qr, sr)?,
+            scope.lower_exprs(outputs, qr, sr)?,
+        ),
+        CircuitStmt::Constraint(op, lhs, rhs) => CircuitStmt::Constraint(
+            *op,
+            scope.lower_expr(lhs, qr, sr)?,
+            scope.lower_expr(rhs, qr, sr)?,
+        ),
+        CircuitStmt::Comment(s) => CircuitStmt::Comment(s.clone()),
+    })
+}
+
+fn dequeue_stmts_impl<L: LiftLike>(
+    scope: &PicusModuleLowering<L>,
+    enqueued_stmts: &mut Vec<CircuitStmt<Expression<L>>>,
+) -> Result<()> {
+    lowering_helpers(|qr, sr| {
+        // Process them if we have a scope
+        let copy = enqueued_stmts.clone();
+        enqueued_stmts.clear();
+        lower_stmts(
+            scope,
+            copy.into_iter()
+                .map(|stmt| lower_stmt(&stmt, scope, qr, sr)),
+        )
+    })
+}
+
+impl<L: LiftLike> PicusBackendInner<L> {
+    pub fn enqueue_stmts(&mut self, stmts: &[CircuitStmt<Expression<L>>]) -> Result<()> {
+        self.enqueued_stmts.extend_from_slice(&stmts);
+        self.current_scope
+            .as_ref()
+            .map(|scope| dequeue_stmts_impl(scope, &mut self.enqueued_stmts))
+            .unwrap_or_else(|| Ok(()))
+    }
+
+    pub fn dequeue_stmts(&mut self, scope: &PicusModuleLowering<L>) -> Result<()> {
+        dequeue_stmts_impl(scope, &mut self.enqueued_stmts)
+    }
+}
+
 impl<L: LiftLike> EventReceiver for PicusEventReceiver<L> {
     type Message = EmitStmtsMessage<L>;
 
     fn accept(&self, msg: &Self::Message) -> Result<()> {
-        self.on_current_scope(move |scope, qr, sr| -> Result<()> {
-            let stmts = msg.0.iter().map(|stmt| {
-                Ok(match stmt {
-                    CircuitStmt::ConstraintCall(callee, inputs, outputs) => {
-                        CircuitStmt::ConstraintCall(
-                            callee.clone(),
-                            scope.lower_exprs(inputs, qr, sr)?,
-                            scope.lower_exprs(outputs, qr, sr)?,
-                        )
-                    }
-                    CircuitStmt::Constraint(op, lhs, rhs) => CircuitStmt::Constraint(
-                        *op,
-                        scope.lower_expr(lhs, qr, sr)?,
-                        scope.lower_expr(rhs, qr, sr)?,
-                    ),
-                    CircuitStmt::Comment(s) => CircuitStmt::Comment(s.clone()),
-                })
-            });
-            //for stmt in &msg.0 {
-            //    let lowered_stmt = match stmt {};
-            self.lower_stmts(scope, stmts)
-            //}
-        })
-        .ok_or_else(|| anyhow!("No scope where to emit statements"))?
+        self.inner.borrow_mut().enqueue_stmts(&msg.0)
     }
 }

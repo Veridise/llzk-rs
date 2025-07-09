@@ -25,7 +25,7 @@ use std::{
 };
 
 pub type PicusModuleRef = picus::ModuleRef<VarKey>;
-type PicusExpr = picus::expr::Expr;
+pub(super) type PicusExpr = picus::expr::Expr;
 
 #[derive(Default)]
 struct VarEqvClasses {

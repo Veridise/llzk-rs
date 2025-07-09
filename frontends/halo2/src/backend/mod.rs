@@ -162,7 +162,8 @@ impl CallGatesStrat {
             queries: &queries,
         };
         let stmts = scope.lower_constraints(gate, resolver, "", None);
-        backend.lower_stmts(&scope, stmts)
+        backend.lower_stmts(&scope, stmts)?;
+        backend.on_scope_end(&scope)
     }
 }
 
@@ -266,7 +267,8 @@ pub trait Codegen<'c>: Sized {
     {
         let main = self.define_main_function(advice_io, instance_io)?;
         let stmts = f(&main)?;
-        self.lower_stmts(&main, stmts.into_iter().map(Ok))
+        self.lower_stmts(&main, stmts.into_iter().map(Ok))?;
+        self.on_scope_end(&main)
     }
 
     fn define_gate_function<'f>(
@@ -295,24 +297,31 @@ pub trait Codegen<'c>: Sized {
             Item = Result<CircuitStmt<Value<<Self::FuncOutput as Lowering>::CellOutput>>>,
         >,
     ) -> Result<()> {
-        for stmt in stmts {
-            let stmt = stmt?;
-            match stmt {
-                CircuitStmt::ConstraintCall(name, selectors, queries) => {
-                    scope.generate_call(&name, &selectors, &queries)?;
-                }
-                CircuitStmt::Constraint(op, lhs, rhs) => {
-                    scope.checked_generate_constraint(op, &lhs, &rhs)?;
-                }
-                CircuitStmt::Comment(s) => scope.generate_comment(s)?,
-            };
-        }
-        Ok(())
+        lower_stmts(scope, stmts)
     }
 
-    fn on_current_scope<FN, FO>(&self, f: FN) -> Option<FO>
-    where
-        FN: FnOnce(&Self::FuncOutput, &dyn QueryResolver<Self::F>, &dyn SelectorResolver) -> FO;
+    fn on_scope_end(&self, _: &Self::FuncOutput) -> Result<()> {
+        Ok(())
+    }
+}
+
+fn lower_stmts<Scope: Lowering>(
+    scope: &Scope,
+    stmts: impl Iterator<Item = Result<CircuitStmt<Value<<Scope as Lowering>::CellOutput>>>>,
+) -> Result<()> {
+    for stmt in stmts {
+        let stmt = stmt?;
+        match stmt {
+            CircuitStmt::ConstraintCall(name, selectors, queries) => {
+                scope.generate_call(&name, &selectors, &queries)?;
+            }
+            CircuitStmt::Constraint(op, lhs, rhs) => {
+                scope.checked_generate_constraint(op, &lhs, &rhs)?;
+            }
+            CircuitStmt::Comment(s) => scope.generate_comment(s)?,
+        };
+    }
+    Ok(())
 }
 
 pub trait Backend<'c, Params: Default, Output>: Codegen<'c> {

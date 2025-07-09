@@ -403,17 +403,6 @@ impl<'c> Codegen<'c> for MockBackend {
         self.0.borrow_mut().main.replace(func.clone());
         Ok(MockFuncRef(func))
     }
-
-    fn on_current_scope<FN, FO>(&self, f: FN) -> Option<FO>
-    where
-        FN: FnOnce(
-            &Self::FuncOutput,
-            &dyn QueryResolver<Self::F>,
-            &dyn crate::backend::resolvers::SelectorResolver,
-        ) -> FO,
-    {
-        todo!()
-    }
 }
 
 impl<'c> Backend<'c, (), MockOutput> for MockBackend {
