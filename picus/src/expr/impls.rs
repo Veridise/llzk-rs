@@ -220,7 +220,7 @@ impl OpFolder for BinaryOp {
             BinaryOp::Sub => None,
             BinaryOp::Mul => self
                 .fold_mul(lhs.clone(), rhs.clone())
-                .or_else(|| self.fold_add(rhs, lhs)),
+                .or_else(|| self.fold_mul(rhs, lhs)),
             BinaryOp::Div => None,
         }
     }
