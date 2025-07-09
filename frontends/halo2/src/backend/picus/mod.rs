@@ -245,8 +245,9 @@ impl<L: LiftLike> PicusBackendInner<L> {
         let module = PicusModule::shared(name.clone(), inputs, outputs);
         self.modules.push(module.clone());
         let eqv_vars = VarEqvClassesRef::default();
-        self.eqv_vars.insert(name, eqv_vars.clone());
+        self.eqv_vars.insert(name.clone(), eqv_vars.clone());
         let scope = PicusModuleLowering::new(module, self.params.lift_fixed, eqv_vars);
+        log::debug!("Setting the scope to {name}");
         self.current_scope = Some(scope.clone());
         Ok(scope)
     }
