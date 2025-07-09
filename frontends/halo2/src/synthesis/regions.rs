@@ -18,6 +18,7 @@ use std::{
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct FQN {
     region: String,
+    region_idx: RegionIndex,
     namespaces: Vec<String>,
     tail: Option<String>,
 }
@@ -28,7 +29,7 @@ impl fmt::Display for FQN {
             s.trim()
                 .replace(|c: char| !c.is_ascii_alphanumeric() && c != '_', "_")
         }
-        write!(f, "{}", clean_string(&self.region))?;
+        write!(f, "{}_{}", clean_string(&self.region), *self.region_idx)?;
         if !self.namespaces.is_empty() {
             write!(f, "__{}", clean_string(&self.namespaces.join("__")))?;
         }
@@ -40,9 +41,15 @@ impl fmt::Display for FQN {
 }
 
 impl FQN {
-    pub fn new(region: &str, namespaces: &[String], tail: Option<String>) -> Self {
+    pub fn new(
+        region: &str,
+        region_idx: RegionIndex,
+        namespaces: &[String],
+        tail: Option<String>,
+    ) -> Self {
         Self {
             region: region.to_string(),
+            region_idx,
             namespaces: namespaces.to_vec(),
             tail,
         }
@@ -89,14 +96,16 @@ pub struct RegionDataImpl<F> {
     #[allow(dead_code)]
     /// The name of the region. Not required to be unique.
     name: String,
+    index: RegionIndex,
     inner: RegionDataInner<F>,
     shared: Option<SharedRegionData>,
 }
 
 impl<F: Default + Clone> RegionDataImpl<F> {
-    pub fn new<S: Into<String>>(name: S) -> Self {
+    pub fn new<S: Into<String>>(name: S, index: RegionIndex) -> Self {
         Self {
             name: name.into(),
+            index,
             inner: Default::default(),
             shared: Some(Default::default()),
         }
@@ -156,7 +165,8 @@ impl<F: Default + Clone> RegionDataImpl<F> {
                     {
                         continue;
                     }
-                    let anon_fqn = FQN::new(self.name.as_str(), &self.inner.namespaces, None);
+                    let anon_fqn =
+                        FQN::new(self.name.as_str(), self.index, &self.inner.namespaces, None);
                     self.shared
                         .as_mut()
                         .unwrap()
@@ -209,7 +219,12 @@ impl<F: Default + Clone> RegionDataImpl<F> {
     }
 
     pub fn note_advice(&mut self, column: Column<Advice>, row: usize, name: String) {
-        let fqn = FQN::new(self.name.as_str(), &self.inner.namespaces, name.into());
+        let fqn = FQN::new(
+            self.name.as_str(),
+            self.index,
+            &self.inner.namespaces,
+            name.into(),
+        );
         self.shared
             .as_mut()
             .unwrap()
@@ -251,7 +266,12 @@ impl<F: Default + Clone> RegionData<'_, F> {
             .advice_names
             .get(&(col, row))
             .cloned()
-            .unwrap_or(FQN::new(self.inner.name.as_str(), &[], None))
+            .unwrap_or(FQN::new(
+                self.inner.name.as_str(),
+                self.inner.index,
+                &[],
+                None,
+            ))
     }
 
     pub fn rows(&self) -> Range<usize> {
@@ -273,7 +293,10 @@ impl<F: Default + Clone> Regions<F> {
         N: FnOnce() -> NR,
     {
         assert!(self.current.is_none());
-        self.current = Some(RegionDataImpl::new(region_name()));
+        self.current = Some(RegionDataImpl::new(
+            region_name(),
+            self.regions.len().into(),
+        ));
     }
 
     pub fn commit(&mut self) {
@@ -466,7 +489,7 @@ impl<F: Field> QueryResolver<F> for RegionRow<'_, '_, F> {
                 io,
                 Some(match func_io {
                     FuncIO::Temp(col, row) => self.region.find_advice_name(col, row),
-                    _ => FQN::new(&self.region.inner.name, &[], None),
+                    _ => FQN::new(&self.region.inner.name, self.region.inner.index, &[], None),
                 }),
             )),
         }
