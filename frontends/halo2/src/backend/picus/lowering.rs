@@ -8,9 +8,12 @@ use crate::{
         lowering::Lowering,
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     },
-    halo2::{AdviceQuery, Challenge, FixedQuery, InstanceQuery, PrimeField, Selector, Value},
+    halo2::{
+        AdviceQuery, Challenge, FixedQuery, InstanceQuery, PrimeField, RegionIndex, RegionStart,
+        Selector, Value,
+    },
     ir::{lift::LiftLowering, BinaryBoolOp},
-    synthesis::regions::FQN,
+    synthesis::regions::{RegionData, FQN},
     value::{steal, steal_many},
     LiftLike,
 };
@@ -123,17 +126,28 @@ pub struct PicusModuleLowering<L> {
     module: PicusModuleRef,
     eqv_vars: VarEqvClassesRef,
     lift_fixed: bool,
+    regions: HashMap<RegionIndex, RegionStart>,
     _field: PhantomData<L>,
 }
 
 impl<L> PicusModuleLowering<L> {
-    pub fn new(module: PicusModuleRef, lift_fixed: bool, eqv_vars: VarEqvClassesRef) -> Self {
+    pub fn new(
+        module: PicusModuleRef,
+        lift_fixed: bool,
+        eqv_vars: VarEqvClassesRef,
+        regions: HashMap<RegionIndex, RegionStart>,
+    ) -> Self {
         Self {
             module,
             lift_fixed,
             eqv_vars,
+            regions,
             _field: Default::default(),
         }
+    }
+
+    pub fn find_region(&self, idx: &RegionIndex) -> Option<RegionStart> {
+        self.regions.get(idx).copied()
     }
 }
 

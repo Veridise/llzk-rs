@@ -1,9 +1,9 @@
-use crate::halo2::Expression;
+use crate::halo2::{Expression, RegionIndex};
 use crate::ir::CircuitStmt;
 use anyhow::Result;
 
 #[derive(Clone)]
-pub struct EmitStmtsMessage<F: Clone>(pub Vec<CircuitStmt<Expression<F>>>);
+pub struct EmitStmtsMessage<F: Clone>(pub RegionIndex, pub Vec<CircuitStmt<Expression<F>>>);
 
 impl<F: Clone> Message for EmitStmtsMessage<F> {
     type Response = ();

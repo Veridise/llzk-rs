@@ -11,6 +11,7 @@ use crate::{
         Advice, AdviceQuery, Challenge, FixedQuery, Fr, Instance, InstanceQuery, Selector, Value,
     },
     ir::BinaryBoolOp,
+    synthesis::CircuitSynthesis,
     value::{steal, steal_many},
     CircuitIO,
 };
@@ -368,6 +369,7 @@ impl<'c> Codegen<'c> for MockBackend {
         name: &str,
         selectors: &[&Selector],
         queries: &[AnyQuery],
+        _: &CircuitSynthesis<Fr>,
     ) -> Result<Self::FuncOutput>
     where
         Self::FuncOutput: 'f,
@@ -384,11 +386,7 @@ impl<'c> Codegen<'c> for MockBackend {
         Ok(MockFuncRef(func))
     }
 
-    fn define_main_function<'f>(
-        &self,
-        advice_io: &CircuitIO<Advice>,
-        instance_io: &CircuitIO<Instance>,
-    ) -> Result<Self::FuncOutput>
+    fn define_main_function<'f>(&self, syn: &CircuitSynthesis<Fr>) -> Result<Self::FuncOutput>
     where
         Self::FuncOutput: 'f,
         'c: 'f,
@@ -396,8 +394,8 @@ impl<'c> Codegen<'c> for MockBackend {
         if self.0.borrow().main.is_some() {
             bail!("Main function defined twice!");
         }
-        let arg_count = instance_io.inputs().len() + advice_io.inputs().len();
-        let field_count = instance_io.outputs().len() + advice_io.outputs().len();
+        let arg_count = syn.instance_io().inputs().len() + syn.advice_io().inputs().len();
+        let field_count = syn.instance_io().outputs().len() + syn.advice_io().outputs().len();
 
         let func = MockFunc::shared("Main", arg_count, Some(field_count));
         self.0.borrow_mut().main.replace(func.clone());

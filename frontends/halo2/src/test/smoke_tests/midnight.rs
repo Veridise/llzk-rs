@@ -1,3 +1,6 @@
+use log::LevelFilter;
+use simplelog::{Config, TestLogger};
+
 use crate::backend::func::{ArgNo, FieldId};
 use crate::backend::picus::PicusBackend;
 use crate::backend::{Backend, CallGatesStrat, InlineConstraintsStrat};
@@ -9,7 +12,7 @@ use crate::{codegen_test, mock_codegen_test, picus_codegen_test, Lift};
 
 #[test]
 fn test_mul_circuit_codegen() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    let _ = TestLogger::init(LevelFilter::Debug, Config::default());
     let output = mock_codegen_test!(MulCircuit<Fr>);
 
     assert_eq!(
@@ -73,20 +76,20 @@ fn test_mul_circuit_codegen() {
 
 #[test]
 fn test_mul_circuit_picus_codegen() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    let _ = TestLogger::init(LevelFilter::Debug, Config::default());
     let output = picus_codegen_test!(MulCircuit<Lift<Fr>>);
     println!("{}", output.display());
 }
 
 #[test]
 fn test_fibonacci_circuit_codegen() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    let _ = TestLogger::init(LevelFilter::Debug, Config::default());
     mock_codegen_test!(FibonacciCircuit<Fr>);
 }
 
 #[test]
 fn test_fibonacci_circuit_picus_codegen() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    let _ = TestLogger::init(LevelFilter::Debug, Config::default());
     let output = picus_codegen_test!(FibonacciCircuit<Lift<Fr>>);
     println!("{}", output.display());
 }

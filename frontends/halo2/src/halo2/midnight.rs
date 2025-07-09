@@ -1,7 +1,7 @@
 pub use ff::{Field, FromUniformBytes, PrimeField};
 pub use midnight_halo2_proofs::plonk::Challenge;
 pub use midnight_halo2_proofs::{
-    circuit::Value,
+    circuit::{RegionIndex, RegionStart, Value},
     plonk::{
         Advice, AdviceQuery, Any, Assignment, Circuit, Column, ColumnType, ConstraintSystem, Error,
         Expression, FirstPhase, Fixed, FixedQuery, FloorPlanner, Gate, Instance, InstanceQuery,

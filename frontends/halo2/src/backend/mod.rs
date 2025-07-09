@@ -148,14 +148,19 @@ impl CallGatesStrat {
         ))
     }
 
-    fn define_gate<'c, 'a, F, P, O, B>(&self, backend: &B, gate: &Gate<F>) -> Result<()>
+    fn define_gate<'c, 'a, F, P, O, B>(
+        &self,
+        backend: &B,
+        gate: &Gate<F>,
+        syn: &CircuitSynthesis<F>,
+    ) -> Result<()>
     where
         F: Field,
         P: Default,
         B: Backend<'c, P, O, F = F>,
     {
         let (selectors, queries) = compute_gate_arity(gate.polynomials());
-        let scope = backend.define_gate_function(gate.name(), &selectors, &queries)?;
+        let scope = backend.define_gate_function(gate.name(), &selectors, &queries, syn)?;
 
         let resolver = GateScopedResolver {
             selectors: &selectors,
@@ -175,10 +180,10 @@ impl CodegenStrategy for CallGatesStrat {
         B: Backend<'c, P, O, F = F>,
     {
         for gate in syn.gates() {
-            self.define_gate(backend, gate)?;
+            self.define_gate(backend, gate, syn)?;
         }
 
-        backend.within_main(syn.advice_io(), syn.instance_io(), |scope| {
+        backend.within_main(syn, |scope| {
             let calls = syn.region_gates().map(|(gate, r)| {
                 let (selectors, queries) = compute_gate_arity(gate.polynomials());
                 self.create_call_stmt(scope, gate.name(), selectors, queries, &r)
@@ -200,41 +205,7 @@ impl CodegenStrategy for InlineConstraintsStrat {
         P: Default,
         B: Backend<'c, P, O, F = F>,
     {
-        backend.within_main(syn.advice_io(), syn.instance_io(), |scope| {
-            //let lookups = syn.cs().lookups();
-            //let region = syn
-            //    .regions()
-            //    .into_iter()
-            //    .next()
-            //    .ok_or_else(|| anyhow!("No regions"))?;
-            //let row0 = region.rows().start;
-            //let region_row = RegionRow::new(region, row0, syn.advice_io(), syn.instance_io());
-            //for lookup in lookups {
-            //    log::debug!(
-            //        "lookup {}: exprs {:?} | table {:?}",
-            //        lookup.name(),
-            //        lookup.input_expressions(),
-            //        lookup.table_expressions()
-            //    );
-            //    let lowered_inputs = scope
-            //        .lower_exprs(
-            //            lookup.input_expressions().as_ref(),
-            //            &region_row,
-            //            &region_row,
-            //        )
-            //        .map_err(|err| {
-            //            log::error!("Failed to lower expressions: {err}");
-            //            log::error!("Region data: {:?}", region_row);
-            //            err
-            //        })?;
-            //    log::debug!("lowered exprs: {:?}", lowered_inputs);
-            //    let lowered_table = scope.lower_exprs(
-            //        lookup.table_expressions().as_ref(),
-            //        &region_row,
-            //        &region_row,
-            //    )?;
-            //    log::debug!("lowered table: {:?}", lowered_table);
-            //}
+        backend.within_main(syn, |scope| {
             // Do the region stmts first since backends may have more information about names for
             // cells there and some backends do not update the name and always use the first
             // one given.
@@ -254,18 +225,13 @@ pub trait Codegen<'c>: Sized {
     type FuncOutput: Lowering<F = Self::F> + Clone;
     type F: Field + Clone;
 
-    fn within_main<FN>(
-        &self,
-        advice_io: &CircuitIO<Advice>,
-        instance_io: &CircuitIO<Instance>,
-        f: FN,
-    ) -> Result<()>
+    fn within_main<FN>(&self, syn: &CircuitSynthesis<Self::F>, f: FN) -> Result<()>
     where
         FN: FnOnce(
             &Self::FuncOutput,
         ) -> WithinMainResult<<Self::FuncOutput as Lowering>::CellOutput>,
     {
-        let main = self.define_main_function(advice_io, instance_io)?;
+        let main = self.define_main_function(syn)?;
         let stmts = f(&main)?;
         self.lower_stmts(&main, stmts.into_iter().map(Ok))?;
         self.on_scope_end(&main)
@@ -276,16 +242,13 @@ pub trait Codegen<'c>: Sized {
         name: &str,
         selectors: &[&Selector],
         queries: &[AnyQuery],
+        syn: &CircuitSynthesis<Self::F>,
     ) -> Result<Self::FuncOutput>
     where
         Self::FuncOutput: 'f,
         'c: 'f;
 
-    fn define_main_function<'f>(
-        &self,
-        advice_io: &CircuitIO<Advice>,
-        instance_io: &CircuitIO<Instance>,
-    ) -> Result<Self::FuncOutput>
+    fn define_main_function<'f>(&self, syn: &CircuitSynthesis<Self::F>) -> Result<Self::FuncOutput>
     where
         Self::FuncOutput: 'f,
         'c: 'f;

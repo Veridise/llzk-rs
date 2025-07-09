@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dev-dependencies]
-env_logger = "0.11"
+simplelog = {version = "0.12", features = ["test"] }
 
 [dependencies]
 melior = { workspace = true }

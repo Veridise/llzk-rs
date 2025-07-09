@@ -2,7 +2,7 @@ mod constraint;
 mod matrix;
 pub mod regions;
 
-use std::collections::hash_set::Iter;
+use std::collections::{hash_set::Iter, HashMap};
 
 use anyhow::Result;
 use constraint::{EqConstraint, Graph};
@@ -69,6 +69,15 @@ impl<F: Field> CircuitSynthesis<F> {
 
     pub fn regions<'a>(&'a self) -> Vec<RegionData<'a, F>> {
         self.regions.regions()
+    }
+
+    pub fn regions_by_index<'a>(&'a self) -> HashMap<RegionIndex, RegionStart> {
+        self.regions
+            .regions()
+            .into_iter()
+            .enumerate()
+            .map(|(idx, region)| (idx.into(), region.rows().start.into()))
+            .collect()
     }
 
     pub fn advice_io(&self) -> &CircuitIO<Advice> {

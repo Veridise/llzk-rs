@@ -15,9 +15,9 @@ use super::{
 };
 use crate::{
     gates::AnyQuery,
-    halo2::{Advice, Expression, Field, Instance, PrimeField, Selector, Value},
+    halo2::{Advice, Expression, Field, Instance, PrimeField, RegionIndex, Selector, Value},
     ir::CircuitStmt,
-    synthesis::regions::FQN,
+    synthesis::{regions::FQN, CircuitSynthesis},
     CircuitIO, EventSender, LiftLike,
 };
 use anyhow::{anyhow, Result};
@@ -138,7 +138,7 @@ struct PicusBackendInner<L> {
     modules: Vec<PicusModuleRef>,
     eqv_vars: HashMap<String, VarEqvClassesRef>,
     current_scope: Option<PicusModuleLowering<L>>,
-    enqueued_stmts: Vec<CircuitStmt<Expression<L>>>,
+    enqueued_stmts: HashMap<RegionIndex, Vec<CircuitStmt<Expression<L>>>>,
     _marker: PhantomData<L>,
 }
 
@@ -240,15 +240,18 @@ impl<L: LiftLike> PicusBackendInner<L> {
         name: String,
         inputs: impl Iterator<Item = O>,
         outputs: impl Iterator<Item = O>,
+        syn: &CircuitSynthesis<L>,
     ) -> Result<PicusModuleLowering<L>>
     where
         O: Into<VarKey> + Into<VarStr> + Clone,
     {
+        let regions = syn.regions_by_index();
+        log::debug!("Region data: {regions:?}");
         let module = PicusModule::shared(name.clone(), inputs, outputs);
         self.modules.push(module.clone());
         let eqv_vars = VarEqvClassesRef::default();
         self.eqv_vars.insert(name.clone(), eqv_vars.clone());
-        let scope = PicusModuleLowering::new(module, self.params.lift_fixed, eqv_vars);
+        let scope = PicusModuleLowering::new(module, self.params.lift_fixed, eqv_vars, regions);
         log::debug!("Setting the scope to {name}");
         self.current_scope = Some(scope.clone());
         Ok(scope)
@@ -270,6 +273,7 @@ macro_rules! codegen_impl {
                 name: &str,
                 selectors: &[&Selector],
                 queries: &[AnyQuery],
+                syn: &CircuitSynthesis<L>,
             ) -> Result<Self::FuncOutput>
             where
                 Self::FuncOutput: 'f,
@@ -279,19 +283,21 @@ macro_rules! codegen_impl {
                     name.to_owned(),
                     mk_io(selectors.len() + queries.len(), VarKeySeed::arg),
                     mk_io(0, VarKeySeed::field),
+                    syn,
                 )
             }
 
             fn define_main_function<'f>(
                 &self,
-                advice_io: &CircuitIO<Advice>,
-                instance_io: &CircuitIO<Instance>,
+                syn: &CircuitSynthesis<L>,
             ) -> Result<Self::FuncOutput>
             where
                 Self::FuncOutput: 'f,
                 'c: 'f,
             {
                 let ep = self.inner.borrow().entrypoint();
+                let instance_io = syn.instance_io();
+                let advice_io = syn.advice_io();
                 self.inner.borrow_mut().add_module(
                     ep,
                     mk_io(
@@ -302,6 +308,7 @@ macro_rules! codegen_impl {
                         instance_io.outputs().len() + advice_io.outputs().len(),
                         VarKeySeed::field,
                     ),
+                    syn,
                 )
             }
 
@@ -316,15 +323,18 @@ macro_rules! codegen_impl {
 codegen_impl!(PicusBackend);
 codegen_impl!(PicusEventReceiver);
 
-struct OnlyAdviceQueriesResolver<F>(PhantomData<F>);
+struct OnlyAdviceQueriesResolver<'s, F> {
+    region: RegionIndex,
+    scope: &'s PicusModuleLowering<F>,
+}
 
-impl<F> Default for OnlyAdviceQueriesResolver<F> {
-    fn default() -> Self {
-        Self(Default::default())
+impl<'s, F> OnlyAdviceQueriesResolver<'s, F> {
+    pub fn new(region: RegionIndex, scope: &'s PicusModuleLowering<F>) -> Self {
+        Self { region, scope }
     }
 }
 
-impl<F: Field> QueryResolver<F> for OnlyAdviceQueriesResolver<F> {
+impl<F: Field> QueryResolver<F> for OnlyAdviceQueriesResolver<'_, F> {
     fn resolve_fixed_query(&self, _: &FixedQuery) -> Result<ResolvedQuery<F>> {
         Err(anyhow!(
             "Fixed cells are not supported in in-flight statements"
@@ -332,11 +342,13 @@ impl<F: Field> QueryResolver<F> for OnlyAdviceQueriesResolver<F> {
     }
 
     fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<(ResolvedQuery<F>, Option<FQN>)> {
+        let offset: usize = query.rotation().0.try_into()?;
+        let start = self
+            .scope
+            .find_region(&self.region)
+            .ok_or_else(|| anyhow!("Unrecognized region {:?}", self.region))?;
         Ok((
-            ResolvedQuery::IO(FuncIO::Temp(
-                query.column_index(),
-                query.rotation().0.try_into()?,
-            )),
+            ResolvedQuery::IO(FuncIO::Temp(query.column_index(), *start + offset)),
             None,
         ))
     }
@@ -353,7 +365,7 @@ struct NullSelectorResolver;
 impl SelectorResolver for NullSelectorResolver {
     fn resolve_selector(&self, _: &Selector) -> Result<ResolvedSelector> {
         Err(anyhow!(
-            "Selectors are not supported in statements emitted on flight"
+            "Selectors are not supported in in-flight statements"
         ))
     }
 }
@@ -382,11 +394,11 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<
     }
 }
 
-fn lowering_helpers<L: Field, FO>(
-    f: impl FnOnce(&dyn QueryResolver<L>, &dyn SelectorResolver) -> FO,
-) -> FO {
-    f(&OnlyAdviceQueriesResolver::default(), &NullSelectorResolver)
-}
+//fn lowering_helpers<L: Field, FO>(
+//    f: impl FnOnce(&dyn QueryResolver<L>, &dyn SelectorResolver) -> FO,
+//) -> FO {
+//    f(&OnlyAdviceQueriesResolver::default(), &NullSelectorResolver)
+//}
 
 fn lower_stmt<L: LiftLike>(
     stmt: &CircuitStmt<Expression<L>>,
@@ -411,23 +423,38 @@ fn lower_stmt<L: LiftLike>(
 
 fn dequeue_stmts_impl<L: LiftLike>(
     scope: &PicusModuleLowering<L>,
-    enqueued_stmts: &mut Vec<CircuitStmt<Expression<L>>>,
+    enqueued_stmts: &mut HashMap<RegionIndex, Vec<CircuitStmt<Expression<L>>>>,
 ) -> Result<()> {
-    lowering_helpers(|qr, sr| {
-        // Process them if we have a scope
-        let copy = enqueued_stmts.clone();
-        enqueued_stmts.clear();
-        lower_stmts(
-            scope,
-            copy.into_iter()
-                .map(|stmt| lower_stmt(&stmt, scope, qr, sr)),
-        )
-    })
+    lower_stmts(
+        scope,
+        // Delete the elements waiting in the queue.
+        std::mem::take(enqueued_stmts)
+            .into_iter()
+            .flat_map(|(region, stmts)| {
+                [Ok(CircuitStmt::Comment(format!(
+                    "In-flight statements @ Region {}",
+                    *region
+                )))]
+                .into_iter()
+                .chain(stmts.into_iter().map(move |stmt| {
+                    let query_resolver = OnlyAdviceQueriesResolver::new(region, scope);
+                    let selector_resolver = NullSelectorResolver;
+                    lower_stmt(&stmt, scope, &query_resolver, &selector_resolver)
+                }))
+            }),
+    )
 }
 
 impl<L: LiftLike> PicusBackendInner<L> {
-    pub fn enqueue_stmts(&mut self, stmts: &[CircuitStmt<Expression<L>>]) -> Result<()> {
-        self.enqueued_stmts.extend_from_slice(&stmts);
+    pub fn enqueue_stmts(
+        &mut self,
+        region: RegionIndex,
+        stmts: &[CircuitStmt<Expression<L>>],
+    ) -> Result<()> {
+        self.enqueued_stmts
+            .entry(region)
+            .or_default()
+            .extend_from_slice(&stmts);
         log::debug!(
             "Enqueueing {} statements. Currently enqueued: {}",
             stmts.len(),
@@ -448,6 +475,6 @@ impl<L: LiftLike> EventReceiver for PicusEventReceiver<L> {
     type Message = EmitStmtsMessage<L>;
 
     fn accept(&self, msg: &Self::Message) -> Result<()> {
-        self.inner.borrow_mut().enqueue_stmts(&msg.0)
+        self.inner.borrow_mut().enqueue_stmts(msg.0, &msg.1)
     }
 }
