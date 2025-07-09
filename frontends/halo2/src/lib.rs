@@ -15,6 +15,7 @@ mod value;
 pub use crate::ir::lift::{Lift, LiftLike};
 pub use backend::events::{EmitStmtsMessage, EventReceiver, EventSender};
 pub use backend::picus::PicusBackend;
+pub use backend::picus::PicusEventReceiver;
 pub use backend::picus::PicusOutput;
 pub use backend::picus::PicusParams;
 pub use backend::picus::PicusParamsBuilder;
