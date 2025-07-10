@@ -7,7 +7,7 @@ use std::collections::{hash_set::Iter, HashMap};
 use anyhow::Result;
 use constraint::{EqConstraint, Graph};
 use midnight_halo2_proofs::plonk::permutation::Argument;
-use regions::{RegionData, RegionRow, Regions};
+use regions::{RegionData, RegionRow, Regions, FQN};
 
 use crate::{
     gates::find_gate_selector_set,
@@ -123,6 +123,10 @@ impl<F: Field> CircuitSynthesis<F> {
                     Some((gate, r))
                 })
             })
+    }
+
+    pub fn seen_advice_cells<'a>(&'a self) -> impl Iterator<Item = (&'a (usize, usize), &'a FQN)> {
+        self.regions.seen_advice_cells()
     }
 }
 

@@ -34,7 +34,7 @@ use picus::{
     felt::{Felt, IntoPrime},
     opt::{EnsureMaxExprSizePass, FoldExprsPass, MutOptimizer as _},
     vars::VarStr,
-    ModuleLike as _,
+    ModuleLike as _, ModuleWithVars as _,
 };
 use vars::{VarKey, VarKeySeed};
 
@@ -249,6 +249,11 @@ impl<L: LiftLike> PicusBackendInner<'_, L> {
         let regions = syn.regions_by_index();
         log::debug!("Region data: {regions:?}");
         let module = PicusModule::shared(name.clone(), inputs, outputs);
+        module
+            .borrow_mut()
+            .add_vars(syn.seen_advice_cells().map(|((col, row), name)| {
+                VarKeySeed::IO(FuncIO::Temp(*col, *row), Some(name.clone()))
+            }));
         self.modules.push(module.clone());
         let eqv_vars = VarEqvClassesRef::default();
         self.eqv_vars.insert(name.clone(), eqv_vars.clone());

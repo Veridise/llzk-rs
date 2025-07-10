@@ -365,6 +365,10 @@ impl<F: Default + Clone> Regions<F> {
     pub fn mark_current_as_table(&mut self) {
         self.current_is_table = true;
     }
+
+    pub fn seen_advice_cells<'a>(&'a self) -> impl Iterator<Item = (&'a (usize, usize), &'a FQN)> {
+        self.shared.advice_names.iter()
+    }
 }
 
 #[derive(Copy, Clone, Debug)]

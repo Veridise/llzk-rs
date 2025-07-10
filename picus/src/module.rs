@@ -121,6 +121,13 @@ pub trait ModuleLike<K> {
 
 pub trait ModuleWithVars<K> {
     fn add_var<I: Into<K> + Into<VarStr> + Clone>(&mut self, k: I) -> VarStr;
+
+    fn add_vars<I: Into<K> + Into<VarStr> + Clone>(
+        &mut self,
+        it: impl Iterator<Item = I>,
+    ) -> Vec<VarStr> {
+        it.map(|k| self.add_var(k)).collect()
+    }
 }
 
 impl<K: VarKind> ModuleLike<K> for Module<K> {
