@@ -248,6 +248,7 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         value: Value<Assigned<F>>,
     ) -> Result<(), Error> {
         log::debug!("fill_from_row{:?}", (column, row, value));
+        self.regions.mark_current_as_table();
         self.regions
             .edit(|region| region.blanket_fill(column, row, value.map(|f| f.evaluate())));
         Ok(())

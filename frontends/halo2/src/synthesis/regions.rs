@@ -18,7 +18,7 @@ use std::{
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct FQN {
     region: String,
-    region_idx: RegionIndex,
+    region_idx: Option<RegionIndex>,
     namespaces: Vec<String>,
     tail: Option<String>,
 }
@@ -29,7 +29,10 @@ impl fmt::Display for FQN {
             s.trim()
                 .replace(|c: char| !c.is_ascii_alphanumeric() && c != '_', "_")
         }
-        write!(f, "{}_{}", clean_string(&self.region), *self.region_idx)?;
+        write!(f, "{}", clean_string(&self.region))?;
+        if let Some(index) = self.region_idx {
+            write!(f, "_{}", *index)?;
+        }
         if !self.namespaces.is_empty() {
             write!(f, "__{}", clean_string(&self.namespaces.join("__")))?;
         }
@@ -43,7 +46,7 @@ impl fmt::Display for FQN {
 impl FQN {
     pub fn new(
         region: &str,
-        region_idx: RegionIndex,
+        region_idx: Option<RegionIndex>,
         namespaces: &[String],
         tail: Option<String>,
     ) -> Self {
@@ -92,11 +95,18 @@ struct RegionDataInner<F> {
 }
 
 #[derive(Debug)]
+enum RegionKind {
+    Region,
+    Table,
+}
+
+#[derive(Debug)]
 pub struct RegionDataImpl<F> {
     #[allow(dead_code)]
     /// The name of the region. Not required to be unique.
     name: String,
-    index: RegionIndex,
+    kind: RegionKind,
+    index: Option<RegionIndex>,
     inner: RegionDataInner<F>,
     shared: Option<SharedRegionData>,
 }
@@ -105,10 +115,16 @@ impl<F: Default + Clone> RegionDataImpl<F> {
     pub fn new<S: Into<String>>(name: S, index: RegionIndex) -> Self {
         Self {
             name: name.into(),
-            index,
+            kind: RegionKind::Region,
+            index: Some(index),
             inner: Default::default(),
             shared: Some(Default::default()),
         }
+    }
+
+    pub fn mark_as_table(&mut self) {
+        self.index = None;
+        self.kind = RegionKind::Table;
     }
 
     pub fn selectors_enabled_for_row(&self, row: usize) -> Vec<&Selector> {
@@ -256,6 +272,10 @@ impl<F: Default + Clone> RegionDataImpl<F> {
             }
         }
     }
+
+    pub fn is_table(&self) -> bool {
+        matches!(self.kind, RegionKind::Table)
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -287,7 +307,9 @@ impl<F: Default + Clone> RegionData<'_, F> {
 pub struct Regions<F> {
     shared: SharedRegionData,
     regions: Vec<RegionDataImpl<F>>,
+    tables: Vec<RegionDataImpl<F>>,
     current: Option<RegionDataImpl<F>>,
+    current_is_table: bool,
 }
 
 impl<F: Default + Clone> Regions<F> {
@@ -301,12 +323,19 @@ impl<F: Default + Clone> Regions<F> {
             region_name(),
             self.regions.len().into(),
         ));
+        self.current_is_table = false;
     }
 
     pub fn commit(&mut self) {
         let mut region = self.current.take().unwrap();
         self.shared += region.shared.take().unwrap();
-        self.regions.push(region);
+
+        if self.current_is_table {
+            region.mark_as_table();
+            self.tables.push(region);
+        } else {
+            self.regions.push(region);
+        }
     }
 
     pub fn edit<FN, FR>(&mut self, f: FN) -> Option<FR>
@@ -326,7 +355,15 @@ impl<F: Default + Clone> Regions<F> {
                 inner,
                 shared: &self.shared,
             })
+            .chain(self.tables.iter().map(|inner| RegionData {
+                inner,
+                shared: &self.shared,
+            }))
             .collect()
+    }
+
+    pub fn mark_current_as_table(&mut self) {
+        self.current_is_table = true;
     }
 }
 
@@ -471,13 +508,25 @@ impl<'r, 'io, F: Field> RegionRow<'r, 'io, F> {
     }
 
     #[inline]
-    pub fn region_index(&self) -> usize {
-        *self.region.inner.index
+    pub fn region_index(&self) -> Option<usize> {
+        self.region.inner.index.map(|f| *f)
     }
 
     #[inline]
     pub fn row_number(&self) -> usize {
         self.row.row
+    }
+
+    #[inline]
+    pub fn header(&self) -> String {
+        match (&self.region.inner.kind, &self.region.inner.index) {
+            (RegionKind::Region, None) => format!("region <unk> {:?}", self.region.inner.name),
+            (RegionKind::Region, Some(index)) => {
+                format!("region {} {:?}", **index, self.region.inner.name)
+            }
+            (RegionKind::Table, None) => format!("table {:?}", self.region.inner.name),
+            _ => unreachable!(),
+        }
     }
 }
 

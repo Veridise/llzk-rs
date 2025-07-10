@@ -221,23 +221,22 @@ pub trait Lowering {
     }
 
     #[allow(clippy::needless_lifetimes)]
-    fn lower_constraints<'c, R>(
+    fn lower_constraints<'c, R, S>(
         &'c self,
         gate: &Gate<Self::F>,
         resolver: R,
-        region_index: usize,
-        region_name: &str,
+        region_header: S,
         row: Option<usize>,
     ) -> impl Iterator<Item = Result<CircuitStmt<Value<Self::CellOutput>>>>
     where
         R: QueryResolver<Self::F> + SelectorResolver,
+        S: ToString,
     {
         let stmts = match row {
             Some(row) => vec![Ok(CircuitStmt::Comment(format!(
-                "gate '{}' @ region {} {:?} @ row {}",
+                "gate '{}' @ {} @ row {}",
                 gate.name(),
-                region_index,
-                region_name,
+                region_header.to_string(),
                 row
             )))],
             None => vec![],
