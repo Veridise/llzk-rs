@@ -319,10 +319,10 @@ impl<F: Default + Clone> Regions<F> {
         N: FnOnce() -> NR,
     {
         assert!(self.current.is_none());
-        self.current = Some(RegionDataImpl::new(
-            region_name(),
-            self.regions.len().into(),
-        ));
+        let name: String = region_name().into();
+        let index = self.regions.len();
+        log::debug!("Region {index} {name:?} is the current region");
+        self.current = Some(RegionDataImpl::new(name, index.into()));
         self.current_is_table = false;
     }
 
@@ -330,9 +330,19 @@ impl<F: Default + Clone> Regions<F> {
         let mut region = self.current.take().unwrap();
 
         if self.current_is_table {
+            log::debug!(
+                "Region {} {:?} is a table",
+                *region.index.unwrap(),
+                region.name
+            );
             region.mark_as_table();
             self.tables.push(region);
         } else {
+            log::debug!(
+                "Region {} {:?} added to the regions list",
+                *region.index.unwrap(),
+                region.name
+            );
             self.shared += region.shared.take().unwrap();
             self.regions.push(region);
         }
