@@ -419,7 +419,17 @@ impl<F: PrimeField + 'static> LiftLike for Lift<F> {
 impl<F: PrimeField + 'static> ConstantTimeEq for Lift<F> {
     fn ct_eq(&self, other: &Self) -> Choice {
         arena!(|arena: &mut MutexGuard<BumpArena>| {
-            let [lhs, rhs] = Self::unwrap_many([self, other], arena);
+            let [lhs, rhs] = Self::unwrap_many(
+                [
+                    &self
+                        .canonicalized_in_arena(arena)
+                        .simplified_in_arena(arena),
+                    &other
+                        .canonicalized_in_arena(arena)
+                        .simplified_in_arena(arena),
+                ],
+                arena,
+            );
             lhs.ct_eq(&rhs)
         })
     }
@@ -428,7 +438,17 @@ impl<F: PrimeField + 'static> ConstantTimeEq for Lift<F> {
 impl<F: PrimeField> PartialEq for Lift<F> {
     fn eq(&self, other: &Self) -> bool {
         arena!(|arena: &mut MutexGuard<BumpArena>| {
-            let [lhs, rhs] = Self::unwrap_many([self, other], arena);
+            let [lhs, rhs] = Self::unwrap_many(
+                [
+                    &self
+                        .canonicalized_in_arena(arena)
+                        .simplified_in_arena(arena),
+                    &other
+                        .canonicalized_in_arena(arena)
+                        .simplified_in_arena(arena),
+                ],
+                arena,
+            );
             lhs.eq(&rhs)
         })
     }

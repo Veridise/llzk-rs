@@ -225,6 +225,7 @@ pub trait Lowering {
         &'c self,
         gate: &Gate<Self::F>,
         resolver: R,
+        region_index: usize,
         region_name: &str,
         row: Option<usize>,
     ) -> impl Iterator<Item = Result<CircuitStmt<Value<Self::CellOutput>>>>
@@ -233,8 +234,9 @@ pub trait Lowering {
     {
         let stmts = match row {
             Some(row) => vec![Ok(CircuitStmt::Comment(format!(
-                "gate '{}' @ region {:?} @ row {}",
+                "gate '{}' @ region {} {:?} @ row {}",
                 gate.name(),
+                region_index,
                 region_name,
                 row
             )))],

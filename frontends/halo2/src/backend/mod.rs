@@ -166,7 +166,7 @@ impl CallGatesStrat {
             selectors: &selectors,
             queries: &queries,
         };
-        let stmts = scope.lower_constraints(gate, resolver, "", None);
+        let stmts = scope.lower_constraints(gate, resolver, 0, "", None);
         backend.lower_stmts(&scope, stmts)?;
         backend.on_scope_end(&scope)
     }
@@ -211,7 +211,13 @@ impl CodegenStrategy for InlineConstraintsStrat {
             // one given.
             syn.region_gates()
                 .flat_map(|(gate, r)| {
-                    scope.lower_constraints(gate, r, r.region_name(), Some(r.row_number()))
+                    scope.lower_constraints(
+                        gate,
+                        r,
+                        r.region_index(),
+                        r.region_name(),
+                        Some(r.row_number()),
+                    )
                 })
                 .chain(self.inter_region_constraints(scope, syn))
                 .collect::<Result<Vec<_>>>()

@@ -467,6 +467,11 @@ impl<'r, 'io, F: Field> RegionRow<'r, 'io, F> {
     }
 
     #[inline]
+    pub fn region_index(&self) -> usize {
+        *self.region.inner.index
+    }
+
+    #[inline]
     pub fn row_number(&self) -> usize {
         self.row.row
     }
