@@ -48,8 +48,7 @@ impl fmt::Display for FieldId {
 pub enum FuncIO {
     Arg(ArgNo),
     Field(FieldId),
-    // Instructs the backend that it needs to create a temporary for this row and column.
-    Temp(usize, usize),
+    Advice(usize, usize),
 }
 
 impl From<ArgNo> for FuncIO {
@@ -66,7 +65,7 @@ impl From<FieldId> for FuncIO {
 
 impl From<(usize, usize)> for FuncIO {
     fn from(value: (usize, usize)) -> Self {
-        Self::Temp(value.0, value.1)
+        Self::Advice(value.0, value.1)
     }
 }
 

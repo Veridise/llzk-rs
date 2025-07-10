@@ -29,6 +29,12 @@ pub struct CircuitSynthesis<F: Field> {
 
 pub type AnyCell = (Column<Any>, usize);
 
+/// Minimal data about a region  required by backends
+pub struct RegionSummary {
+    start: RegionStart,
+    name: String,
+}
+
 impl<F: Field> CircuitSynthesis<F> {
     fn init<C: CircuitWithIO<F>>() -> (Self, C::Config) {
         let mut cs = ConstraintSystem::default();
@@ -166,15 +172,15 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
-        if self.in_phase(FirstPhase) {
-            self.regions.push(region_name);
-        }
+        //if self.in_phase(FirstPhase) {
+        self.regions.push(region_name);
+        //}
     }
 
     fn exit_region(&mut self) {
-        if self.in_phase(FirstPhase) {
-            self.regions.commit();
-        }
+        //if self.in_phase(FirstPhase) {
+        self.regions.commit();
+        //}
     }
 
     fn enable_selector<A, AR>(&mut self, _: A, selector: &Selector, row: usize) -> Result<(), Error>
@@ -206,8 +212,8 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         A: FnOnce() -> AR,
     {
         self.regions.edit(|region| {
-            region.note_advice(advice, row, name().into());
             region.update_extent(advice.into(), row);
+            region.note_advice(advice, row, name().into());
         });
         Ok(())
     }

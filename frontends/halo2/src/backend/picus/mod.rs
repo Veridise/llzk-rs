@@ -139,7 +139,7 @@ struct PicusBackendInner<'a, L> {
     eqv_vars: HashMap<String, VarEqvClassesRef>,
     current_scope: Option<PicusModuleLowering<L>>,
     enqueued_stmts: HashMap<RegionIndex, Vec<CircuitStmt<Expression<L>>>>,
-    lift_guard: LiftIRGuard<'a>,
+    _lift_guard: LiftIRGuard<'a>,
     _marker: PhantomData<L>,
 }
 
@@ -252,7 +252,7 @@ impl<L: LiftLike> PicusBackendInner<'_, L> {
         module
             .borrow_mut()
             .add_vars(syn.seen_advice_cells().map(|((col, row), name)| {
-                VarKeySeed::IO(FuncIO::Temp(*col, *row), Some(name.clone()))
+                VarKeySeed::IO(FuncIO::Advice(*col, *row), Some(name.clone()))
             }));
         self.modules.push(module.clone());
         let eqv_vars = VarEqvClassesRef::default();
@@ -354,7 +354,7 @@ impl<F: Field> QueryResolver<F> for OnlyAdviceQueriesResolver<'_, F> {
             .find_region(&self.region)
             .ok_or_else(|| anyhow!("Unrecognized region {:?}", self.region))?;
         Ok((
-            ResolvedQuery::IO(FuncIO::Temp(query.column_index(), *start + offset)),
+            ResolvedQuery::IO(FuncIO::Advice(query.column_index(), *start + offset)),
             None,
         ))
     }
@@ -386,7 +386,7 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<
                 modules: Default::default(),
                 _marker: Default::default(),
                 enqueued_stmts: Default::default(),
-                lift_guard: LiftIRGuard::lock(enable_lifting),
+                _lift_guard: LiftIRGuard::lock(enable_lifting),
                 current_scope: None,
             }
             .into(),

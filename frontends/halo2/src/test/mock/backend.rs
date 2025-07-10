@@ -306,7 +306,7 @@ impl Lowering for MockFuncRef {
             ResolvedQuery::IO(func_io) => Value::known(self.push_expr(match func_io {
                 FuncIO::Arg(arg_no) => MockExprIR::Arg(arg_no),
                 FuncIO::Field(field_id) => MockExprIR::Field(field_id),
-                FuncIO::Temp(col, row) => MockExprIR::Temp(col, row),
+                FuncIO::Advice(col, row) => MockExprIR::Temp(col, row),
             })),
         })
     }
@@ -326,7 +326,7 @@ impl Lowering for MockFuncRef {
             ResolvedQuery::IO(func_io) => Value::known(self.push_expr(match func_io {
                 FuncIO::Arg(arg_no) => MockExprIR::Arg(arg_no),
                 FuncIO::Field(field_id) => MockExprIR::Field(field_id),
-                FuncIO::Temp(col, row) => MockExprIR::Temp(col, row),
+                FuncIO::Advice(col, row) => MockExprIR::Temp(col, row),
             })),
         })
     }
@@ -346,7 +346,7 @@ impl Lowering for MockFuncRef {
             ResolvedQuery::IO(func_io) => Value::known(self.push_expr(match func_io {
                 FuncIO::Arg(arg_no) => MockExprIR::Arg(arg_no),
                 FuncIO::Field(field_id) => MockExprIR::Field(field_id),
-                FuncIO::Temp(col, row) => MockExprIR::Temp(col, row),
+                FuncIO::Advice(col, row) => MockExprIR::Temp(col, row),
             })),
         })
     }

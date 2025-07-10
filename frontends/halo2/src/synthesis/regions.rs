@@ -160,10 +160,10 @@ impl<F: Default + Clone> RegionDataImpl<F> {
         }
         self.inner.rows = Some((start, end));
 
-        if let Any::Advice(_) = column.column_type() {
-            self.inner.advice_columns.insert(column.try_into().unwrap());
-            self.allocate_advice_names();
-        }
+        //if let Any::Advice(_) = column.column_type() {
+        //    self.inner.advice_columns.insert(column.try_into().unwrap());
+        //    self.allocate_advice_names();
+        //}
     }
 
     /// Creates anonymous advice cells in the cells that are within the confines of the region.
@@ -328,12 +328,12 @@ impl<F: Default + Clone> Regions<F> {
 
     pub fn commit(&mut self) {
         let mut region = self.current.take().unwrap();
-        self.shared += region.shared.take().unwrap();
 
         if self.current_is_table {
             region.mark_as_table();
             self.tables.push(region);
         } else {
+            self.shared += region.shared.take().unwrap();
             self.regions.push(region);
         }
     }
@@ -355,10 +355,10 @@ impl<F: Default + Clone> Regions<F> {
                 inner,
                 shared: &self.shared,
             })
-            .chain(self.tables.iter().map(|inner| RegionData {
-                inner,
-                shared: &self.shared,
-            }))
+            //.chain(self.tables.iter().map(|inner| RegionData {
+            //    inner,
+            //    shared: &self.shared,
+            //}))
             .collect()
     }
 
@@ -431,7 +431,7 @@ impl<'io> Row<'io> {
         let as_output = self.resolve_as::<FieldId, C>(io.outputs(), col, rot)?;
 
         Ok(match (as_input, as_output) {
-            (None, None) => FuncIO::Temp(col, self.resolve_rotation(rot)?),
+            (None, None) => FuncIO::Advice(col, self.resolve_rotation(rot)?),
             (None, Some(r)) => r,
             (Some(r), None) => r,
             (Some(_), Some(_)) => bail!("Query is both an input and an output in main function"),
@@ -550,7 +550,7 @@ impl<F: Field> QueryResolver<F> for RegionRow<'_, '_, F> {
             io @ ResolvedQuery::IO(func_io) => Ok((
                 io,
                 Some(match func_io {
-                    FuncIO::Temp(col, row) => self.region.find_advice_name(col, row),
+                    FuncIO::Advice(col, row) => self.region.find_advice_name(col, row),
                     _ => FQN::new(&self.region.inner.name, self.region.inner.index, &[], None),
                 }),
             )),

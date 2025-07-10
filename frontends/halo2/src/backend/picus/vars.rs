@@ -1,7 +1,10 @@
 use picus::vars::Temp;
 pub use picus::vars::{VarKind, VarStr};
 
-use crate::{backend::func::FuncIO, synthesis::regions::FQN};
+use crate::{
+    backend::func::{ArgNo, FuncIO},
+    synthesis::regions::FQN,
+};
 
 fn prepend_fqn(fqn: Option<FQN>) -> String {
     match fqn {
@@ -14,7 +17,7 @@ fn prepend_fqn(fqn: Option<FQN>) -> String {
 pub enum VarKeySeed {
     IO(FuncIO, Option<FQN>),
     Temp,
-    Lifted(FuncIO, usize),
+    Lifted(usize),
 }
 
 impl VarKeySeed {
@@ -31,15 +34,15 @@ impl VarKeySeed {
 pub enum VarKey {
     IO(FuncIO),
     Temp,
-    Lifted(FuncIO, usize),
+    Lifted(usize),
 }
 
 impl VarKey {
     pub fn is_temp(&self) -> bool {
         match self {
-            VarKey::IO(func_io) => matches!(func_io, FuncIO::Temp(_, _)),
+            VarKey::IO(func_io) => matches!(func_io, FuncIO::Advice(_, _)),
             VarKey::Temp => true,
-            VarKey::Lifted(func_io, _) => matches!(func_io, FuncIO::Temp(_, _)),
+            VarKey::Lifted(_) => false,
         }
     }
 }
@@ -69,7 +72,7 @@ impl From<VarKeySeed> for VarKey {
         match seed {
             VarKeySeed::IO(func_io, _) => VarKey::IO(func_io),
             VarKeySeed::Temp => VarKey::Temp,
-            VarKeySeed::Lifted(func_io, idx) => VarKey::Lifted(func_io, idx),
+            VarKeySeed::Lifted(idx) => VarKey::Lifted(idx),
         }
     }
 }
@@ -82,23 +85,13 @@ impl From<VarKeySeed> for VarStr {
                 match func_io {
                     FuncIO::Arg(arg_no) => format!("Input_{arg_no}"),
                     FuncIO::Field(field_id) => format!("Output_{field_id}"),
-                    FuncIO::Temp(col, row) => format!("Temp_{col}_{row}"),
+                    FuncIO::Advice(col, row) => format!("Advice_{col}_{row}"),
                 }
             )
             .try_into()
             .unwrap(),
             VarKeySeed::Temp => "Temp_".to_owned().try_into().unwrap(),
-            VarKeySeed::Lifted(f, id) => format!(
-                "Lifted_{}{}",
-                match f {
-                    FuncIO::Arg(_) => "Input_",
-                    FuncIO::Field(_) => "Output_",
-                    FuncIO::Temp(_, _) => "",
-                },
-                id
-            )
-            .try_into()
-            .unwrap(),
+            VarKeySeed::Lifted(id) => format!("Lifted_Input_{}", id).try_into().unwrap(),
         }
     }
 }
@@ -107,7 +100,7 @@ impl VarKind for VarKey {
     fn is_input(&self) -> bool {
         match self {
             VarKey::IO(func_io) => matches!(func_io, FuncIO::Arg(_)),
-            VarKey::Lifted(FuncIO::Arg(_), _) => true,
+            VarKey::Lifted(_) => true,
             _ => false,
         }
     }
@@ -115,14 +108,13 @@ impl VarKind for VarKey {
     fn is_output(&self) -> bool {
         match self {
             VarKey::IO(func_io) => matches!(func_io, FuncIO::Field(_)),
-            VarKey::Lifted(FuncIO::Field(_), _) => true,
             _ => false,
         }
     }
 
     fn is_temp(&self) -> bool {
         match self {
-            VarKey::IO(func_io) => matches!(func_io, FuncIO::Temp(_, _)),
+            VarKey::IO(func_io) => matches!(func_io, FuncIO::Advice(_, _)),
             VarKey::Temp => true,
             _ => false,
         }

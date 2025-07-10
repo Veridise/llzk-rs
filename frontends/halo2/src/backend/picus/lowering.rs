@@ -202,8 +202,7 @@ impl<L: LiftLike> LiftLowering for PicusModuleLowering<L> {
         if self.lift_fixed {
             Ok(expr::var(
                 &self.module,
-                self.eqv_vars
-                    .add(VarKeySeed::Lifted(FuncIO::Arg(0.into()), id)),
+                self.eqv_vars.add(VarKeySeed::Lifted(id)),
             ))
         } else if let Some(f) = f {
             Ok(expr::r#const(FeltWrap(*f)))
