@@ -36,15 +36,6 @@ struct ModuleSummary {
 
 type TR<'a> = TextRepresentation<'a>;
 
-//impl fmt::Display for ModuleSummary {
-//    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//        writeln!(f, "; Number of inputs:      {}", self.input_count)?;
-//        writeln!(f,)?;
-//        writeln!(f,)?;
-//        writeln!(f,)
-//    }
-//}
-
 #[derive(Clone)]
 pub struct ModuleHeader(String);
 
@@ -200,7 +191,7 @@ impl<K: VarKind> Module<K> {
     }
 }
 
-impl<K: VarKind + Default + Clone> Module<K> {
+impl<K: VarKind + Default + Clone + fmt::Debug> Module<K> {
     pub fn new<S: Into<K> + Into<VarStr> + Clone>(
         name: String,
         inputs: impl Iterator<Item = S>,
@@ -221,7 +212,7 @@ impl<K: VarKind + Default + Clone> Module<K> {
     }
 }
 
-impl<K: VarKind + Default + Clone> ModuleWithVars<K> for Module<K> {
+impl<K: VarKind + Default + Clone + fmt::Debug> ModuleWithVars<K> for Module<K> {
     fn add_var<I: Into<K> + Into<VarStr> + Clone>(&mut self, k: I) -> VarStr {
         self.vars.insert(k)
     }
@@ -265,20 +256,3 @@ impl<K: VarKind> TextRepresentable for Module<K> {
         self.name.width_hint()
     }
 }
-
-//impl<K: VarKind> fmt::Display for Module<K> {
-//    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//        writeln!(f, "(begin-module {})", self.name)?;
-//        write!(f, "{}", self.summarize())?;
-//        for i in self.vars.inputs() {
-//            writeln!(f, "(input {i})")?;
-//        }
-//        for o in self.vars.outputs() {
-//            writeln!(f, "(output {o})")?;
-//        }
-//        for c in &self.stmts {
-//            write!(f, "{}", c.display())?;
-//        }
-//        writeln!(f, "(end-module) ; {}", self.name)
-//    }
-//}

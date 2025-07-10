@@ -39,7 +39,7 @@ impl TextRepresentable for VarStr {
     }
 }
 
-pub trait VarKind: Hash + Eq + PartialEq {
+pub trait VarKind: Hash + Eq + PartialEq + fmt::Debug {
     fn is_input(&self) -> bool;
 
     fn is_output(&self) -> bool;
@@ -122,7 +122,7 @@ impl<'a, K: VarKind> IntoIterator for &'a Vars<K> {
     }
 }
 
-impl<K: VarKind + Clone> Vars<K> {
+impl<K: VarKind + Clone + fmt::Debug> Vars<K> {
     /// Inserts a variable deriving its value from the key seed. If the key creates a var name that is
     /// already in use it gets uniqued. If the key was already in the vars table returns the
     /// preexisting value.
@@ -130,7 +130,12 @@ impl<K: VarKind + Clone> Vars<K> {
         let key = seed.clone().into();
 
         if self.0.contains_key(&key) {
-            return self.0[&key].clone();
+            let prev_name = self.0[&key].clone();
+            let new_name: VarStr = seed.into();
+            log::debug!(
+                "Key {key:?} was already inserted. Cached name is {prev_name:?} and the generated name is {new_name:?}"
+            );
+            return prev_name;
         }
         let unique_names = self
             .0
@@ -150,10 +155,12 @@ impl<K: VarKind + Clone> Vars<K> {
                         .expect("valid identifier")
                 }
             })
+            .inspect(|v| log::debug!("Testing if {v:?} is a fresh name"))
             .find(|v| !unique_names.contains(v.0.as_str()))
             .unwrap();
 
-        self.0.insert(key, v.clone());
+        self.0.insert(key.clone(), v.clone());
+        log::debug!("Returning {v:?} as the variable name for key {key:?}");
         v
     }
 }

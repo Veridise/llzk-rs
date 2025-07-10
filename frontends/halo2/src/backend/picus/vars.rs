@@ -27,7 +27,7 @@ impl VarKeySeed {
     }
 }
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
 pub enum VarKey {
     IO(FuncIO),
     Temp,

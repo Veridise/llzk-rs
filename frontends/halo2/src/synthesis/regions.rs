@@ -225,6 +225,10 @@ impl<F: Default + Clone> RegionDataImpl<F> {
             &self.inner.namespaces,
             name.into(),
         );
+        log::debug!(
+            "Recording advice assignment @ col = {}, row = {row}, name = {fqn}",
+            column.index()
+        );
         self.shared
             .as_mut()
             .unwrap()

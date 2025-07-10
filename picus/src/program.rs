@@ -142,14 +142,3 @@ impl<F: IntoPrime, K: VarKind> TextRepresentable for Program<F, K> {
         self.prime.width_hint()
     }
 }
-
-//impl<F: IntoPrime, K: VarKind> fmt::Display for Program<F, K> {
-//    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//        writeln!(f, "(prime-number {})",)?;
-//        writeln!(f)?;
-//        for module in &self.modules {
-//            writeln!(f, "{module}")?;
-//        }
-//        write!(f, "")
-//    }
-//}
