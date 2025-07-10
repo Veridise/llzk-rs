@@ -230,6 +230,10 @@ impl<K: VarKind + Default + Clone> ModuleWithVars<K> for Module<K> {
 impl<K: VarKind> TextRepresentable for Module<K> {
     fn to_repr(&self) -> TextRepresentation {
         let summary = self.summarize();
+        let mut sorted_inputs = self.vars.inputs().collect::<Vec<_>>();
+        sorted_inputs.sort();
+        let mut sorted_outputs = self.vars.outputs().collect::<Vec<_>>();
+        sorted_outputs.sort();
         owned_list!(&self.name)
             + [
                 format!("Number of inputs:      {}", summary.input_count),
@@ -241,16 +245,14 @@ impl<K: VarKind> TextRepresentable for Module<K> {
             .map(TR::owned_comment)
             .sum()
             + TR::owned_list(
-                &self
-                    .vars
-                    .inputs()
+                &sorted_inputs
+                    .into_iter()
                     .map(|i: &str| owned_list!("input", i).break_line().into())
                     .collect::<Vec<ListItem>>(),
             )
             + TR::owned_list(
-                &self
-                    .vars
-                    .outputs()
+                &sorted_outputs
+                    .into_iter()
                     .map(|o: &str| owned_list!("output", o).break_line().into())
                     .collect::<Vec<ListItem>>(),
             )

@@ -439,6 +439,11 @@ fn dequeue_stmts_impl<L: LiftLike>(
                     let selector_resolver = NullSelectorResolver;
                     lower_stmt(&stmt, scope, &query_resolver, &selector_resolver)
                 }))
+                .chain([Ok(CircuitStmt::Comment(format!(
+                    "End of in-flight statements @ Region {} (start row: {})",
+                    *region,
+                    *scope.find_region(&region).unwrap()
+                )))])
             }),
     )
 }
