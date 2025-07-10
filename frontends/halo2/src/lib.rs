@@ -23,7 +23,7 @@ pub use backend::Backend;
 pub use io::{CircuitIO, CircuitWithIO};
 pub use ir::{BinaryBoolOp, CircuitStmt};
 
-pub fn create_picus_backend<'b, L: LiftLike>(params: PicusParams) -> PicusBackend<L> {
+pub fn create_picus_backend<'b, L: LiftLike>(params: PicusParams) -> PicusBackend<'b, L> {
     PicusBackend::initialize(params)
 }
 

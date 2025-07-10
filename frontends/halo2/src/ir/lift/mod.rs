@@ -26,6 +26,37 @@ mod unwrapped;
 
 lazy_static::lazy_static! {
     pub static ref LIFT_EXPR_ARENA: Mutex<BumpArena> = Mutex::new(BumpArena::new());
+    static ref LIFTING_ENABLED: Mutex<Option<bool>> = Mutex::new(Default::default());
+    static ref LIFT_GUARD: Mutex<()> = Mutex::new(());
+}
+
+fn enable_lifting(enable: bool) -> Option<bool> {
+    // Set the lifting configuration
+    let mut guard = LIFTING_ENABLED.lock().unwrap();
+    guard.replace(enable)
+}
+
+fn is_lifting_enabled() -> bool {
+    LIFTING_ENABLED
+        .lock()
+        .unwrap()
+        .as_ref()
+        .copied()
+        .unwrap_or_default()
+}
+
+pub struct LiftIRGuard<'a> {
+    guard: MutexGuard<'a, ()>,
+    prev: Option<bool>,
+}
+
+impl LiftIRGuard<'_> {
+    pub fn lock(enable: bool) -> Self {
+        // Lock the guard to avoid others writing
+        let guard = LIFT_GUARD.lock().unwrap();
+        let prev = enable_lifting(enable);
+        Self { guard, prev }
+    }
 }
 
 macro_rules! arena {
@@ -66,7 +97,7 @@ pub trait LiftLike: Sized + PrimeField {
         let ident = |e| e;
         self.evaluate(
             &|_| false,
-            &|_, _| true,
+            &|_, _| is_lifting_enabled(),
             &or,
             &or,
             &or,
@@ -129,7 +160,6 @@ pub trait LiftLowering {
         value: &impl LiftLike<Inner = Self::F>,
         simplify_first: bool,
     ) -> Result<Self::Output> {
-        //arena!(|arena: &mut MutexGuard<BumpArena>| {
         if simplify_first {
             value.simplified()
         } else {
@@ -137,7 +167,9 @@ pub trait LiftLowering {
         }
         .evaluate(
             &|f| self.lower_constant(f),
-            &|id, f| self.lower_lifted(id, f),
+            &|id, f|  {
+                if is_lifting_enabled() {
+                self.lower_lifted(id, f) } else { self.lower_constant(f.ok_or_else(|| anyhow::anyhow!("Lifting is disabled but a lifted valued does not have a concrete fallback value"))?)}},
             &|lhs, rhs| self.lower_add(&lhs?, &rhs?),
             &|lhs, rhs| self.lower_sub(&lhs?, &rhs?),
             &|lhs, rhs| self.lower_mul(&lhs?, &rhs?),
@@ -148,7 +180,6 @@ pub trait LiftLowering {
             &|lhs, rhs| self.lower_sqrt_ratio(&lhs?, &rhs?),
             &|cond, lhs, rhs| self.lower_cond_select(cond, &lhs?, &rhs?),
         )
-        //})
     }
 }
 
@@ -291,11 +322,14 @@ impl<F: PrimeField> Lift<F> {
             |e| handle_unary_op::<F, F1, F2>(e, f1, f2)
         }
 
+        let concretize = !(keep_lifted && is_lifting_enabled());
+
         self.evaluate_in_arena(
             arena,
             &|f| Ok(*f),
             &|id, f| match f {
-                Some(inner) if !keep_lifted => Ok(*inner),
+                Some(inner) if concretize => Ok(*inner),
+                None if concretize => panic!("Lifting is disabled but the lifted value does not have a fallback concrete value"),
                 _ => Err((id, f.copied()).into()),
             },
             &mk_binop_handler(&|lhs, rhs| lhs + rhs, &LiftInner::Add),
@@ -402,6 +436,9 @@ impl<F: PrimeField + 'static> LiftLike for Lift<F> {
     }
 
     fn lift() -> Self {
+        if !is_lifting_enabled() {
+            panic!("Cannot call Lift::lift when lifting is disabled");
+        }
         arena!(|arena: &mut MutexGuard<BumpArena>| { arena.insert(LiftInner::lift()).into() })
     }
 
@@ -768,7 +805,9 @@ impl<F: PrimeField> PrimeField for Lift<F> {
     }
 
     fn is_odd(&self) -> Choice {
-        unimplemented!()
+        self.concretized()
+            .map(|f| f.is_odd())
+            .expect("Calling is_odd on a symbolic value is undeterministic")
     }
 
     const MODULUS: &'static str = F::MODULUS;
@@ -794,20 +833,35 @@ impl<F: PrimeField + Ord> Ord for Lift<F> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         let cself = self.canonicalized();
         let cother = other.canonicalized();
+
+        if !is_lifting_enabled() {
+            let cself = cself
+                .concretized()
+                .expect("Lifting is disabled but self does not have a fallback concrete value");
+            let cother = cother
+                .concretized()
+                .expect("Lifting is disabled but other does not have a fallback concrete value");
+            return cself.cmp(&cother);
+        }
         cself.get_index().unwrap().cmp(&cother.get_index().unwrap())
     }
 }
 
 impl<F: PrimeField + PartialOrd> PartialOrd for Lift<F> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.get_index()
-            .zip(other.get_index())
+        self.concretized()
+            .zip(other.concretized())
             .and_then(|(lhs, rhs)| lhs.partial_cmp(&rhs))
+            .or_else(|| {
+                self.get_index()
+                    .zip(other.get_index())
+                    .and_then(|(lhs, rhs)| lhs.partial_cmp(&rhs))
+            })
     }
 }
 
 impl<F: PrimeField + FromUniformBytes<64>> FromUniformBytes<64> for Lift<F> {
     fn from_uniform_bytes(bytes: &[u8; 64]) -> Self {
-        Self::from_const(F::from_uniform_bytes(bytes))
+        Self::lift_value(F::from_uniform_bytes(bytes))
     }
 }

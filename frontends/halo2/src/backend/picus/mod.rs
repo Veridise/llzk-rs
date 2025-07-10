@@ -16,7 +16,7 @@ use super::{
 use crate::{
     gates::AnyQuery,
     halo2::{Advice, Expression, Field, Instance, PrimeField, RegionIndex, Selector, Value},
-    ir::CircuitStmt,
+    ir::{lift::LiftIRGuard, CircuitStmt},
     synthesis::{regions::FQN, CircuitSynthesis},
     CircuitIO, EventSender, LiftLike,
 };
@@ -133,22 +133,23 @@ impl Default for PicusParams {
     }
 }
 
-struct PicusBackendInner<L> {
+struct PicusBackendInner<'a, L> {
     params: PicusParams,
     modules: Vec<PicusModuleRef>,
     eqv_vars: HashMap<String, VarEqvClassesRef>,
     current_scope: Option<PicusModuleLowering<L>>,
     enqueued_stmts: HashMap<RegionIndex, Vec<CircuitStmt<Expression<L>>>>,
+    lift_guard: LiftIRGuard<'a>,
     _marker: PhantomData<L>,
 }
 
 #[derive(Clone)]
-pub struct PicusEventReceiver<L> {
-    inner: Rc<RefCell<PicusBackendInner<L>>>,
+pub struct PicusEventReceiver<'a, L> {
+    inner: Rc<RefCell<PicusBackendInner<'a, L>>>,
 }
 
-pub struct PicusBackend<L> {
-    inner: Rc<RefCell<PicusBackendInner<L>>>,
+pub struct PicusBackend<'a, L> {
+    inner: Rc<RefCell<PicusBackendInner<'a, L>>>,
 }
 
 fn mk_io<F, I, O>(count: usize, f: F) -> impl Iterator<Item = O>
@@ -160,8 +161,8 @@ where
     (0..count).map(move |i| f(i.into()))
 }
 
-impl<L: PrimeField> PicusBackend<L> {
-    pub fn event_receiver(&self) -> PicusEventReceiver<L> {
+impl<'a, L: PrimeField> PicusBackend<'a, L> {
+    pub fn event_receiver(&self) -> PicusEventReceiver<'a, L> {
         PicusEventReceiver {
             inner: self.inner.clone(),
         }
@@ -218,8 +219,8 @@ impl<L: PrimeField> PicusBackend<L> {
 
     fn optimization_pipeline(&self) -> Pipeline<L> {
         PipelineBuilder::<L>::new()
-            //.add_pass::<FoldExprsPass>()
-            //.add_pass_with_params::<EnsureMaxExprSizePass>(self.inner.borrow().params.expr_cutoff)
+            .add_pass::<FoldExprsPass>()
+            .add_pass_with_params::<EnsureMaxExprSizePass>(self.inner.borrow().params.expr_cutoff)
             //.add_module_scope_expr_pass_fn(|name| {
             //    let eqv_classes = self
             //        .eqv_vars
@@ -234,7 +235,7 @@ impl<L: PrimeField> PicusBackend<L> {
     }
 }
 
-impl<L: LiftLike> PicusBackendInner<L> {
+impl<L: LiftLike> PicusBackendInner<'_, L> {
     fn add_module<O>(
         &mut self,
         name: String,
@@ -264,7 +265,7 @@ impl<L: LiftLike> PicusBackendInner<L> {
 
 macro_rules! codegen_impl {
     ($t:ident) => {
-        impl<'c, L: LiftLike> Codegen<'c> for $t<L> {
+        impl<'c, L: LiftLike> Codegen<'c> for $t<'c, L> {
             type FuncOutput = PicusModuleLowering<L>;
             type F = L;
 
@@ -370,8 +371,9 @@ impl SelectorResolver for NullSelectorResolver {
     }
 }
 
-impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<L> {
+impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<'c, L> {
     fn initialize(params: PicusParams) -> Self {
+        let enable_lifting = params.lift_fixed;
         let inner: Rc<RefCell<PicusBackendInner<L>>> = Rc::new(
             PicusBackendInner {
                 params,
@@ -379,6 +381,7 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<
                 modules: Default::default(),
                 _marker: Default::default(),
                 enqueued_stmts: Default::default(),
+                lift_guard: LiftIRGuard::lock(enable_lifting),
                 current_scope: None,
             }
             .into(),
@@ -393,12 +396,6 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<
         Ok(output)
     }
 }
-
-//fn lowering_helpers<L: Field, FO>(
-//    f: impl FnOnce(&dyn QueryResolver<L>, &dyn SelectorResolver) -> FO,
-//) -> FO {
-//    f(&OnlyAdviceQueriesResolver::default(), &NullSelectorResolver)
-//}
 
 fn lower_stmt<L: LiftLike>(
     stmt: &CircuitStmt<Expression<L>>,
@@ -446,7 +443,7 @@ fn dequeue_stmts_impl<L: LiftLike>(
     )
 }
 
-impl<L: LiftLike> PicusBackendInner<L> {
+impl<L: LiftLike> PicusBackendInner<'_, L> {
     pub fn enqueue_stmts(
         &mut self,
         region: RegionIndex,
@@ -472,7 +469,7 @@ impl<L: LiftLike> PicusBackendInner<L> {
     }
 }
 
-impl<L: LiftLike> EventReceiver for PicusEventReceiver<L> {
+impl<L: LiftLike> EventReceiver for PicusEventReceiver<'_, L> {
     type Message = EmitStmtsMessage<L>;
 
     fn accept(&self, msg: &Self::Message) -> Result<()> {
