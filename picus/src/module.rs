@@ -190,6 +190,13 @@ impl<K: VarKind> Module<K> {
         self.stmts.extend_from_slice(stmts)
     }
 
+    pub fn inputs_as_exprs(&self) -> anyhow::Result<Vec<Expr>> {
+        self.vars
+            .inputs()
+            .map(|input| Ok(expr::known_var(&VarStr::try_from(input.to_owned())?)))
+            .collect()
+    }
+
     fn summarize(&self) -> ModuleSummary {
         let input_count = self.vars.inputs().count();
         let output_count = self.vars.outputs().count();
