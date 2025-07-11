@@ -2,11 +2,12 @@ use std::{collections::HashMap, fmt, rc::Rc};
 
 use anyhow::Result;
 use impls::{BinaryExpr, BinaryOp, ConstExpr, ConstraintKind, NegExpr, OpFolder, OpLike, VarExpr};
-use traits::{ConstantFolding, ExprLike, ExprSize, MaybeVarLike, WrappedExpr};
+use traits::{ConstantFolding, ConstraintExpr, ExprLike, ExprSize, MaybeVarLike, WrappedExpr};
 
 use crate::{
     display::TextRepresentable,
     felt::Felt,
+    stmt::traits::ConstraintLike,
     vars::{VarAllocator, VarStr},
 };
 
@@ -78,6 +79,16 @@ impl<T: TextRepresentable + ?Sized> TextRepresentable for Wrap<T> {
     }
 }
 
+impl<T: ConstraintLike + ?Sized> ConstraintLike for Wrap<T> {
+    fn is_constraint(&self) -> bool {
+        self.as_ref().is_constraint()
+    }
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
+        self.as_ref().constraint_expr()
+    }
+}
+
 impl<T: ExprLike + 'static> ExprLike for Wrap<T> {}
 impl ExprLike for Wrap<dyn ExprLike> {}
 
@@ -101,7 +112,7 @@ pub(crate) fn known_var(var: &VarStr) -> Expr {
     Wrap::new(VarExpr::new(var.clone()))
 }
 
-fn binop<K: OpLike>(kind: K, lhs: &Expr, rhs: &Expr) -> Expr {
+fn binop(kind: BinaryOp, lhs: &Expr, rhs: &Expr) -> Expr {
     Wrap::new(BinaryExpr::new(kind.clone(), lhs.clone(), rhs.clone()))
 }
 
@@ -121,24 +132,28 @@ pub fn div(lhs: &Expr, rhs: &Expr) -> Expr {
     binop(BinaryOp::Div, lhs, rhs)
 }
 
+fn constraint(kind: ConstraintKind, lhs: &Expr, rhs: &Expr) -> Expr {
+    Wrap::new(BinaryExpr::new(kind.clone(), lhs.clone(), rhs.clone()))
+}
+
 pub fn lt(lhs: &Expr, rhs: &Expr) -> Expr {
-    binop(ConstraintKind::Lt, lhs, rhs)
+    constraint(ConstraintKind::Lt, lhs, rhs)
 }
 
 pub fn le(lhs: &Expr, rhs: &Expr) -> Expr {
-    binop(ConstraintKind::Le, lhs, rhs)
+    constraint(ConstraintKind::Le, lhs, rhs)
 }
 
 pub fn gt(lhs: &Expr, rhs: &Expr) -> Expr {
-    binop(ConstraintKind::Gt, lhs, rhs)
+    constraint(ConstraintKind::Gt, lhs, rhs)
 }
 
 pub fn ge(lhs: &Expr, rhs: &Expr) -> Expr {
-    binop(ConstraintKind::Ge, lhs, rhs)
+    constraint(ConstraintKind::Ge, lhs, rhs)
 }
 
 pub fn eq(lhs: &Expr, rhs: &Expr) -> Expr {
-    binop(ConstraintKind::Eq, lhs, rhs)
+    constraint(ConstraintKind::Eq, lhs, rhs)
 }
 
 pub fn neg(expr: &Expr) -> Expr {

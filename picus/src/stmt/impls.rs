@@ -6,7 +6,7 @@ use crate::{
     display::{ListPunctuation, TextRepresentable, TextRepresentation},
     expr::{
         known_var,
-        traits::{ConstantFolding, ExprLike, ExprSize, MaybeVarLike, WrappedExpr},
+        traits::{ConstantFolding, ConstraintExpr, ExprLike, ExprSize, MaybeVarLike, WrappedExpr},
         Expr,
     },
     felt::Felt,
@@ -25,9 +25,9 @@ use super::{
 // CallStmt
 //===----------------------------------------------------------------------===//
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Outputs(Vec<VarStr>);
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Inputs(Vec<Expr>);
 
 impl Outputs {
@@ -104,6 +104,7 @@ impl TextRepresentable for Inputs {
     }
 }
 
+#[derive(Debug)]
 pub struct CallStmt {
     callee: String,
     inputs: Inputs,
@@ -150,6 +151,10 @@ impl ExprArgs for CallStmt {
 impl ConstraintLike for CallStmt {
     fn is_constraint(&self) -> bool {
         false
+    }
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
+        None
     }
 }
 
@@ -210,6 +215,7 @@ impl StmtLike for CallStmt {}
 // ConstraintStmt
 //===----------------------------------------------------------------------===//
 
+#[derive(Debug)]
 pub struct ConstraintStmt(Expr);
 
 impl ConstraintStmt {
@@ -234,7 +240,11 @@ impl ExprArgs for ConstraintStmt {
 
 impl ConstraintLike for ConstraintStmt {
     fn is_constraint(&self) -> bool {
-        true
+        self.0.is_constraint()
+    }
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
+        self.0.constraint_expr()
     }
 }
 
@@ -268,6 +278,7 @@ impl StmtLike for ConstraintStmt {}
 // CommentLine
 //===----------------------------------------------------------------------===//
 
+#[derive(Debug)]
 pub struct CommentLine(String);
 
 impl CommentLine {
@@ -289,6 +300,10 @@ impl ExprArgs for CommentLine {
 impl ConstraintLike for CommentLine {
     fn is_constraint(&self) -> bool {
         false
+    }
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
+        None
     }
 }
 

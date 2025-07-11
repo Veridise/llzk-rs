@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     fmt,
     hash::Hash,
+    ops::Index,
 };
 
 use regex::Regex;
@@ -48,9 +49,10 @@ pub trait VarKind: Hash + Eq + PartialEq + fmt::Debug {
 }
 
 pub trait Temp: VarKind + Sized {
+    type Ctx: Copy;
     type Output: Into<Self> + Into<VarStr> + Clone;
 
-    fn temp() -> Self::Output;
+    fn temp(ctx: Self::Ctx) -> Self::Output;
 }
 
 pub trait VarAllocator {
@@ -69,6 +71,11 @@ impl<K: VarKind> Vars<K> {
 
     pub fn iter(&self) -> impl Iterator<Item = (&K, &VarStr)> {
         self.0.iter()
+    }
+
+    /// Lookup a var's key in the vars table. This operation is linear.
+    pub fn lookup_key(&self, var: &VarStr) -> Option<&K> {
+        self.0.iter().find(|(_, v)| **v == *var).map(|(k, _)| k)
     }
 
     pub fn inputs(&self) -> impl Iterator<Item = &str> {
@@ -99,6 +106,14 @@ impl<K: VarKind> Vars<K> {
     /// Inserts a variable using the given VarStr. The behavior mimics `HashMap::insert`.
     pub fn insert_with_value(&mut self, key: K, v: VarStr) {
         self.0.insert(key, v);
+    }
+}
+
+impl<K: VarKind> Index<&K> for Vars<K> {
+    type Output = VarStr;
+
+    fn index(&self, index: &K) -> &Self::Output {
+        &self.0[&index]
     }
 }
 

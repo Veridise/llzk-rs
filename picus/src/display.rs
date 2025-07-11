@@ -396,13 +396,6 @@ impl<'a> Add for TextRepresentation<'a> {
             }
         }
         add_inner(self.inner, rhs.inner)
-        //if matches!(self.inner, TRInner::Nothing) {
-        //    return rhs;
-        //}
-        //if matches!(rhs.inner, TRInner::Nothing) {
-        //    return self;
-        //}
-        //TRInner::Concat(Box::new(self), Box::new(rhs)).into()
     }
 }
 

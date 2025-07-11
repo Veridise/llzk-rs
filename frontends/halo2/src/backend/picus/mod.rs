@@ -30,13 +30,15 @@ use lowering::{PicusExpr, PicusModuleRef, VarEqvClassesRef};
 use midnight_halo2_proofs::plonk::{AdviceQuery, FixedQuery, InstanceQuery};
 use num_bigint::BigUint;
 use picus::{
-    expr::Expr,
     felt::{Felt, IntoPrime},
-    opt::{EnsureMaxExprSizePass, FoldExprsPass, MutOptimizer as _},
+    opt::{
+        passes::{ConsolidateVarNamesPass, EnsureMaxExprSizePass, FoldExprsPass},
+        MutOptimizer as _,
+    },
     vars::VarStr,
-    ModuleLike as _, ModuleWithVars as _,
+    ModuleWithVars as _,
 };
-use vars::{VarKey, VarKeySeed};
+use vars::{NamingConvention, VarKey, VarKeySeed, VarKeySeedInner};
 
 pub type PicusModule = picus::Module<VarKey>;
 pub type PicusOutput<F> = picus::Program<FeltWrap<F>, VarKey>;
@@ -47,6 +49,7 @@ pub struct PicusParams {
     expr_cutoff: usize,
     entrypoint: String,
     lift_fixed: bool,
+    naming_convention: NamingConvention,
 }
 
 impl PicusParams {
@@ -115,6 +118,11 @@ impl PicusParamsBuilder {
         p.lift_fixed = true;
         Self(p)
     }
+
+    pub fn short_names(mut self) -> Self {
+        self.0.naming_convention = NamingConvention::Short;
+        self
+    }
 }
 
 impl From<PicusParamsBuilder> for PicusParams {
@@ -129,6 +137,7 @@ impl Default for PicusParams {
             expr_cutoff: 10,
             entrypoint: "Main".to_owned(),
             lift_fixed: false,
+            naming_convention: NamingConvention::Default,
         }
     }
 }
@@ -148,17 +157,30 @@ pub struct PicusEventReceiver<'a, L> {
     inner: Rc<RefCell<PicusBackendInner<'a, L>>>,
 }
 
+impl<L> PicusEventReceiver<'_, L> {
+    fn naming_convention(&self) -> NamingConvention {
+        self.inner.borrow().params.naming_convention
+    }
+}
+
 pub struct PicusBackend<'a, L> {
     inner: Rc<RefCell<PicusBackendInner<'a, L>>>,
 }
 
-fn mk_io<F, I, O>(count: usize, f: F) -> impl Iterator<Item = O>
+impl<L> PicusBackend<'_, L> {
+    fn naming_convention(&self) -> NamingConvention {
+        self.inner.borrow().params.naming_convention
+    }
+}
+
+fn mk_io<F, I, O, C>(count: usize, f: F, c: C) -> impl Iterator<Item = O>
 where
     O: Into<VarKey> + Into<VarStr>,
     I: From<usize>,
-    F: Fn(I) -> O + 'static,
+    F: Fn(I, C) -> O + 'static,
+    C: Copy,
 {
-    (0..count).map(move |i| f(i.into()))
+    (0..count).map(move |i| f(i.into(), c))
 }
 
 impl<'a, L: PrimeField> PicusBackend<'a, L> {
@@ -218,9 +240,14 @@ impl<'a, L: PrimeField> PicusBackend<'a, L> {
     }
 
     fn optimization_pipeline(&self) -> Pipeline<L> {
+        let params = &self.inner.borrow().params;
         PipelineBuilder::<L>::new()
             .add_pass::<FoldExprsPass>()
-            .add_pass_with_params::<EnsureMaxExprSizePass>(self.inner.borrow().params.expr_cutoff)
+            .add_pass::<ConsolidateVarNamesPass>()
+            .add_pass_with_params::<EnsureMaxExprSizePass<NamingConvention>>((
+                params.expr_cutoff,
+                params.naming_convention,
+            ))
             //.add_module_scope_expr_pass_fn(|name| {
             //    let eqv_classes = self
             //        .eqv_vars
@@ -252,12 +279,21 @@ impl<L: LiftLike> PicusBackendInner<'_, L> {
         module
             .borrow_mut()
             .add_vars(syn.seen_advice_cells().map(|((col, row), name)| {
-                VarKeySeed::IO(FuncIO::Advice(*col, *row), Some(name.clone()))
+                VarKeySeed::new(
+                    VarKeySeedInner::IO(FuncIO::Advice(*col, *row), Some(name.clone())),
+                    self.params.naming_convention,
+                )
             }));
         self.modules.push(module.clone());
         let eqv_vars = VarEqvClassesRef::default();
         self.eqv_vars.insert(name.clone(), eqv_vars.clone());
-        let scope = PicusModuleLowering::new(module, self.params.lift_fixed, eqv_vars, regions);
+        let scope = PicusModuleLowering::new(
+            module,
+            self.params.lift_fixed,
+            eqv_vars,
+            regions,
+            self.params.naming_convention,
+        );
         log::debug!("Setting the scope to {name}");
         self.current_scope = Some(scope.clone());
         Ok(scope)
@@ -285,10 +321,11 @@ macro_rules! codegen_impl {
                 Self::FuncOutput: 'f,
                 'c: 'f,
             {
+                let nc = self.naming_convention();
                 self.inner.borrow_mut().add_module(
                     name.to_owned(),
-                    mk_io(selectors.len() + queries.len(), VarKeySeed::arg),
-                    mk_io(0, VarKeySeed::field),
+                    mk_io(selectors.len() + queries.len(), VarKeySeed::arg, nc),
+                    mk_io(0, VarKeySeed::field, nc),
                     syn,
                 )
             }
@@ -304,15 +341,18 @@ macro_rules! codegen_impl {
                 let ep = self.inner.borrow().entrypoint();
                 let instance_io = syn.instance_io();
                 let advice_io = syn.advice_io();
+                let nc = self.naming_convention();
                 self.inner.borrow_mut().add_module(
                     ep,
                     mk_io(
                         instance_io.inputs().len() + advice_io.inputs().len(),
                         VarKeySeed::arg,
+                        nc,
                     ),
                     mk_io(
                         instance_io.outputs().len() + advice_io.outputs().len(),
                         VarKeySeed::field,
+                        nc,
                     ),
                     syn,
                 )

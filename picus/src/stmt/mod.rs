@@ -1,4 +1,5 @@
 use crate::display::{TextRepresentable, TextRepresentation};
+use crate::expr::traits::ConstraintExpr;
 use crate::vars::{Temp, VarKind as _};
 use anyhow::Result;
 use impls::{CallStmt, CommentLine, ConstraintStmt};
@@ -18,7 +19,7 @@ pub type Stmt = Wrap<dyn StmtLike>;
 
 impl<S: ExprArgs + ?Sized> ExprArgs for Wrap<S> {
     fn args(&self) -> Vec<Expr> {
-        self.borrow().args()
+        unsafe { (*self.as_ptr()).args() }
     }
 
     fn replace_arg(&mut self, idx: usize, expr: Expr) -> Result<()> {
@@ -29,6 +30,10 @@ impl<S: ExprArgs + ?Sized> ExprArgs for Wrap<S> {
 impl<S: ConstraintLike + ?Sized> ConstraintLike for Wrap<S> {
     fn is_constraint(&self) -> bool {
         self.borrow().is_constraint()
+    }
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
+        unsafe { (*self.as_ptr()).constraint_expr() }
     }
 }
 
@@ -60,7 +65,13 @@ impl<T> StmtLike for Wrap<T> where T: StmtLike + ?Sized {}
 // Factories
 //===----------------------------------------------------------------------===//
 
-pub fn call<A>(callee: String, inputs: Vec<Expr>, n_outputs: usize, allocator: &A) -> Stmt
+pub fn call<A>(
+    callee: String,
+    inputs: Vec<Expr>,
+    n_outputs: usize,
+    allocator: &A,
+    ctx: <A::Kind as Temp>::Ctx,
+) -> Stmt
 where
     A: VarAllocator,
     A::Kind: Temp,
@@ -70,7 +81,7 @@ where
             callee,
             inputs,
             (0..n_outputs)
-                .map(|_| allocator.allocate(A::Kind::temp()))
+                .map(|_| allocator.allocate(A::Kind::temp(ctx)))
                 .collect(),
         )
         .into(),

@@ -8,6 +8,7 @@ num-bigint = { version = "0.4", optional = true }
 anyhow = "1"
 regex = "1.11"
 log = "0.4"
+disjoint = "0.8"
 
 [features]
 default = []

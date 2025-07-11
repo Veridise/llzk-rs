@@ -179,6 +179,13 @@ impl<K: VarKind> Module<K> {
         &mut self.stmts
     }
 
+    pub fn remove_stmt_if<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut Stmt) -> bool,
+    {
+        self.stmts.retain_mut(|s| !f(s));
+    }
+
     pub fn add_stmts(&mut self, stmts: &[Stmt]) {
         self.stmts.extend_from_slice(stmts)
     }

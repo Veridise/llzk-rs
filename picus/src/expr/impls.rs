@@ -5,11 +5,12 @@ use anyhow::{anyhow, bail, Result};
 use crate::{
     display::{TextRepresentable, TextRepresentation},
     felt::Felt,
+    stmt::traits::ConstraintLike,
     vars::VarStr,
 };
 
 use super::{
-    traits::{ConstantFolding, ExprLike, ExprSize, MaybeVarLike, WrappedExpr},
+    traits::{ConstantFolding, ConstraintExpr, ExprLike, ExprSize, MaybeVarLike, WrappedExpr},
     Expr, Wrap,
 };
 
@@ -89,6 +90,16 @@ impl MaybeVarLike for ConstExpr {
     }
 }
 
+impl ConstraintLike for ConstExpr {
+    fn is_constraint(&self) -> bool {
+        false
+    }
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
+        None
+    }
+}
+
 impl ExprLike for ConstExpr {}
 
 //===----------------------------------------------------------------------===//
@@ -141,12 +152,6 @@ impl ConstantFolding for VarExpr {
     }
 }
 
-impl fmt::Display for VarExpr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 impl TextRepresentable for VarExpr {
     fn to_repr(&self) -> TextRepresentation {
         self.0.to_repr()
@@ -166,6 +171,16 @@ impl MaybeVarLike for VarExpr {
         if let Some(new_name) = map.get(&self.0).cloned() {
             return Some(Wrap::new(VarExpr(new_name)));
         }
+        None
+    }
+}
+
+impl ConstraintLike for VarExpr {
+    fn is_constraint(&self) -> bool {
+        false
+    }
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
         None
     }
 }
@@ -241,7 +256,7 @@ impl TextRepresentable for BinaryOp {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ConstraintKind {
     Lt,
     Le,
@@ -284,6 +299,7 @@ impl OpLike for BinaryOp {
         true
     }
 }
+
 impl OpLike for ConstraintKind {
     fn extraible(&self) -> bool {
         false
@@ -299,11 +315,74 @@ impl<K: Clone> BinaryExpr<K> {
     }
 }
 
-impl<K: OpLike> WrappedExpr for BinaryExpr<K> {
-    fn wrap(&self) -> Expr {
-        Wrap::new(self.clone())
-    }
+macro_rules! binary_expr_common {
+    ($K:ty) => {
+        impl WrappedExpr for BinaryExpr<$K> {
+            fn wrap(&self) -> Expr {
+                Wrap::new(self.clone())
+            }
+        }
+
+        impl ExprSize for BinaryExpr<$K> {
+            fn size(&self) -> usize {
+                self.1.size() + self.2.size()
+            }
+
+            fn extraible(&self) -> bool {
+                self.0.extraible()
+            }
+
+            fn args(&self) -> Vec<Expr> {
+                vec![self.1.clone(), self.2.clone()]
+            }
+
+            fn replace_args(&self, args: &[Option<Expr>]) -> Result<Option<Expr>> {
+                Ok(match args {
+                    [None, None] => None,
+                    [Some(lhs), None] => Some((lhs.clone(), self.rhs())),
+                    [None, Some(rhs)] => Some((self.lhs(), rhs.clone())),
+                    [Some(lhs), Some(rhs)] => Some((lhs.clone(), rhs.clone())),
+                    _ => bail!("BinaryExpr expects 2 arguments"),
+                }
+                .map(|(lhs, rhs)| -> Expr { Wrap::new(Self(self.0.clone(), lhs, rhs)) }))
+            }
+        }
+
+        impl ConstantFolding for BinaryExpr<$K> {
+            fn as_const(&self) -> Option<Felt> {
+                None
+            }
+
+            fn fold(&self) -> Option<Expr> {
+                let lhs = self.lhs().fold().unwrap_or_else(|| self.lhs());
+                let rhs = self.rhs().fold().unwrap_or_else(|| self.rhs());
+
+                self.op()
+                    .fold(lhs.clone(), rhs.clone())
+                    .or_else(|| Some(Wrap::new(Self(self.0.clone(), lhs, rhs))))
+            }
+        }
+
+        impl MaybeVarLike for BinaryExpr<$K> {
+            fn var_name(&self) -> Option<&VarStr> {
+                None
+            }
+
+            fn renamed(&self, map: &HashMap<VarStr, VarStr>) -> Option<Expr> {
+                match (self.lhs().renamed(map), self.rhs().renamed(map)) {
+                    (None, None) => None,
+                    (None, Some(rhs)) => Some((self.1.clone(), rhs)),
+                    (Some(lhs), None) => Some((lhs, self.2.clone())),
+                    (Some(lhs), Some(rhs)) => Some((lhs, rhs)),
+                }
+                .map(|(lhs, rhs)| -> Expr { Wrap::new(Self(self.0.clone(), lhs, rhs)) })
+            }
+        }
+    };
 }
+
+binary_expr_common!(BinaryOp);
+binary_expr_common!(ConstraintKind);
 
 impl<K: Clone> BinaryExpr<K> {
     fn lhs(&self) -> Expr {
@@ -319,46 +398,6 @@ impl<K: Clone> BinaryExpr<K> {
     }
 }
 
-impl<K: OpLike> ExprSize for BinaryExpr<K> {
-    fn size(&self) -> usize {
-        self.1.size() + self.2.size()
-    }
-
-    fn extraible(&self) -> bool {
-        self.0.extraible()
-    }
-
-    fn args(&self) -> Vec<Expr> {
-        vec![self.1.clone(), self.2.clone()]
-    }
-
-    fn replace_args(&self, args: &[Option<Expr>]) -> Result<Option<Expr>> {
-        Ok(match args {
-            [None, None] => None,
-            [Some(lhs), None] => Some((lhs.clone(), self.rhs())),
-            [None, Some(rhs)] => Some((self.lhs(), rhs.clone())),
-            [Some(lhs), Some(rhs)] => Some((lhs.clone(), rhs.clone())),
-            _ => bail!("BinaryExpr expects 2 arguments"),
-        }
-        .map(|(lhs, rhs)| -> Expr { Wrap::new(Self(self.0.clone(), lhs, rhs)) }))
-    }
-}
-
-impl<K: OpLike> ConstantFolding for BinaryExpr<K> {
-    fn as_const(&self) -> Option<Felt> {
-        None
-    }
-
-    fn fold(&self) -> Option<Expr> {
-        let lhs = self.lhs().fold().unwrap_or_else(|| self.lhs());
-        let rhs = self.rhs().fold().unwrap_or_else(|| self.rhs());
-
-        self.op()
-            .fold(lhs.clone(), rhs.clone())
-            .or_else(|| Some(Wrap::new(Self(self.0.clone(), lhs, rhs))))
-    }
-}
-
 impl<K: OpLike> TextRepresentable for BinaryExpr<K> {
     fn to_repr(&self) -> TextRepresentation {
         owned_list!(self.op(), &self.1, &self.2)
@@ -369,23 +408,42 @@ impl<K: OpLike> TextRepresentable for BinaryExpr<K> {
     }
 }
 
-impl<K: OpLike> MaybeVarLike for BinaryExpr<K> {
-    fn var_name(&self) -> Option<&VarStr> {
-        None
+impl ConstraintExpr for BinaryExpr<ConstraintKind> {
+    fn is_eq(&self) -> bool {
+        self.0 == ConstraintKind::Eq
     }
 
-    fn renamed(&self, map: &HashMap<VarStr, VarStr>) -> Option<Expr> {
-        match (self.lhs().renamed(map), self.rhs().renamed(map)) {
-            (None, None) => None,
-            (None, Some(rhs)) => Some((self.1.clone(), rhs)),
-            (Some(lhs), None) => Some((lhs, self.2.clone())),
-            (Some(lhs), Some(rhs)) => Some((lhs, rhs)),
-        }
-        .map(|(lhs, rhs)| -> Expr { Wrap::new(Self(self.0.clone(), lhs, rhs)) })
+    fn lhs(&self) -> Expr {
+        self.1.clone()
+    }
+
+    fn rhs(&self) -> Expr {
+        self.2.clone()
     }
 }
 
-impl<K: OpLike> ExprLike for BinaryExpr<K> {}
+impl ConstraintLike for BinaryExpr<ConstraintKind> {
+    fn is_constraint(&self) -> bool {
+        true
+    }
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
+        Some(self)
+    }
+}
+
+impl ConstraintLike for BinaryExpr<BinaryOp> {
+    fn is_constraint(&self) -> bool {
+        false
+    }
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
+        None
+    }
+}
+
+impl ExprLike for BinaryExpr<ConstraintKind> {}
+impl ExprLike for BinaryExpr<BinaryOp> {}
 
 //===----------------------------------------------------------------------===//
 // NegExpr
@@ -460,6 +518,16 @@ impl MaybeVarLike for NegExpr {
 
     fn renamed(&self, map: &HashMap<VarStr, VarStr>) -> Option<Expr> {
         self.0.renamed(map).map(|e| -> Expr { Wrap::new(Self(e)) })
+    }
+}
+
+impl ConstraintLike for NegExpr {
+    fn is_constraint(&self) -> bool {
+        false
+    }
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
+        None
     }
 }
 

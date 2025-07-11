@@ -1,5 +1,5 @@
 use super::{
-    vars::{VarKey, VarKeySeed},
+    vars::{NamingConvention, VarKey, VarKeySeed, VarKeySeedInner},
     FeltWrap,
 };
 use crate::{
@@ -126,6 +126,7 @@ pub struct PicusModuleLowering<L> {
     module: PicusModuleRef,
     eqv_vars: VarEqvClassesRef,
     lift_fixed: bool,
+    naming_convention: NamingConvention,
     regions: HashMap<RegionIndex, RegionStart>,
     _field: PhantomData<L>,
 }
@@ -136,12 +137,14 @@ impl<L> PicusModuleLowering<L> {
         lift_fixed: bool,
         eqv_vars: VarEqvClassesRef,
         regions: HashMap<RegionIndex, RegionStart>,
+        naming_convention: NamingConvention,
     ) -> Self {
         Self {
             module,
             lift_fixed,
             eqv_vars,
             regions,
+            naming_convention,
             _field: Default::default(),
         }
     }
@@ -182,7 +185,7 @@ impl<L: LiftLike> PicusModuleLowering<L> {
                 Value::known(self.lower(&f?, true)?)
             }
             ResolvedQuery::IO(func_io) => {
-                let seed: VarKeySeed = (func_io, fqn).into();
+                let seed = VarKeySeed::named_io(func_io, fqn, self.naming_convention);
                 Value::known(expr::var(&self.module, self.eqv_vars.add(seed)))
             }
         })
@@ -202,7 +205,8 @@ impl<L: LiftLike> LiftLowering for PicusModuleLowering<L> {
         if self.lift_fixed {
             Ok(expr::var(
                 &self.module,
-                self.eqv_vars.add(VarKeySeed::Lifted(id)),
+                self.eqv_vars
+                    .add(VarKeySeed::lifted(id, self.naming_convention)),
             ))
         } else if let Some(f) = f {
             Ok(expr::r#const(FeltWrap(*f)))
@@ -314,6 +318,7 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
                 .collect(),
             0,
             &self.module,
+            self.naming_convention,
         ));
         Ok(())
     }
@@ -377,7 +382,8 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
             ResolvedSelector::Const(value) => Lowering::lower_constant(self, &value.to_f()),
             ResolvedSelector::Arg(arg_no) => Ok(Value::known(expr::var(
                 &self.module,
-                self.eqv_vars.add(VarKeySeed::IO(arg_no.into(), None)),
+                self.eqv_vars
+                    .add(VarKeySeed::io(arg_no, self.naming_convention)),
             ))),
         }
     }

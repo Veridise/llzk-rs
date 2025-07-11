@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{display::TextRepresentable, felt::Felt, opt::Optimizer, vars::VarStr};
+use crate::{
+    display::TextRepresentable, felt::Felt, opt::Optimizer, stmt::traits::ConstraintLike,
+    vars::VarStr,
+};
 
 use super::Expr;
 use anyhow::Result;
@@ -55,8 +58,22 @@ pub trait ConstantFolding {
     }
 }
 
+pub trait ConstraintExpr {
+    fn is_eq(&self) -> bool;
+
+    fn lhs(&self) -> Expr;
+
+    fn rhs(&self) -> Expr;
+}
+
 /// Marker interface for a Picus expression.
 pub trait ExprLike:
-    ExprSize + ConstantFolding + TextRepresentable + WrappedExpr + MaybeVarLike + std::fmt::Debug
+    ExprSize
+    + ConstantFolding
+    + TextRepresentable
+    + WrappedExpr
+    + MaybeVarLike
+    + std::fmt::Debug
+    + ConstraintLike
 {
 }

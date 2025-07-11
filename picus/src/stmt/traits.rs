@@ -1,5 +1,9 @@
 use super::Stmt;
-use crate::{display::TextRepresentable, expr::Expr, opt::Optimizer};
+use crate::{
+    display::TextRepresentable,
+    expr::{traits::ConstraintExpr, Expr},
+    opt::Optimizer,
+};
 use anyhow::Result;
 
 pub trait ExprArgs {
@@ -10,6 +14,8 @@ pub trait ExprArgs {
 
 pub trait ConstraintLike {
     fn is_constraint(&self) -> bool;
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr>;
 }
 
 pub trait CallLike {
@@ -49,6 +55,11 @@ pub trait MaybeCallLike {
 }
 
 pub trait StmtLike:
-    ExprArgs + ConstraintLike + MaybeCallLike + StmtConstantFolding + TextRepresentable
+    ExprArgs
+    + ConstraintLike
+    + MaybeCallLike
+    + StmtConstantFolding
+    + TextRepresentable
+    + std::fmt::Debug
 {
 }
