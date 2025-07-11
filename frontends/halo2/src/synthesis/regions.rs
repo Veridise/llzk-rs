@@ -318,6 +318,24 @@ impl<F: Default + Clone> Regions<F> {
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
+        // The last region turned out to be a table. Remove it from the regions list before adding
+        // the new one.
+        if self.current_is_table {
+            if let Some(mut table) = self.regions.pop() {
+                log::debug!(
+                    "Demoting region {} {:?} to table",
+                    table
+                        .index
+                        .as_deref()
+                        .map(ToString::to_string)
+                        .unwrap_or_else(|| "<unk>".to_owned()),
+                    table.name
+                );
+                table.mark_as_table();
+                self.tables.push(table);
+            }
+        }
+
         assert!(self.current.is_none());
         let name: String = region_name().into();
         let index = self.regions.len();
@@ -365,10 +383,10 @@ impl<F: Default + Clone> Regions<F> {
                 inner,
                 shared: &self.shared,
             })
-            //.chain(self.tables.iter().map(|inner| RegionData {
-            //    inner,
-            //    shared: &self.shared,
-            //}))
+            .chain(self.tables.iter().map(|inner| RegionData {
+                inner,
+                shared: &self.shared,
+            }))
             .collect()
     }
 
