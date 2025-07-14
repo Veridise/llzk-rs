@@ -427,6 +427,10 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
         Self::CellOutput: 'a,
         'a: 'f,
     {
+        let expr = self.lower(f, true)?;
+        log::debug!(
+            "[PicusBackend::lower_constant] Constant value {f:?} becomes expression {expr:?}"
+        );
         Ok(Value::known(self.lower(f, true)?))
     }
 }
