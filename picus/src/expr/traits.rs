@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::{any::Any, collections::HashMap};
 
 use crate::{
     display::TextRepresentable, felt::Felt, opt::Optimizer, stmt::traits::ConstraintLike,
     vars::VarStr,
 };
 
-use super::Expr;
+use super::{Expr, ExprHash};
 use anyhow::Result;
 
 pub trait MaybeVarLike {
@@ -66,6 +66,45 @@ pub trait ConstraintExpr {
     fn rhs(&self) -> Expr;
 }
 
+pub trait GetExprHash {
+    fn hash(&self) -> ExprHash;
+}
+
+pub trait AsExprEq: Any {
+    fn as_any(&self) -> &dyn Any;
+    fn as_expr_eq(&self) -> &dyn ExprEq;
+}
+
+pub trait ExprEq {
+    fn expr_eq(&self, other: &dyn ExprLike) -> bool;
+}
+
+impl<T: Any + ExprEq> AsExprEq for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_expr_eq(&self) -> &dyn ExprEq {
+        self
+    }
+}
+
+impl<T: Any + PartialEq> ExprEq for T {
+    fn expr_eq(&self, other: &dyn ExprLike) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<Self>() {
+            self == other
+        } else {
+            false
+        }
+    }
+}
+
+impl PartialEq<dyn ExprLike> for dyn ExprLike {
+    fn eq(&self, other: &dyn ExprLike) -> bool {
+        self.expr_eq(other)
+    }
+}
+
 /// Marker interface for a Picus expression.
 pub trait ExprLike:
     ExprSize
@@ -75,5 +114,8 @@ pub trait ExprLike:
     + MaybeVarLike
     + std::fmt::Debug
     + ConstraintLike
+    + ExprEq
+    + AsExprEq
+    + GetExprHash
 {
 }

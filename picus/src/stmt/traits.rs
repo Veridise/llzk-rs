@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use super::Stmt;
 use crate::{
     display::TextRepresentable,
@@ -54,6 +56,41 @@ pub trait MaybeCallLike {
     fn as_call<'a>(&'a self) -> Option<CallLikeAdaptor<'a>>;
 }
 
+pub trait AsStmtEq: Any {
+    fn as_any(&self) -> &dyn Any;
+    fn as_stmt_eq(&self) -> &dyn StmtEq;
+}
+
+pub trait StmtEq {
+    fn stmt_eq(&self, other: &dyn StmtLike) -> bool;
+}
+
+impl<T: Any + StmtEq> AsStmtEq for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_stmt_eq(&self) -> &dyn StmtEq {
+        self
+    }
+}
+
+impl<T: Any + PartialEq> StmtEq for T {
+    fn stmt_eq(&self, other: &dyn StmtLike) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<Self>() {
+            self == other
+        } else {
+            false
+        }
+    }
+}
+
+impl PartialEq<dyn StmtLike> for dyn StmtLike {
+    fn eq(&self, other: &dyn StmtLike) -> bool {
+        self.stmt_eq(other)
+    }
+}
+
 pub trait StmtLike:
     ExprArgs
     + ConstraintLike
@@ -61,5 +98,7 @@ pub trait StmtLike:
     + StmtConstantFolding
     + TextRepresentable
     + std::fmt::Debug
+    + StmtEq
+    + AsStmtEq
 {
 }

@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt};
+use std::{
+    collections::HashMap,
+    fmt,
+    hash::{DefaultHasher, Hash as _, Hasher as _},
+};
 
 use anyhow::{anyhow, bail, Result};
 
@@ -10,15 +14,30 @@ use crate::{
 };
 
 use super::{
-    traits::{ConstantFolding, ConstraintExpr, ExprLike, ExprSize, MaybeVarLike, WrappedExpr},
-    Expr, Wrap,
+    traits::{
+        ConstantFolding, ConstraintExpr, ExprLike, ExprSize, GetExprHash, MaybeVarLike, WrappedExpr,
+    },
+    Expr, ExprHash, Wrap,
 };
+
+macro_rules! hash {
+    ($($elt:expr),* $(,)?) => { {
+        let mut hasher = DefaultHasher::new();
+        '('.hash(&mut hasher);
+
+        $( $elt.hash(&mut hasher); )*
+
+        ')'.hash(&mut hasher);
+
+        hasher.finish().into()
+    } };
+}
 
 //===----------------------------------------------------------------------===//
 // ConstExpr
 //===----------------------------------------------------------------------===//
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ConstExpr(Felt);
 
 impl ConstExpr {
@@ -100,13 +119,19 @@ impl ConstraintLike for ConstExpr {
     }
 }
 
+impl GetExprHash for ConstExpr {
+    fn hash(&self) -> ExprHash {
+        hash!(self.0)
+    }
+}
+
 impl ExprLike for ConstExpr {}
 
 //===----------------------------------------------------------------------===//
 // VarExpr
 //===----------------------------------------------------------------------===//
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct VarExpr(VarStr);
 
 impl WrappedExpr for VarExpr {
@@ -185,17 +210,27 @@ impl ConstraintLike for VarExpr {
     }
 }
 
+impl GetExprHash for VarExpr {
+    fn hash(&self) -> ExprHash {
+        hash!(self.0)
+    }
+}
+
 impl ExprLike for VarExpr {}
 
 //===----------------------------------------------------------------------===//
 // BinaryExpr
 //===----------------------------------------------------------------------===//
 
-pub trait OpFolder {
+pub trait OpFolder: PartialEq + Clone {
     fn fold(&self, lhs: Expr, rhs: Expr) -> Option<Expr>;
+
+    fn commutative(&self) -> bool;
+
+    fn flip(&self, lhs: &Expr, rhs: &Expr) -> Option<BinaryExpr<Self>>;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum BinaryOp {
     Add,
     Sub,
@@ -239,6 +274,19 @@ impl OpFolder for BinaryOp {
             BinaryOp::Div => None,
         }
     }
+
+    fn commutative(&self) -> bool {
+        matches!(self, BinaryOp::Add | BinaryOp::Mul)
+    }
+
+    fn flip(&self, lhs: &Expr, rhs: &Expr) -> Option<BinaryExpr<Self>> {
+        match self {
+            BinaryOp::Add => Some(BinaryExpr::new(BinaryOp::Add, rhs.clone(), lhs.clone())),
+            BinaryOp::Sub => Some(BinaryExpr::new(BinaryOp::Add, super::neg(rhs), lhs.clone())),
+            BinaryOp::Mul => Some(BinaryExpr::new(BinaryOp::Mul, rhs.clone(), lhs.clone())),
+            BinaryOp::Div => None,
+        }
+    }
 }
 
 impl TextRepresentable for BinaryOp {
@@ -256,7 +304,7 @@ impl TextRepresentable for BinaryOp {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ConstraintKind {
     Lt,
     Le,
@@ -268,6 +316,20 @@ pub enum ConstraintKind {
 impl OpFolder for ConstraintKind {
     fn fold(&self, _lhs: Expr, _rhs: Expr) -> Option<Expr> {
         None
+    }
+
+    fn commutative(&self) -> bool {
+        matches!(self, ConstraintKind::Eq)
+    }
+
+    fn flip(&self, lhs: &Expr, rhs: &Expr) -> Option<BinaryExpr<Self>> {
+        match self {
+            ConstraintKind::Lt => Some(BinaryExpr::new(Self::Ge, rhs.clone(), lhs.clone())),
+            ConstraintKind::Le => Some(BinaryExpr::new(Self::Gt, rhs.clone(), lhs.clone())),
+            ConstraintKind::Gt => Some(BinaryExpr::new(Self::Le, rhs.clone(), lhs.clone())),
+            ConstraintKind::Ge => Some(BinaryExpr::new(Self::Lt, rhs.clone(), lhs.clone())),
+            ConstraintKind::Eq => Some(BinaryExpr::new(Self::Eq, rhs.clone(), lhs.clone())),
+        }
     }
 }
 
@@ -290,7 +352,9 @@ impl TextRepresentable for ConstraintKind {
     }
 }
 
-pub trait OpLike: Clone + OpFolder + TextRepresentable + std::fmt::Debug + 'static {
+pub trait OpLike:
+    Clone + PartialEq + OpFolder + TextRepresentable + std::fmt::Debug + std::hash::Hash + 'static
+{
     fn extraible(&self) -> bool;
 }
 
@@ -307,9 +371,14 @@ impl OpLike for ConstraintKind {
 }
 
 #[derive(Clone, Debug)]
-pub struct BinaryExpr<K: Clone>(K, Expr, Expr);
+pub struct BinaryExpr<K>(K, Expr, Expr)
+where
+    K: Clone + PartialEq;
 
-impl<K: Clone> BinaryExpr<K> {
+impl<K> BinaryExpr<K>
+where
+    K: Clone + PartialEq,
+{
     pub fn new(k: K, lhs: Expr, rhs: Expr) -> Self {
         Self(k, lhs, rhs)
     }
@@ -384,7 +453,7 @@ macro_rules! binary_expr_common {
 binary_expr_common!(BinaryOp);
 binary_expr_common!(ConstraintKind);
 
-impl<K: Clone> BinaryExpr<K> {
+impl<K: Clone + PartialEq> BinaryExpr<K> {
     fn lhs(&self) -> Expr {
         self.1.clone()
     }
@@ -439,6 +508,39 @@ impl ConstraintLike for BinaryExpr<BinaryOp> {
 
     fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
         None
+    }
+}
+
+impl<K: OpLike> BinaryExpr<K> {
+    fn eq_flipped(&self, other: &Self, flipped: bool) -> bool {
+        if flipped {
+            return false;
+        }
+        self.0
+            .flip(&self.1, &self.2)
+            .map(|flipped| flipped.eq_impl(other, true))
+            .unwrap_or_default()
+    }
+
+    fn eq_impl(&self, other: &Self, flipped: bool) -> bool {
+        if self.0 == other.0 {
+            return (self.1 == *other.1 && self.2 == *other.2)
+                || (self.0.commutative() && self.1 == *other.2 && self.2 == *other.1);
+        }
+
+        self.eq_flipped(other, flipped)
+    }
+}
+
+impl<K: OpLike> PartialEq for BinaryExpr<K> {
+    fn eq(&self, other: &Self) -> bool {
+        self.eq_impl(other, false)
+    }
+}
+
+impl<K: OpLike> GetExprHash for BinaryExpr<K> {
+    fn hash(&self) -> ExprHash {
+        hash!(self.0, self.1.hash(), self.2.hash())
     }
 }
 
@@ -528,6 +630,18 @@ impl ConstraintLike for NegExpr {
 
     fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
         None
+    }
+}
+
+impl PartialEq for NegExpr {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == *other.0
+    }
+}
+
+impl GetExprHash for NegExpr {
+    fn hash(&self) -> ExprHash {
+        hash!('-', self.0.hash())
     }
 }
 

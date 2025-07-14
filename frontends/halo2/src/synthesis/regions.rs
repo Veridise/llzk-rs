@@ -202,9 +202,11 @@ impl<F: Default + Clone> RegionDataImpl<F> {
         F: Field,
         VR: Into<Assigned<F>>,
     {
+        let value = value.map(|vr| vr.into());
+        log::debug!("assign_fixed{:?}", (fixed, row, value));
         self.inner
             .fixed
-            .insert((fixed.index(), row), value.map(|vr| vr.into().evaluate()));
+            .insert((fixed.index(), row), value.map(|vr| vr.evaluate()));
     }
 
     pub fn rows(&self) -> Range<usize> {

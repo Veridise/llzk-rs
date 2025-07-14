@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use std::{
     fmt,
     iter::{Product, Sum},
@@ -46,7 +46,7 @@ fn is_lifting_enabled() -> bool {
 }
 
 pub struct LiftIRGuard<'a> {
-    guard: MutexGuard<'a, ()>,
+    _guard: MutexGuard<'a, ()>,
     prev: Option<bool>,
 }
 
@@ -55,7 +55,18 @@ impl LiftIRGuard<'_> {
         // Lock the guard to avoid others writing
         let guard = LIFT_GUARD.lock().unwrap();
         let prev = enable_lifting(enable);
-        Self { guard, prev }
+        Self {
+            _guard: guard,
+            prev,
+        }
+    }
+}
+
+impl Drop for LiftIRGuard<'_> {
+    fn drop(&mut self) {
+        if let Some(prev) = self.prev {
+            enable_lifting(prev);
+        }
     }
 }
 
@@ -169,7 +180,11 @@ pub trait LiftLowering {
             &|f| self.lower_constant(f),
             &|id, f|  {
                 if is_lifting_enabled() {
-                self.lower_lifted(id, f) } else { self.lower_constant(f.ok_or_else(|| anyhow::anyhow!("Lifting is disabled but a lifted valued does not have a concrete fallback value"))?)}},
+                    self.lower_lifted(id, f)
+                } else { 
+                    self.lower_constant(f.ok_or_else(|| anyhow!("Lifting is disabled but a lifted valued does not have a concrete fallback value"))?)
+                }
+            },
             &|lhs, rhs| self.lower_add(&lhs?, &rhs?),
             &|lhs, rhs| self.lower_sub(&lhs?, &rhs?),
             &|lhs, rhs| self.lower_mul(&lhs?, &rhs?),

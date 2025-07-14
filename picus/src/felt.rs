@@ -8,24 +8,16 @@ use crate::display::{TextRepresentable, TextRepresentation};
 pub trait IntoPrime: Into<Felt> {
     fn prime() -> Felt;
 }
-
-#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg(feature = "bigint-felt")]
-pub struct Felt(BigUint);
-#[derive(Clone, Debug, PartialEq, Eq)]
+pub type FeltRepr = BigUint;
 #[cfg(not(feature = "bigint-felt"))]
-pub struct Felt(usize);
+pub type FeltRepr = usize;
 
-#[cfg(feature = "bigint-felt")]
-impl Felt {
-    pub fn new(v: BigUint) -> Self {
-        Self(v)
-    }
-}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Felt(FeltRepr);
 
-#[cfg(not(feature = "bigint-felt"))]
 impl Felt {
-    pub fn new(v: usize) -> Self {
+    pub fn new(v: FeltRepr) -> Self {
         Self(v)
     }
 }

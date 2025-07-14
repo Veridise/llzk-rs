@@ -67,8 +67,9 @@ where
     /// equates that fresh temporary with the expression.
     /// If not returns itself.
     fn optimize(&mut self, expr: &(dyn ExprLike)) -> Result<Expr> {
-        log::debug!("Optimizing expr {expr:?}");
-
+        if expr.size() < self.limit {
+            return Ok(expr.wrap());
+        }
         let args: Vec<Option<Expr>> = expr
             .args()
             .iter()
@@ -79,7 +80,6 @@ where
             .collect();
         let transformed = expr.replace_args(&args)?;
 
-        log::debug!("Optimized args first");
         let expr = match &transformed {
             Some(expr) => expr.as_ref(),
             None => expr,

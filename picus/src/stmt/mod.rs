@@ -59,7 +59,7 @@ impl<S: TextRepresentable + ?Sized> TextRepresentable for Wrap<S> {
     }
 }
 
-impl<T> StmtLike for Wrap<T> where T: StmtLike + ?Sized {}
+impl<T> StmtLike for Wrap<T> where T: StmtLike + PartialEq + ?Sized {}
 
 //===----------------------------------------------------------------------===//
 // Factories

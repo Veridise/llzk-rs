@@ -25,9 +25,9 @@ use super::{
 // CallStmt
 //===----------------------------------------------------------------------===//
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 struct Outputs(Vec<VarStr>);
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 struct Inputs(Vec<Expr>);
 
 impl Outputs {
@@ -104,7 +104,7 @@ impl TextRepresentable for Inputs {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct CallStmt {
     callee: String,
     inputs: Inputs,
@@ -215,7 +215,7 @@ impl StmtLike for CallStmt {}
 // ConstraintStmt
 //===----------------------------------------------------------------------===//
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ConstraintStmt(Expr);
 
 impl ConstraintStmt {
@@ -278,7 +278,7 @@ impl StmtLike for ConstraintStmt {}
 // CommentLine
 //===----------------------------------------------------------------------===//
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct CommentLine(String);
 
 impl CommentLine {

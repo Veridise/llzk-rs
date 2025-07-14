@@ -2,7 +2,9 @@ use std::{collections::HashMap, fmt, rc::Rc};
 
 use anyhow::Result;
 use impls::{BinaryExpr, BinaryOp, ConstExpr, ConstraintKind, NegExpr, OpFolder, OpLike, VarExpr};
-use traits::{ConstantFolding, ConstraintExpr, ExprLike, ExprSize, MaybeVarLike, WrappedExpr};
+use traits::{
+    ConstantFolding, ConstraintExpr, ExprLike, ExprSize, GetExprHash, MaybeVarLike, WrappedExpr,
+};
 
 use crate::{
     display::TextRepresentable,
@@ -89,8 +91,29 @@ impl<T: ConstraintLike + ?Sized> ConstraintLike for Wrap<T> {
     }
 }
 
-impl<T: ExprLike + 'static> ExprLike for Wrap<T> {}
+impl<T: GetExprHash + ?Sized> GetExprHash for Wrap<T> {
+    fn hash(&self) -> ExprHash {
+        self.as_ref().hash()
+    }
+}
+
+impl<T: ExprLike + PartialEq + 'static> ExprLike for Wrap<T> {}
 impl ExprLike for Wrap<dyn ExprLike> {}
+
+impl PartialEq<dyn ExprLike> for Wrap<dyn ExprLike> {
+    fn eq(&self, other: &dyn ExprLike) -> bool {
+        self.as_ref().expr_eq(other)
+    }
+}
+
+#[derive(Hash, Eq, PartialEq, Copy, Clone, Debug)]
+pub struct ExprHash(u64);
+
+impl From<u64> for ExprHash {
+    fn from(value: u64) -> Self {
+        Self(value)
+    }
+}
 
 //===----------------------------------------------------------------------===//
 // Factories
