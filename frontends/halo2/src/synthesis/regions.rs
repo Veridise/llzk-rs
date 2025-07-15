@@ -61,22 +61,54 @@ impl FQN {
 
 /// Data shared across regions.
 #[derive(Debug, Default)]
-struct SharedRegionData {
+struct SharedRegionData<F> {
     advice_names: HashMap<(usize, usize), FQN>,
+    /// Constant values assigned to fixed columns in the region.
+    fixed: HashMap<(usize, usize), Value<F>>,
+    /// Represents the circuit filling rows with a single value.
+    /// Row start offsets are maintained in chronological order, so when
+    /// querying a row the latest that matches is the correct value.
+    blanket_fills: HashMap<usize, BlanketFills<F>>,
 }
 
-impl AddAssign for SharedRegionData {
+impl<F> AddAssign for SharedRegionData<F> {
     fn add_assign(&mut self, rhs: Self) {
         for (k, v) in rhs.advice_names {
             self.advice_names.insert(k, v);
         }
+        for (k, v) in rhs.fixed {
+            self.fixed.insert(k, v);
+        }
+        for (k, v) in rhs.blanket_fills {
+            self.blanket_fills.insert(k, v);
+        }
+    }
+}
+
+impl<F: Copy> SharedRegionData<F> {
+    fn resolve_from_blanket_fills(&self, column: usize, row: usize) -> Value<F> {
+        self.blanket_fills
+            .get(&column)
+            .and_then(|values| values.iter().rfind(|(range, _)| range.contains(&row)))
+            .map(|(_, v)| v.clone())
+            .unwrap_or_else(|| -> Value<F> {
+                log::warn!("Resolved Fixed query (col {column}, row {row}) with an unknown value");
+                Value::unknown()
+            })
+    }
+
+    pub fn resolve_fixed(&self, column: usize, row: usize) -> Value<F> {
+        self.fixed
+            .get(&(column, row))
+            .cloned()
+            .unwrap_or_else(|| self.resolve_from_blanket_fills(column, row))
     }
 }
 
 type BlanketFills<F> = Vec<(RangeFrom<usize>, Value<F>)>;
 
 #[derive(Debug, Default)]
-struct RegionDataInner<F> {
+struct RegionDataInner {
     /// The selectors that have been enabled in this region. All other selectors are by
     /// construction not enabled.
     enabled_selectors: HashMap<Selector, Vec<usize>>,
@@ -84,14 +116,7 @@ struct RegionDataInner<F> {
     columns: HashSet<Column<Any>>,
     /// The rows that this region starts and ends on, if known.
     rows: Option<(usize, usize)>,
-    /// Constant values assigned to fixed columns in the region.
-    fixed: HashMap<(usize, usize), Value<F>>,
-    advice_columns: HashSet<Column<Advice>>,
     namespaces: Vec<String>,
-    /// Represents the circuit filling rows with a single value.
-    /// Row start offsets are maintained in chronological order, so when
-    /// querying a row the latest that matches is the correct value.
-    blanket_fills: HashMap<usize, BlanketFills<F>>,
 }
 
 #[derive(Debug)]
@@ -102,16 +127,15 @@ enum RegionKind {
 
 #[derive(Debug)]
 pub struct RegionDataImpl<F> {
-    #[allow(dead_code)]
     /// The name of the region. Not required to be unique.
     name: String,
     kind: RegionKind,
     index: Option<RegionIndex>,
-    inner: RegionDataInner<F>,
-    shared: Option<SharedRegionData>,
+    inner: RegionDataInner,
+    shared: Option<SharedRegionData<F>>,
 }
 
-impl<F: Default + Clone> RegionDataImpl<F> {
+impl<F: Default + Clone + Copy> RegionDataImpl<F> {
     pub fn new<S: Into<String>>(name: S, index: RegionIndex) -> Self {
         Self {
             name: name.into(),
@@ -137,13 +161,22 @@ impl<F: Default + Clone> RegionDataImpl<F> {
     }
 
     pub fn blanket_fill(&mut self, column: Column<Fixed>, row: usize, value: Value<F>) {
-        self.inner
-            .blanket_fills
-            .entry(column.index())
-            .or_default()
-            .push((row.., value));
+        if let Some(shared) = &mut self.shared {
+            shared
+                .blanket_fills
+                .entry(column.index())
+                .or_default()
+                .push((row.., value));
+        }
         self.update_extent(column.into(), row);
     }
+
+    //pub fn resolve_fixed(&self, column: usize, row: usize) -> Value<F> {
+    //    self.shared
+    //        .as_ref()
+    //        .map(|shared| shared.resolve_fixed(column, row))
+    //        .unwrap_or_else(|| panic!("Shared region has not been initialized"))
+    //}
 
     pub fn update_extent(&mut self, column: Column<Any>, row: usize) {
         self.inner.columns.insert(column);
@@ -159,38 +192,6 @@ impl<F: Default + Clone> RegionDataImpl<F> {
             end = row;
         }
         self.inner.rows = Some((start, end));
-
-        //if let Any::Advice(_) = column.column_type() {
-        //    self.inner.advice_columns.insert(column.try_into().unwrap());
-        //    self.allocate_advice_names();
-        //}
-    }
-
-    /// Creates anonymous advice cells in the cells that are within the confines of the region.
-    /// If in a later stage the cell has a proper name it will overwrite this anonymous name.
-    fn allocate_advice_names(&mut self) {
-        if let Some((start, end)) = self.inner.rows {
-            for row in start..=end {
-                for col in &self.inner.advice_columns {
-                    if self
-                        .shared
-                        .as_ref()
-                        .unwrap()
-                        .advice_names
-                        .contains_key(&(col.index(), row))
-                    {
-                        continue;
-                    }
-                    let anon_fqn =
-                        FQN::new(self.name.as_str(), self.index, &self.inner.namespaces, None);
-                    self.shared
-                        .as_mut()
-                        .unwrap()
-                        .advice_names
-                        .insert((col.index(), row), anon_fqn);
-                }
-            }
-        }
     }
 
     pub fn enable_selector(&mut self, s: Selector, row: usize) {
@@ -203,10 +204,11 @@ impl<F: Default + Clone> RegionDataImpl<F> {
         VR: Into<Assigned<F>>,
     {
         let value = value.map(|vr| vr.into());
-        log::debug!("assign_fixed{:?}", (fixed, row, value));
-        self.inner
-            .fixed
-            .insert((fixed.index(), row), value.map(|vr| vr.evaluate()));
+        if let Some(shared) = &mut self.shared {
+            shared
+                .fixed
+                .insert((fixed.index(), row), value.map(|vr| vr.evaluate()));
+        }
     }
 
     pub fn rows(&self) -> Range<usize> {
@@ -214,26 +216,6 @@ impl<F: Default + Clone> RegionDataImpl<F> {
             .rows
             .map(|(begin, end)| begin..end + 1)
             .unwrap_or(0..0)
-    }
-
-    fn resolve_from_blanket_fills(&self, column: usize, row: usize) -> Value<F> {
-        self.inner
-            .blanket_fills
-            .get(&column)
-            .and_then(|values| values.iter().rfind(|(range, _)| range.contains(&row)))
-            .map(|(_, v)| v.clone())
-            .unwrap_or_else(|| {
-                log::warn!("Resolved Fixed query (col {column}, row {row}) with an unknown value");
-                Value::unknown()
-            })
-    }
-
-    pub fn resolve_fixed(&self, column: usize, row: usize) -> Value<F> {
-        self.inner
-            .fixed
-            .get(&(column, row))
-            .cloned()
-            .unwrap_or_else(|| self.resolve_from_blanket_fills(column, row))
     }
 
     pub fn note_advice(&mut self, column: Column<Advice>, row: usize, name: String) {
@@ -274,19 +256,15 @@ impl<F: Default + Clone> RegionDataImpl<F> {
             }
         }
     }
-
-    pub fn is_table(&self) -> bool {
-        matches!(self.kind, RegionKind::Table)
-    }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct RegionData<'a, F> {
-    shared: &'a SharedRegionData,
+    shared: &'a SharedRegionData<F>,
     inner: &'a RegionDataImpl<F>,
 }
 
-impl<F: Default + Clone> RegionData<'_, F> {
+impl<F: Default + Clone + Copy> RegionData<'_, F> {
     pub fn find_advice_name(&self, col: usize, row: usize) -> FQN {
         self.shared
             .advice_names
@@ -307,14 +285,14 @@ impl<F: Default + Clone> RegionData<'_, F> {
 
 #[derive(Default, Debug)]
 pub struct Regions<F> {
-    shared: SharedRegionData,
+    shared: SharedRegionData<F>,
     regions: Vec<RegionDataImpl<F>>,
     tables: Vec<RegionDataImpl<F>>,
     current: Option<RegionDataImpl<F>>,
     current_is_table: bool,
 }
 
-impl<F: Default + Clone> Regions<F> {
+impl<F: Default + Clone + Copy> Regions<F> {
     pub fn push<NR, N>(&mut self, region_name: N)
     where
         NR: Into<String>,
@@ -402,20 +380,23 @@ impl<F: Default + Clone> Regions<F> {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct Row<'io> {
+pub struct Row<'io, 'r, F> {
     row: usize,
     advice_io: &'io CircuitIO<Advice>,
     instance_io: &'io CircuitIO<Instance>,
+    region_data: &'r SharedRegionData<F>,
 }
 
-impl<'io> Row<'io> {
+impl<'io, 'r, F> Row<'io, 'r, F> {
     pub fn new(
         row: usize,
+        regions: &'r Regions<F>,
         advice_io: &'io CircuitIO<Advice>,
         instance_io: &'io CircuitIO<Instance>,
     ) -> Self {
         Self {
             row,
+            region_data: &regions.shared,
             advice_io,
             instance_io,
         }
@@ -479,9 +460,12 @@ impl<'io> Row<'io> {
     }
 }
 
-impl<F: Field> QueryResolver<F> for Row<'_> {
-    fn resolve_fixed_query(&self, _query: &FixedQuery) -> Result<ResolvedQuery<F>> {
-        unreachable!()
+impl<F: Field> QueryResolver<F> for Row<'_, '_, F> {
+    fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>> {
+        Ok(ResolvedQuery::Lit(self.region_data.resolve_fixed(
+            query.column_index(),
+            self.resolve_rotation(query.rotation())?,
+        )))
     }
 
     fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<(ResolvedQuery<F>, Option<FQN>)> {
@@ -498,7 +482,7 @@ impl<F: Field> QueryResolver<F> for Row<'_> {
     }
 }
 
-impl SelectorResolver for Row<'_> {
+impl<F> SelectorResolver for Row<'_, '_, F> {
     fn resolve_selector(&self, _selector: &Selector) -> Result<ResolvedSelector> {
         unreachable!()
     }
@@ -507,19 +491,20 @@ impl SelectorResolver for Row<'_> {
 #[derive(Copy, Clone, Debug)]
 pub struct RegionRow<'r, 'io, F: Field> {
     region: RegionData<'r, F>,
-    row: Row<'io>,
+    row: Row<'io, 'r, F>,
 }
 
 impl<'r, 'io, F: Field> RegionRow<'r, 'io, F> {
     pub fn new(
         region: RegionData<'r, F>,
         row: usize,
+        regions: &'r Regions<F>,
         advice_io: &'io CircuitIO<Advice>,
         instance_io: &'io CircuitIO<Instance>,
     ) -> Self {
         Self {
             region,
-            row: Row::new(row, advice_io, instance_io),
+            row: Row::new(row, regions, advice_io, instance_io),
         }
     }
 
@@ -567,7 +552,7 @@ impl<'r, 'io, F: Field> RegionRow<'r, 'io, F> {
 impl<F: Field> QueryResolver<F> for RegionRow<'_, '_, F> {
     fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>> {
         let row = self.row.resolve_rotation(query.rotation())?;
-        let value = self.region.inner.resolve_fixed(query.column_index(), row);
+        let value = self.region.shared.resolve_fixed(query.column_index(), row);
 
         Ok(ResolvedQuery::Lit(value))
     }

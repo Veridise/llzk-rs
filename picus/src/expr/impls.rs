@@ -394,7 +394,7 @@ macro_rules! binary_expr_common {
 
         impl ExprSize for BinaryExpr<$K> {
             fn size(&self) -> usize {
-                self.1.size() + self.2.size()
+                1 + self.1.size() + self.2.size()
             }
 
             fn extraible(&self) -> bool {
@@ -426,9 +426,7 @@ macro_rules! binary_expr_common {
                 let lhs = self.lhs().fold().unwrap_or_else(|| self.lhs());
                 let rhs = self.rhs().fold().unwrap_or_else(|| self.rhs());
 
-                self.op()
-                    .fold(lhs.clone(), rhs.clone())
-                    .or_else(|| Some(Wrap::new(Self(self.0.clone(), lhs, rhs))))
+                self.op().fold(lhs.clone(), rhs.clone())
             }
         }
 

@@ -5,6 +5,7 @@ edition = "2024"
 
 [dev-dependencies]
 simplelog = {version = "0.12", features = ["test"] }
+similar-asserts = "1.7"
 
 [dependencies]
 melior = { workspace = true }

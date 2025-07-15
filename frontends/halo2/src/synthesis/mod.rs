@@ -98,6 +98,10 @@ impl<F: Field> CircuitSynthesis<F> {
         self.eq_constraints.iter()
     }
 
+    pub fn regions_ref(&self) -> &Regions<F> {
+        &self.regions
+    }
+
     pub fn region_gates<'a>(
         &'a self,
     ) -> impl Iterator<Item = (&'a Gate<F>, RegionRow<'a, 'a, F>)> + 'a {
@@ -112,6 +116,7 @@ impl<F: Field> CircuitSynthesis<F> {
                         Some(RegionRow::new(
                             region,
                             row,
+                            &self.regions,
                             self.advice_io(),
                             self.instance_io(),
                         ))
@@ -172,15 +177,15 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
-        //if self.in_phase(FirstPhase) {
-        self.regions.push(region_name);
-        //}
+        if self.in_phase(FirstPhase) {
+            self.regions.push(region_name);
+        }
     }
 
     fn exit_region(&mut self) {
-        //if self.in_phase(FirstPhase) {
-        self.regions.commit();
-        //}
+        if self.in_phase(FirstPhase) {
+            self.regions.commit();
+        }
     }
 
     fn enable_selector<A, AR>(&mut self, _: A, selector: &Selector, row: usize) -> Result<(), Error>
@@ -245,8 +250,6 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         to: Column<Any>,
         to_row: usize,
     ) -> Result<(), Error> {
-        assert!(*from.column_type() != Any::Fixed, "todo");
-        assert!(*to.column_type() != Any::Fixed, "todo");
         self.eq_constraints.add((from, from_row, to, to_row));
         Ok(())
     }

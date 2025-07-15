@@ -3,93 +3,135 @@ use simplelog::{Config, TestLogger};
 
 use crate::backend::func::{ArgNo, FieldId};
 use crate::backend::picus::PicusBackend;
-use crate::backend::{Backend, CallGatesStrat, InlineConstraintsStrat};
+use crate::backend::{Backend, InlineConstraintsStrat};
 use crate::halo2::{Field, Fr};
 use crate::test::fixtures::midnight::fibonacci::FibonacciCircuit;
 use crate::test::fixtures::midnight::mul::MulCircuit;
-use crate::test::mock::backend::{MockBackend, MockExprIR, MockFunc, MockOutput};
+use crate::test::fixtures::midnight::mul_with_fixed_constraint::MulWithFixedConstraintCircuit;
+use crate::test::mock::backend::{MockBackend, MockFunc, MockOutput};
+use crate::test::mock::IRBuilder;
 use crate::{codegen_test, mock_codegen_test, picus_codegen_test, Lift};
+
+fn args(count: usize) -> Vec<ArgNo> {
+    (0..count).map(Into::into).collect()
+}
+
+fn fields(count: usize) -> Vec<FieldId> {
+    (0..count).map(Into::into).collect()
+}
 
 #[test]
 fn test_mul_circuit_codegen() {
     let _ = TestLogger::init(LevelFilter::Debug, Config::default());
     let output = mock_codegen_test!(MulCircuit<Fr>);
 
-    assert_eq!(
+    similar_asserts::assert_eq!(
         output,
         MockOutput {
-            gates: vec![MockFunc {
-                name: "mul".to_owned(),
-                args: vec![
-                    ArgNo::from(0), // s
-                    ArgNo::from(1), // a
-                    ArgNo::from(2), // b
-                    ArgNo::from(3), // c
-                    ArgNo::from(4)  // f
-                ],
-                fields: vec![],
-                exprs: vec![
-                    MockExprIR::Arg(ArgNo::from(0)), // 0  = s
-                    MockExprIR::Arg(ArgNo::from(4)), // 1  = f
-                    MockExprIR::Arg(ArgNo::from(1)), // 2  = a
-                    MockExprIR::Product(2, 1),       // 3  = f * a
-                    MockExprIR::Arg(ArgNo::from(2)), // 4  = b
-                    MockExprIR::Neg(4),              // 5  = -b
-                    MockExprIR::Sum(3, 5),           // 6  = f * a + (-b)
-                    MockExprIR::Product(6, 0),       // 7  = s * (f * a + (-b))
-                    MockExprIR::Const(Fr::ZERO),     // 16 = 0
-                    MockExprIR::Constraint(7, 8),    // 9
-                    MockExprIR::Arg(ArgNo::from(0)), // 8  = s
-                    MockExprIR::Arg(ArgNo::from(1)), // 10  = a
-                    MockExprIR::Arg(ArgNo::from(2)), // 10 = b
-                    MockExprIR::Product(12, 11),     // 11 = b * a
-                    MockExprIR::Arg(ArgNo::from(3)), // 12 = c
-                    MockExprIR::Neg(14),             // 13 = -c
-                    MockExprIR::Sum(13, 15),         // 14 = b * a + (-c)
-                    MockExprIR::Product(16, 10),     // 15 = s * (b * a + (-c))
-                    MockExprIR::Const(Fr::ZERO),     // 16 = 0
-                    MockExprIR::Constraint(17, 18)   // 18
-                ]
-            }],
+            gates: vec![],
             main: Some(MockFunc {
                 name: "Main".to_owned(),
-                args: vec![ArgNo::from(0)],
-                fields: vec![FieldId::from(0)],
-                exprs: vec![
-                    MockExprIR::Const(Fr::ONE),                              // 0 = 1
-                    MockExprIR::Temp(0, 0),                                  // 1 = t0
-                    MockExprIR::Temp(1, 0),                                  // 2 = t1
-                    MockExprIR::Temp(2, 0),                                  // 3 = t2
-                    MockExprIR::Const(-Fr::ONE),                             // 4 = -1
-                    MockExprIR::Temp(0, 0),                                  // 5 = t0
-                    MockExprIR::Arg(ArgNo::from(0)),                         // 6 = a0
-                    MockExprIR::Temp(2, 0),                                  // 7 = t2
-                    MockExprIR::Field(FieldId::from(0)),                     // 8 = f0
-                    MockExprIR::Call("mul".to_owned(), vec![0, 1, 2, 3, 4]), // 9
-                    MockExprIR::Constraint(5, 6),                            // 10
-                    MockExprIR::Constraint(7, 8)                             // 11
-                ]
+                args: args(1),
+                fields: fields(1),
+                exprs: IRBuilder::default()
+                    .push_const(Fr::ONE) //t0 := 1;
+                    .push_const(-Fr::ONE) //t1 := -1;
+                    .push_temp(0, 0) //t2 := temp(0, 0);
+                    .product() //t3 := t1 * t2;
+                    .push_temp(1, 0) //t4 := temp(1, 0);
+                    .neg() //t5 := -t4;
+                    .sum() //t6 := t3 + t5;
+                    .product_with(Some(0), None) //t7 := t0 * t6;
+                    .push_const(Fr::ZERO) //t8 := 0;
+                    .push_const(Fr::ONE) //t9 := 1;
+                    .push_temp(0, 0) //t10 := temp(0, 0);
+                    .push_temp(1, 0) //t11 := temp(1, 0);
+                    .product() //t12 := t10 * t11;
+                    .push_temp(2, 0) //t13 := temp(2, 0);
+                    .neg() //t14 := -t13;
+                    .sum() //t15 := t12 + t14;
+                    .product() //t16 := t9 * t15;
+                    .push_const(Fr::ZERO) //t17 := 0;
+                    .push_temp(0, 0) //t18 := temp(0, 0);
+                    .push_arg(0) //t19 := arg0;
+                    .push_temp(2, 0) //t20 := temp(2, 0);
+                    .push_field(0) //t21 := field0;
+                    .constraint(7, 8) //t22 := t7 == t8;
+                    .constraint(16, 17) //t23 := t16 == t17;
+                    .constraint(18, 19) //t24 := t18 == t19;
+                    .constraint(20, 21) //t25 := t20 == t21;
+                    .into()
             })
         }
     )
 }
 
 #[test]
-fn test_mul_circuit_picus_codegen() {
+fn test_mul_with_fixed_constraint_circuit_codegen() {
     let _ = TestLogger::init(LevelFilter::Debug, Config::default());
-    let output = picus_codegen_test!(MulCircuit<Lift<Fr>>);
-    println!("{}", output.display());
+    let output = mock_codegen_test!(MulWithFixedConstraintCircuit<Fr>);
+
+    similar_asserts::assert_eq!(
+        output,
+        MockOutput {
+            gates: vec![],
+            main: Some(MockFunc {
+                name: "Main".to_owned(),
+                args: args(1),
+                fields: fields(1),
+                exprs: IRBuilder::default()
+                    .push_const(Fr::ONE) //t0 := 1;
+                    .push_const(-Fr::ONE) //t1 := -1;
+                    .push_temp(0, 0) //t2 := temp(0, 0);
+                    .product() //t3 := t1 * t2;
+                    .push_temp(1, 0) //t4 := temp(1, 0);
+                    .neg() //t5 := -t4;
+                    .sum() //t6 := t3 + t5;
+                    .product_with(Some(0), None) //t7 := t0 * t6;
+                    .push_const(Fr::ZERO) //t8 := 0;
+                    .push_const(Fr::ONE) //t9 := 1;
+                    .push_temp(0, 0) //t10 := temp(0, 0);
+                    .push_temp(1, 0) //t11 := temp(1, 0);
+                    .product() //t12 := t10 * t11;
+                    .push_temp(2, 0) //t13 := temp(2, 0);
+                    .neg() //t14 := -t13;
+                    .sum() //t15 := t12 + t14;
+                    .product() //t16 := t9 * t15;
+                    .push_const(Fr::ZERO) //t17 := 0;
+                    .push_temp(0, 0) //t18 := temp(0, 0);
+                    .push_arg(0) //t19 := arg0;
+                    .push_temp(2, 0) //t20 := temp(2, 0);
+                    .push_field(0) //t21 := field0;
+                    .push_temp(3, 0) //t22 := temp(2, 0);
+                    .push_const(-Fr::ONE) //t23 := -1;
+                    .constraint(7, 8) //t24 := t7 == t8;
+                    .constraint(16, 17) //t25 := t16 == t17;
+                    .constraint(18, 19) //t26 := t18 == t19;
+                    .constraint(20, 21) //t27 := t20 == t21;
+                    .constraint(22, 23) //t28 := t22 == t23;
+                    .into()
+            })
+        }
+    )
 }
 
-#[test]
-fn test_fibonacci_circuit_codegen() {
-    let _ = TestLogger::init(LevelFilter::Debug, Config::default());
-    mock_codegen_test!(FibonacciCircuit<Fr>);
+macro_rules! picus_test {
+    ($name:ident, $circ:ty) => {
+        #[test]
+        fn $name() {
+            let _ = TestLogger::init(LevelFilter::Debug, Config::default());
+            let output = picus_codegen_test!($circ);
+            println!("{}", output.display());
+        }
+    };
 }
 
-#[test]
-fn test_fibonacci_circuit_picus_codegen() {
-    let _ = TestLogger::init(LevelFilter::Debug, Config::default());
-    let output = picus_codegen_test!(FibonacciCircuit<Lift<Fr>>);
-    println!("{}", output.display());
-}
+picus_test!(test_mul_circuit_picus_codegen, MulCircuit<Lift<Fr>>);
+picus_test!(
+    test_mul_with_fixed_constraint_circuit_picus_codegen,
+    MulWithFixedConstraintCircuit<Lift<Fr>>
+);
+picus_test!(
+    test_fibonacci_circuit_picus_codegen,
+    FibonacciCircuit<Lift<Fr>>
+);

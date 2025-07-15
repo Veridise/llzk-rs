@@ -142,7 +142,7 @@ pub trait Lowering {
 
         let sum = |lhs, rhs| self.lower_sum(&lhs?, &rhs?);
 
-        let product = |lhs, rhs| self.lower_product(&rhs?, &lhs?);
+        let product = |lhs, rhs| self.lower_product(&lhs?, &rhs?);
 
         let scaled = |expr, scaled| self.lower_scaled(&expr?, &self.lower_constant(&scaled)?);
 

@@ -110,7 +110,7 @@ pub trait CodegenStrategy: Default {
     {
         let lower_cell = |(col, row): &(Column<Any>, usize)| -> Result<Value<L::CellOutput>> {
             let q = col.query_cell::<L::F>(Rotation::cur());
-            let row = Row::new(*row, syn.advice_io(), syn.instance_io());
+            let row = Row::new(*row, syn.regions_ref(), syn.advice_io(), syn.instance_io());
             scope.lower_expr(&q, &row, &row)
         };
         let mut constraints = syn.constraints().collect::<Vec<_>>();

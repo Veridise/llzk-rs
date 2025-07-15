@@ -15,7 +15,7 @@ macro_rules! codegen_test {
 #[macro_export]
 macro_rules! mock_codegen_test {
     ($c:ty) => {
-        codegen_test!($c, MockBackend, CallGatesStrat)
+        codegen_test!($c, MockBackend, InlineConstraintsStrat)
     };
 }
 
