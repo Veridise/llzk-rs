@@ -1,4 +1,7 @@
-use std::{fmt, ops::AddAssign};
+use std::{
+    fmt,
+    ops::{AddAssign, Sub},
+};
 
 #[cfg(feature = "bigint-felt")]
 use num_bigint::BigUint;
@@ -19,6 +22,19 @@ pub struct Felt(FeltRepr);
 impl Felt {
     pub fn new(v: FeltRepr) -> Self {
         Self(v)
+    }
+}
+
+#[cfg(feature = "bigint-felt")]
+impl From<usize> for Felt {
+    fn from(value: usize) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<FeltRepr> for Felt {
+    fn from(value: FeltRepr) -> Self {
+        Self(value)
     }
 }
 
@@ -55,6 +71,14 @@ impl fmt::Display for Felt {
 impl AddAssign<usize> for Felt {
     fn add_assign(&mut self, rhs: usize) {
         self.0 += rhs;
+    }
+}
+
+impl<R: Into<FeltRepr>> Sub<R> for Felt {
+    type Output = Felt;
+
+    fn sub(self, rhs: R) -> Self::Output {
+        Self(self.0 - rhs.into())
     }
 }
 

@@ -9,6 +9,7 @@ use crate::{
         traits::{ConstantFolding, ConstraintExpr, MaybeVarLike},
         Expr,
     },
+    felt::Felt,
     vars::VarStr,
 };
 
@@ -181,14 +182,14 @@ impl MaybeCallLike for CallStmt {
 }
 
 impl StmtConstantFolding for CallStmt {
-    fn fold(&self) -> Option<Stmt> {
+    fn fold(&self, prime: &Felt) -> Option<Stmt> {
         Some(Wrap::new(
             Self {
                 callee: self.callee.clone(),
                 inputs: self
                     .inputs
                     .iter()
-                    .map(|e| e.fold().unwrap_or(e.clone()))
+                    .map(|e| e.fold(prime).unwrap_or(e.clone()))
                     .collect::<Vec<_>>()
                     .into(),
                 outputs: self.outputs.clone(),
@@ -254,9 +255,9 @@ impl MaybeCallLike for ConstraintStmt {
 }
 
 impl StmtConstantFolding for ConstraintStmt {
-    fn fold(&self) -> Option<Stmt> {
+    fn fold(&self, prime: &Felt) -> Option<Stmt> {
         Some(Wrap::new(
-            Self(self.0.fold().unwrap_or(self.0.clone())).into(),
+            Self(self.0.fold(prime).unwrap_or(self.0.clone())).into(),
         ))
     }
 }
@@ -313,7 +314,7 @@ impl MaybeCallLike for CommentLine {
 }
 
 impl StmtConstantFolding for CommentLine {
-    fn fold(&self) -> Option<Stmt> {
+    fn fold(&self, _: &Felt) -> Option<Stmt> {
         None
     }
 }

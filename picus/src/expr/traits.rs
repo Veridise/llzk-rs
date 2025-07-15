@@ -1,9 +1,6 @@
 use std::{any::Any, collections::HashMap};
 
-use crate::{
-    display::TextRepresentable, felt::Felt, stmt::traits::ConstraintLike,
-    vars::VarStr,
-};
+use crate::{display::TextRepresentable, felt::Felt, stmt::traits::ConstraintLike, vars::VarStr};
 
 use super::{Expr, ExprHash};
 use anyhow::Result;
@@ -39,7 +36,7 @@ pub trait ConstantFolding {
     fn as_const(&self) -> Option<Felt>;
 
     /// If the expression folded returns Some(expr), otherwise returns None
-    fn fold(&self) -> Option<Expr>;
+    fn fold(&self, prime: &Felt) -> Option<Expr>;
 
     /// Returns true if the expression folds to a constant 1.
     fn is_one(&self) -> bool {
@@ -53,6 +50,13 @@ pub trait ConstantFolding {
     fn is_zero(&self) -> bool {
         if let Some(n) = self.as_const() {
             return n.is_zero();
+        }
+        false
+    }
+
+    fn is_minus_one(&self, prime: &Felt) -> bool {
+        if let Some(n) = self.as_const() {
+            return n == (prime.clone() - 1usize);
         }
         false
     }

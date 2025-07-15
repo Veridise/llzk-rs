@@ -84,7 +84,7 @@ impl ConstantFolding for ConstExpr {
         Some(self.0.clone())
     }
 
-    fn fold(&self) -> Option<Expr> {
+    fn fold(&self, _: &Felt) -> Option<Expr> {
         None
     }
 }
@@ -172,7 +172,7 @@ impl ConstantFolding for VarExpr {
         None
     }
 
-    fn fold(&self) -> Option<Expr> {
+    fn fold(&self, _: &Felt) -> Option<Expr> {
         None
     }
 }
@@ -223,7 +223,7 @@ impl ExprLike for VarExpr {}
 //===----------------------------------------------------------------------===//
 
 pub trait OpFolder: PartialEq + Clone {
-    fn fold(&self, lhs: Expr, rhs: Expr) -> Option<Expr>;
+    fn fold(&self, lhs: Expr, rhs: Expr, prime: &Felt) -> Option<Expr>;
 
     fn commutative(&self) -> bool;
 
@@ -238,41 +238,64 @@ pub enum BinaryOp {
     Div,
 }
 
+/// Tries to fold a newly created expression. If it didn't fold then returns the original
+/// expression.
+fn try_fold<E: ExprLike>(e: E, prime: &Felt) -> Option<Expr> {
+    e.fold(prime).or_else(|| Some(Wrap::new(e)))
+}
+
 impl BinaryOp {
-    fn fold_add(&self, lhs: Expr, rhs: Expr) -> Option<Expr> {
-        if let Some(lhs) = lhs.as_const() {
-            if lhs.is_zero() {
-                return Some(rhs);
-            }
+    fn fold_add(&self, lhs: &Expr, rhs: &Expr, _prime: &Felt) -> Option<Expr> {
+        if lhs.is_zero() {
+            return Some(rhs.clone());
+        }
+
+        None
+    }
+
+    fn fold_mul(&self, lhs: &Expr, rhs: &Expr, prime: &Felt) -> Option<Expr> {
+        if lhs.is_one() {
+            return Some(rhs.clone());
+        }
+        if lhs.is_zero() {
+            return Some(lhs.clone());
+        }
+        if lhs.is_minus_one(prime) {
+            return try_fold(NegExpr(rhs.clone()), prime);
+        }
+
+        None
+    }
+
+    fn fold_sub(&self, lhs: &Expr, rhs: &Expr, prime: &Felt) -> Option<Expr> {
+        if lhs.is_zero() && rhs.is_zero() {
+            return Some(Wrap::new(ConstExpr(0usize.into())));
+        }
+        if lhs.is_zero() {
+            return try_fold(NegExpr(rhs.clone()), prime);
+        }
+        if rhs.is_zero() {
+            return Some(lhs.clone());
         }
         None
     }
 
-    fn fold_mul(&self, lhs: Expr, rhs: Expr) -> Option<Expr> {
-        if let Some(lhs_c) = lhs.as_const() {
-            if lhs_c.is_one() {
-                return Some(rhs);
-            }
-            if lhs_c.is_zero() {
-                return Some(lhs);
-            }
+    fn fold_impl(&self, lhs: &Expr, rhs: &Expr, prime: &Felt) -> Option<Expr> {
+        match self {
+            BinaryOp::Add => self.fold_add(lhs, rhs, prime),
+            BinaryOp::Sub => self.fold_sub(lhs, rhs, prime),
+            BinaryOp::Mul => self.fold_mul(lhs, rhs, prime),
+            BinaryOp::Div => None,
         }
-        None
     }
 }
 
 impl OpFolder for BinaryOp {
-    fn fold(&self, lhs: Expr, rhs: Expr) -> Option<Expr> {
-        match self {
-            BinaryOp::Add => self
-                .fold_add(lhs.clone(), rhs.clone())
-                .or_else(|| self.fold_add(rhs, lhs)),
-            BinaryOp::Sub => None,
-            BinaryOp::Mul => self
-                .fold_mul(lhs.clone(), rhs.clone())
-                .or_else(|| self.fold_mul(rhs, lhs)),
-            BinaryOp::Div => None,
-        }
+    fn fold(&self, lhs: Expr, rhs: Expr, prime: &Felt) -> Option<Expr> {
+        self.fold_impl(&lhs, &rhs, prime).or_else(|| {
+            self.flip(&lhs, &rhs)
+                .and_then(|e| e.op().fold_impl(&e.lhs(), &e.rhs(), prime))
+        })
     }
 
     fn commutative(&self) -> bool {
@@ -314,7 +337,7 @@ pub enum ConstraintKind {
 }
 
 impl OpFolder for ConstraintKind {
-    fn fold(&self, _lhs: Expr, _rhs: Expr) -> Option<Expr> {
+    fn fold(&self, _lhs: Expr, _rhs: Expr, _prime: &Felt) -> Option<Expr> {
         None
     }
 
@@ -422,17 +445,17 @@ macro_rules! binary_expr_common {
                 None
             }
 
-            fn fold(&self) -> Option<Expr> {
-                let lhs = self.lhs().fold();
-                let rhs = self.rhs().fold();
+            fn fold(&self, prime: &Felt) -> Option<Expr> {
+                let lhs = self.lhs().fold(prime);
+                let rhs = self.rhs().fold(prime);
                 match (lhs, rhs) {
-                    (None, None) => self.op().fold(self.lhs(), self.rhs()),
+                    (None, None) => self.op().fold(self.lhs(), self.rhs(), prime),
                     (lhs, rhs) => {
                         let lhs = lhs.unwrap_or_else(|| self.lhs());
                         let rhs = rhs.unwrap_or_else(|| self.rhs());
 
                         self.op()
-                            .fold(lhs.clone(), rhs.clone())
+                            .fold(lhs.clone(), rhs.clone(), prime)
                             .or_else(|| Some(Wrap::new(Self(self.0, lhs, rhs))))
                     }
                 }
@@ -601,8 +624,8 @@ impl ConstantFolding for NegExpr {
         None
     }
 
-    fn fold(&self) -> Option<Expr> {
-        if let Some(e) = self.0.fold() {
+    fn fold(&self, prime: &Felt) -> Option<Expr> {
+        if let Some(e) = self.0.fold(prime) {
             Some(Wrap::new(Self(e)))
         } else {
             None

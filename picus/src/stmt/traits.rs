@@ -4,6 +4,7 @@ use super::Stmt;
 use crate::{
     display::TextRepresentable,
     expr::{traits::ConstraintExpr, Expr},
+    felt::Felt,
 };
 use anyhow::Result;
 
@@ -26,7 +27,7 @@ pub trait CallLike {
 }
 
 pub trait StmtConstantFolding {
-    fn fold(&self) -> Option<Stmt>;
+    fn fold(&self, prime: &Felt) -> Option<Stmt>;
 }
 
 pub trait CallLikeMut: CallLike {

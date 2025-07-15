@@ -56,8 +56,8 @@ impl<T: ConstantFolding + ?Sized> ConstantFolding for Wrap<T> {
         self.as_ref().as_const()
     }
 
-    fn fold(&self) -> Option<Expr> {
-        self.as_ref().fold()
+    fn fold(&self, prime: &Felt) -> Option<Expr> {
+        self.as_ref().fold(prime)
     }
 }
 

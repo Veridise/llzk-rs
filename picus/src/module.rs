@@ -8,6 +8,7 @@ use std::{
 use crate::{
     display::{ListItem, TextRepresentable, TextRepresentation},
     expr::{self, traits::ConstraintEmitter, Expr},
+    felt::Felt,
     stmt::{
         self,
         traits::{ConstraintLike as _, StmtConstantFolding as _},
@@ -108,7 +109,7 @@ impl<K: VarKind> ConstraintEmitter for Module<K> {
 }
 
 pub trait ModuleLike<K> {
-    fn fold_stmts(&mut self);
+    fn fold_stmts(&mut self, prime: &Felt);
 
     fn add_constraint(&mut self, constraint: Expr) {
         self.add_stmt(stmt::constrain(constraint))
@@ -130,11 +131,11 @@ pub trait ModuleWithVars<K> {
 }
 
 impl<K: VarKind> ModuleLike<K> for Module<K> {
-    fn fold_stmts(&mut self) {
+    fn fold_stmts(&mut self, prime: &Felt) {
         self.stmts = self
             .stmts()
             .iter()
-            .map(|s| s.fold().unwrap_or(s.clone()))
+            .map(|s| s.fold(prime).unwrap_or(s.clone()))
             .collect();
     }
 
@@ -148,8 +149,8 @@ impl<K: VarKind> ModuleLike<K> for Module<K> {
 }
 
 impl<K: VarKind> ModuleLike<K> for ModuleRef<K> {
-    fn fold_stmts(&mut self) {
-        self.borrow_mut().fold_stmts()
+    fn fold_stmts(&mut self, prime: &Felt) {
+        self.borrow_mut().fold_stmts(prime)
     }
 
     fn constraints_len(&self) -> usize {

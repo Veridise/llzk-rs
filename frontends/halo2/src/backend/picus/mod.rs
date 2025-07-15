@@ -59,6 +59,7 @@ impl PicusParams {
     }
 }
 
+#[derive(Default)]
 pub struct FeltWrap<F: PrimeField>(F);
 
 impl<F: PrimeField> From<F> for FeltWrap<F> {
@@ -242,7 +243,7 @@ impl<'a, L: PrimeField> PicusBackend<'a, L> {
     fn optimization_pipeline(&self) -> Pipeline<L> {
         let params = &self.inner.borrow().params;
         PipelineBuilder::<L>::new()
-            .add_pass::<FoldExprsPass>()
+            .add_pass::<FoldExprsPass<FeltWrap<L>>>()
             //.add_pass::<ConsolidateVarNamesPass>()
             .add_pass_with_params::<EnsureMaxExprSizePass<NamingConvention>>((
                 params.expr_cutoff,

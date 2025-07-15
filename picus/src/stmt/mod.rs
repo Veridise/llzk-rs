@@ -1,5 +1,6 @@
 use crate::display::{TextRepresentable, TextRepresentation};
 use crate::expr::traits::ConstraintExpr;
+use crate::felt::Felt;
 use crate::vars::Temp;
 use anyhow::Result;
 use impls::{CallStmt, CommentLine, ConstraintStmt};
@@ -44,8 +45,8 @@ impl<S: MaybeCallLike + ?Sized> MaybeCallLike for Wrap<S> {
 }
 
 impl<S: StmtConstantFolding + ?Sized> StmtConstantFolding for Wrap<S> {
-    fn fold(&self) -> Option<Stmt> {
-        self.borrow().fold()
+    fn fold(&self, prime: &Felt) -> Option<Stmt> {
+        self.borrow().fold(prime)
     }
 }
 
