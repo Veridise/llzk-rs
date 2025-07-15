@@ -3,6 +3,7 @@ use backend::InlineConstraintsStrat;
 
 mod arena;
 pub(crate) mod backend;
+mod error;
 mod gates;
 mod halo2;
 mod io;
@@ -20,6 +21,7 @@ pub use backend::picus::PicusOutput;
 pub use backend::picus::PicusParams;
 pub use backend::picus::PicusParamsBuilder;
 pub use backend::Backend;
+pub use error::to_plonk_error;
 pub use io::{CircuitIO, CircuitWithIO};
 pub use ir::{BinaryBoolOp, CircuitStmt};
 
