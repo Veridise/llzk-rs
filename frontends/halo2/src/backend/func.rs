@@ -49,6 +49,7 @@ pub enum FuncIO {
     Arg(ArgNo),
     Field(FieldId),
     Advice(usize, usize),
+    Fixed(usize, usize),
 }
 
 impl From<ArgNo> for FuncIO {
@@ -66,29 +67,5 @@ impl From<FieldId> for FuncIO {
 impl From<(usize, usize)> for FuncIO {
     fn from(value: (usize, usize)) -> Self {
         Self::Advice(value.0, value.1)
-    }
-}
-
-impl TryInto<ArgNo> for FuncIO {
-    type Error = anyhow::Error;
-
-    fn try_into(self) -> Result<ArgNo, Self::Error> {
-        todo!()
-    }
-}
-
-impl TryInto<FieldId> for FuncIO {
-    type Error = anyhow::Error;
-
-    fn try_into(self) -> Result<FieldId, Self::Error> {
-        todo!()
-    }
-}
-
-impl TryInto<(usize, usize)> for FuncIO {
-    type Error = anyhow::Error;
-
-    fn try_into(self) -> Result<(usize, usize), Self::Error> {
-        todo!()
     }
 }

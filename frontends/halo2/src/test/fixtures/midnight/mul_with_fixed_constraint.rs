@@ -14,7 +14,7 @@ pub struct MulWithFixedConstraintConfig {
     pub col_a: Column<Advice>,
     pub col_b: Column<Advice>,
     pub col_c: Column<Advice>,
-    pub col_minus_one: Column<Advice>,
+    pub col_d: Column<Advice>,
     pub selector: Selector,
     pub instance: Column<Instance>,
 }
@@ -38,7 +38,7 @@ impl<F: Field> MulChip<F> {
         let col_a = meta.advice_column();
         let col_b = meta.advice_column();
         let col_c = meta.advice_column();
-        let col_minus_one = meta.advice_column();
+        let col_d = meta.advice_column();
         let selector = meta.selector();
         let instance = meta.instance_column();
 
@@ -46,6 +46,7 @@ impl<F: Field> MulChip<F> {
         meta.enable_equality(col_a);
         meta.enable_equality(col_b);
         meta.enable_equality(col_c);
+        meta.enable_equality(col_d);
         meta.enable_equality(instance);
 
         // computes c = -a^2
@@ -63,12 +64,20 @@ impl<F: Field> MulChip<F> {
             vec![s.clone() * (f * a.clone() - b.clone()), s * (a * b - c)]
         });
 
+        meta.create_gate("equal -1", |meta| {
+            let s = meta.query_selector(selector);
+            let f = meta.query_fixed(col_fixed, Rotation::cur());
+            let f2 = meta.query_fixed(col_fixed, Rotation::next());
+
+            vec![s * (f - f2)]
+        });
+
         MulWithFixedConstraintConfig {
             col_fixed,
             col_a,
             col_b,
             col_c,
-            col_minus_one,
+            col_d,
             selector,
             instance,
         }
@@ -113,14 +122,12 @@ impl<F: Field> MulChip<F> {
                     || a_cell.value().copied() * b_cell.value(),
                 )?;
 
-                let minus_one_cell = region.assign_advice(
-                    || "-1 adv",
-                    self.config.col_minus_one,
+                region.assign_advice_from_constant(
+                    || "const",
+                    self.config.col_d,
                     0,
-                    || -> Value<F> { Value::known(-F::ONE) },
+                    F::ONE + F::ONE,
                 )?;
-
-                region.constrain_equal(minus_one_cell.cell(), fixed_cell.cell())?;
 
                 Ok(c_cell)
             },

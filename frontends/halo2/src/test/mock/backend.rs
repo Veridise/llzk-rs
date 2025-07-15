@@ -6,9 +6,7 @@ use crate::{
         Backend, Codegen,
     },
     gates::AnyQuery,
-    halo2::{
-        AdviceQuery, Challenge, FixedQuery, Fr, InstanceQuery, Selector, Value,
-    },
+    halo2::{AdviceQuery, Challenge, FixedQuery, Fr, InstanceQuery, Selector, Value},
     ir::BinaryBoolOp,
     synthesis::CircuitSynthesis,
     value::{steal, steal_many},
@@ -56,8 +54,20 @@ pub enum MockExprIR {
     Scaled(usize, usize),
     Const(Fr),
     Temp(usize, usize),
+    Fixed(usize, usize),
     Constraint(usize, usize),
     Call(String, Vec<usize>),
+}
+
+impl From<FuncIO> for MockExprIR {
+    fn from(value: FuncIO) -> Self {
+        match value {
+            FuncIO::Arg(arg_no) => MockExprIR::Arg(arg_no),
+            FuncIO::Field(field_id) => MockExprIR::Field(field_id),
+            FuncIO::Advice(col, row) => MockExprIR::Temp(col, row),
+            FuncIO::Fixed(col, row) => MockExprIR::Fixed(col, row),
+        }
+    }
 }
 
 impl fmt::Debug for MockExprIR {
@@ -71,6 +81,7 @@ impl fmt::Debug for MockExprIR {
             MockExprIR::Scaled(lhs, rhs) => write!(f, "t{lhs} * t{rhs}"),
             MockExprIR::Const(fp) => write!(f, "{fp:?}"),
             MockExprIR::Temp(col, row) => write!(f, "temp({col}, {row})"),
+            MockExprIR::Fixed(col, row) => write!(f, "fixed({col}, {row})"),
             MockExprIR::Constraint(lhs, rhs) => write!(f, "t{lhs} == t{rhs}"),
             MockExprIR::Call(name, items) => {
                 write!(f, "{name}(")?;
@@ -301,11 +312,7 @@ impl Lowering for MockFuncRef {
 
         Ok(match resolved {
             ResolvedQuery::Lit(_) => unreachable!(),
-            ResolvedQuery::IO(func_io) => Value::known(self.push_expr(match func_io {
-                FuncIO::Arg(arg_no) => MockExprIR::Arg(arg_no),
-                FuncIO::Field(field_id) => MockExprIR::Field(field_id),
-                FuncIO::Advice(col, row) => MockExprIR::Temp(col, row),
-            })),
+            ResolvedQuery::IO(func_io) => Value::known(self.push_expr(func_io.into())),
         })
     }
 
@@ -321,11 +328,7 @@ impl Lowering for MockFuncRef {
 
         Ok(match resolved {
             ResolvedQuery::Lit(_) => unreachable!(),
-            ResolvedQuery::IO(func_io) => Value::known(self.push_expr(match func_io {
-                FuncIO::Arg(arg_no) => MockExprIR::Arg(arg_no),
-                FuncIO::Field(field_id) => MockExprIR::Field(field_id),
-                FuncIO::Advice(col, row) => MockExprIR::Temp(col, row),
-            })),
+            ResolvedQuery::IO(func_io) => Value::known(self.push_expr(func_io.into())),
         })
     }
 
@@ -341,11 +344,7 @@ impl Lowering for MockFuncRef {
 
         Ok(match resolved {
             ResolvedQuery::Lit(value) => value.map(|f| self.push_expr(MockExprIR::Const(f))),
-            ResolvedQuery::IO(func_io) => Value::known(self.push_expr(match func_io {
-                FuncIO::Arg(arg_no) => MockExprIR::Arg(arg_no),
-                FuncIO::Field(field_id) => MockExprIR::Field(field_id),
-                FuncIO::Advice(col, row) => MockExprIR::Temp(col, row),
-            })),
+            ResolvedQuery::IO(func_io) => Value::known(self.push_expr(func_io.into())),
         })
     }
 

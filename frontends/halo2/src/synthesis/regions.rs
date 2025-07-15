@@ -62,7 +62,7 @@ impl FQN {
 
 /// Data shared across regions.
 #[derive(Debug, Default)]
-struct SharedRegionData<F> {
+pub struct SharedRegionData<F> {
     advice_names: HashMap<(usize, usize), FQN>,
     /// Constant values assigned to fixed columns in the region.
     fixed: HashMap<(usize, usize), Value<F>>,
@@ -87,22 +87,32 @@ impl<F> AddAssign for SharedRegionData<F> {
 }
 
 impl<F: Copy> SharedRegionData<F> {
-    fn resolve_from_blanket_fills(&self, column: usize, row: usize) -> Value<F> {
+    fn resolve_from_blanket_fills(&self, column: usize, row: usize) -> Option<Value<F>> {
         self.blanket_fills
             .get(&column)
             .and_then(|values| values.iter().rfind(|(range, _)| range.contains(&row)))
             .map(|(_, v)| *v)
-            .unwrap_or_else(|| -> Value<F> {
-                log::warn!("Resolved Fixed query (col {column}, row {row}) with an unknown value");
-                Value::unknown()
-            })
     }
 
-    pub fn resolve_fixed(&self, column: usize, row: usize) -> Value<F> {
+    pub fn resolve_fixed(&self, column: usize, row: usize) -> Option<Value<F>> {
         self.fixed
             .get(&(column, row))
             .cloned()
-            .unwrap_or_else(|| self.resolve_from_blanket_fills(column, row))
+            .or_else(|| self.resolve_from_blanket_fills(column, row))
+    }
+
+    pub fn assign_fixed<VR>(&mut self, fixed: Column<Fixed>, row: usize, value: Value<VR>)
+    where
+        F: Field,
+        VR: Into<Assigned<F>>,
+    {
+        let value = value.map(|vr| vr.into());
+        log::debug!(
+            "Recording out-of-region fixed assignment @ col = {}, row = {row}, value = {value:?}",
+            fixed.index()
+        );
+        self.fixed
+            .insert((fixed.index(), row), value.map(|vr| vr.evaluate()));
     }
 }
 
@@ -356,6 +366,18 @@ impl<F: Default + Clone + Copy> Regions<F> {
         None
     }
 
+    pub fn edit_or<FN, FO, FR, D>(&mut self, f: FN, or: FO, d: D) -> FR
+    where
+        FN: FnOnce(&mut RegionDataImpl<F>, D) -> FR,
+        FO: FnOnce(&mut SharedRegionData<F>, D) -> FR,
+    {
+        if let Some(region) = self.current.as_mut() {
+            f(region, d)
+        } else {
+            or(&mut self.shared, d)
+        }
+    }
+
     pub fn regions<'a>(&'a self) -> Vec<RegionData<'a, F>> {
         self.regions
             .iter()
@@ -462,10 +484,13 @@ impl<'io, 'r, F> Row<'io, 'r, F> {
 
 impl<F: Field> QueryResolver<F> for Row<'_, '_, F> {
     fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>> {
-        Ok(ResolvedQuery::Lit(self.region_data.resolve_fixed(
-            query.column_index(),
-            self.resolve_rotation(query.rotation())?,
-        )))
+        let row = self.resolve_rotation(query.rotation())?;
+        Ok(
+            match self.region_data.resolve_fixed(query.column_index(), row) {
+                Some(v) => ResolvedQuery::Lit(v),
+                None => ResolvedQuery::IO(FuncIO::Fixed(query.column_index(), row)),
+            },
+        )
     }
 
     fn resolve_advice_query<'a>(
@@ -555,9 +580,13 @@ impl<'r, 'io, F: Field> RegionRow<'r, 'io, F> {
 impl<F: Field> QueryResolver<F> for RegionRow<'_, '_, F> {
     fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>> {
         let row = self.row.resolve_rotation(query.rotation())?;
-        let value = self.region.shared.resolve_fixed(query.column_index(), row);
 
-        Ok(ResolvedQuery::Lit(value))
+        Ok(
+            match self.region.shared.resolve_fixed(query.column_index(), row) {
+                Some(v) => ResolvedQuery::Lit(v),
+                None => ResolvedQuery::IO(FuncIO::Fixed(query.column_index(), row)),
+            },
+        )
     }
 
     fn resolve_advice_query<'a>(

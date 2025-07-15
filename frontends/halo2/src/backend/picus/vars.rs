@@ -86,12 +86,14 @@ impl NamingConvention {
                     FuncIO::Arg(arg_no) => format!("Input_{arg_no}"),
                     FuncIO::Field(field_id) => format!("Output_{field_id}"),
                     FuncIO::Advice(col, row) => format!("Advice_{col}_{row}"),
+                    FuncIO::Fixed(col, row) => format!("Fixed_{col}_{row}"),
                 }
             ),
             NamingConvention::Short => match func_io {
                 FuncIO::Arg(arg_no) => format!("in_{arg_no}"),
                 FuncIO::Field(field_id) => format!("out_{field_id}"),
                 FuncIO::Advice(col, row) => format!("adv_{col}_{row}"),
+                FuncIO::Fixed(col, row) => format!("fix_{col}_{row}"),
             },
         }
     }

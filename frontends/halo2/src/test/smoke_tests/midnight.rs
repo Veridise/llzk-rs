@@ -98,17 +98,25 @@ fn test_mul_with_fixed_constraint_circuit_codegen() {
                     .sum() //t15 := t12 + t14;
                     .product() //t16 := t9 * t15;
                     .push_const(Fr::ZERO) //t17 := 0;
-                    .push_temp(0, 0) //t18 := temp(0, 0);
-                    .push_arg(0) //t19 := arg0;
-                    .push_temp(2, 0) //t20 := temp(2, 0);
-                    .push_field(0) //t21 := field0;
-                    .push_temp(3, 0) //t22 := temp(2, 0);
-                    .push_const(-Fr::ONE) //t23 := -1;
-                    .constraint(7, 8) //t24 := t7 == t8;
-                    .constraint(16, 17) //t25 := t16 == t17;
-                    .constraint(18, 19) //t26 := t18 == t19;
-                    .constraint(20, 21) //t27 := t20 == t21;
-                    .constraint(22, 23) //t28 := t22 == t23;
+                    .push_const(Fr::ONE) //t18 := 1;
+                    .push_const(-Fr::ONE) //t19 := -1;
+                    .push_const(Fr::ONE + Fr::ONE) //t20 := 2;
+                    .neg() //t21 := -t20;
+                    .sum() //t22 := t19 + t21;
+                    .product() //t23 := t18 * t22;
+                    .push_const(Fr::ZERO) //t24 := 0
+                    .push_temp(0, 0) //t25 := temp(0, 0);
+                    .push_arg(0) //t26 := arg0;
+                    .push_temp(2, 0) //t27 := temp(2, 0);
+                    .push_field(0) //t28 := field0;
+                    .push_const(Fr::ONE + Fr::ONE) //t29 := 2;
+                    .push_temp(3, 0) //t30 := temp(2, 0);
+                    .constraint(7, 8) //t31 := t7 == t8;
+                    .constraint(16, 17) //t32 := t16 == t17;
+                    .constraint(23, 24) //t33 := t23 == t24;
+                    .constraint(25, 26) //t34 := t25 == t26;
+                    .constraint(27, 28) //t35 := t27 == t28;
+                    .constraint(29, 30) //t36 := t29 == t30;
                     .into()
             })
         }

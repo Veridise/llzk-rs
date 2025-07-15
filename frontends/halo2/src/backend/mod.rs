@@ -118,6 +118,7 @@ pub trait CodegenStrategy: Default {
         let mut constraints = syn.constraints().collect::<Vec<_>>();
         constraints.sort();
         constraints.into_iter().map(move |(from, to)| {
+            log::debug!("{from:?} == {to:?}");
             Ok(CircuitStmt::Constraint(
                 BinaryBoolOp::Eq,
                 lower_cell(from)?,

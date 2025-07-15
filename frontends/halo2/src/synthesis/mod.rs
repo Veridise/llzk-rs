@@ -22,6 +22,7 @@ pub struct CircuitSynthesis<F: Field> {
     current_phase: sealed::Phase,
 
     eq_constraints: Graph<EqConstraint>,
+    materialized_fixed_cells: Vec<(usize, usize)>,
     advice_io: CircuitIO<Advice>,
     instance_io: CircuitIO<Instance>,
 }
@@ -42,6 +43,7 @@ impl<F: Field> CircuitSynthesis<F> {
                 advice_io: C::advice_io(&config),
                 instance_io: C::instance_io(&config),
                 eq_constraints: Default::default(),
+                materialized_fixed_cells: Default::default(),
             },
             config,
         )
@@ -51,6 +53,7 @@ impl<F: Field> CircuitSynthesis<F> {
         let (mut syn, config) = Self::init::<C>();
 
         syn.synthesize(circuit, config)?;
+        log::debug!("cs = {:?}", syn.cs);
 
         syn.advice_io.validate(&AdviceIOValidator)?;
         syn.instance_io
@@ -131,6 +134,12 @@ impl<F: Field> CircuitSynthesis<F> {
 
     pub fn seen_advice_cells(&self) -> impl Iterator<Item = (&(usize, usize), &FQN)> {
         self.regions.seen_advice_cells()
+    }
+
+    fn maybe_materialize_fixed(&mut self, col: Column<Any>, row: usize) {
+        if *col.column_type() == Any::Fixed {
+            self.materialized_fixed_cells.push((col.index(), row));
+        }
     }
 }
 
@@ -229,10 +238,15 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         V: FnOnce() -> Value<VR>,
         A: FnOnce() -> AR,
     {
-        self.regions.edit(|region| {
-            region.update_extent(fixed.into(), row);
-            region.assign_fixed(fixed, row, value());
-        });
+        self.regions.edit_or(
+            |region, value| {
+                region.update_extent(fixed.into(), row);
+                region.assign_fixed(fixed, row, value);
+            },
+            // If we don't have a current region we write directly on the shared data
+            |shared, value| shared.assign_fixed(fixed, row, value),
+            value(),
+        );
         Ok(())
     }
 
@@ -243,6 +257,8 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         to: Column<Any>,
         to_row: usize,
     ) -> Result<(), Error> {
+        self.maybe_materialize_fixed(from, from_row);
+        self.maybe_materialize_fixed(to, to_row);
         self.eq_constraints.add((from, from_row, to, to_row));
         Ok(())
     }
