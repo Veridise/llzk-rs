@@ -28,12 +28,6 @@ pub struct CircuitSynthesis<F: Field> {
 
 pub type AnyCell = (Column<Any>, usize);
 
-/// Minimal data about a region  required by backends
-pub struct RegionSummary {
-    start: RegionStart,
-    name: String,
-}
-
 impl<F: Field> CircuitSynthesis<F> {
     fn init<C: CircuitWithIO<F>>() -> (Self, C::Config) {
         let mut cs = ConstraintSystem::default();

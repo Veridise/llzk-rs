@@ -106,7 +106,7 @@ impl<'m, K: VarKind + Copy> PassImpl<'m, K> {
         // Select a leader from the group (order of priority: inputs, outputs, and then a
         // temporary). We fold here so that if the list of non-temp variables in the class is
         // empty we just use the fist temp we generated.
-        let leader = self.select_leader(&vars).or_else(|| temps.get(0).copied());
+        let leader = self.select_leader(&vars).or_else(|| temps.first().copied());
 
         Ok(temps
             .into_iter()
@@ -126,7 +126,7 @@ impl<'m, K: VarKind + Copy> PassImpl<'m, K> {
             .map(|class| self.handle_eqv_class(class, &ec))
             .collect::<Result<Vec<_>>>()?
             .into_iter()
-            .flat_map(|x| x)
+            .flatten()
             .collect::<RenameSet>())
     }
 

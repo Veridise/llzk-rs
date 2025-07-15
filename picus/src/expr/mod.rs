@@ -1,7 +1,7 @@
 use std::{collections::HashMap, rc::Rc};
 
 use anyhow::Result;
-use impls::{BinaryExpr, BinaryOp, ConstExpr, ConstraintKind, NegExpr, OpFolder, OpLike, VarExpr};
+use impls::{BinaryExpr, BinaryOp, ConstExpr, ConstraintKind, NegExpr, VarExpr};
 use traits::{
     ConstantFolding, ConstraintExpr, ExprLike, ExprSize, GetExprHash, MaybeVarLike, WrappedExpr,
 };
@@ -136,7 +136,7 @@ pub(crate) fn known_var(var: &VarStr) -> Expr {
 }
 
 fn binop(kind: BinaryOp, lhs: &Expr, rhs: &Expr) -> Expr {
-    Wrap::new(BinaryExpr::new(kind.clone(), lhs.clone(), rhs.clone()))
+    Wrap::new(BinaryExpr::new(kind, lhs.clone(), rhs.clone()))
 }
 
 pub fn add(lhs: &Expr, rhs: &Expr) -> Expr {
@@ -156,7 +156,7 @@ pub fn div(lhs: &Expr, rhs: &Expr) -> Expr {
 }
 
 fn constraint(kind: ConstraintKind, lhs: &Expr, rhs: &Expr) -> Expr {
-    Wrap::new(BinaryExpr::new(kind.clone(), lhs.clone(), rhs.clone()))
+    Wrap::new(BinaryExpr::new(kind, lhs.clone(), rhs.clone()))
 }
 
 pub fn lt(lhs: &Expr, rhs: &Expr) -> Expr {

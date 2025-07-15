@@ -61,7 +61,7 @@ pub struct OwnedEventSender<R> {
     receiver: R,
 }
 
-impl<'r, R: Clone> Clone for OwnedEventSender<R> {
+impl<R: Clone> Clone for OwnedEventSender<R> {
     fn clone(&self) -> Self {
         OwnedEventSender {
             receiver: self.receiver.clone(),

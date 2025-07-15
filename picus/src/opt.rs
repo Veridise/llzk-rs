@@ -3,10 +3,7 @@ use std::marker::PhantomData;
 use anyhow::Result;
 
 use crate::{
-    expr::{
-        traits::ExprLike,
-        Expr,
-    },
+    expr::{traits::ExprLike, Expr},
     felt::IntoPrime,
     stmt::traits::StmtLike,
     vars::VarKind,
@@ -53,6 +50,12 @@ impl<F: IntoPrime, K: VarKind + 'static> OptimizerPipelineBuilder<F, K> {
         FN2: FnMut(&dyn ExprLike) -> Result<Expr> + 'static,
     {
         self.add_pass_with_params::<AnonModuleScopedExprPass<K, FN, FN2>>(f)
+    }
+}
+
+impl<F: IntoPrime, K: VarKind + 'static> Default for OptimizerPipelineBuilder<F, K> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

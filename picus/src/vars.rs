@@ -113,7 +113,7 @@ impl<K: VarKind> Index<&K> for Vars<K> {
     type Output = VarStr;
 
     fn index(&self, index: &K) -> &Self::Output {
-        &self.0[&index]
+        &self.0[index]
     }
 }
 

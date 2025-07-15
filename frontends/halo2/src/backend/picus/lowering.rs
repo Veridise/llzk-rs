@@ -8,8 +8,8 @@ use crate::{
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     },
     halo2::{
-        AdviceQuery, Challenge, FixedQuery, InstanceQuery, RegionIndex, RegionStart,
-        Selector, Value,
+        AdviceQuery, Challenge, FixedQuery, InstanceQuery, RegionIndex, RegionStart, Selector,
+        Value,
     },
     ir::{lift::LiftLowering, BinaryBoolOp},
     synthesis::regions::FQN,
@@ -17,113 +17,15 @@ use crate::{
     LiftLike,
 };
 use anyhow::{anyhow, bail, Result};
-use disjoint::DisjointSetVec;
-use picus::{expr, stmt, vars::VarStr, ModuleLike as _};
-use std::{
-    cell::RefCell,
-    collections::{HashMap, HashSet},
-    marker::PhantomData,
-    rc::Rc,
-};
+use picus::{expr, stmt, ModuleLike as _};
+use std::{collections::HashMap, marker::PhantomData};
 
 pub type PicusModuleRef = picus::ModuleRef<VarKey>;
 pub(super) type PicusExpr = picus::expr::Expr;
 
-#[derive(Default)]
-struct VarEqvClasses {
-    classes: DisjointSetVec<VarStr>,
-    meta: HashMap<usize, VarKey>,
-}
-
-impl VarEqvClasses {
-    pub fn join(&mut self, lhs: VarStr, rhs: VarStr) {
-        let lhs = self.get_idx(lhs);
-        let rhs = self.get_idx(rhs);
-        self.classes.join(lhs, rhs);
-    }
-
-    fn get_idx(&mut self, var: VarStr) -> usize {
-        self.classes.push(var)
-    }
-
-    pub fn add<V>(&mut self, var: V)
-    where
-        V: Into<VarStr> + Into<VarKey> + Clone,
-    {
-        let var_str: VarStr = var.clone().into();
-
-        let var_key = var.into();
-        let idx = self.classes.push(var_str.clone()); // Ensure the var has an id
-        assert!(!self.meta.contains_key(&idx));
-        self.meta.insert(idx, var_key);
-    }
-
-    pub fn rename_sets(&self) -> HashMap<VarStr, VarStr> {
-        self.classes
-            .indices()
-            .sets()
-            .iter()
-            .flat_map(|set| {
-                let leaders = set
-                    .iter()
-                    .filter_map(|idx| {
-                        if self.meta[idx].is_temp() {
-                            None
-                        } else {
-                            Some(*idx)
-                        }
-                    })
-                    .collect::<HashSet<_>>();
-                let leader = leaders.iter().next().copied().unwrap_or_default();
-                let leader_name = self.classes.get(leader).unwrap();
-                let is_not_leader =
-                    move |idx: &usize| -> bool { *idx != leader && !leaders.contains(idx) };
-
-                set.iter()
-                    .copied()
-                    .filter(is_not_leader)
-                    .map(move |idx| (self.classes[idx].clone(), leader_name.clone()))
-            })
-            .collect()
-    }
-}
-
-#[derive(Clone, Default)]
-pub(crate) struct VarEqvClassesRef(Rc<RefCell<VarEqvClasses>>);
-
-impl VarEqvClassesRef {
-    pub fn join(&self, lhs: VarStr, rhs: VarStr) {
-        self.0.borrow_mut().join(lhs, rhs);
-    }
-
-    pub fn add<V>(&self, var: V) -> V
-    where
-        V: Into<VarStr> + Into<VarKey> + Clone,
-    {
-        self.0.borrow_mut().add(var.clone());
-        var
-    }
-    pub fn rename_sets(&self) -> HashMap<VarStr, VarStr> {
-        self.0.borrow().rename_sets()
-    }
-}
-
-pub(crate) struct RenameEqvVarsInModulePass {
-    eqv_vars: VarEqvClassesRef,
-}
-
-impl<'a, L> From<&'a PicusModuleLowering<L>> for RenameEqvVarsInModulePass {
-    fn from(value: &'a PicusModuleLowering<L>) -> Self {
-        Self {
-            eqv_vars: value.eqv_vars.clone(),
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct PicusModuleLowering<L> {
     module: PicusModuleRef,
-    eqv_vars: VarEqvClassesRef,
     lift_fixed: bool,
     naming_convention: NamingConvention,
     regions: HashMap<RegionIndex, RegionStart>,
@@ -134,14 +36,12 @@ impl<L> PicusModuleLowering<L> {
     pub fn new(
         module: PicusModuleRef,
         lift_fixed: bool,
-        eqv_vars: VarEqvClassesRef,
         regions: HashMap<RegionIndex, RegionStart>,
         naming_convention: NamingConvention,
     ) -> Self {
         Self {
             module,
             lift_fixed,
-            eqv_vars,
             regions,
             naming_convention,
             _field: Default::default(),
@@ -185,7 +85,7 @@ impl<L: LiftLike> PicusModuleLowering<L> {
             }
             ResolvedQuery::IO(func_io) => {
                 let seed = VarKeySeed::named_io(func_io, fqn, self.naming_convention);
-                Value::known(expr::var(&self.module, self.eqv_vars.add(seed)))
+                Value::known(expr::var(&self.module, seed))
             }
         })
     }
@@ -204,8 +104,7 @@ impl<L: LiftLike> LiftLowering for PicusModuleLowering<L> {
         if self.lift_fixed {
             Ok(expr::var(
                 &self.module,
-                self.eqv_vars
-                    .add(VarKeySeed::lifted(id, self.naming_convention)),
+                VarKeySeed::lifted(id, self.naming_convention),
             ))
         } else if let Some(f) = f {
             Ok(expr::r#const(FeltWrap(*f)))
@@ -279,9 +178,6 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
             BinaryBoolOp::Ge => expr::ge(&lhs, &rhs),
             BinaryBoolOp::Ne => unimplemented!(),
         });
-        if let (Some(lhs), Some(rhs)) = (lhs.var_name(), rhs.var_name()) {
-            self.eqv_vars.join(lhs.clone(), rhs.clone());
-        }
         Ok(())
     }
 
@@ -378,8 +274,7 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
             ResolvedSelector::Const(value) => Lowering::lower_constant(self, &value.to_f()),
             ResolvedSelector::Arg(arg_no) => Ok(Value::known(expr::var(
                 &self.module,
-                self.eqv_vars
-                    .add(VarKeySeed::io(arg_no, self.naming_convention)),
+                VarKeySeed::io(arg_no, self.naming_convention),
             ))),
         }
     }

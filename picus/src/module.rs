@@ -268,7 +268,7 @@ impl<K: VarKind> TextRepresentable for Module<K> {
                     .map(|o: &str| owned_list!("output", o).break_line().into())
                     .collect::<Vec<ListItem>>(),
             )
-            + (&self.stmts).to_repr()
+            + self.stmts.to_repr()
             + owned_list!(owned_list!("end-module"))
             + TR::comment(self.name())
     }

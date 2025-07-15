@@ -127,7 +127,7 @@ where
 }
 
 #[derive(Clone)]
-pub(crate) enum ListItem<'a> {
+pub enum ListItem<'a> {
     Concrete(TextRepresentation<'a>),
     Reference(&'a dyn TextRepresentable),
 }

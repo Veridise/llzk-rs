@@ -17,7 +17,8 @@ use crate::{
     gates::AnyQuery,
     halo2::{Expression, Field, PrimeField, RegionIndex, Selector, Value},
     ir::{lift::LiftIRGuard, CircuitStmt},
-    synthesis::{regions::FQN, CircuitSynthesis}, LiftLike,
+    synthesis::{regions::FQN, CircuitSynthesis},
+    LiftLike,
 };
 use anyhow::{anyhow, Result};
 
@@ -25,7 +26,7 @@ mod lowering;
 mod vars;
 
 pub use lowering::PicusModuleLowering;
-use lowering::{PicusExpr, PicusModuleRef, VarEqvClassesRef};
+use lowering::{PicusExpr, PicusModuleRef};
 use midnight_halo2_proofs::plonk::{AdviceQuery, FixedQuery, InstanceQuery};
 use num_bigint::BigUint;
 use picus::{
@@ -144,7 +145,6 @@ impl Default for PicusParams {
 struct PicusBackendInner<'a, L> {
     params: PicusParams,
     modules: Vec<PicusModuleRef>,
-    eqv_vars: HashMap<String, VarEqvClassesRef>,
     current_scope: Option<PicusModuleLowering<L>>,
     enqueued_stmts: HashMap<RegionIndex, Vec<CircuitStmt<Expression<L>>>>,
     _lift_guard: LiftIRGuard<'a>,
@@ -247,16 +247,6 @@ impl<'a, L: PrimeField> PicusBackend<'a, L> {
                 params.expr_cutoff,
                 params.naming_convention,
             ))
-            //.add_module_scope_expr_pass_fn(|name| {
-            //    let eqv_classes = self
-            //        .eqv_vars
-            //        .borrow()
-            //        .get(name)
-            //        .cloned()
-            //        .unwrap_or_default();
-            //    let renames = eqv_classes.rename_sets();
-            //    move |expr| Ok(expr.renamed(&renames).unwrap_or_else(|| expr.wrap()))
-            //})
             .into()
     }
 }
@@ -284,12 +274,9 @@ impl<L: LiftLike> PicusBackendInner<'_, L> {
                 )
             }));
         self.modules.push(module.clone());
-        let eqv_vars = VarEqvClassesRef::default();
-        self.eqv_vars.insert(name.clone(), eqv_vars.clone());
         let scope = PicusModuleLowering::new(
             module,
             self.params.lift_fixed,
-            eqv_vars,
             regions,
             self.params.naming_convention,
         );
@@ -421,7 +408,6 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<
         let inner: Rc<RefCell<PicusBackendInner<L>>> = Rc::new(
             PicusBackendInner {
                 params,
-                eqv_vars: Default::default(),
                 modules: Default::default(),
                 _marker: Default::default(),
                 enqueued_stmts: Default::default(),
