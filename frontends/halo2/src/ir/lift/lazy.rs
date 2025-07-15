@@ -1,5 +1,5 @@
 use std::{
-    any::{type_name, TypeId},
+    any::TypeId,
     collections::HashMap,
     sync::{Mutex, MutexGuard},
 };

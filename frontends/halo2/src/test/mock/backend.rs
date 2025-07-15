@@ -1,6 +1,5 @@
 use crate::{
     backend::{
-        events::EventReceiver,
         func::{ArgNo, FieldId, FuncIO},
         lowering::Lowering,
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector},
@@ -8,12 +7,11 @@ use crate::{
     },
     gates::AnyQuery,
     halo2::{
-        Advice, AdviceQuery, Challenge, FixedQuery, Fr, Instance, InstanceQuery, Selector, Value,
+        AdviceQuery, Challenge, FixedQuery, Fr, InstanceQuery, Selector, Value,
     },
     ir::BinaryBoolOp,
     synthesis::CircuitSynthesis,
     value::{steal, steal_many},
-    CircuitIO,
 };
 use anyhow::{bail, Result};
 use std::{cell::RefCell, collections::HashSet, fmt, rc::Rc};

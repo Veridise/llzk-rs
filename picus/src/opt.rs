@@ -1,16 +1,15 @@
-use std::{any::Any as _, marker::PhantomData};
+use std::marker::PhantomData;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 use crate::{
     expr::{
-        self, known_var,
-        traits::{ConstraintEmitter, ExprLike},
+        traits::ExprLike,
         Expr,
     },
     felt::IntoPrime,
-    stmt::{self, traits::StmtLike, Stmt},
-    vars::{Temp, VarKind, VarStr},
+    stmt::traits::StmtLike,
+    vars::VarKind,
     Module, Program,
 };
 

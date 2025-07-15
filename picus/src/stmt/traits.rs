@@ -4,7 +4,6 @@ use super::Stmt;
 use crate::{
     display::TextRepresentable,
     expr::{traits::ConstraintExpr, Expr},
-    opt::Optimizer,
 };
 use anyhow::Result;
 

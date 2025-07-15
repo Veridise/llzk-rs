@@ -1,7 +1,7 @@
 use std::{any::Any, collections::HashMap};
 
 use crate::{
-    display::TextRepresentable, felt::Felt, opt::Optimizer, stmt::traits::ConstraintLike,
+    display::TextRepresentable, felt::Felt, stmt::traits::ConstraintLike,
     vars::VarStr,
 };
 

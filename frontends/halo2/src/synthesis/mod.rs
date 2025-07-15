@@ -6,7 +6,6 @@ use std::collections::{hash_set::Iter, HashMap};
 
 use anyhow::Result;
 use constraint::{EqConstraint, Graph};
-use midnight_halo2_proofs::plonk::permutation::Argument;
 use regions::{RegionData, RegionRow, Regions, FQN};
 
 use crate::{

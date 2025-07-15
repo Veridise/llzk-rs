@@ -1,15 +1,14 @@
 use crate::{
     gates::{compute_gate_arity, AnyQuery},
     halo2::{
-        Advice, AdviceQuery, Any, Column, Field, FixedQuery, Gate, Instance, InstanceQuery,
+        AdviceQuery, Any, Column, Field, FixedQuery, Gate, InstanceQuery,
         Rotation, Selector, Value,
     },
     ir::{BinaryBoolOp, CircuitStmt},
     synthesis::{
         regions::{RegionRow, Row, FQN},
         CircuitSynthesis,
-    },
-    CircuitIO, CircuitWithIO,
+    }, CircuitWithIO,
 };
 use anyhow::{anyhow, Result};
 
@@ -20,10 +19,8 @@ pub mod lowering;
 pub mod picus;
 pub mod resolvers;
 
-use events::{EmitStmtsMessage, EventReceiver};
 use func::ArgNo;
 use lowering::Lowering;
-use midnight_halo2_proofs::plonk::Expression;
 use resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver};
 
 struct GateScopedResolver<'a> {

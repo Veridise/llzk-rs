@@ -1,9 +1,9 @@
 use crate::display::{TextRepresentable, TextRepresentation};
 use crate::expr::traits::ConstraintExpr;
-use crate::vars::{Temp, VarKind as _};
+use crate::vars::Temp;
 use anyhow::Result;
 use impls::{CallStmt, CommentLine, ConstraintStmt};
-use std::{cell::RefCell, ops::Deref as _, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 use traits::{
     CallLikeAdaptor, ConstraintLike, ExprArgs, MaybeCallLike, StmtConstantFolding, StmtLike,
 };

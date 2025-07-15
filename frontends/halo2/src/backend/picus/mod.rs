@@ -15,10 +15,9 @@ use super::{
 };
 use crate::{
     gates::AnyQuery,
-    halo2::{Advice, Expression, Field, Instance, PrimeField, RegionIndex, Selector, Value},
+    halo2::{Expression, Field, PrimeField, RegionIndex, Selector, Value},
     ir::{lift::LiftIRGuard, CircuitStmt},
-    synthesis::{regions::FQN, CircuitSynthesis},
-    CircuitIO, EventSender, LiftLike,
+    synthesis::{regions::FQN, CircuitSynthesis}, LiftLike,
 };
 use anyhow::{anyhow, Result};
 
@@ -32,7 +31,7 @@ use num_bigint::BigUint;
 use picus::{
     felt::{Felt, IntoPrime},
     opt::{
-        passes::{ConsolidateVarNamesPass, EnsureMaxExprSizePass, FoldExprsPass},
+        passes::{EnsureMaxExprSizePass, FoldExprsPass},
         MutOptimizer as _,
     },
     vars::VarStr,

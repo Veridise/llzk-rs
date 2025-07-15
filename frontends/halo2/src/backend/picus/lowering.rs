@@ -1,24 +1,23 @@
 use super::{
-    vars::{NamingConvention, VarKey, VarKeySeed, VarKeySeedInner},
+    vars::{NamingConvention, VarKey, VarKeySeed},
     FeltWrap,
 };
 use crate::{
     backend::{
-        func::FuncIO,
         lowering::Lowering,
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     },
     halo2::{
-        AdviceQuery, Challenge, FixedQuery, InstanceQuery, PrimeField, RegionIndex, RegionStart,
+        AdviceQuery, Challenge, FixedQuery, InstanceQuery, RegionIndex, RegionStart,
         Selector, Value,
     },
     ir::{lift::LiftLowering, BinaryBoolOp},
-    synthesis::regions::{RegionData, FQN},
+    synthesis::regions::FQN,
     value::{steal, steal_many},
     LiftLike,
 };
 use anyhow::{anyhow, bail, Result};
-use disjoint::{DisjointSet, DisjointSetVec};
+use disjoint::DisjointSetVec;
 use picus::{expr, stmt, vars::VarStr, ModuleLike as _};
 use std::{
     cell::RefCell,

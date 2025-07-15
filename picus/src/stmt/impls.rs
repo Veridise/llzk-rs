@@ -6,10 +6,9 @@ use crate::{
     display::{ListPunctuation, TextRepresentable, TextRepresentation},
     expr::{
         known_var,
-        traits::{ConstantFolding, ConstraintExpr, ExprLike, ExprSize, MaybeVarLike, WrappedExpr},
+        traits::{ConstantFolding, ConstraintExpr, MaybeVarLike},
         Expr,
     },
-    felt::Felt,
     vars::VarStr,
 };
 

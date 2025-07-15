@@ -1,4 +1,3 @@
-use crate::halo2::Value;
 
 pub mod lift;
 

@@ -2,7 +2,7 @@ use picus::vars::Temp;
 pub use picus::vars::{VarKind, VarStr};
 
 use crate::{
-    backend::func::{ArgNo, FuncIO},
+    backend::func::FuncIO,
     synthesis::regions::FQN,
 };
 
