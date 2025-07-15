@@ -279,11 +279,8 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
             BinaryBoolOp::Ge => expr::ge(&lhs, &rhs),
             BinaryBoolOp::Ne => unimplemented!(),
         });
-        match (lhs.var_name(), rhs.var_name()) {
-            (Some(lhs), Some(rhs)) => {
-                self.eqv_vars.join(lhs.clone(), rhs.clone());
-            }
-            _ => {}
+        if let (Some(lhs), Some(rhs)) = (lhs.var_name(), rhs.var_name()) {
+            self.eqv_vars.join(lhs.clone(), rhs.clone());
         }
         Ok(())
     }

@@ -16,7 +16,7 @@ pub trait Message {
 pub trait EventReceiver {
     type Message: Message;
 
-    fn accept<'c>(&'c self, msg: &Self::Message) -> Result<<Self::Message as Message>::Response>;
+    fn accept(&self, msg: &Self::Message) -> Result<<Self::Message as Message>::Response>;
 }
 
 #[derive(Copy)]

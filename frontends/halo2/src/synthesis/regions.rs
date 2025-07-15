@@ -90,7 +90,7 @@ impl<F: Copy> SharedRegionData<F> {
         self.blanket_fills
             .get(&column)
             .and_then(|values| values.iter().rfind(|(range, _)| range.contains(&row)))
-            .map(|(_, v)| v.clone())
+            .map(|(_, v)| *v)
             .unwrap_or_else(|| -> Value<F> {
                 log::warn!("Resolved Fixed query (col {column}, row {row}) with an unknown value");
                 Value::unknown()
@@ -374,7 +374,7 @@ impl<F: Default + Clone + Copy> Regions<F> {
         self.current_is_table = true;
     }
 
-    pub fn seen_advice_cells<'a>(&'a self) -> impl Iterator<Item = (&'a (usize, usize), &'a FQN)> {
+    pub fn seen_advice_cells(&self) -> impl Iterator<Item = (&(usize, usize), &FQN)> {
         self.shared.advice_names.iter()
     }
 }

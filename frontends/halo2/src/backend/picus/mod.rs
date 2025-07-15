@@ -501,7 +501,7 @@ impl<L: LiftLike> PicusBackendInner<'_, L> {
         self.enqueued_stmts
             .entry(region)
             .or_default()
-            .extend_from_slice(&stmts);
+            .extend_from_slice(stmts);
         log::debug!(
             "Enqueueing {} statements. Currently enqueued: {}",
             stmts.len(),

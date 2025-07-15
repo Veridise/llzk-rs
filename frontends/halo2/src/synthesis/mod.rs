@@ -76,7 +76,7 @@ impl<F: Field> CircuitSynthesis<F> {
         self.regions.regions()
     }
 
-    pub fn regions_by_index<'a>(&'a self) -> HashMap<RegionIndex, RegionStart> {
+    pub fn regions_by_index(&self) -> HashMap<RegionIndex, RegionStart> {
         self.regions
             .regions()
             .into_iter()
@@ -135,7 +135,7 @@ impl<F: Field> CircuitSynthesis<F> {
             })
     }
 
-    pub fn seen_advice_cells<'a>(&'a self) -> impl Iterator<Item = (&'a (usize, usize), &'a FQN)> {
+    pub fn seen_advice_cells(&self) -> impl Iterator<Item = (&(usize, usize), &FQN)> {
         self.regions.seen_advice_cells()
     }
 }
