@@ -9,6 +9,7 @@ use crate::{
 };
 use anyhow::{bail, Result};
 use std::{
+    borrow::Cow,
     collections::{HashMap, HashSet},
     fmt,
     ops::{AddAssign, Range, RangeFrom},
@@ -171,13 +172,6 @@ impl<F: Default + Clone + Copy> RegionDataImpl<F> {
         self.update_extent(column.into(), row);
     }
 
-    //pub fn resolve_fixed(&self, column: usize, row: usize) -> Value<F> {
-    //    self.shared
-    //        .as_ref()
-    //        .map(|shared| shared.resolve_fixed(column, row))
-    //        .unwrap_or_else(|| panic!("Shared region has not been initialized"))
-    //}
-
     pub fn update_extent(&mut self, column: Column<Any>, row: usize) {
         self.inner.columns.insert(column);
 
@@ -264,18 +258,20 @@ pub struct RegionData<'a, F> {
     inner: &'a RegionDataImpl<F>,
 }
 
-impl<F: Default + Clone + Copy> RegionData<'_, F> {
-    pub fn find_advice_name(&self, col: usize, row: usize) -> FQN {
+impl<'a, F: Default + Clone + Copy> RegionData<'a, F> {
+    pub fn find_advice_name(&self, col: usize, row: usize) -> Cow<'a, FQN> {
         self.shared
             .advice_names
             .get(&(col, row))
-            .cloned()
-            .unwrap_or(FQN::new(
-                self.inner.name.as_str(),
-                self.inner.index,
-                &[],
-                None,
-            ))
+            .map(Cow::Borrowed)
+            .unwrap_or_else(|| {
+                Cow::Owned(FQN::new(
+                    self.inner.name.as_str(),
+                    self.inner.index,
+                    &[],
+                    None,
+                ))
+            })
     }
 
     pub fn rows(&self) -> Range<usize> {
@@ -468,7 +464,10 @@ impl<F: Field> QueryResolver<F> for Row<'_, '_, F> {
         )))
     }
 
-    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<(ResolvedQuery<F>, Option<FQN>)> {
+    fn resolve_advice_query<'a>(
+        &'a self,
+        query: &AdviceQuery,
+    ) -> Result<(ResolvedQuery<F>, Option<Cow<'a, FQN>>)> {
         let r = self.resolve(self.advice_io, query.column_index(), query.rotation())?;
         // Advice cells go second so we need to step the value by the number of instance cells
         // that are of the same type (input or output)
@@ -557,7 +556,10 @@ impl<F: Field> QueryResolver<F> for RegionRow<'_, '_, F> {
         Ok(ResolvedQuery::Lit(value))
     }
 
-    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<(ResolvedQuery<F>, Option<FQN>)> {
+    fn resolve_advice_query<'a>(
+        &'a self,
+        query: &AdviceQuery,
+    ) -> Result<(ResolvedQuery<F>, Option<Cow<'a, FQN>>)> {
         let (r, _): (ResolvedQuery<F>, _) = self.row.resolve_advice_query(query)?;
 
         match r {
@@ -566,7 +568,12 @@ impl<F: Field> QueryResolver<F> for RegionRow<'_, '_, F> {
                 io,
                 Some(match func_io {
                     FuncIO::Advice(col, row) => self.region.find_advice_name(col, row),
-                    _ => FQN::new(&self.region.inner.name, self.region.inner.index, &[], None),
+                    _ => Cow::Owned(FQN::new(
+                        &self.region.inner.name,
+                        self.region.inner.index,
+                        &[],
+                        None,
+                    )),
                 }),
             )),
         }

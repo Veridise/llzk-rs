@@ -1,12 +1,11 @@
+use std::borrow::Cow;
+
 use picus::vars::Temp;
 pub use picus::vars::{VarKind, VarStr};
 
-use crate::{
-    backend::func::FuncIO,
-    synthesis::regions::FQN,
-};
+use crate::{backend::func::FuncIO, synthesis::regions::FQN};
 
-fn prepend_fqn(fqn: Option<FQN>) -> String {
+fn prepend_fqn(fqn: Option<Cow<FQN>>) -> String {
     match fqn {
         Some(fqn) => format!("{fqn}__"),
         None => "".to_string(),
@@ -14,13 +13,13 @@ fn prepend_fqn(fqn: Option<FQN>) -> String {
 }
 
 #[derive(Clone, Hash, Eq, PartialEq)]
-pub enum VarKeySeedInner {
-    IO(FuncIO, Option<FQN>),
+pub enum VarKeySeedInner<'a> {
+    IO(FuncIO, Option<Cow<'a, FQN>>),
     Temp,
     Lifted(usize),
 }
 
-impl VarKeySeed {
+impl VarKeySeed<'_> {
     pub fn arg(arg_no: usize, conv: NamingConvention) -> Self {
         Self(VarKeySeedInner::IO(FuncIO::Arg(arg_no.into()), None), conv)
     }
@@ -50,7 +49,7 @@ impl VarKey {
     }
 }
 
-impl Default for VarKeySeedInner {
+impl Default for VarKeySeedInner<'_> {
     fn default() -> Self {
         Self::Temp
     }
@@ -62,9 +61,9 @@ impl Default for VarKey {
     }
 }
 
-impl Temp for VarKey {
+impl<'a> Temp<'a> for VarKey {
     type Ctx = NamingConvention;
-    type Output = VarKeySeed;
+    type Output = VarKeySeed<'a>;
 
     fn temp(conv: Self::Ctx) -> Self::Output {
         VarKeySeed(VarKeySeedInner::Temp, conv)
@@ -78,7 +77,7 @@ pub enum NamingConvention {
 }
 
 impl NamingConvention {
-    fn format_io(&self, func_io: FuncIO, fqn: Option<FQN>) -> String {
+    fn format_io(&self, func_io: FuncIO, fqn: Option<Cow<FQN>>) -> String {
         match self {
             NamingConvention::Default => format!(
                 "{}{}",
@@ -114,10 +113,10 @@ impl NamingConvention {
 }
 
 #[derive(Clone)]
-pub struct VarKeySeed(VarKeySeedInner, NamingConvention);
+pub struct VarKeySeed<'a>(VarKeySeedInner<'a>, NamingConvention);
 
-impl VarKeySeed {
-    pub fn new(inner: VarKeySeedInner, conv: NamingConvention) -> Self {
+impl<'a> VarKeySeed<'a> {
+    pub fn new(inner: VarKeySeedInner<'a>, conv: NamingConvention) -> Self {
         Self(inner, conv)
     }
 
@@ -125,7 +124,11 @@ impl VarKeySeed {
         Self(VarKeySeedInner::IO(i.into(), None), conv)
     }
 
-    pub fn named_io<I: Into<FuncIO>>(i: I, fqn: Option<FQN>, conv: NamingConvention) -> Self {
+    pub fn named_io<I: Into<FuncIO>>(
+        i: I,
+        fqn: Option<Cow<'a, FQN>>,
+        conv: NamingConvention,
+    ) -> Self {
         Self(VarKeySeedInner::IO(i.into(), fqn), conv)
     }
 
@@ -134,7 +137,7 @@ impl VarKeySeed {
     }
 }
 
-impl From<VarKeySeed> for VarKey {
+impl From<VarKeySeed<'_>> for VarKey {
     fn from(seed: VarKeySeed) -> VarKey {
         match seed.0 {
             VarKeySeedInner::IO(func_io, _) => VarKey::IO(func_io),
@@ -144,7 +147,7 @@ impl From<VarKeySeed> for VarKey {
     }
 }
 
-impl From<VarKeySeed> for VarStr {
+impl From<VarKeySeed<'_>> for VarStr {
     fn from(seed: VarKeySeed) -> VarStr {
         match seed.0 {
             VarKeySeedInner::IO(func_io, fqn) => seed.1.format_io(func_io, fqn),
@@ -181,13 +184,13 @@ impl VarKind for VarKey {
     }
 }
 
-impl From<(FuncIO, Option<FQN>)> for VarKeySeedInner {
-    fn from(value: (FuncIO, Option<FQN>)) -> Self {
+impl<'a> From<(FuncIO, Option<Cow<'a, FQN>>)> for VarKeySeedInner<'a> {
+    fn from(value: (FuncIO, Option<Cow<'a, FQN>>)) -> Self {
         Self::IO(value.0, value.1)
     }
 }
 
-impl<T: Into<FuncIO>> From<T> for VarKeySeedInner {
+impl<T: Into<FuncIO>> From<T> for VarKeySeedInner<'_> {
     fn from(value: T) -> Self {
         Self::IO(value.into(), None)
     }

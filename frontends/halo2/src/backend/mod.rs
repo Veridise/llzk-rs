@@ -1,14 +1,16 @@
+use std::borrow::Cow;
+
 use crate::{
     gates::{compute_gate_arity, AnyQuery},
     halo2::{
-        AdviceQuery, Any, Column, Field, FixedQuery, Gate, InstanceQuery,
-        Rotation, Selector, Value,
+        AdviceQuery, Any, Column, Field, FixedQuery, Gate, InstanceQuery, Rotation, Selector, Value,
     },
     ir::{BinaryBoolOp, CircuitStmt},
     synthesis::{
         regions::{RegionRow, Row, FQN},
         CircuitSynthesis,
-    }, CircuitWithIO,
+    },
+    CircuitWithIO,
 };
 use anyhow::{anyhow, Result};
 
@@ -56,7 +58,10 @@ impl<F: Field> QueryResolver<F> for GateScopedResolver<'_> {
         )
     }
 
-    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<(ResolvedQuery<F>, Option<FQN>)> {
+    fn resolve_advice_query(
+        &self,
+        query: &AdviceQuery,
+    ) -> Result<(ResolvedQuery<F>, Option<Cow<FQN>>)> {
         Ok((
             resolve(
                 self.queries.iter(),

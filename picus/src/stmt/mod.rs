@@ -65,16 +65,16 @@ impl<T> StmtLike for Wrap<T> where T: StmtLike + PartialEq + ?Sized {}
 // Factories
 //===----------------------------------------------------------------------===//
 
-pub fn call<A>(
+pub fn call<'a, A>(
     callee: String,
     inputs: Vec<Expr>,
     n_outputs: usize,
     allocator: &A,
-    ctx: <A::Kind as Temp>::Ctx,
+    ctx: <A::Kind as Temp<'a>>::Ctx,
 ) -> Stmt
 where
     A: VarAllocator,
-    A::Kind: Temp,
+    A::Kind: Temp<'a>,
 {
     Wrap::new(
         CallStmt::new(

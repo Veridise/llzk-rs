@@ -18,7 +18,7 @@ use crate::{
 };
 use anyhow::{anyhow, bail, Result};
 use picus::{expr, stmt, ModuleLike as _};
-use std::{collections::HashMap, marker::PhantomData};
+use std::{borrow::Cow, collections::HashMap, marker::PhantomData};
 
 pub type PicusModuleRef = picus::ModuleRef<VarKey>;
 pub(super) type PicusExpr = picus::expr::Expr;
@@ -76,7 +76,7 @@ impl<L: LiftLike> PicusModuleLowering<L> {
     fn lower_resolved_query(
         &self,
         query: ResolvedQuery<L>,
-        fqn: Option<FQN>,
+        fqn: Option<Cow<FQN>>,
     ) -> Result<Value<PicusExpr>> {
         Ok(match query {
             ResolvedQuery::Lit(value) => {

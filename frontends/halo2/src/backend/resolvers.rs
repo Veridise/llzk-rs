@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::func::{ArgNo, FuncIO};
 use crate::{
     gates::AnyQuery,
@@ -79,7 +81,10 @@ impl<F: Field> From<FuncIO> for ResolvedQuery<F> {
 pub trait QueryResolver<F: Field> {
     fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>>;
 
-    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<(ResolvedQuery<F>, Option<FQN>)>;
+    fn resolve_advice_query<'a>(
+        &'a self,
+        query: &AdviceQuery,
+    ) -> Result<(ResolvedQuery<F>, Option<Cow<'a, FQN>>)>;
 
     fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>>;
 

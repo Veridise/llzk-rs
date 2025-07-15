@@ -29,7 +29,7 @@ impl ConstraintEmitter for Vec<Stmt> {
     }
 }
 
-impl<K: Temp<Ctx = C>, C: Copy> MutOptimizer<Module<K>> for EnsureMaxExprSizePass<C> {
+impl<'a, K: Temp<'a, Ctx = C>, C: Copy> MutOptimizer<Module<K>> for EnsureMaxExprSizePass<C> {
     fn optimize(&mut self, t: &mut Module<K>) -> Result<()> {
         let temporaries = [K::temp(self.ctx)]
             .into_iter()

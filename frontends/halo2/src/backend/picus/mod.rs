@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::{HashMap, HashSet},
     marker::PhantomData,
@@ -269,7 +270,7 @@ impl<L: LiftLike> PicusBackendInner<'_, L> {
             .borrow_mut()
             .add_vars(syn.seen_advice_cells().map(|((col, row), name)| {
                 VarKeySeed::new(
-                    VarKeySeedInner::IO(FuncIO::Advice(*col, *row), Some(name.clone())),
+                    VarKeySeedInner::IO(FuncIO::Advice(*col, *row), Some(Cow::Borrowed(name))),
                     self.params.naming_convention,
                 )
             }));
@@ -373,7 +374,10 @@ impl<F: Field> QueryResolver<F> for OnlyAdviceQueriesResolver<'_, F> {
         ))
     }
 
-    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<(ResolvedQuery<F>, Option<FQN>)> {
+    fn resolve_advice_query(
+        &self,
+        query: &AdviceQuery,
+    ) -> Result<(ResolvedQuery<F>, Option<Cow<FQN>>)> {
         let offset: usize = query.rotation().0.try_into()?;
         let start = self
             .scope

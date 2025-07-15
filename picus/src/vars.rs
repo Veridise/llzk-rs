@@ -48,9 +48,9 @@ pub trait VarKind: Hash + Eq + PartialEq + fmt::Debug {
     fn is_temp(&self) -> bool;
 }
 
-pub trait Temp: VarKind + Sized {
+pub trait Temp<'o>: VarKind + Sized {
     type Ctx: Copy;
-    type Output: Into<Self> + Into<VarStr> + Clone;
+    type Output: Into<Self> + Into<VarStr> + Clone + 'o;
 
     fn temp(ctx: Self::Ctx) -> Self::Output;
 }
