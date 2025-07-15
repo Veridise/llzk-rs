@@ -199,6 +199,10 @@ impl<F: Default + Clone + Copy> RegionDataImpl<F> {
     {
         let value = value.map(|vr| vr.into());
         if let Some(shared) = &mut self.shared {
+            log::debug!(
+                "Recording fixed assignment @ col = {}, row = {row}, value = {value:?}",
+                fixed.index()
+            );
             shared
                 .fixed
                 .insert((fixed.index(), row), value.map(|vr| vr.evaluate()));
