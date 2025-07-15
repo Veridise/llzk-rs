@@ -90,6 +90,10 @@ impl<K: VarKind> Vars<K> {
         self.filter(|k, _| k.is_temp())
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     fn filter<'a, P>(&'a self, p: P) -> impl Iterator<Item = &'a str>
     where
         P: Fn(&'a K, &'a VarStr) -> bool + 'a,
@@ -124,6 +128,24 @@ impl<K: VarKind> IntoIterator for Vars<K> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+impl<K: VarKind, S: Into<K> + Into<VarStr> + Clone> FromIterator<S> for Vars<K> {
+    fn from_iter<T: IntoIterator<Item = S>>(iter: T) -> Self {
+        Self(HashMap::from_iter(
+            iter.into_iter()
+                .map(|seed| (seed.clone().into(), seed.into())),
+        ))
+    }
+}
+
+impl<K: VarKind, S: Into<K> + Into<VarStr> + Clone> Extend<S> for Vars<K> {
+    fn extend<T: IntoIterator<Item = S>>(&mut self, iter: T) {
+        self.0.extend(
+            iter.into_iter()
+                .map(|seed| (seed.clone().into(), seed.into())),
+        )
     }
 }
 

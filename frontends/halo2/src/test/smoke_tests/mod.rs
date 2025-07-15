@@ -10,6 +10,14 @@ macro_rules! codegen_test {
 
         output.unwrap()
     }};
+
+    ($c:ty, $b:ty, $s:ty, $params:expr) => {{
+        let circuit = <$c>::default();
+        let backend = <$b>::initialize($params);
+        let output = backend.codegen_with_strat::<_, $s>(&circuit);
+
+        output.unwrap()
+    }};
 }
 
 #[macro_export]
@@ -23,5 +31,8 @@ macro_rules! mock_codegen_test {
 macro_rules! picus_codegen_test {
     ($c:ty) => {
         codegen_test!($c, PicusBackend<Lift<Fr>>, InlineConstraintsStrat)
+    };
+    ($c:ty, $params:expr) => {
+        codegen_test!($c, PicusBackend<Lift<Fr>>, InlineConstraintsStrat, $params)
     };
 }

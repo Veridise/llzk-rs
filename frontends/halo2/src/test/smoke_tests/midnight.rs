@@ -2,7 +2,7 @@ use log::LevelFilter;
 use simplelog::{Config, TestLogger};
 
 use crate::backend::func::{ArgNo, FieldId};
-use crate::backend::picus::PicusBackend;
+use crate::backend::picus::{PicusBackend, PicusParamsBuilder};
 use crate::backend::{Backend, InlineConstraintsStrat};
 use crate::halo2::{Field, Fr};
 use crate::test::fixtures::midnight::fibonacci::FibonacciCircuit;
@@ -120,7 +120,8 @@ macro_rules! picus_test {
         #[test]
         fn $name() {
             let _ = TestLogger::init(LevelFilter::Debug, Config::default());
-            let output = picus_codegen_test!($circ);
+            let output =
+                picus_codegen_test!($circ, PicusParamsBuilder::new().no_lift_fixed().into());
             println!("{}", output.display());
         }
     };
