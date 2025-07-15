@@ -423,10 +423,19 @@ macro_rules! binary_expr_common {
             }
 
             fn fold(&self) -> Option<Expr> {
-                let lhs = self.lhs().fold().unwrap_or_else(|| self.lhs());
-                let rhs = self.rhs().fold().unwrap_or_else(|| self.rhs());
+                let lhs = self.lhs().fold();
+                let rhs = self.rhs().fold();
+                match (lhs, rhs) {
+                    (None, None) => self.op().fold(self.lhs(), self.rhs()),
+                    (lhs, rhs) => {
+                        let lhs = lhs.unwrap_or_else(|| self.lhs());
+                        let rhs = rhs.unwrap_or_else(|| self.rhs());
 
-                self.op().fold(lhs.clone(), rhs.clone())
+                        self.op()
+                            .fold(lhs.clone(), rhs.clone())
+                            .or_else(|| Some(Wrap::new(Self(self.0, lhs, rhs))))
+                    }
+                }
             }
         }
 
