@@ -1,3 +1,5 @@
+use std::fmt;
+
 use melior::{
     ir::{attribute::FlatSymbolRefAttribute, Attribute, AttributeLike},
     Context, StringRef,
@@ -76,5 +78,11 @@ impl<'c> TryFrom<Attribute<'c>> for SymbolRefAttribute<'c> {
 impl<'c> From<SymbolRefAttribute<'c>> for Attribute<'c> {
     fn from(sym: SymbolRefAttribute<'c>) -> Attribute<'c> {
         sym.inner
+    }
+}
+
+impl<'c> fmt::Display for SymbolRefAttribute<'c> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.inner)
     }
 }

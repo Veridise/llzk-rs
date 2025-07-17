@@ -1,11 +1,33 @@
-use llzk_sys::llzkTypeIsAStructType;
-use melior::ir::{Type, TypeLike};
+use llzk_sys::{llzkStructTypeGetWithArrayAttr, llzkTypeIsAStructType};
+use melior::{
+    ir::{
+        attribute::{ArrayAttribute, FlatSymbolRefAttribute},
+        Attribute, AttributeLike as _, Type, TypeLike,
+    },
+    Context,
+};
 use mlir_sys::MlirType;
 
 use crate::utils::FromRaw;
 
 pub struct StructType<'c> {
     t: Type<'c>,
+}
+
+impl<'c> StructType<'c> {
+    pub fn new(name: FlatSymbolRefAttribute<'c>, params: &[Attribute<'c>]) -> Self {
+        unsafe {
+            let context = name.context().to_ref();
+            Self::from_raw(llzkStructTypeGetWithArrayAttr(
+                name.to_raw(),
+                ArrayAttribute::new(context, params).to_raw(),
+            ))
+        }
+    }
+
+    pub fn from_str(context: &'c Context, name: &str) -> Self {
+        Self::new(FlatSymbolRefAttribute::new(context, name), &[])
+    }
 }
 
 impl<'c> FromRaw<MlirType> for StructType<'c> {

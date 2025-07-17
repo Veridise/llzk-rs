@@ -54,38 +54,16 @@ impl<L> PicusModuleLowering<L> {
 }
 
 impl<L: LiftLike> PicusModuleLowering<L> {
-    fn lower_binary_op<Fn, T: Clone>(
-        &self,
-        lhs: &Value<T>,
-        rhs: &Value<T>,
-        f: Fn,
-    ) -> Result<Value<T>>
-    where
-        Fn: FnOnce(&T, &T) -> T,
-    {
-        Ok(lhs.clone().zip(rhs.clone()).map(|(lhs, rhs)| f(&lhs, &rhs)))
-    }
-
-    fn lower_unary_op<Fn, T: Clone>(&self, expr: &Value<T>, f: Fn) -> Result<Value<T>>
-    where
-        Fn: FnOnce(&T) -> T,
-    {
-        Ok(expr.clone().map(|e| f(&e)))
-    }
-
     fn lower_resolved_query(
         &self,
         query: ResolvedQuery<L>,
         fqn: Option<Cow<FQN>>,
-    ) -> Result<Value<PicusExpr>> {
+    ) -> Result<PicusExpr> {
         Ok(match query {
-            ResolvedQuery::Lit(value) => {
-                let f = steal(&value).ok_or(anyhow!("Query resolved to an unknown value"));
-                Value::known(self.lower(&f?, true)?)
-            }
+            ResolvedQuery::Lit(f) => self.lower(&f, true)?,
             ResolvedQuery::IO(func_io) => {
                 let seed = VarKeySeed::named_io(func_io, fqn, self.naming_convention);
-                Value::known(expr::var(&self.module, seed))
+                expr::var(&self.module, seed)
             }
         })
     }
@@ -165,17 +143,15 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
     fn generate_constraint(
         &self,
         op: BinaryBoolOp,
-        lhs: &Value<Self::CellOutput>,
-        rhs: &Value<Self::CellOutput>,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
     ) -> Result<()> {
-        let lhs = steal(lhs).ok_or_else(|| anyhow!("lhs value is unknown"))?;
-        let rhs = steal(rhs).ok_or_else(|| anyhow!("rhs value is unknown"))?;
         self.module.borrow_mut().add_constraint(match op {
-            BinaryBoolOp::Eq => expr::eq(&lhs, &rhs),
-            BinaryBoolOp::Lt => expr::lt(&lhs, &rhs),
-            BinaryBoolOp::Le => expr::le(&lhs, &rhs),
-            BinaryBoolOp::Gt => expr::gt(&lhs, &rhs),
-            BinaryBoolOp::Ge => expr::ge(&lhs, &rhs),
+            BinaryBoolOp::Eq => expr::eq(lhs, rhs),
+            BinaryBoolOp::Lt => expr::lt(lhs, rhs),
+            BinaryBoolOp::Le => expr::le(lhs, rhs),
+            BinaryBoolOp::Gt => expr::gt(lhs, rhs),
+            BinaryBoolOp::Ge => expr::ge(lhs, rhs),
             BinaryBoolOp::Ne => unimplemented!(),
         });
         Ok(())
@@ -193,19 +169,14 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
     fn generate_call(
         &self,
         name: &str,
-        selectors: &[Value<Self::CellOutput>],
-        queries: &[Value<Self::CellOutput>],
+        selectors: &[Self::CellOutput],
+        queries: &[Self::CellOutput],
     ) -> Result<()> {
         self.module.borrow_mut().add_stmt(stmt::call(
             name.to_owned(),
-            steal_many(selectors)
-                .ok_or_else(|| anyhow!("some selector value was unknown"))?
+            selectors
                 .iter()
-                .chain(
-                    steal_many(queries)
-                        .ok_or_else(|| anyhow!("some query value was unknown"))?
-                        .iter(),
-                )
+                .chain(queries.iter())
                 .map(Clone::clone)
                 .collect(),
             0,
@@ -215,113 +186,82 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
         Ok(())
     }
 
-    fn lower_sum<'a, 'l: 'a>(
-        &'l self,
-        lhs: &Value<Self::CellOutput>,
-        rhs: &Value<Self::CellOutput>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
-        self.lower_binary_op(lhs, rhs, expr::add)
+    fn lower_sum(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        Ok(expr::add(lhs, rhs))
     }
 
-    fn lower_product<'a>(
-        &'a self,
-        lhs: &Value<Self::CellOutput>,
-        rhs: &Value<Self::CellOutput>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
-        self.lower_binary_op(lhs, rhs, expr::mul)
+    fn lower_product(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        Ok(expr::mul(lhs, rhs))
     }
 
-    fn lower_neg<'a>(&'a self, expr: &Value<Self::CellOutput>) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
-        self.lower_unary_op(expr, expr::neg)
+    fn lower_neg(&self, expr: &Self::CellOutput) -> Result<Self::CellOutput> {
+        Ok(expr::neg(expr))
     }
 
-    fn lower_scaled<'a>(
-        &'a self,
-        expr: &Value<Self::CellOutput>,
-        scale: &Value<Self::CellOutput>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
-        self.lower_binary_op(expr, scale, expr::mul)
+    fn lower_scaled(
+        &self,
+        expr: &Self::CellOutput,
+        scale: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        Ok(expr::mul(expr, scale))
     }
 
-    fn lower_challenge<'a>(&'a self, _challenge: &Challenge) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
-        todo!()
+    fn lower_challenge(&self, _challenge: &Challenge) -> Result<Self::CellOutput> {
+        unimplemented!()
     }
 
-    fn lower_selector<'a, 'l: 'a>(
-        &'l self,
+    fn lower_selector(
+        &self,
         sel: &Selector,
         resolver: &dyn SelectorResolver,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        PicusExpr: 'a,
-    {
+    ) -> Result<Self::CellOutput> {
         match resolver.resolve_selector(sel)? {
-            ResolvedSelector::Const(value) => Lowering::lower_constant(self, &value.to_f()),
-            ResolvedSelector::Arg(arg_no) => Ok(Value::known(expr::var(
+            ResolvedSelector::Const(value) => Lowering::lower_constant(self, value.to_f()),
+            ResolvedSelector::Arg(arg_no) => Ok(expr::var(
                 &self.module,
                 VarKeySeed::io(arg_no, self.naming_convention),
-            ))),
+            )),
         }
     }
 
-    fn lower_advice_query<'a>(
-        &'a self,
+    fn lower_advice_query(
+        &self,
         query: &AdviceQuery,
         resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
+    ) -> Result<Self::CellOutput> {
         let (res, fqn) = resolver.resolve_advice_query(query)?;
         self.lower_resolved_query(res, fqn)
     }
 
-    fn lower_instance_query<'a>(
-        &'a self,
+    fn lower_instance_query(
+        &self,
         query: &InstanceQuery,
         resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
+    ) -> Result<Self::CellOutput> {
         self.lower_resolved_query(resolver.resolve_instance_query(query)?, None)
     }
 
-    fn lower_fixed_query<'a>(
-        &'a self,
+    fn lower_fixed_query(
+        &self,
         query: &FixedQuery,
         resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
+    ) -> Result<Self::CellOutput> {
         self.lower_resolved_query(resolver.resolve_fixed_query(query)?, None)
     }
 
-    fn lower_constant<'a, 'f>(&'a self, f: &'f Self::F) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-        'a: 'f,
-    {
-        let expr = self.lower(f, true)?;
+    fn lower_constant(&self, f: Self::F) -> Result<Self::CellOutput> {
+        let expr = self.lower(&f, true)?;
         log::debug!(
             "[PicusBackend::lower_constant] Constant value {f:?} becomes expression {expr:?}"
         );
-        Ok(Value::known(self.lower(f, true)?))
+        Ok(expr)
     }
 }

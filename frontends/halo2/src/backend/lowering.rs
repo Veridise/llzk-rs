@@ -18,8 +18,8 @@ pub trait Lowering {
     fn generate_constraint(
         &self,
         op: BinaryBoolOp,
-        lhs: &Value<Self::CellOutput>,
-        rhs: &Value<Self::CellOutput>,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
     ) -> Result<()>;
 
     fn num_constraints(&self) -> usize;
@@ -27,8 +27,8 @@ pub trait Lowering {
     fn checked_generate_constraint(
         &self,
         op: BinaryBoolOp,
-        lhs: &Value<Self::CellOutput>,
-        rhs: &Value<Self::CellOutput>,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
     ) -> Result<()> {
         let before = self.num_constraints();
         self.generate_constraint(op, lhs, rhs)?;
@@ -44,89 +44,62 @@ pub trait Lowering {
     fn generate_call(
         &self,
         name: &str,
-        selectors: &[Value<Self::CellOutput>],
-        queries: &[Value<Self::CellOutput>],
+        selectors: &[Self::CellOutput],
+        queries: &[Self::CellOutput],
     ) -> Result<()>;
 
-    fn lower_sum<'a, 'l: 'a>(
-        &'l self,
-        lhs: &Value<Self::CellOutput>,
-        rhs: &Value<Self::CellOutput>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a;
+    fn lower_sum(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput)
+        -> Result<Self::CellOutput>;
 
-    fn lower_product<'a>(
-        &'a self,
-        lhs: &Value<Self::CellOutput>,
-        rhs: &Value<Self::CellOutput>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a;
+    fn lower_product(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput>;
 
-    fn lower_neg<'a>(&'a self, expr: &Value<Self::CellOutput>) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a;
+    fn lower_neg(&self, expr: &Self::CellOutput) -> Result<Self::CellOutput>;
 
-    fn lower_scaled<'a>(
-        &'a self,
-        expr: &Value<Self::CellOutput>,
-        scale: &Value<Self::CellOutput>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a;
+    fn lower_scaled(
+        &self,
+        expr: &Self::CellOutput,
+        scale: &Self::CellOutput,
+    ) -> Result<Self::CellOutput>;
 
-    fn lower_challenge<'a>(&'a self, challenge: &Challenge) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a;
+    fn lower_challenge(&self, challenge: &Challenge) -> Result<Self::CellOutput>;
 
-    fn lower_selector<'a, 'l: 'a>(
-        &'l self,
+    fn lower_selector(
+        &self,
         sel: &Selector,
         resolver: &dyn SelectorResolver,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a;
+    ) -> Result<Self::CellOutput>;
 
-    fn lower_advice_query<'a>(
-        &'a self,
+    fn lower_advice_query(
+        &self,
         query: &AdviceQuery,
         resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a;
+    ) -> Result<Self::CellOutput>;
 
-    fn lower_instance_query<'a>(
-        &'a self,
+    fn lower_instance_query(
+        &self,
         query: &InstanceQuery,
         resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a;
+    ) -> Result<Self::CellOutput>;
 
-    fn lower_fixed_query<'a>(
-        &'a self,
+    fn lower_fixed_query(
+        &self,
         query: &FixedQuery,
         resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a;
+    ) -> Result<Self::CellOutput>;
 
-    fn lower_constant<'a, 'f>(&'a self, f: &'f Self::F) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-        'a: 'f;
+    fn lower_constant(&self, f: Self::F) -> Result<Self::CellOutput>;
 
-    fn lower_expr<'a, 'l: 'a>(
-        &'l self,
+    fn lower_expr(
+        &self,
         expr: &Expression<Self::F>,
         query_resolver: &dyn QueryResolver<Self::F>,
         selector_resolver: &dyn SelectorResolver,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
-        let constant = |f| self.lower_constant(&f);
+    ) -> Result<Self::CellOutput> {
+        let constant = |f| self.lower_constant(f);
 
         let selector_column = |selector| self.lower_selector(&selector, selector_resolver);
 
@@ -144,9 +117,9 @@ pub trait Lowering {
 
         let product = |lhs, rhs| self.lower_product(&lhs?, &rhs?);
 
-        let scaled = |expr, scaled| self.lower_scaled(&expr?, &self.lower_constant(&scaled)?);
+        let scaled = |expr, scaled| self.lower_scaled(&expr?, &self.lower_constant(scaled)?);
 
-        expr.evaluate::<Result<Value<Self::CellOutput>>>(
+        expr.evaluate::<Result<Self::CellOutput>>(
             &constant,
             &selector_column,
             &fixed_column,
@@ -161,42 +134,33 @@ pub trait Lowering {
     }
 
     #[allow(dead_code)]
-    fn lower_exprs<'a, 'l: 'a>(
-        &'l self,
+    fn lower_exprs(
+        &self,
         exprs: &[Expression<Self::F>],
         query_resolver: &dyn QueryResolver<Self::F>,
         selector_resolver: &dyn SelectorResolver,
-    ) -> Result<Vec<Value<Self::CellOutput>>>
-    where
-        Self::CellOutput: 'a,
-    {
+    ) -> Result<Vec<Self::CellOutput>> {
         exprs
             .iter()
             .map(|e| self.lower_expr(e, query_resolver, selector_resolver))
             .collect()
     }
 
-    fn lower_selectors<'a, 'l: 'a>(
-        &'l self,
+    fn lower_selectors(
+        &self,
         sels: &[&Selector],
         resolver: &dyn SelectorResolver,
-    ) -> Result<Vec<Value<Self::CellOutput>>>
-    where
-        Self::CellOutput: 'a,
-    {
+    ) -> Result<Vec<Self::CellOutput>> {
         sels.iter()
             .map(|e| self.lower_selector(e, resolver))
             .collect()
     }
 
-    fn lower_any_query<'a>(
-        &'a self,
+    fn lower_any_query(
+        &self,
         query: &AnyQuery,
         resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
+    ) -> Result<Self::CellOutput> {
         match query {
             AnyQuery::Advice(advice_query) => self.lower_advice_query(advice_query, resolver),
             AnyQuery::Instance(instance_query) => {
@@ -206,14 +170,11 @@ pub trait Lowering {
         }
     }
 
-    fn lower_any_queries<'a>(
-        &'a self,
+    fn lower_any_queries(
+        &self,
         queries: &[AnyQuery],
         resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Vec<Value<Self::CellOutput>>>
-    where
-        Self::CellOutput: 'a,
-    {
+    ) -> Result<Vec<Self::CellOutput>> {
         queries
             .iter()
             .map(|q| self.lower_any_query(q, resolver))
@@ -221,13 +182,13 @@ pub trait Lowering {
     }
 
     #[allow(clippy::needless_lifetimes)]
-    fn lower_constraints<'c, R, S>(
-        &'c self,
+    fn lower_constraints<R, S>(
+        &self,
         gate: &Gate<Self::F>,
         resolver: R,
         region_header: S,
         row: Option<usize>,
-    ) -> impl Iterator<Item = Result<CircuitStmt<Value<Self::CellOutput>>>>
+    ) -> impl Iterator<Item = Result<CircuitStmt<Self::CellOutput>>>
     where
         R: QueryResolver<Self::F> + SelectorResolver,
         S: ToString,

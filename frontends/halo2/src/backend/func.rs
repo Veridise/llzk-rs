@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, ops::Deref};
 
 /// Argument number of a function
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -7,6 +7,14 @@ pub struct ArgNo(usize);
 impl From<usize> for ArgNo {
     fn from(value: usize) -> Self {
         Self(value)
+    }
+}
+
+impl Deref for ArgNo {
+    type Target = usize;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

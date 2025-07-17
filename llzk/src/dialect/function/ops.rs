@@ -11,10 +11,11 @@ use llzk_sys::{
 };
 use melior::{
     ir::{
+        block::BlockArgument,
         operation::{OperationBuilder, OperationLike},
         r#type::FunctionType,
-        Attribute, AttributeLike, Identifier, Location, Operation, OperationRef, Type, TypeLike,
-        Value,
+        Attribute, AttributeLike, BlockLike as _, Identifier, Location, Operation, OperationRef,
+        RegionLike as _, Type, TypeLike, Value,
     },
     Context, StringRef,
 };
@@ -22,7 +23,21 @@ use mlir_sys::{
     mlirDictionaryAttrGet, mlirNamedAttributeGet, MlirAttribute, MlirNamedAttribute, MlirOperation,
 };
 
-use crate::{dialect::r#struct::StructType, error::Error};
+use crate::{dialect::r#struct::StructType, error::Error, symbol_ref::SymbolRefAttribute};
+
+//===----------------------------------------------------------------------===//
+// Helpers
+//===----------------------------------------------------------------------===//
+
+fn create_out_of_bounds_error<'c: 'a, 'a>(
+    func: &(impl FuncDefOpLike<'c, 'a> + ?Sized),
+    idx: usize,
+) -> Error {
+    match SymbolRefAttribute::try_from(func.fully_qualified_name()) {
+        Ok(fqn) => Error::OutOfBoundsArgument(Some(fqn.to_string()), idx),
+        Err(err) => err.into(),
+    }
+}
 
 //===----------------------------------------------------------------------===//
 // FuncDefOpLike
@@ -90,6 +105,18 @@ pub trait FuncDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
         unsafe { Type::from_raw(llzkFuncDefOpGetSingleResultTypeOfCompute(self.to_raw())) }
             .try_into()
             .expect("struct type")
+    }
+
+    /// Returns the n-th argument of the function.
+    fn argument(&self, idx: usize) -> Result<BlockArgument<'c, 'a>, Error> {
+        self.region(0)
+            .map_err(Into::into)
+            .and_then(|region| {
+                region
+                    .first_block()
+                    .ok_or(create_out_of_bounds_error(self, idx))
+            })
+            .and_then(|block| block.argument(idx).map_err(Into::into))
     }
 }
 
@@ -401,7 +428,7 @@ pub fn def<'c>(
     r#type: FunctionType<'c>,
     attrs: &[(Identifier<'c>, Attribute<'c>)],
     arg_attrs: Option<&[&[(Identifier<'c>, Attribute<'c>)]]>,
-) -> FuncDefOp<'c> {
+) -> Result<FuncDefOp<'c>, Error> {
     let ctx = location.context();
     let name = StringRef::new(name);
     let attrs: Vec<_> = attrs.iter().map(tuple_to_named_attr).collect();
@@ -418,7 +445,6 @@ pub fn def<'c>(
         ))
     }
     .try_into()
-    .expect("op of type 'function.def'")
 }
 
 pub fn call<'c>() -> CallOp<'c> {

@@ -1,4 +1,4 @@
-pub use ff::{Field, FromUniformBytes, PrimeField};
+pub use ff::{Field, FromUniformBytes, PrimeField, PrimeFieldBits};
 pub use midnight_halo2_proofs::plonk::Challenge;
 pub use midnight_halo2_proofs::{
     circuit::{RegionIndex, RegionStart, Value},

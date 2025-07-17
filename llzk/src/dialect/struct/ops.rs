@@ -12,8 +12,8 @@ use melior::{
     ir::{
         attribute::{ArrayAttribute, FlatSymbolRefAttribute, TypeAttribute},
         operation::{OperationBuilder, OperationLike},
-        Attribute, AttributeLike, Identifier, Location, Operation, OperationRef, Region, Type,
-        TypeLike, Value, ValueLike,
+        Attribute, AttributeLike, Block, BlockLike as _, Identifier, Location, Operation,
+        OperationRef, Region, RegionLike as _, Type, TypeLike, Value, ValueLike,
     },
     LogicalResult, StringRef,
 };
@@ -41,6 +41,14 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
             .expect("StructDefOpLike::type error")
     }
 
+    /// Returns the name of the struct
+    fn name(&'a self) -> &'c str {
+        self.attribute("sym_name")
+            .and_then(FlatSymbolRefAttribute::try_from)
+            .map(|a| a.value())
+            .unwrap()
+    }
+
     /// Returns the associated StructType to this op using the given const params instead of the
     /// parameters defined by the op.
     fn type_with_params(&self, params: ArrayAttribute<'c>) -> StructType<'c> {
@@ -55,7 +63,7 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     }
 
     /// Returns the operation that defines the field with the given name, if present.
-    fn get_field_def(&self, name: &str) -> Option<FieldDefOpRef<'c, '_>> {
+    fn get_field_def(&self, name: &str) -> Option<FieldDefOpRef<'c, 'a>> {
         let name = StringRef::new(name);
         let raw_op = unsafe { llzkStructDefOpGetFieldDef(self.to_raw(), name.to_raw()) };
         if raw_op.ptr.is_null() {
@@ -66,6 +74,26 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
                 .try_into()
                 .expect("op of type 'struct.field'"),
         )
+    }
+
+    fn get_or_create_field_def<F>(&self, name: &str, f: F) -> Result<FieldDefOpRef<'c, 'a>, Error>
+    where
+        F: FnOnce() -> Result<FieldDefOp<'c>, Error>,
+    {
+        match self.get_field_def(name) {
+            Some(f) => Ok(f),
+            None => {
+                let op = f()?;
+                let region = self.region(0)?;
+                let block = region
+                    .first_block()
+                    .unwrap_or_else(|| region.append_block(Block::new(&[])));
+
+                let field_ref = block.append_operation(op.into());
+
+                Ok(field_ref.try_into()?)
+            }
+        }
     }
 
     /// Fills the given array with the FieldDefOp operations inside this struct.  
@@ -271,6 +299,20 @@ pub trait FieldDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
             llzkFieldDefOpSetPublicAttr(self.to_raw(), value);
         }
     }
+
+    fn field_name(&self) -> &'c str {
+        self.attribute("sym_name")
+            .and_then(FlatSymbolRefAttribute::try_from)
+            .expect("malformed 'struct.field' op")
+            .value()
+    }
+
+    fn field_type(&self) -> Type<'c> {
+        self.attribute("type")
+            .and_then(TypeAttribute::try_from)
+            .expect("malformed 'struct.field' op")
+            .value()
+    }
 }
 
 //===----------------------------------------------------------------------===//
@@ -409,36 +451,51 @@ impl<'a, 'c: 'a> TryFrom<OperationRef<'c, 'a>> for FieldDefOpRef<'c, 'a> {
 //===----------------------------------------------------------------------===//
 
 /// Creates a 'struct.def' op
-pub fn def<'c>(
+pub fn def<'c, I>(
     location: Location<'c>,
     name: FlatSymbolRefAttribute<'c>,
     params: &[FlatSymbolRefAttribute<'c>],
-) -> StructDefOp<'c> {
+    region_ops: I,
+) -> Result<StructDefOp<'c>, Error>
+where
+    I: IntoIterator<Item = Result<Operation<'c>, Error>>,
+{
     let ctx = location.context();
     let params: Vec<Attribute> = params.iter().map(|a| (*a).into()).collect();
     let params = ArrayAttribute::new(unsafe { ctx.to_ref() }, &params).into();
+    let region = Region::new();
+    let block = Block::new(&[]);
+    region_ops
+        .into_iter()
+        .try_for_each(|op| -> Result<(), Error> {
+            block.append_operation(op?);
+            Ok(())
+        })?;
+    region.append_block(block);
     OperationBuilder::new("struct.def", location)
         .add_attributes(&[
             (ident!(ctx, "sym_name"), name.into()),
             (ident!(ctx, "const_param"), params),
         ])
-        .add_regions([Region::new()])
+        .add_regions([region])
         .build()
-        .expect("valid operation")
-        .try_into()
-        .expect("operation of type 'struct.def'")
+        .map_err(Into::into)
+        .and_then(TryInto::try_into)
 }
 
 /// Creates a 'struct.field' op
-pub fn field<'c>(
+pub fn field<'c, T>(
     location: Location<'c>,
     name: FlatSymbolRefAttribute<'c>,
-    r#type: Type<'c>,
+    r#type: T,
     is_column: bool,
     is_public: bool,
-) -> FieldDefOp<'c> {
+) -> Result<FieldDefOp<'c>, Error>
+where
+    T: Into<Type<'c>>,
+{
     let ctx = location.context();
-    let r#type = TypeAttribute::new(r#type);
+    let r#type = TypeAttribute::new(r#type.into());
     let mut builder = OperationBuilder::new("struct.field", location).add_attributes(&[
         (ident!(ctx, "sym_name"), name.into()),
         (ident!(ctx, "type"), r#type.into()),
@@ -453,13 +510,11 @@ pub fn field<'c>(
         builder
     };
 
-    let op: FieldDefOp = builder
+    builder
         .build()
-        .expect("valid operation")
-        .try_into()
-        .expect("operation of type 'struct.field'");
-    op.set_public_attr(is_public);
-    op
+        .map_err(Into::into)
+        .and_then(TryInto::try_into)
+        .inspect(|op: &FieldDefOp<'c>| op.set_public_attr(is_public))
 }
 
 /// Creates a 'struct.readf' op
@@ -469,16 +524,21 @@ pub fn readf<'c>(
     result_type: Type<'c>,
     component: Value<'c, '_>,
     field_name: &str,
-) -> Operation<'c> {
+) -> Result<Operation<'c>, Error> {
     let field_name = StringRef::new(field_name);
     unsafe {
-        Operation::from_raw(llzkFieldReadOpBuild(
+        let raw = llzkFieldReadOpBuild(
             builder.to_raw(),
             location.to_raw(),
             result_type.to_raw(),
             component.to_raw(),
             field_name.to_raw(),
-        ))
+        );
+        if raw.ptr.is_null() {
+            Err(Error::BuildMthdFailed("readf"))
+        } else {
+            Ok(Operation::from_raw(raw))
+        }
     }
 }
 

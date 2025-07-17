@@ -105,12 +105,12 @@ pub trait CodegenStrategy: Default {
         &self,
         scope: &'c L,
         syn: &'c CircuitSynthesis<F>,
-    ) -> impl Iterator<Item = Result<CircuitStmt<Value<L::CellOutput>>>> + 'c
+    ) -> impl Iterator<Item = Result<CircuitStmt<L::CellOutput>>> + 'c
     where
         F: Field,
         L: Lowering<F = F>,
     {
-        let lower_cell = |(col, row): &(Column<Any>, usize)| -> Result<Value<L::CellOutput>> {
+        let lower_cell = |(col, row): &(Column<Any>, usize)| -> Result<L::CellOutput> {
             let q = col.query_cell::<L::F>(Rotation::cur());
             let row = Row::new(*row, syn.regions_ref(), syn.advice_io(), syn.instance_io());
             scope.lower_expr(&q, &row, &row)
@@ -139,7 +139,7 @@ impl CallGatesStrat {
         selectors: Vec<&Selector>,
         queries: Vec<AnyQuery>,
         r: &RegionRow<F>,
-    ) -> Result<CircuitStmt<Value<L::CellOutput>>>
+    ) -> Result<CircuitStmt<L::CellOutput>>
     where
         F: Field,
         L: Lowering<F = F>,
@@ -222,7 +222,7 @@ impl CodegenStrategy for InlineConstraintsStrat {
     }
 }
 
-pub type WithinMainResult<O> = Result<Vec<CircuitStmt<Value<O>>>>;
+pub type WithinMainResult<O> = Result<Vec<CircuitStmt<O>>>;
 
 pub trait Codegen<'c>: Sized {
     type FuncOutput: Lowering<F = Self::F> + Clone;
@@ -259,9 +259,7 @@ pub trait Codegen<'c>: Sized {
     fn lower_stmts(
         &self,
         scope: &Self::FuncOutput,
-        stmts: impl Iterator<
-            Item = Result<CircuitStmt<Value<<Self::FuncOutput as Lowering>::CellOutput>>>,
-        >,
+        stmts: impl Iterator<Item = Result<CircuitStmt<<Self::FuncOutput as Lowering>::CellOutput>>>,
     ) -> Result<()> {
         lower_stmts(scope, stmts)
     }
@@ -273,7 +271,7 @@ pub trait Codegen<'c>: Sized {
 
 fn lower_stmts<Scope: Lowering>(
     scope: &Scope,
-    stmts: impl Iterator<Item = Result<CircuitStmt<Value<<Scope as Lowering>::CellOutput>>>>,
+    stmts: impl Iterator<Item = Result<CircuitStmt<<Scope as Lowering>::CellOutput>>>,
 ) -> Result<()> {
     for stmt in stmts {
         let stmt = stmt?;

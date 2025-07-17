@@ -17,7 +17,7 @@ use unwrapped::Unwrapped;
 
 use crate::{
     arena::{BumpArena, Index},
-    halo2::{Field, FromUniformBytes, PrimeField},
+    halo2::{Field, FromUniformBytes, PrimeField, PrimeFieldBits},
 };
 
 mod inner;
@@ -878,5 +878,17 @@ impl<F: PrimeField + PartialOrd> PartialOrd for Lift<F> {
 impl<F: PrimeField + FromUniformBytes<64>> FromUniformBytes<64> for Lift<F> {
     fn from_uniform_bytes(bytes: &[u8; 64]) -> Self {
         Self::lift_value(F::from_uniform_bytes(bytes))
+    }
+}
+
+impl<F: PrimeFieldBits> PrimeFieldBits for Lift<F> {
+    type ReprBits = F::ReprBits;
+
+    fn to_le_bits(&self) -> ff::FieldBits<Self::ReprBits> {
+        self.concretized().unwrap().to_le_bits()
+    }
+
+    fn char_le_bits() -> ff::FieldBits<Self::ReprBits> {
+        F::char_le_bits()
     }
 }

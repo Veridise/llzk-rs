@@ -1,9 +1,37 @@
-use llzk_sys::{llzkAttributeIsAFeltConstAttr, llzkFeltConstAttrGet};
+use llzk_sys::{
+    llzkAttributeIsAFeltConstAttr, llzkFeltConstAttrGet, llzkFeltConstAttrParseFromStr,
+};
 use melior::{
     ir::{Attribute, AttributeLike},
-    Context,
+    Context, StringRef,
 };
 use mlir_sys::MlirAttribute;
+
+pub enum Radix {
+    Base2,
+    Base8,
+    Base10,
+    Base16,
+    Base32,
+}
+
+impl Default for Radix {
+    fn default() -> Self {
+        Self::Base10
+    }
+}
+
+impl From<Radix> for u8 {
+    fn from(value: Radix) -> Self {
+        match value {
+            Radix::Base2 => 2,
+            Radix::Base8 => 8,
+            Radix::Base10 => 10,
+            Radix::Base16 => 16,
+            Radix::Base32 => 32,
+        }
+    }
+}
 
 pub struct FeltConstAttribute<'c> {
     inner: Attribute<'c>,
@@ -22,6 +50,18 @@ impl<'c> FeltConstAttribute<'c> {
 
     pub fn new(ctx: &'c Context, value: u64) -> Self {
         unsafe { Self::from_raw(llzkFeltConstAttrGet(ctx.to_raw(), value as i64)) }
+    }
+
+    pub fn parse(ctx: &'c Context, value: &str, num_bits: u32, radix: Radix) -> Self {
+        let value = StringRef::new(value);
+        unsafe {
+            Self::from_raw(llzkFeltConstAttrParseFromStr(
+                ctx.to_raw(),
+                num_bits,
+                value.to_raw(),
+                radix.into(),
+            ))
+        }
     }
 }
 

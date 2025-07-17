@@ -437,7 +437,7 @@ fn lower_stmt<L: LiftLike>(
     scope: &PicusModuleLowering<L>,
     qr: &dyn QueryResolver<L>,
     sr: &dyn SelectorResolver,
-) -> Result<CircuitStmt<Value<PicusExpr>>> {
+) -> Result<CircuitStmt<PicusExpr>> {
     Ok(match stmt {
         CircuitStmt::ConstraintCall(callee, inputs, outputs) => CircuitStmt::ConstraintCall(
             callee.clone(),

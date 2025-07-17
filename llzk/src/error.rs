@@ -9,6 +9,8 @@ type MeliorError = melior::Error;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Error {
+    BuildMthdFailed(&'static str),
+    OutOfBoundsArgument(Option<String>, usize),
     OperationExpected(&'static str, String),
     Melior(MeliorError),
 }
@@ -34,10 +36,20 @@ impl From<MeliorError> for Error {
 }
 
 impl Display for Error {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Error::OperationExpected(op, actual) => write!(formatter, "{op} op expected: {actual}"),
-            Error::Melior(error) => write!(formatter, "{error}"),
+            Error::OperationExpected(op, actual) => write!(f, "{op} op expected: {actual}"),
+            Error::Melior(error) => write!(f, "{error}"),
+            Error::OutOfBoundsArgument(func_name, index) => {
+                write!(f, "index {index} out of bounds ")?;
+                match func_name {
+                    Some(func_name) => {
+                        write!(f, "function {func_name}")
+                    }
+                    None => write!(f, "block"),
+                }
+            }
+            Error::BuildMthdFailed(mthd) => write!(f, "build method '{mthd}' failed"),
         }
     }
 }

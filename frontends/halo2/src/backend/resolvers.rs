@@ -5,6 +5,7 @@ use crate::{
     gates::AnyQuery,
     halo2::{AdviceQuery, Field, FixedQuery, InstanceQuery, Selector, Value},
     synthesis::regions::FQN,
+    value::steal,
 };
 use anyhow::Result;
 
@@ -59,11 +60,23 @@ pub enum QueryKind {
     Instance,
 }
 
+#[derive(Copy, Clone, Debug)]
 pub enum ResolvedQuery<F> {
     // Literal field value
-    Lit(Value<F>),
+    Lit(F),
     // An input or output of a function
     IO(FuncIO),
+}
+
+impl<F: Field> TryFrom<Value<F>> for ResolvedQuery<F> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: Value<F>) -> std::result::Result<Self, Self::Error> {
+        let value = steal(&value).ok_or(anyhow::anyhow!(
+            "Failed to extract literal field element from value"
+        ))?;
+        Ok(Self::Lit(value))
+    }
 }
 
 impl<F: Field> From<ArgNo> for ResolvedQuery<F> {

@@ -487,7 +487,7 @@ impl<F: Field> QueryResolver<F> for Row<'_, '_, F> {
         let row = self.resolve_rotation(query.rotation())?;
         Ok(
             match self.region_data.resolve_fixed(query.column_index(), row) {
-                Some(v) => ResolvedQuery::Lit(v),
+                Some(v) => v.try_into()?,
                 None => ResolvedQuery::IO(FuncIO::Fixed(query.column_index(), row)),
             },
         )
@@ -583,7 +583,7 @@ impl<F: Field> QueryResolver<F> for RegionRow<'_, '_, F> {
 
         Ok(
             match self.region.shared.resolve_fixed(query.column_index(), row) {
-                Some(v) => ResolvedQuery::Lit(v),
+                Some(v) => v.try_into()?,
                 None => ResolvedQuery::IO(FuncIO::Fixed(query.column_index(), row)),
             },
         )

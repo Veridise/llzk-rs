@@ -170,23 +170,19 @@ impl MockFuncRef {
             .count()
     }
 
-    fn add_constraint(&self, lhs: Value<usize>, rhs: Value<usize>) {
-        let lhs = steal(&lhs).unwrap();
-        let rhs = steal(&rhs).unwrap();
-
+    fn add_constraint(&self, lhs: usize, rhs: usize) {
         self.0
             .borrow_mut()
             .exprs
             .push(MockExprIR::Constraint(lhs, rhs));
     }
 
-    fn add_call(&self, name: String, selectors: &[Value<usize>], queries: &[Value<usize>]) {
+    fn add_call(&self, name: String, selectors: &[usize], queries: &[usize]) {
         self.0.borrow_mut().exprs.push(MockExprIR::Call(
             name,
-            steal_many(selectors)
-                .unwrap()
+            selectors
                 .iter()
-                .chain(steal_many(queries).unwrap().iter())
+                .chain(queries.iter())
                 .map(Clone::clone)
                 .collect(),
         ));
@@ -206,8 +202,8 @@ impl Lowering for MockFuncRef {
     fn generate_constraint(
         &self,
         op: BinaryBoolOp,
-        lhs: &Value<Self::CellOutput>,
-        rhs: &Value<Self::CellOutput>,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
     ) -> Result<()> {
         assert!(matches!(op, BinaryBoolOp::Eq));
         self.add_constraint(*lhs, *rhs);
@@ -221,8 +217,8 @@ impl Lowering for MockFuncRef {
     fn generate_call(
         &self,
         name: &str,
-        selectors: &[Value<Self::CellOutput>],
-        queries: &[Value<Self::CellOutput>],
+        selectors: &[Self::CellOutput],
+        queries: &[Self::CellOutput],
     ) -> Result<()> {
         self.add_call(name.to_owned(), selectors, queries);
         Ok(())
@@ -232,128 +228,91 @@ impl Lowering for MockFuncRef {
         Ok(())
     }
 
-    fn lower_sum<'a, 'l: 'a>(
-        &'l self,
-        lhs: &Value<Self::CellOutput>,
-        rhs: &Value<Self::CellOutput>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
-        Ok(lhs
-            .zip(*rhs)
-            .map(|(lhs, rhs)| self.push_expr(MockExprIR::Sum(lhs, rhs))))
+    fn lower_sum(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        Ok(self.push_expr(MockExprIR::Sum(*lhs, *rhs)))
     }
 
-    fn lower_product<'a>(
-        &'a self,
-        lhs: &Value<Self::CellOutput>,
-        rhs: &Value<Self::CellOutput>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
-        Ok(lhs
-            .zip(*rhs)
-            .map(|(lhs, rhs)| self.push_expr(MockExprIR::Product(lhs, rhs))))
+    fn lower_product(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        Ok(self.push_expr(MockExprIR::Product(*lhs, *rhs)))
     }
 
-    fn lower_neg<'a>(&'a self, expr: &Value<Self::CellOutput>) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
-        Ok(expr.map(|expr| self.push_expr(MockExprIR::Neg(expr))))
+    fn lower_neg(&self, expr: &Self::CellOutput) -> Result<Self::CellOutput> {
+        Ok(self.push_expr(MockExprIR::Neg(*expr)))
     }
 
-    fn lower_scaled<'a>(
-        &'a self,
-        expr: &Value<Self::CellOutput>,
-        scale: &Value<Self::CellOutput>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
-        Ok(expr
-            .zip(*scale)
-            .map(|(expr, scale)| self.push_expr(MockExprIR::Scaled(expr, scale))))
+    fn lower_scaled(
+        &self,
+        expr: &Self::CellOutput,
+        scale: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        Ok(self.push_expr(MockExprIR::Scaled(*expr, *scale)))
     }
 
-    fn lower_challenge<'a>(&'a self, _challenge: &Challenge) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
+    fn lower_challenge(&self, _challenge: &Challenge) -> Result<Self::CellOutput> {
         todo!()
     }
 
-    fn lower_selector<'a, 'l: 'a>(
-        &'l self,
+    fn lower_selector(
+        &self,
         sel: &Selector,
         resolver: &dyn crate::backend::resolvers::SelectorResolver,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
+    ) -> Result<Self::CellOutput> {
         let resolved = resolver.resolve_selector(sel)?;
-        Ok(Value::known(match resolved {
+        Ok(match resolved {
             ResolvedSelector::Const(value) => self.push_expr(MockExprIR::Const(value.to_f())),
             ResolvedSelector::Arg(arg_no) => self.push_expr(MockExprIR::Arg(arg_no)),
-        }))
+        })
     }
 
-    fn lower_advice_query<'a>(
-        &'a self,
+    fn lower_advice_query(
+        &self,
         query: &AdviceQuery,
         resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
+    ) -> Result<Self::CellOutput> {
         let (resolved, _) = resolver.resolve_advice_query(query)?;
 
         Ok(match resolved {
             ResolvedQuery::Lit(_) => unreachable!(),
-            ResolvedQuery::IO(func_io) => Value::known(self.push_expr(func_io.into())),
+            ResolvedQuery::IO(func_io) => self.push_expr(func_io.into()),
         })
     }
 
-    fn lower_instance_query<'a>(
-        &'a self,
+    fn lower_instance_query(
+        &self,
         query: &InstanceQuery,
         resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
+    ) -> Result<Self::CellOutput> {
         let resolved = resolver.resolve_instance_query(query)?;
 
         Ok(match resolved {
             ResolvedQuery::Lit(_) => unreachable!(),
-            ResolvedQuery::IO(func_io) => Value::known(self.push_expr(func_io.into())),
+            ResolvedQuery::IO(func_io) => self.push_expr(func_io.into()),
         })
     }
 
-    fn lower_fixed_query<'a>(
-        &'a self,
+    fn lower_fixed_query(
+        &self,
         query: &FixedQuery,
         resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-    {
+    ) -> Result<Self::CellOutput> {
         let resolved = resolver.resolve_fixed_query(query)?;
 
         Ok(match resolved {
-            ResolvedQuery::Lit(value) => value.map(|f| self.push_expr(MockExprIR::Const(f))),
-            ResolvedQuery::IO(func_io) => Value::known(self.push_expr(func_io.into())),
+            ResolvedQuery::Lit(f) => self.push_expr(MockExprIR::Const(f)),
+            ResolvedQuery::IO(func_io) => self.push_expr(func_io.into()),
         })
     }
 
-    fn lower_constant<'a, 'f>(&'a self, f: &Self::F) -> Result<Value<Self::CellOutput>>
-    where
-        Self::CellOutput: 'a,
-        'a: 'f,
-    {
-        Ok(Value::known(self.push_expr(MockExprIR::Const(*f))))
+    fn lower_constant(&self, f: Self::F) -> Result<Self::CellOutput> {
+        Ok(self.push_expr(MockExprIR::Const(f)))
     }
 }
 
