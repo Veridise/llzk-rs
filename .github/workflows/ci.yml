@@ -1,0 +1,29 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches: 
+      - main
+  push:
+
+env:
+  MLIR_SYS_180_PREFIX: /opt/homebrew/opt/llvm@18/
+  TABLEGEN_180_PREFIX: /opt/homebrew/opt/llvm@18/
+  RUSTFLAGS: '-L /opt/homebrew/lib/'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        BUILD_TARGET: [release, debug] 
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install LLVM & MLIR
+        run: brew install llvm@18
+      - name: Build in "${{ matrix.BUILD_TARGET }}" mode
+        run: cargo build --profile ${{ matrix.BUILD_TARGET }}
+      - name: Run tests in "${{ matrix.BUILD_TARGET }}" mode
+        run: cargo test --profile ${{ matrix.BUILD_TARGET }}
