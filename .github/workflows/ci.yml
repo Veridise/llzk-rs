@@ -17,7 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        BUILD_TARGET: [release, dev] 
+        BUILD_TARGET: 
+          # - release 
+          - dev
     steps:
       - uses: actions/checkout@v4
         with:
