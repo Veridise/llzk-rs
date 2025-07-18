@@ -38,6 +38,10 @@ pub fn build_llzk(default_cfg: &DefaultConfig) -> Result<LlzkBuild> {
     for path in llzk.link_paths()? {
         println!("cargo:rustc-link-search={}", path.display());
     }
+    // Link twice to avoid linking order issues
+    for lib in llzk.library_names()? {
+        println!("cargo:rustc-link-lib={}", lib);
+    }
     for lib in llzk.library_names()? {
         println!("cargo:rustc-link-lib={}", lib);
     }
