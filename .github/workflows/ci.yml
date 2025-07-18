@@ -7,9 +7,10 @@ on:
   push:
 
 env:
-  MLIR_SYS_180_PREFIX: /opt/homebrew/opt/llvm@18/
-  TABLEGEN_180_PREFIX: /opt/homebrew/opt/llvm@18/
-  RUSTFLAGS: '-L /opt/homebrew/lib/'
+  # /opt/homebrew/opt/llvm@18/ is for macOS
+  MLIR_SYS_180_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@18/
+  TABLEGEN_180_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@18/
+  RUSTFLAGS: '-L /home/linuxbrew/.linuxbrew/opt/llvm@18/lib'
 
 jobs:
   build:
@@ -24,7 +25,7 @@ jobs:
       - uses: Homebrew/actions/setup-homebrew@master
       - name: Install LLVM & MLIR
         run: brew install llvm@18
-      - run: /opt/homebrew/opt/llvm@18/bin/llvm-config --version
+      - run: /home/linuxbrew/.linuxbrew/opt/llvm@18/bin/llvm-config --version
       - name: Build in "${{ matrix.BUILD_TARGET }}" mode
         run: cargo build --profile ${{ matrix.BUILD_TARGET }}
       - name: Run tests in "${{ matrix.BUILD_TARGET }}" mode
