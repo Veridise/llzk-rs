@@ -24,6 +24,7 @@ jobs:
       - uses: Homebrew/actions/setup-homebrew@master
       - name: Install LLVM & MLIR
         run: brew install llvm@18
+      - run: llvm-config --version
       - name: Build in "${{ matrix.BUILD_TARGET }}" mode
         run: cargo build --profile ${{ matrix.BUILD_TARGET }}
       - name: Run tests in "${{ matrix.BUILD_TARGET }}" mode
