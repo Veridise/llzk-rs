@@ -10,6 +10,7 @@ pub mod compile_commands;
 pub mod config_traits;
 pub mod default;
 pub mod llzk;
+pub mod mlir;
 pub mod wrap_static_fns;
 
 pub fn apply_bindgen_cfg(bindgen: Builder, cfgs: &[&dyn BindgenConfig]) -> Result<Builder> {
@@ -34,16 +35,13 @@ fn build_llzk_inner(default_cfg: &DefaultConfig) -> Result<LlzkBuild> {
 }
 
 pub fn build_llzk(default_cfg: &DefaultConfig) -> Result<LlzkBuild> {
-    let llzk = build_llzk_inner(default_cfg)?;
+    let mut llzk = build_llzk_inner(default_cfg)?;
     for path in llzk.link_paths()? {
         println!("cargo:rustc-link-search={}", path.display());
     }
-    // Link twice to avoid linking order issues
     for lib in llzk.library_names()? {
         println!("cargo:rustc-link-lib={}", lib);
     }
-    for lib in llzk.library_names()? {
-        println!("cargo:rustc-link-lib={}", lib);
-    }
+
     Ok(llzk)
 }

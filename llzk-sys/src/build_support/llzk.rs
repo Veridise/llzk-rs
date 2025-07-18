@@ -1,38 +1,156 @@
-use anyhow::Result;
+use anyhow::{anyhow, bail, Result};
 use bindgen::Builder;
 use cc::Build;
 use cmake::Config;
-use glob::{glob, GlobError, Paths};
 use std::{
     collections::HashSet,
     ffi::OsStr,
+    fs,
+    hash::Hash,
     path::{Path, PathBuf},
+    process::Command,
 };
+
+use crate::build_support::mlir::MlirConfig;
 
 use super::config_traits::{BindgenConfig, CCConfig, CMakeConfig};
 
 pub struct LlzkBuild {
     path: PathBuf,
+    cached_libraries: Option<(Vec<PathBuf>, Vec<String>)>,
 }
 
 impl From<PathBuf> for LlzkBuild {
     fn from(path: PathBuf) -> Self {
-        Self { path }
+        Self {
+            path,
+            cached_libraries: Default::default(),
+        }
     }
 }
 
+const DUMMY_CXX: &'static str = "int main() {}";
+
+fn dummy_cmakelist(path: &Path) -> String {
+    let content = format!(
+        r#"
+cmake_minimum_required(VERSION 3.15)
+project(Dummy)
+
+list(APPEND CMAKE_PREFIX_PATH "{}")
+find_package(LLZK REQUIRED)
+
+add_executable(dummy dummy.cpp)
+target_link_libraries(dummy PRIVATE LLZK::LLZKCAPI)
+        "#,
+        path.display()
+    );
+    eprintln!("CMakeLists.txt content: {content:?}");
+    content
+}
+
+fn extract_libraries_from_dummy(path: &Path) -> Result<(Vec<PathBuf>, Vec<String>)> {
+    let workdir = tempfile::tempdir()?;
+    let dummy_cxx = workdir.path().join("dummy.cpp");
+    let cmakelists = workdir.path().join("CMakeLists.txt");
+    let build_dir = workdir.path().join("build");
+
+    fs::create_dir_all(&build_dir)?;
+    fs::write(dummy_cxx, DUMMY_CXX)?;
+    fs::write(cmakelists, dummy_cmakelist(&path))?;
+
+    let mlir = MlirConfig::new(&[], &[], &[]);
+    // Configure step
+    Command::new("cmake")
+        .current_dir(&build_dir)
+        .arg("..")
+        .args(mlir.cmake_flags()?)
+        .status()
+        .map_err(Into::into)
+        .and_then(|status| {
+            if status.success() {
+                Ok(())
+            } else {
+                Err(anyhow!(
+                    "Failed to run cmake while configuring the dummy project"
+                ))
+            }
+        })?;
+    let (dirs, libs): (Vec<Option<PathBuf>>, Vec<Option<String>>) = Command::new("cmake")
+        .current_dir(&build_dir)
+        .args(["--build", ".", "--target", "dummy", "--verbose"])
+        .output()
+        .map_err(Into::into)
+        .and_then(|output| {
+            eprintln!("output = {output:?}");
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            if !output.status.success() {
+                bail!("Failed to run cmake while building the dummy project. Stderr: {stderr}");
+            }
+
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            Ok(format!("{stdout}\n{stderr}"))
+        })?
+        .split_whitespace()
+        .map(|token| {
+            let lib_path = token.strip_prefix("-L").map(Path::new);
+            let lib_name = token.strip_prefix("-l");
+            // Assert that they are mutually exclusive
+            assert!(
+                (lib_path.is_none() && lib_name.is_none())
+                    || lib_path.is_none() == lib_name.is_some()
+            );
+            let path = token.strip_suffix(".a").map(Path::new);
+            (
+                lib_path
+                    .or_else(|| path.and_then(Path::parent))
+                    .map(Path::to_path_buf),
+                lib_name
+                    .or_else(|| {
+                        path.and_then(Path::file_name)
+                            .and_then(OsStr::to_str)
+                            .and_then(|s| s.strip_prefix("lib"))
+                    })
+                    .map(ToOwned::to_owned),
+            )
+        })
+        .unzip();
+
+    fn reduce<T: Hash + Eq + PartialEq>(i: impl IntoIterator<Item = Option<T>>) -> Vec<T> {
+        i.into_iter()
+            .flatten()
+            .collect::<HashSet<T>>()
+            .into_iter()
+            .collect()
+    }
+
+    Ok((reduce(dirs), reduce(libs)))
+}
+
 impl LlzkBuild {
-    fn libraries(&self) -> Result<Paths> {
-        Ok(glob(self.path.join("**/*.a").to_str().unwrap())?)
+    fn libraries(
+        &mut self,
+    ) -> Result<(
+        impl IntoIterator<Item = &Path>,
+        impl IntoIterator<Item = &str>,
+    )> {
+        if self.cached_libraries.is_none() {
+            self.cached_libraries = Some(extract_libraries_from_dummy(&self.path)?);
+        }
+
+        Ok(self
+            .cached_libraries
+            .as_ref()
+            .map(|(p, s)| (p.iter().map(PathBuf::as_path), s.iter().map(|s| s.as_str())))
+            .unwrap())
     }
 
-    pub fn library_names(&self) -> Result<Vec<String>> {
-        let libs = self.libraries()?;
-        libs.map(archive_name_from_path).collect()
+    pub fn library_names(&mut self) -> Result<impl Iterator<Item = &str>> {
+        Ok(self.libraries()?.1.into_iter())
     }
 
-    pub fn link_paths(&self) -> Result<HashSet<PathBuf>> {
-        self.libraries()?.map(parent_of_lib_path).collect()
+    pub fn link_paths(&mut self) -> Result<impl Iterator<Item = &Path>> {
+        Ok(self.libraries()?.0.into_iter())
     }
 
     pub fn path(&self) -> &Path {
@@ -73,34 +191,4 @@ impl CCConfig for LlzkBuild {
         CCConfig::include_paths(self, cc, &[&self.path, Self::src_path()]);
         Ok(())
     }
-}
-
-fn parse_archive_name(name: &str) -> Option<&str> {
-    if let Some(name) = name.strip_prefix("lib") {
-        name.strip_suffix(".a")
-    } else {
-        None
-    }
-}
-
-fn archive_name_from_path(path: Result<PathBuf, GlobError>) -> Result<String> {
-    let path = path?;
-    path.file_name()
-        .and_then(OsStr::to_str)
-        .and_then(parse_archive_name)
-        .map(|s| s.to_string())
-        .ok_or(anyhow::anyhow!(
-            "Failed to parse archive name of {}",
-            path.display()
-        ))
-}
-
-fn parent_of_lib_path(path: Result<PathBuf, GlobError>) -> Result<PathBuf> {
-    let path = path?;
-    path.parent()
-        .map(|p| p.to_path_buf())
-        .ok_or(anyhow::anyhow!(
-            "Failed to get parent from {}",
-            path.display()
-        ))
 }
