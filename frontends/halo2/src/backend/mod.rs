@@ -23,6 +23,7 @@ pub mod resolvers;
 
 use func::ArgNo;
 use lowering::Lowering;
+use midnight_halo2_proofs::plonk::Expression;
 use resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver};
 
 struct GateScopedResolver<'a> {
@@ -144,11 +145,9 @@ impl CallGatesStrat {
         F: Field,
         L: Lowering<F = F>,
     {
-        Ok(CircuitStmt::ConstraintCall(
-            name.to_owned(),
-            scope.lower_selectors(&selectors, r)?,
-            scope.lower_any_queries(&queries, r)?,
-        ))
+        let mut inputs = scope.lower_selectors(&selectors, r)?;
+        inputs.extend(scope.lower_any_queries(&queries, r)?);
+        Ok(CircuitStmt::ConstraintCall(name.to_owned(), inputs, vec![]))
     }
 
     fn define_gate<'c, 'a, F, P, O, B>(
@@ -163,7 +162,7 @@ impl CallGatesStrat {
         B: Backend<'c, P, O, F = F>,
     {
         let (selectors, queries) = compute_gate_arity(gate.polynomials());
-        let scope = backend.define_gate_function(gate.name(), &selectors, &queries, syn)?;
+        let scope = backend.define_gate_function(gate.name(), &selectors, &queries, &[], syn)?;
 
         let resolver = GateScopedResolver {
             selectors: &selectors,
@@ -198,8 +197,163 @@ impl CodegenStrategy for CallGatesStrat {
     }
 }
 
+#[derive(Clone)]
+struct Lookup<'a, F: Field> {
+    name: &'a str,
+    inputs: &'a [Expression<F>],
+    table_expressions: &'a [Expression<F>],
+    selectors: Vec<&'a Selector>,
+    queries: Vec<AnyQuery>,
+    table: Vec<AnyQuery>,
+    all_queries: Vec<AnyQuery>,
+}
+
+fn compute_table_cells<'a, F: Field>(
+    table: impl Iterator<Item = &'a Expression<F>>,
+) -> Result<Vec<AnyQuery>> {
+    table
+        .map(|e| match e {
+            Expression::Fixed(fixed_query) => Ok(fixed_query.into()),
+            _ => Err(anyhow!(
+                "Table row expressions can only be fixed cell queries"
+            )),
+        })
+        .collect()
+}
+
+impl<'a, F: Field> Lookup<'a, F> {
+    pub fn load(syn: &'a CircuitSynthesis<F>) -> Result<Vec<Self>> {
+        syn.cs()
+            .lookups()
+            .iter()
+            .map(|a| {
+                let inputs = a.input_expressions();
+                let (selectors, queries) = compute_gate_arity(&inputs);
+                let table = compute_table_cells(a.table_expressions().into_iter())?;
+                let mut all_queries = queries.clone();
+                all_queries.extend(table.clone());
+                Ok(Self {
+                    name: a.name(),
+                    inputs: &inputs,
+                    table_expressions: &a.table_expressions(),
+                    selectors,
+                    queries,
+                    table,
+                    all_queries,
+                })
+            })
+            .collect()
+    }
+
+    pub fn create_scope<'c, P, O, B>(
+        &self,
+        backend: &B,
+        syn: &CircuitSynthesis<F>,
+    ) -> Result<B::FuncOutput>
+    where
+        F: Field,
+        P: Default,
+        B: Backend<'c, P, O, F = F>,
+    {
+        backend.define_gate_function(self.name, &self.selectors, &self.queries, &self.table, syn)
+    }
+
+    pub fn create_resolver(&self) -> GateScopedResolver {
+        GateScopedResolver {
+            selectors: &self.selectors,
+            queries: &self.all_queries,
+        }
+    }
+
+    pub fn expressions(&self) -> impl Iterator<Item = (&Expression<F>, &Expression<F>)> {
+        self.inputs.into_iter().zip(self.table_expressions)
+    }
+
+    pub fn comment_header<T>(&self) -> CircuitStmt<T> {
+        CircuitStmt::Comment(format!("lookup '{}'", self.name))
+    }
+
+    pub fn create_call_stmt<L>(
+        &self,
+        scope: &L,
+        r: &RegionRow<F>,
+    ) -> Result<CircuitStmt<L::CellOutput>>
+    where
+        F: Field,
+        L: Lowering<F = F>,
+    {
+        let mut inputs = scope.lower_selectors(&self.selectors, r)?;
+        inputs.extend(scope.lower_any_queries(&self.queries, r)?);
+        let resolved = self
+            .table
+            .iter()
+            .map(|o| r.resolve_any_query(o))
+            .map(|r| match r? {
+                ResolvedQuery::Lit(_) => Err(anyhow!(
+                    "Fixed table columns cannot have an assigned fixed value"
+                )),
+                ResolvedQuery::IO(func_io) => Ok(func_io),
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        Ok(CircuitStmt::ConstraintCall(
+            self.name.to_owned(),
+            inputs,
+            resolved,
+        ))
+    }
+}
+
 #[derive(Default)]
 pub struct InlineConstraintsStrat;
+
+impl InlineConstraintsStrat {
+    fn compute_table_cells<'a, F: Field>(
+        &self,
+        table: impl Iterator<Item = &'a Expression<F>>,
+    ) -> Result<Vec<AnyQuery>> {
+        table
+            .map(|e| match e {
+                Expression::Fixed(fixed_query) => Ok(fixed_query.into()),
+                _ => Err(anyhow!(
+                    "Table row expressions can only be fixed cell queries"
+                )),
+            })
+            .collect()
+    }
+
+    fn define_lookup_modules<'c, 'a, F, P, O, B>(
+        &self,
+        backend: &B,
+        syn: &CircuitSynthesis<F>,
+    ) -> Result<()>
+    where
+        F: Field,
+        P: Default,
+        B: Backend<'c, P, O, F = F>,
+    {
+        for lookup in Lookup::load(syn)? {
+            let scope = lookup.create_scope(backend, syn)?;
+            let resolver = lookup.create_resolver();
+            let constraints = lookup.expressions().map(|(input, table)| {
+                Ok(CircuitStmt::Constraint(
+                    BinaryBoolOp::Eq,
+                    scope.lower_expr(input, &resolver, &resolver)?,
+                    scope.lower_expr(table, &resolver, &resolver)?,
+                ))
+            });
+
+            let stmts = vec![Ok(lookup.comment_header())]
+                .into_iter()
+                .chain(constraints);
+
+            // TODO: Missing the assume-determinisitic statements.
+            backend.lower_stmts(&scope, stmts)?;
+            backend.on_scope_end(&scope)?;
+        }
+        Ok(())
+    }
+}
 
 impl CodegenStrategy for InlineConstraintsStrat {
     fn codegen<'c, 'a, F, P, O, B>(&self, backend: &B, syn: &CircuitSynthesis<F>) -> Result<()>
@@ -208,7 +362,25 @@ impl CodegenStrategy for InlineConstraintsStrat {
         P: Default,
         B: Backend<'c, P, O, F = F>,
     {
+        self.define_lookup_modules(backend, syn)?;
+
         backend.within_main(syn, |scope| {
+            let region_rows = || {
+                syn.regions().into_iter().flat_map(|r| {
+                    r.rows().map(move |row| {
+                        RegionRow::new(
+                            r,
+                            row,
+                            syn.regions_ref(),
+                            syn.advice_io(),
+                            syn.instance_io(),
+                        )
+                    })
+                })
+            };
+            let lookups = Lookup::load(syn)?
+                .into_iter()
+                .flat_map(|l| region_rows().map(move |r| l.create_call_stmt(scope, &r)));
             // Do the region stmts first since backends may have more information about names for
             // cells there and some backends do not update the name and always use the first
             // one given.
@@ -216,6 +388,7 @@ impl CodegenStrategy for InlineConstraintsStrat {
                 .flat_map(|(gate, r)| {
                     scope.lower_constraints(gate, r, r.header(), Some(r.row_number()))
                 })
+                .chain(lookups)
                 .chain(self.inter_region_constraints(scope, syn))
                 .collect::<Result<Vec<_>>>()
         })
@@ -244,7 +417,8 @@ pub trait Codegen<'c>: Sized {
         &self,
         name: &str,
         selectors: &[&Selector],
-        queries: &[AnyQuery],
+        input_queries: &[AnyQuery],
+        output_queries: &[AnyQuery],
         syn: &CircuitSynthesis<Self::F>,
     ) -> Result<Self::FuncOutput>
     where
@@ -276,13 +450,16 @@ fn lower_stmts<Scope: Lowering>(
     for stmt in stmts {
         let stmt = stmt?;
         match stmt {
-            CircuitStmt::ConstraintCall(name, selectors, queries) => {
-                scope.generate_call(&name, &selectors, &queries)?;
+            CircuitStmt::ConstraintCall(name, inputs, outputs) => {
+                scope.generate_call(&name, &inputs, &outputs)?;
             }
             CircuitStmt::Constraint(op, lhs, rhs) => {
                 scope.checked_generate_constraint(op, &lhs, &rhs)?;
             }
             CircuitStmt::Comment(s) => scope.generate_comment(s)?,
+            CircuitStmt::AssumeDeterministic(func_io) => {
+                scope.generate_assume_deterministic(func_io)?
+            }
         };
     }
     Ok(())

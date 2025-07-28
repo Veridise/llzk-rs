@@ -213,7 +213,7 @@ impl<'c, 'v: 'c, F: PrimeField> Lowering for LlzkStructLowering<'c, 'v, F> {
         &self,
         _name: &str,
         _selectors: &[Self::CellOutput],
-        _queries: &[Self::CellOutput],
+        _queries: &[FuncIO],
     ) -> Result<()> {
         unimplemented!()
     }
@@ -298,5 +298,9 @@ impl<'c, 'v: 'c, F: PrimeField> Lowering for LlzkStructLowering<'c, 'v, F> {
             Location::unknown(self.context()),
             const_attr,
         )?)
+    }
+
+    fn generate_assume_deterministic(&self, func_io: FuncIO) -> Result<()> {
+        todo!()
     }
 }

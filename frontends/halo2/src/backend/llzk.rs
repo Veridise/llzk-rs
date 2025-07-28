@@ -46,7 +46,8 @@ impl<'c, F: LiftLike> Codegen<'c> for LlzkBackend<'c, F> {
         &self,
         name: &str,
         selectors: &[&Selector],
-        queries: &[AnyQuery],
+        input_queries: &[AnyQuery],
+        output_queries: &[AnyQuery],
         syn: &CircuitSynthesis<Self::F>,
     ) -> Result<Self::FuncOutput>
     where

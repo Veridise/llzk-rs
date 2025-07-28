@@ -2,8 +2,8 @@ use crate::display::{TextRepresentable, TextRepresentation};
 use crate::expr::traits::ConstraintExpr;
 use crate::felt::Felt;
 use crate::vars::Temp;
-use anyhow::Result;
-use impls::{CallStmt, CommentLine, ConstraintStmt};
+use anyhow::{anyhow, Result};
+use impls::{AssumeDeterministicStmt, CallStmt, CommentLine, ConstraintStmt};
 use std::{cell::RefCell, rc::Rc};
 use traits::{
     CallLikeAdaptor, ConstraintLike, ExprArgs, MaybeCallLike, StmtConstantFolding, StmtLike,
@@ -66,27 +66,42 @@ impl<T> StmtLike for Wrap<T> where T: StmtLike + PartialEq + ?Sized {}
 // Factories
 //===----------------------------------------------------------------------===//
 
-pub fn call<'a, A>(
+pub fn call<'a>(
     callee: String,
     inputs: Vec<Expr>,
-    n_outputs: usize,
-    allocator: &A,
-    ctx: <A::Kind as Temp<'a>>::Ctx,
-) -> Stmt
-where
-    A: VarAllocator,
-    A::Kind: Temp<'a>,
+    outputs: Vec<Expr>,
+    //allocator: &A,
+    //ctx: <A::Kind as Temp<'a>>::Ctx,
+) -> Result<Stmt>
+//where
+//    A: VarAllocator,
+//    A::Kind: Temp<'a>,
 {
-    Wrap::new(
+    Ok(Wrap::new(
         CallStmt::new(
             callee,
             inputs,
-            (0..n_outputs)
-                .map(|_| allocator.allocate(A::Kind::temp(ctx)))
-                .collect(),
+            outputs
+                .into_iter()
+                .map(|e| {
+                    e.var_name()
+                        .cloned()
+                        .ok_or_else(|| anyhow!("Output expressions can only be variable names"))
+                })
+                .collect::<Result<Vec<_>>>()?,
         )
         .into(),
-    )
+    ))
+}
+
+pub fn assume_deterministic(expr: Expr) -> Result<Stmt> {
+    // Manually unwrapped and wrapped for coercing to the right type
+    Ok(expr
+        .var_name()
+        .map(AssumeDeterministicStmt::new)
+        .map(Into::into)
+        .map(Wrap::new)
+        .ok_or_else(|| anyhow!("assume-deterministic argument must be a variable name"))?)
 }
 
 pub fn constrain(expr: Expr) -> Stmt {

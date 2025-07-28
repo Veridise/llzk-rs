@@ -336,3 +336,68 @@ impl TextRepresentable for CommentLine {
 }
 
 impl StmtLike for CommentLine {}
+
+//===----------------------------------------------------------------------===//
+// AssumeDeterministicStmt
+//===----------------------------------------------------------------------===//
+
+#[derive(PartialEq, Debug)]
+pub struct AssumeDeterministicStmt(VarStr);
+
+impl AssumeDeterministicStmt {
+    pub fn new(var: &VarStr) -> Self {
+        Self(var.clone())
+    }
+}
+
+impl ExprArgs for AssumeDeterministicStmt {
+    fn args(&self) -> Vec<Expr> {
+        vec![known_var(&self.0)]
+    }
+
+    fn replace_arg(&mut self, idx: usize, expr: Expr) -> Result<()> {
+        if idx != 0 {
+            bail!("Index {idx} is out of bounds for constraint statement");
+        }
+        self.0 = expr.var_name().cloned().ok_or_else(|| {
+            anyhow!(
+                "assume-deterministic statement's argument can only be replaced by variable names"
+            )
+        })?;
+        Ok(())
+    }
+}
+
+impl ConstraintLike for AssumeDeterministicStmt {
+    fn is_constraint(&self) -> bool {
+        false
+    }
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
+        None
+    }
+}
+
+impl MaybeCallLike for AssumeDeterministicStmt {
+    fn as_call<'a>(&'a self) -> Option<CallLikeAdaptor<'a>> {
+        None
+    }
+}
+
+impl StmtConstantFolding for AssumeDeterministicStmt {
+    fn fold(&self, _prime: &Felt) -> Option<Stmt> {
+        None
+    }
+}
+
+impl TextRepresentable for AssumeDeterministicStmt {
+    fn to_repr(&self) -> TextRepresentation {
+        owned_list!("assume-deterministic", &self.0)
+    }
+
+    fn width_hint(&self) -> usize {
+        self.0.width_hint() + "(assume-deterministic)".len()
+    }
+}
+
+impl StmtLike for AssumeDeterministicStmt {}

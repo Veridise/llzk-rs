@@ -9,7 +9,7 @@ use crate::{
 };
 use anyhow::{bail, Result};
 
-use super::{QueryResolver, SelectorResolver};
+use super::{func::FuncIO, QueryResolver, SelectorResolver};
 
 pub trait Lowering {
     type CellOutput: fmt::Debug + Clone;
@@ -41,11 +41,13 @@ pub trait Lowering {
 
     fn generate_comment(&self, s: String) -> Result<()>;
 
+    fn generate_assume_deterministic(&self, func_io: FuncIO) -> Result<()>;
+
     fn generate_call(
         &self,
         name: &str,
         selectors: &[Self::CellOutput],
-        queries: &[Self::CellOutput],
+        outputs: &[FuncIO],
     ) -> Result<()>;
 
     fn lower_sum(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput)

@@ -4,6 +4,7 @@ use super::{
 };
 use crate::{
     backend::{
+        func::FuncIO,
         lowering::Lowering,
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     },
@@ -54,6 +55,11 @@ impl<L> PicusModuleLowering<L> {
 }
 
 impl<L: LiftLike> PicusModuleLowering<L> {
+    pub fn lower_func_io(&self, func_io: FuncIO, fqn: Option<Cow<FQN>>) -> PicusExpr {
+        let seed = VarKeySeed::named_io(func_io, fqn, self.naming_convention);
+        expr::var(&self.module, seed)
+    }
+
     fn lower_resolved_query(
         &self,
         query: ResolvedQuery<L>,
@@ -169,20 +175,18 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
     fn generate_call(
         &self,
         name: &str,
-        selectors: &[Self::CellOutput],
-        queries: &[Self::CellOutput],
+        inputs: &[Self::CellOutput],
+        outputs: &[FuncIO],
     ) -> Result<()> {
         self.module.borrow_mut().add_stmt(stmt::call(
             name.to_owned(),
-            selectors
+            inputs.to_vec(),
+            outputs
                 .iter()
-                .chain(queries.iter())
-                .map(Clone::clone)
+                .copied()
+                .map(|o| self.lower_func_io(o, None))
                 .collect(),
-            0,
-            &self.module,
-            self.naming_convention,
-        ));
+        )?);
         Ok(())
     }
 
@@ -263,5 +267,14 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
             "[PicusBackend::lower_constant] Constant value {f:?} becomes expression {expr:?}"
         );
         Ok(expr)
+    }
+
+    fn generate_assume_deterministic(&self, func_io: FuncIO) -> Result<()> {
+        self.module
+            .borrow_mut()
+            .add_stmt(stmt::assume_deterministic(
+                self.lower_func_io(func_io, None),
+            )?);
+        Ok(())
     }
 }

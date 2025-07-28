@@ -302,7 +302,8 @@ macro_rules! codegen_impl {
                 &self,
                 name: &str,
                 selectors: &[&Selector],
-                queries: &[AnyQuery],
+                input_queries: &[AnyQuery],
+                output_queries: &[AnyQuery],
                 syn: &CircuitSynthesis<L>,
             ) -> Result<Self::FuncOutput>
             where
@@ -312,8 +313,8 @@ macro_rules! codegen_impl {
                 let nc = self.naming_convention();
                 self.inner.borrow_mut().add_module(
                     name.to_owned(),
-                    mk_io(selectors.len() + queries.len(), VarKeySeed::arg, nc),
-                    mk_io(0, VarKeySeed::field, nc),
+                    mk_io(selectors.len() + input_queries.len(), VarKeySeed::arg, nc),
+                    mk_io(output_queries.len(), VarKeySeed::field, nc),
                     syn,
                 )
             }
@@ -442,7 +443,7 @@ fn lower_stmt<L: LiftLike>(
         CircuitStmt::ConstraintCall(callee, inputs, outputs) => CircuitStmt::ConstraintCall(
             callee.clone(),
             scope.lower_exprs(inputs, qr, sr)?,
-            scope.lower_exprs(outputs, qr, sr)?,
+            outputs.clone(),
         ),
         CircuitStmt::Constraint(op, lhs, rhs) => CircuitStmt::Constraint(
             *op,
@@ -450,6 +451,7 @@ fn lower_stmt<L: LiftLike>(
             scope.lower_expr(rhs, qr, sr)?,
         ),
         CircuitStmt::Comment(s) => CircuitStmt::Comment(s.clone()),
+        CircuitStmt::AssumeDeterministic(func_io) => CircuitStmt::AssumeDeterministic(*func_io),
     })
 }
 

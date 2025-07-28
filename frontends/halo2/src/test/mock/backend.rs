@@ -177,15 +177,11 @@ impl MockFuncRef {
             .push(MockExprIR::Constraint(lhs, rhs));
     }
 
-    fn add_call(&self, name: String, selectors: &[usize], queries: &[usize]) {
-        self.0.borrow_mut().exprs.push(MockExprIR::Call(
-            name,
-            selectors
-                .iter()
-                .chain(queries.iter())
-                .map(Clone::clone)
-                .collect(),
-        ));
+    fn add_call(&self, name: String, selectors: &[usize]) {
+        self.0
+            .borrow_mut()
+            .exprs
+            .push(MockExprIR::Call(name, selectors.to_vec()));
     }
 
     fn push_expr(&self, expr: MockExprIR) -> usize {
@@ -217,10 +213,10 @@ impl Lowering for MockFuncRef {
     fn generate_call(
         &self,
         name: &str,
-        selectors: &[Self::CellOutput],
-        queries: &[Self::CellOutput],
+        inputs: &[Self::CellOutput],
+        outputs: &[FuncIO],
     ) -> Result<()> {
-        self.add_call(name.to_owned(), selectors, queries);
+        self.add_call(name.to_owned(), inputs);
         Ok(())
     }
 
@@ -314,6 +310,10 @@ impl Lowering for MockFuncRef {
     fn lower_constant(&self, f: Self::F) -> Result<Self::CellOutput> {
         Ok(self.push_expr(MockExprIR::Const(f)))
     }
+
+    fn generate_assume_deterministic(&self, func_io: FuncIO) -> Result<()> {
+        todo!()
+    }
 }
 
 impl<'c> Codegen<'c> for MockBackend {
@@ -325,6 +325,7 @@ impl<'c> Codegen<'c> for MockBackend {
         name: &str,
         selectors: &[&Selector],
         queries: &[AnyQuery],
+        _output_queries: &[AnyQuery],
         _: &CircuitSynthesis<Fr>,
     ) -> Result<Self::FuncOutput>
     where
