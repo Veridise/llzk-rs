@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     fmt,
     hash::{DefaultHasher, Hash as _, Hasher as _},
+    ops::Sub as _,
 };
 
 use anyhow::{anyhow, bail, Result};
@@ -639,11 +640,18 @@ impl ConstantFolding for NegExpr {
     }
 
     fn fold(&self, prime: &Felt) -> Option<Expr> {
-        if let Some(e) = self.0.fold(prime) {
-            Some(Wrap::new(Self(e)))
-        } else {
-            None
-        }
+        let inner = self.0.fold(prime).unwrap_or_else(|| self.0.clone());
+
+        inner
+            .as_const()
+            .map(|e| {
+                let prime = prime.clone();
+                assert!(e < prime);
+                prime - e
+            })
+            .map(ConstExpr)
+            .map(|e| -> Expr { Wrap::new(e) })
+            .or_else(|| -> Option<Expr> { Some(Wrap::new(Self(inner))) })
     }
 }
 
@@ -694,3 +702,24 @@ impl GetExprHash for NegExpr {
 }
 
 impl ExprLike for NegExpr {}
+
+#[cfg(test)]
+mod test_neg_expr {
+    use crate::{
+        expr::{traits::ConstantFolding as _, Wrap},
+        felt::Felt,
+    };
+
+    use super::{ConstExpr, NegExpr};
+
+    #[test]
+    fn test_const_folding() {
+        let prime = Felt::from(7);
+        let inner = ConstExpr(Felt::from(2));
+        let e = NegExpr(Wrap::new(inner));
+
+        let folded = e.fold(&prime).unwrap();
+        let value = folded.as_const().unwrap();
+        assert_eq!(value, Felt::from(5));
+    }
+}

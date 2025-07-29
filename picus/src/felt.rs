@@ -16,7 +16,7 @@ pub type FeltRepr = BigUint;
 #[cfg(not(feature = "bigint-felt"))]
 pub type FeltRepr = usize;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Felt(FeltRepr);
 
 impl Felt {
@@ -71,6 +71,14 @@ impl fmt::Display for Felt {
 impl AddAssign<usize> for Felt {
     fn add_assign(&mut self, rhs: usize) {
         self.0 += rhs;
+    }
+}
+
+impl Sub for Felt {
+    type Output = Felt;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
     }
 }
 
