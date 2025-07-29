@@ -1,22 +1,13 @@
 use std::borrow::Cow;
 
-use crate::backend::codegen::lookup::Lookup;
-use crate::backend::codegen::{Codegen, CodegenStrategy};
 use crate::backend::func::{ArgNo, FieldId, FuncIO};
-use crate::backend::lowering::Lowering;
 use crate::backend::resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver};
 use crate::{
-    gates::{compute_gate_arity, AnyQuery},
+    gates::AnyQuery,
     halo2::{
-        AdviceQuery, Any, Column, Expression, Field, Fixed, FixedQuery, Gate, InstanceQuery,
-        Rotation, Selector, Value,
+        AdviceQuery, Field, FixedQuery, InstanceQuery, Selector,
     },
-    ir::{BinaryBoolOp, CircuitStmt},
-    synthesis::{
-        regions::{RegionData, RegionRow, Row, FQN},
-        CircuitSynthesis,
-    },
-    CircuitWithIO,
+    synthesis::regions::FQN,
 };
 use anyhow::{anyhow, Result};
 

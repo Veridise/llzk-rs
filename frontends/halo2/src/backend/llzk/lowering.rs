@@ -1,26 +1,24 @@
-use std::{borrow::Cow, iter, marker::PhantomData, rc::Rc};
+use std::{borrow::Cow, marker::PhantomData, rc::Rc};
 
 use anyhow::{anyhow, Result};
 use llzk::dialect::r#struct::StructDefOp;
-use llzk::error::Error;
 use llzk::{
     builder::OpBuilder,
     dialect::{
         constrain,
         felt::{self, FeltConstAttribute, FeltType, Radix},
         function::{FuncDefOpLike as _, FuncDefOpRef},
-        r#struct::{self, FieldDefOpLike as _, FieldDefOpRef, StructDefOpLike, StructDefOpRef},
+        r#struct::{self, FieldDefOpLike as _, FieldDefOpRef, StructDefOpLike},
     },
 };
 use melior::ir::ValueLike;
 use melior::{
     ir::{
         attribute::FlatSymbolRefAttribute,
-        operation::{OperationLike as _, OperationResult},
-        Block, BlockLike as _, BlockRef, Location, Operation, OperationRef, RegionLike as _, Type,
+        operation::OperationLike as _, BlockLike as _, Location, Operation, OperationRef, RegionLike as _, Type,
         Value,
     },
-    Context, ContextRef,
+    Context,
 };
 use midnight_halo2_proofs::plonk::{AdviceQuery, Challenge, FixedQuery, InstanceQuery, Selector};
 use mlir_sys::MlirValue;

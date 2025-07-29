@@ -2,7 +2,7 @@ mod constraint;
 mod matrix;
 pub mod regions;
 
-use std::collections::{hash_set::Iter, BTreeSet, HashMap, HashSet};
+use std::collections::{hash_set::Iter, HashMap, HashSet};
 
 use anyhow::{anyhow, Result};
 use constraint::{EqConstraint, Graph};

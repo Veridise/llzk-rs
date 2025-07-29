@@ -1,9 +1,8 @@
-use std::fmt;
 
 use crate::{
     gates::AnyQuery,
     halo2::{
-        AdviceQuery, Challenge, Expression, Field, FixedQuery, Gate, InstanceQuery, Selector, Value,
+        AdviceQuery, Challenge, Expression, Field, FixedQuery, Gate, InstanceQuery, Selector,
     },
     ir::{BinaryBoolOp, CircuitStmt},
 };

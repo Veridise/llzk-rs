@@ -16,7 +16,7 @@ use super::{
 };
 use crate::{
     gates::AnyQuery,
-    halo2::{Expression, Field, PrimeField, RegionIndex, Selector, Value},
+    halo2::{Expression, Field, PrimeField, RegionIndex, Selector},
     ir::{lift::LiftIRGuard, CircuitStmt},
     synthesis::{regions::FQN, CircuitSynthesis},
     LiftLike,

@@ -1,22 +1,19 @@
-use std::borrow::Cow;
 
-use super::func::{ArgNo, FieldId, FuncIO};
 use super::lowering::Lowering;
-use super::resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver};
 use crate::{
-    gates::{compute_gate_arity, AnyQuery},
+    gates::AnyQuery,
     halo2::{
-        AdviceQuery, Any, Column, Expression, Field, Fixed, FixedQuery, Gate, InstanceQuery,
-        Rotation, Selector, Value,
+        Any, Column, Expression, Field, Fixed,
+        Rotation, Selector,
     },
     ir::{BinaryBoolOp, CircuitStmt},
     synthesis::{
-        regions::{RegionData, RegionRow, Row, FQN},
+        regions::Row,
         CircuitSynthesis,
     },
     CircuitWithIO,
 };
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 pub mod lookup;
 pub mod strats;

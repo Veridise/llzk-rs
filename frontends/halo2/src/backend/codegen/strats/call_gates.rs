@@ -1,24 +1,19 @@
-use std::borrow::Cow;
 
 use super::GateScopedResolver;
 use crate::backend::codegen::{Codegen, CodegenStrategy};
-use crate::backend::func::{ArgNo, FieldId, FuncIO};
 use crate::backend::lowering::Lowering;
-use crate::backend::resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver};
 use crate::{
     gates::{compute_gate_arity, AnyQuery},
     halo2::{
-        AdviceQuery, Any, Column, Expression, Field, Fixed, FixedQuery, Gate, InstanceQuery,
-        Rotation, Selector, Value,
+        Gate, Selector,
     },
-    ir::{BinaryBoolOp, CircuitStmt},
+    ir::CircuitStmt,
     synthesis::{
-        regions::{RegionData, RegionRow, Row, FQN},
+        regions::RegionRow,
         CircuitSynthesis,
     },
-    CircuitWithIO,
 };
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 #[derive(Default)]
 pub struct CallGatesStrat;

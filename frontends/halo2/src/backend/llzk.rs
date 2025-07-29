@@ -1,22 +1,12 @@
-use std::{cell::RefCell, iter, marker::PhantomData, ops::RangeFrom};
+use std::marker::PhantomData;
 
 use anyhow::Result;
 use counter::Counter;
-use llzk::{
-    dialect::{
-        felt::FeltType,
-        function::{self, FuncDefOpLike as _},
-        module,
-        r#struct::{self, FieldDefOp, StructDefOp, StructDefOpRef, StructType},
-    },
-    error::Error,
-};
+use llzk::dialect::r#struct::{StructDefOp, StructDefOpRef};
 use lowering::LlzkStructLowering;
 use melior::{
     ir::{
-        attribute::FlatSymbolRefAttribute, operation::OperationLike as _, r#type::FunctionType,
-        Block, BlockLike as _, Location, Module, Operation, OperationRef, Region, RegionLike as _,
-        Type,
+        operation::OperationLike as _, BlockLike as _, Module,
     },
     Context,
 };

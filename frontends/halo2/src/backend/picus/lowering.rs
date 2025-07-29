@@ -10,14 +10,12 @@ use crate::{
     },
     halo2::{
         AdviceQuery, Challenge, FixedQuery, InstanceQuery, RegionIndex, RegionStart, Selector,
-        Value,
     },
     ir::{lift::LiftLowering, BinaryBoolOp},
     synthesis::regions::FQN,
-    value::{steal, steal_many},
     LiftLike,
 };
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use picus::{expr, stmt, ModuleLike as _};
 use std::{borrow::Cow, collections::HashMap, marker::PhantomData};
 

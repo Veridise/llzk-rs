@@ -1,24 +1,17 @@
-use std::borrow::Cow;
 
 use crate::backend::codegen::lookup::Lookup;
 use crate::backend::codegen::{Codegen, CodegenStrategy};
-use crate::backend::func::{ArgNo, FieldId, FuncIO};
 use crate::backend::lowering::Lowering;
-use crate::backend::resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver};
+use crate::backend::resolvers::{QueryResolver, ResolvedQuery};
 use crate::{
-    gates::{compute_gate_arity, AnyQuery},
-    halo2::{
-        AdviceQuery, Any, Column, Expression, Field, Fixed, FixedQuery, Gate, InstanceQuery,
-        Rotation, Selector, Value,
-    },
     ir::{BinaryBoolOp, CircuitStmt},
     synthesis::{
-        regions::{RegionData, RegionRow, Row, FQN},
+        regions::RegionRow,
         CircuitSynthesis,
     },
     CircuitWithIO,
 };
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 #[derive(Default)]
 pub struct InlineConstraintsStrat;

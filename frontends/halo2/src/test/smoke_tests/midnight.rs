@@ -1,9 +1,10 @@
 use log::LevelFilter;
 use simplelog::{Config, TestLogger};
 
+use crate::backend::codegen::strats::inline::InlineConstraintsStrat;
 use crate::backend::func::{ArgNo, FieldId};
 use crate::backend::picus::{PicusBackend, PicusParamsBuilder};
-use crate::backend::{Backend, InlineConstraintsStrat};
+use crate::backend::Backend;
 use crate::halo2::{Field, Fr};
 use crate::test::fixtures::midnight::fibonacci::FibonacciCircuit;
 use crate::test::fixtures::midnight::lookup::LookupCircuit;

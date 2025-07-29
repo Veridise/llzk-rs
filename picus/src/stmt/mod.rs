@@ -1,7 +1,7 @@
 use crate::display::{TextRepresentable, TextRepresentation};
 use crate::expr::traits::ConstraintExpr;
 use crate::felt::Felt;
-use crate::vars::{Temp, VarStr};
+use crate::vars::VarStr;
 use anyhow::{anyhow, Result};
 use impls::{AssumeDeterministicStmt, CallStmt, CommentLine, ConstraintStmt};
 use std::collections::HashSet;
@@ -11,7 +11,7 @@ use traits::{
     StmtLike,
 };
 
-use crate::{expr::Expr, vars::VarAllocator};
+use crate::expr::Expr;
 
 mod impls;
 pub mod traits;

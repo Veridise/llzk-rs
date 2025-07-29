@@ -1,19 +1,9 @@
-use std::borrow::Cow;
 
 use crate::{
-    gates::{compute_gate_arity, AnyQuery},
-    halo2::{
-        AdviceQuery, Any, Column, Field, Fixed, FixedQuery, Gate, InstanceQuery, Rotation,
-        Selector, Value,
-    },
-    ir::{BinaryBoolOp, CircuitStmt},
-    synthesis::{
-        regions::{RegionData, RegionRow, Row, FQN},
-        CircuitSynthesis,
-    },
+    synthesis::CircuitSynthesis,
     CircuitWithIO,
 };
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 pub mod codegen;
 pub mod events;
@@ -24,10 +14,7 @@ pub mod picus;
 pub mod resolvers;
 
 use codegen::{strats::inline::InlineConstraintsStrat, Codegen, CodegenStrategy};
-use func::{ArgNo, FieldId, FuncIO};
-use lowering::Lowering;
-use midnight_halo2_proofs::plonk::Expression;
-use resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver};
+use resolvers::{QueryResolver, SelectorResolver};
 
 pub trait Backend<'c, Params: Default, Output>: Sized {
     type Codegen: Codegen<'c>;

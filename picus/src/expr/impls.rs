@@ -2,7 +2,6 @@ use std::{
     collections::{HashMap, HashSet},
     fmt,
     hash::{DefaultHasher, Hash as _, Hasher as _},
-    ops::Sub as _,
 };
 
 use anyhow::{anyhow, bail, Result};

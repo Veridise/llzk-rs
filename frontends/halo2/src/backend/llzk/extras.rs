@@ -1,7 +1,7 @@
 use std::iter;
 
 use melior::ir::{
-    operation::OperationLike as _, BlockLike, BlockRef, OperationRef, RegionLike, RegionRef, Value,
+    operation::OperationLike as _, BlockLike, BlockRef, OperationRef, RegionLike, Value,
     ValueLike,
 };
 

@@ -1,15 +1,15 @@
 use crate::{
     backend::{
+        codegen::Codegen,
         func::{ArgNo, FieldId, FuncIO},
         lowering::Lowering,
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector},
-        Backend, Codegen,
+        Backend,
     },
     gates::AnyQuery,
-    halo2::{AdviceQuery, Challenge, FixedQuery, Fr, InstanceQuery, Selector, Value},
+    halo2::{AdviceQuery, Challenge, FixedQuery, Fr, InstanceQuery, Selector},
     ir::BinaryBoolOp,
     synthesis::CircuitSynthesis,
-    value::{steal, steal_many},
 };
 use anyhow::{bail, Result};
 use std::{cell::RefCell, collections::HashSet, fmt, rc::Rc};
@@ -42,7 +42,8 @@ impl fmt::Debug for MockOutput {
     }
 }
 
-pub struct MockBackend(RefCell<MockContext>);
+#[derive(Clone)]
+pub struct MockBackend(Rc<RefCell<MockContext>>);
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum MockExprIR {
@@ -320,18 +321,14 @@ impl<'c> Codegen<'c> for MockBackend {
     type FuncOutput = MockFuncRef;
     type F = Fr;
 
-    fn define_gate_function<'f>(
+    fn define_gate_function(
         &self,
         name: &str,
         selectors: &[&Selector],
         queries: &[AnyQuery],
         _output_queries: &[AnyQuery],
         _: &CircuitSynthesis<Fr>,
-    ) -> Result<Self::FuncOutput>
-    where
-        Self::FuncOutput: 'f,
-        'c: 'f,
-    {
+    ) -> Result<<Self as Codegen<'c>>::FuncOutput> {
         let mut ctx = self.0.borrow_mut();
         if ctx.gate_names.contains(name) {
             bail!("Gate function for '{name}' defined twice!");
@@ -343,11 +340,10 @@ impl<'c> Codegen<'c> for MockBackend {
         Ok(MockFuncRef(func))
     }
 
-    fn define_main_function<'f>(&self, syn: &CircuitSynthesis<Fr>) -> Result<Self::FuncOutput>
-    where
-        Self::FuncOutput: 'f,
-        'c: 'f,
-    {
+    fn define_main_function(
+        &self,
+        syn: &CircuitSynthesis<Fr>,
+    ) -> Result<<Self as Codegen<'c>>::FuncOutput> {
         if self.0.borrow().main.is_some() {
             bail!("Main function defined twice!");
         }
@@ -361,6 +357,8 @@ impl<'c> Codegen<'c> for MockBackend {
 }
 
 impl<'c> Backend<'c, (), MockOutput> for MockBackend {
+    type Codegen = Self;
+
     fn initialize(_: ()) -> Self {
         Self(Default::default())
     }
@@ -371,5 +369,9 @@ impl<'c> Backend<'c, (), MockOutput> for MockBackend {
         let gates = ctx.gates.iter().map(clone_func).collect();
         let main = ctx.main.as_ref().map(clone_func);
         Ok(MockOutput { gates, main })
+    }
+
+    fn create_codegen(&self) -> Self::Codegen {
+        self.clone()
     }
 }
