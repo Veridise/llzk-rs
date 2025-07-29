@@ -293,67 +293,120 @@ impl<L: LiftLike> PicusBackendInner<L> {
     }
 }
 
-macro_rules! codegen_impl {
-    ($t:ident) => {
-        impl<'c, L: LiftLike> Codegen<'c> for $t<L> {
-            type FuncOutput = PicusModuleLowering<L>;
-            type F = L;
+impl<'c, L: LiftLike> Codegen<'c> for PicusBackend<L> {
+    type FuncOutput = PicusModuleLowering<L>;
+    type F = L;
+    type Output = PicusOutput<L>;
 
-            fn define_gate_function(
-                &self,
-                name: &str,
-                selectors: &[&Selector],
-                input_queries: &[AnyQuery],
-                output_queries: &[AnyQuery],
-                syn: &CircuitSynthesis<L>,
-            ) -> Result<Self::FuncOutput> {
-                log::debug!("[Picus codegen::define_gate_function] selectors = {selectors:?}");
-                log::debug!(
-                    "[Picus codegen::define_gate_function] input_queries = {input_queries:?}"
-                );
-                log::debug!(
-                    "[Picus codegen::define_gate_function] output_queries = {output_queries:?}"
-                );
-                let nc = self.naming_convention();
-                self.inner.borrow_mut().add_module(
-                    name.to_owned(),
-                    mk_io(selectors.len() + input_queries.len(), VarKeySeed::arg, nc),
-                    mk_io(output_queries.len(), VarKeySeed::field, nc),
-                    syn,
-                )
-            }
+    fn define_gate_function(
+        &self,
+        name: &str,
+        selectors: &[&Selector],
+        input_queries: &[AnyQuery],
+        output_queries: &[AnyQuery],
+        syn: &CircuitSynthesis<L>,
+    ) -> Result<Self::FuncOutput> {
+        log::debug!("[Picus codegen::define_gate_function] selectors = {selectors:?}");
+        log::debug!("[Picus codegen::define_gate_function] input_queries = {input_queries:?}");
+        log::debug!("[Picus codegen::define_gate_function] output_queries = {output_queries:?}");
+        let nc = self.naming_convention();
+        self.inner.borrow_mut().add_module(
+            name.to_owned(),
+            mk_io(selectors.len() + input_queries.len(), VarKeySeed::arg, nc),
+            mk_io(output_queries.len(), VarKeySeed::field, nc),
+            syn,
+        )
+    }
 
-            fn define_main_function(&self, syn: &CircuitSynthesis<L>) -> Result<Self::FuncOutput> {
-                let ep = self.inner.borrow().entrypoint();
-                let instance_io = syn.instance_io();
-                let advice_io = syn.advice_io();
-                let nc = self.naming_convention();
-                self.inner.borrow_mut().add_module(
-                    ep,
-                    mk_io(
-                        instance_io.inputs().len() + advice_io.inputs().len(),
-                        VarKeySeed::arg,
-                        nc,
-                    ),
-                    mk_io(
-                        instance_io.outputs().len() + advice_io.outputs().len(),
-                        VarKeySeed::field,
-                        nc,
-                    ),
-                    syn,
-                )
-            }
+    fn define_main_function(&self, syn: &CircuitSynthesis<L>) -> Result<Self::FuncOutput> {
+        let ep = self.inner.borrow().entrypoint();
+        let instance_io = syn.instance_io();
+        let advice_io = syn.advice_io();
+        let nc = self.naming_convention();
+        self.inner.borrow_mut().add_module(
+            ep,
+            mk_io(
+                instance_io.inputs().len() + advice_io.inputs().len(),
+                VarKeySeed::arg,
+                nc,
+            ),
+            mk_io(
+                instance_io.outputs().len() + advice_io.outputs().len(),
+                VarKeySeed::field,
+                nc,
+            ),
+            syn,
+        )
+    }
 
-            fn on_scope_end(&self, scope: Self::FuncOutput) -> Result<()> {
-                log::debug!("Closing scope");
-                self.inner.borrow_mut().dequeue_stmts(&scope)
-            }
-        }
-    };
+    fn on_scope_end(&self, scope: Self::FuncOutput) -> Result<()> {
+        log::debug!("Closing scope");
+        self.inner.borrow_mut().dequeue_stmts(&scope)
+    }
+
+    fn generate_output(self) -> Result<Self::Output> {
+        let mut output = PicusOutput::from(self.inner.borrow().modules.clone());
+        self.var_consistency_check(&output)?;
+        self.optimization_pipeline().optimize(&mut output)?;
+        Ok(output)
+    }
 }
 
-codegen_impl!(PicusBackend);
-codegen_impl!(PicusEventReceiver);
+impl<'c, L: LiftLike> Codegen<'c> for PicusEventReceiver<L> {
+    type FuncOutput = PicusModuleLowering<L>;
+    type F = L;
+    type Output = ();
+
+    fn define_gate_function(
+        &self,
+        name: &str,
+        selectors: &[&Selector],
+        input_queries: &[AnyQuery],
+        output_queries: &[AnyQuery],
+        syn: &CircuitSynthesis<L>,
+    ) -> Result<Self::FuncOutput> {
+        log::debug!("[Picus codegen::define_gate_function] selectors = {selectors:?}");
+        log::debug!("[Picus codegen::define_gate_function] input_queries = {input_queries:?}");
+        log::debug!("[Picus codegen::define_gate_function] output_queries = {output_queries:?}");
+        let nc = self.naming_convention();
+        self.inner.borrow_mut().add_module(
+            name.to_owned(),
+            mk_io(selectors.len() + input_queries.len(), VarKeySeed::arg, nc),
+            mk_io(output_queries.len(), VarKeySeed::field, nc),
+            syn,
+        )
+    }
+
+    fn define_main_function(&self, syn: &CircuitSynthesis<L>) -> Result<Self::FuncOutput> {
+        let ep = self.inner.borrow().entrypoint();
+        let instance_io = syn.instance_io();
+        let advice_io = syn.advice_io();
+        let nc = self.naming_convention();
+        self.inner.borrow_mut().add_module(
+            ep,
+            mk_io(
+                instance_io.inputs().len() + advice_io.inputs().len(),
+                VarKeySeed::arg,
+                nc,
+            ),
+            mk_io(
+                instance_io.outputs().len() + advice_io.outputs().len(),
+                VarKeySeed::field,
+                nc,
+            ),
+            syn,
+        )
+    }
+
+    fn on_scope_end(&self, scope: Self::FuncOutput) -> Result<()> {
+        log::debug!("Closing scope");
+        self.inner.borrow_mut().dequeue_stmts(&scope)
+    }
+
+    fn generate_output(self) -> Result<Self::Output> {
+        unreachable!()
+    }
+}
 
 struct OnlyAdviceQueriesResolver<'s, F> {
     region: RegionIndex,
@@ -405,7 +458,7 @@ impl SelectorResolver for NullSelectorResolver {
     }
 }
 
-impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<L> {
+impl<'c, L: LiftLike> Backend<'c, PicusParams> for PicusBackend<L> {
     type Codegen = Self;
 
     fn initialize(params: PicusParams) -> Self {
@@ -422,13 +475,6 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<
             .into(),
         );
         PicusBackend { inner }
-    }
-
-    fn generate_output(self) -> Result<PicusOutput<<Self as Codegen<'c>>::F>> {
-        let mut output = PicusOutput::from(self.inner.borrow().modules.clone());
-        self.var_consistency_check(&output)?;
-        self.optimization_pipeline().optimize(&mut output)?;
-        Ok(output)
     }
 
     fn create_codegen(&self) -> Self::Codegen {

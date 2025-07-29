@@ -1,16 +1,9 @@
-
 use super::lowering::Lowering;
 use crate::{
     gates::AnyQuery,
-    halo2::{
-        Any, Column, Expression, Field, Fixed,
-        Rotation, Selector,
-    },
+    halo2::{Any, Column, Expression, Field, Fixed, Rotation, Selector},
     ir::{BinaryBoolOp, CircuitStmt},
-    synthesis::{
-        regions::Row,
-        CircuitSynthesis,
-    },
+    synthesis::{regions::Row, CircuitSynthesis},
     CircuitWithIO,
 };
 use anyhow::Result;
@@ -22,6 +15,7 @@ pub type WithinMainResult<O> = Result<Vec<CircuitStmt<O>>>;
 
 pub trait Codegen<'c>: Sized {
     type FuncOutput: Lowering<F = Self::F>;
+    type Output;
     type F: Field + Clone;
 
     fn within_main<FN>(&self, syn: &CircuitSynthesis<Self::F>, f: FN) -> Result<()>
@@ -58,6 +52,8 @@ pub trait Codegen<'c>: Sized {
     fn on_scope_end(&self, _: Self::FuncOutput) -> Result<()> {
         Ok(())
     }
+
+    fn generate_output(self) -> Result<Self::Output>;
 }
 
 pub trait CodegenStrategy: Default {

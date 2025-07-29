@@ -74,7 +74,7 @@ impl<T> StmtLike for Wrap<T> where T: StmtLike + PartialEq + ?Sized {}
 // Factories
 //===----------------------------------------------------------------------===//
 
-pub fn call<'a>(callee: String, inputs: Vec<Expr>, outputs: Vec<Expr>) -> Result<Stmt> {
+pub fn call(callee: String, inputs: Vec<Expr>, outputs: Vec<Expr>) -> Result<Stmt> {
     Ok(Wrap::new(
         CallStmt::new(
             callee,

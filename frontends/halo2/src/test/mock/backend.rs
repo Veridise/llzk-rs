@@ -354,21 +354,22 @@ impl<'c> Codegen<'c> for MockBackend {
         self.0.borrow_mut().main.replace(func.clone());
         Ok(MockFuncRef(func))
     }
-}
 
-impl<'c> Backend<'c, (), MockOutput> for MockBackend {
-    type Codegen = Self;
-
-    fn initialize(_: ()) -> Self {
-        Self(Default::default())
-    }
-
+    type Output = MockOutput;
     fn generate_output(self) -> Result<MockOutput> {
         let clone_func = |func: &SharedFuncRef| func.borrow().clone();
         let ctx = self.0.borrow();
         let gates = ctx.gates.iter().map(clone_func).collect();
         let main = ctx.main.as_ref().map(clone_func);
         Ok(MockOutput { gates, main })
+    }
+}
+
+impl<'c> Backend<'c, ()> for MockBackend {
+    type Codegen = Self;
+
+    fn initialize(_: ()) -> Self {
+        Self(Default::default())
     }
 
     fn create_codegen(&self) -> Self::Codegen {
