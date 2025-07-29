@@ -81,7 +81,7 @@ impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
                 "struct {} | advice field{}",
                 self.struct_name(),
                 fqn.map(|fqn| format!(" | {fqn}"))
-                    .unwrap_or_else(|| String::new())
+                    .unwrap_or_default()
             );
             let loc = Location::new(self.context(), &filename, col, row);
 

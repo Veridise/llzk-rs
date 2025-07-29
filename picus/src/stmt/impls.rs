@@ -161,7 +161,7 @@ impl ConstraintLike for CallStmt {
 
 impl CallLike for CallStmt {
     fn callee(&self) -> &str {
-        &self.callee.value()
+        self.callee.value()
     }
 
     fn with_new_callee(&self, callee: String) -> Stmt {

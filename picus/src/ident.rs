@@ -9,7 +9,7 @@ lazy_static::lazy_static! {
     pub(crate) static ref VALID_IDENT: Regex = Regex::new(r"^[A-Za-z0-9_]+$").unwrap();
 }
 
-const REPLACEMENT: &'static str = "_";
+const REPLACEMENT: &str = "_";
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Ident(String);

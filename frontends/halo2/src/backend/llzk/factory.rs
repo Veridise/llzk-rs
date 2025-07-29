@@ -70,6 +70,6 @@ pub fn create_struct<'c>(
         loc,
         FlatSymbolRefAttribute::new(context, struct_name),
         &[],
-        fields.chain([constrain.map(Into::into)].into_iter()),
+        fields.chain([constrain.map(Into::into)]),
     )
 }

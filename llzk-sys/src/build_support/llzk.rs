@@ -29,7 +29,7 @@ impl From<PathBuf> for LlzkBuild {
     }
 }
 
-const DUMMY_CXX: &'static str = "int main() {}";
+const DUMMY_CXX: &str = "int main() {}";
 
 fn dummy_cmakelist(path: &Path) -> String {
     let content = format!(
@@ -57,7 +57,7 @@ fn extract_libraries_from_dummy(path: &Path) -> Result<(Vec<PathBuf>, Vec<String
 
     fs::create_dir_all(&build_dir)?;
     fs::write(dummy_cxx, DUMMY_CXX)?;
-    fs::write(cmakelists, dummy_cmakelist(&path))?;
+    fs::write(cmakelists, dummy_cmakelist(path))?;
 
     let mlir = MlirConfig::new(&[], &[], &[]);
     // Configure step

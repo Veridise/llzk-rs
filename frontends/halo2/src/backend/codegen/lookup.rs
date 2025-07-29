@@ -49,13 +49,13 @@ impl<'a, F: Field> Lookup<'a, F> {
             .enumerate()
             .map(|(id, a)| {
                 let inputs = a.input_expressions();
-                let (selectors, queries) = compute_gate_arity(&inputs);
-                let table = compute_table_cells(a.table_expressions().into_iter())?;
+                let (selectors, queries) = compute_gate_arity(inputs);
+                let table = compute_table_cells(a.table_expressions().iter())?;
                 Ok(Self {
                     name: a.name(),
                     id,
-                    inputs: &inputs,
-                    table_expressions: &a.table_expressions(),
+                    inputs,
+                    table_expressions: a.table_expressions(),
                     selectors,
                     queries,
                     table,
@@ -98,7 +98,7 @@ impl<'a, F: Field> Lookup<'a, F> {
     }
 
     pub fn expressions(&self) -> impl Iterator<Item = (&Expression<F>, &Expression<F>)> {
-        self.inputs.into_iter().zip(self.table_expressions)
+        self.inputs.iter().zip(self.table_expressions)
     }
 
     pub fn create_call_stmt<L>(

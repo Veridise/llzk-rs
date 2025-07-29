@@ -31,7 +31,7 @@ impl InlineConstraintsStrat {
                     scope.lower_expr(table, &resolver, &resolver)?,
                 ))
             });
-            let assumptions = lookup.output_queries().into_iter().map(|a| {
+            let assumptions = lookup.output_queries().iter().map(|a| {
                 resolver
                     .resolve_any_query(a)
                     .map(|rq: ResolvedQuery<C::F>| match rq {

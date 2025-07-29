@@ -98,9 +98,7 @@ impl<F: Field> CircuitSynthesis<F> {
     }
 
     /// Returns an iterator with equality constraints
-    pub fn fixed_constraints<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = Result<(Column<Fixed>, usize, F)>> {
+    pub fn fixed_constraints(&self) -> impl Iterator<Item = Result<(Column<Fixed>, usize, F)>> {
         let regions = self.regions();
 
         self.fixed_cells_in_eq_constraints()
