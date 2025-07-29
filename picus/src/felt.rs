@@ -1,6 +1,6 @@
 use std::{
     fmt,
-    ops::{AddAssign, Sub},
+    ops::{AddAssign, Rem, Sub},
 };
 
 #[cfg(feature = "bigint-felt")]
@@ -79,6 +79,14 @@ impl Sub for Felt {
 
     fn sub(self, rhs: Self) -> Self::Output {
         Self(self.0 - rhs.0)
+    }
+}
+
+impl Rem for Felt {
+    type Output = Felt;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        Self(self.0 % rhs.0)
     }
 }
 

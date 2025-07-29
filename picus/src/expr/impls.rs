@@ -647,7 +647,7 @@ impl ConstantFolding for NegExpr {
             .map(|e| {
                 let prime = prime.clone();
                 assert!(e < prime);
-                prime - e
+                (prime.clone() - e) % prime
             })
             .map(ConstExpr)
             .map(|e| -> Expr { Wrap::new(e) })
@@ -721,5 +721,16 @@ mod test_neg_expr {
         let folded = e.fold(&prime).unwrap();
         let value = folded.as_const().unwrap();
         assert_eq!(value, Felt::from(5));
+    }
+
+    #[test]
+    fn test_const_folding_0() {
+        let prime = Felt::from(7);
+        let inner = ConstExpr(Felt::from(0));
+        let e = NegExpr(Wrap::new(inner));
+
+        let folded = e.fold(&prime).unwrap();
+        let value = folded.as_const().unwrap();
+        assert_eq!(value, Felt::from(0));
     }
 }
