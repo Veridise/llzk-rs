@@ -5,9 +5,10 @@ use std::{
     ops::Index,
 };
 
-use regex::Regex;
-
-use crate::display::{TextRepresentable, TextRepresentation};
+use crate::{
+    display::{TextRepresentable, TextRepresentation},
+    ident::{Ident, VALID_IDENT},
+};
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct VarStr(String);
@@ -16,11 +17,22 @@ impl TryFrom<String> for VarStr {
     type Error = anyhow::Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        let re = Regex::new(r"^[A-Za-z0-9_]+$").unwrap();
-        if !re.is_match(value.as_str()) {
+        if !VALID_IDENT.is_match(value.as_str()) {
             anyhow::bail!("String \"{value}\" is not a valid Picus identifier");
         }
         Ok(Self(value))
+    }
+}
+
+impl AsRef<str> for VarStr {
+    fn as_ref(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl From<Ident> for VarStr {
+    fn from(value: Ident) -> Self {
+        Self(value.value().clone())
     }
 }
 

@@ -6,6 +6,7 @@ use crate::backend::picus::{PicusBackend, PicusParamsBuilder};
 use crate::backend::{Backend, InlineConstraintsStrat};
 use crate::halo2::{Field, Fr};
 use crate::test::fixtures::midnight::fibonacci::FibonacciCircuit;
+use crate::test::fixtures::midnight::lookup::LookupCircuit;
 use crate::test::fixtures::midnight::mul::MulCircuit;
 use crate::test::fixtures::midnight::mul_with_fixed_constraint::MulWithFixedConstraintCircuit;
 use crate::test::mock::backend::{MockBackend, MockFunc, MockOutput};
@@ -109,14 +110,17 @@ fn test_mul_with_fixed_constraint_circuit_codegen() {
                     .push_arg(0) //t26 := arg0;
                     .push_temp(2, 0) //t27 := temp(2, 0);
                     .push_field(0) //t28 := field0;
-                    .push_const(Fr::ONE + Fr::ONE) //t29 := 2;
-                    .push_temp(3, 0) //t30 := temp(2, 0);
-                    .constraint(7, 8) //t31 := t7 == t8;
-                    .constraint(16, 17) //t32 := t16 == t17;
-                    .constraint(23, 24) //t33 := t23 == t24;
-                    .constraint(25, 26) //t34 := t25 == t26;
-                    .constraint(27, 28) //t35 := t27 == t28;
-                    .constraint(29, 30) //t36 := t29 == t30;
+                    .push_fixed(0, 1) //t29 := fixed(0, 1);
+                    .push_temp(3, 0) //t30 := temp(3, 0);
+                    .push_fixed(0, 1) // t31 := fixed(0, 1);
+                    .push_const(Fr::ONE + Fr::ONE) // t32 := 2;
+                    .constraint(7, 8) //t33 := t7 == t8;
+                    .constraint(16, 17) //t34 := t16 == t17;
+                    .constraint(23, 24) //t35 := t23 == t24;
+                    .constraint(25, 26) //t36 := t25 == t26;
+                    .constraint(27, 28) //t37 := t27 == t28;
+                    .constraint(29, 30) //t38 := t29 == t30;
+                    .constraint(31, 32) //t39 := t31 == t32;
                     .into()
             })
         }
@@ -136,6 +140,7 @@ macro_rules! picus_test {
 }
 
 picus_test!(test_mul_circuit_picus_codegen, MulCircuit<Lift<Fr>>);
+picus_test!(test_lookup_circuit_picus_codegen, LookupCircuit<Lift<Fr>>);
 picus_test!(
     test_mul_with_fixed_constraint_circuit_picus_codegen,
     MulWithFixedConstraintCircuit<Lift<Fr>>

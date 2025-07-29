@@ -2,9 +2,9 @@ mod constraint;
 mod matrix;
 pub mod regions;
 
-use std::collections::{hash_set::Iter, HashMap};
+use std::collections::{hash_set::Iter, BTreeSet, HashMap, HashSet};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use constraint::{EqConstraint, Graph};
 use regions::{RegionData, RegionRow, Regions, FQN};
 
@@ -12,6 +12,7 @@ use crate::{
     gates::find_gate_selector_set,
     halo2::*,
     io::{AdviceIOValidator, InstanceIOValidator},
+    value::steal,
     CircuitIO, CircuitWithIO,
 };
 
@@ -23,6 +24,7 @@ pub struct CircuitSynthesis<F: Field> {
 
     eq_constraints: Graph<EqConstraint>,
     materialized_fixed_cells: Vec<(usize, usize)>,
+    out_of_region_fixed_cells: HashMap<(Column<Fixed>, usize), Value<F>>,
     advice_io: CircuitIO<Advice>,
     instance_io: CircuitIO<Instance>,
 }
@@ -44,6 +46,7 @@ impl<F: Field> CircuitSynthesis<F> {
                 instance_io: C::instance_io(&config),
                 eq_constraints: Default::default(),
                 materialized_fixed_cells: Default::default(),
+                out_of_region_fixed_cells: Default::default(),
             },
             config,
         )
@@ -94,6 +97,57 @@ impl<F: Field> CircuitSynthesis<F> {
         self.eq_constraints.iter()
     }
 
+    /// Returns an iterator with equality constraints
+    pub fn fixed_constraints<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = Result<(Column<Fixed>, usize, F)>> {
+        let regions = self.regions();
+
+        self.fixed_cells_in_eq_constraints()
+            .flat_map(move |(col, row)| {
+                let values = regions
+                    .iter()
+                    .enumerate()
+                    .inspect(|(idx, r)| {
+                        log::debug!(
+                            "Cell ({}, {row}) | Looking in region {} '{}' ({}, {})",
+                            col.index(),
+                            idx,
+                            r.name(),
+                            r.rows().start,
+                            r.rows().end
+                        )
+                    })
+                    .filter_map(|(_, r)| {
+                        // Try find a value assigned to the fixed column in this region
+                        r.find_fixed_col_assignment(col, row)
+                    })
+                    .inspect(|v| log::debug!("Cell ({}, {row}) | Found {v:?}", col.index()))
+                    .collect::<Vec<_>>();
+                // The value can be missing but we don't support more than one assignment.
+                assert!(values.len() <= 1);
+                values.first().copied().map(|v| {
+                    let f =
+                        steal(&v).ok_or_else(|| anyhow!("Unknown value assigned to fixed cell"))?;
+                    Ok((col, row, f))
+                })
+            })
+    }
+
+    fn fixed_cells_in_eq_constraints(&self) -> impl Iterator<Item = (Column<Fixed>, usize)> {
+        self.eq_constraints
+            .iter()
+            .flat_map(|(l, r)| [l, r])
+            .inspect(|c| log::debug!("Cell used in eq constraint: {c:?}"))
+            .filter_map(|(c, r)| {
+                let fc: Result<Column<Fixed>, _> = (*c).try_into();
+                fc.ok().map(|fc| (fc, *r))
+            })
+            .inspect(|c| log::debug!("Fixed cell used in eq constraint: {c:?}"))
+            .collect::<HashSet<_>>()
+            .into_iter()
+    }
+
     pub fn regions_ref(&self) -> &Regions<F> {
         &self.regions
     }
@@ -112,7 +166,6 @@ impl<F: Field> CircuitSynthesis<F> {
                         Some(RegionRow::new(
                             region,
                             row,
-                            &self.regions,
                             self.advice_io(),
                             self.instance_io(),
                         ))
@@ -238,15 +291,12 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         V: FnOnce() -> Value<VR>,
         A: FnOnce() -> AR,
     {
-        self.regions.edit_or(
-            |region, value| {
-                region.update_extent(fixed.into(), row);
-                region.assign_fixed(fixed, row, value);
-            },
-            // If we don't have a current region we write directly on the shared data
-            |shared, value| shared.assign_fixed(fixed, row, value),
-            value(),
-        );
+        // Assignments to fixed cells can happen outside a region so we write those on the last
+        // region if available
+        self.regions.edit_current_or_last(|region| {
+            region.update_extent(fixed.into(), row);
+            region.assign_fixed(fixed, row, value());
+        });
         Ok(())
     }
 

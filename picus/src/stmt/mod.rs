@@ -1,12 +1,14 @@
 use crate::display::{TextRepresentable, TextRepresentation};
 use crate::expr::traits::ConstraintExpr;
 use crate::felt::Felt;
-use crate::vars::Temp;
+use crate::vars::{Temp, VarStr};
 use anyhow::{anyhow, Result};
 use impls::{AssumeDeterministicStmt, CallStmt, CommentLine, ConstraintStmt};
+use std::collections::HashSet;
 use std::{cell::RefCell, rc::Rc};
 use traits::{
-    CallLikeAdaptor, ConstraintLike, ExprArgs, MaybeCallLike, StmtConstantFolding, StmtLike,
+    CallLikeAdaptor, ConstraintLike, ExprArgs, FreeVars, MaybeCallLike, StmtConstantFolding,
+    StmtLike,
 };
 
 use crate::{expr::Expr, vars::VarAllocator};
@@ -60,23 +62,19 @@ impl<S: TextRepresentable + ?Sized> TextRepresentable for Wrap<S> {
     }
 }
 
+impl<S: FreeVars + ?Sized> FreeVars for Wrap<S> {
+    fn free_vars(&self) -> HashSet<&VarStr> {
+        unsafe { (*self.as_ptr()).free_vars() }
+    }
+}
+
 impl<T> StmtLike for Wrap<T> where T: StmtLike + PartialEq + ?Sized {}
 
 //===----------------------------------------------------------------------===//
 // Factories
 //===----------------------------------------------------------------------===//
 
-pub fn call<'a>(
-    callee: String,
-    inputs: Vec<Expr>,
-    outputs: Vec<Expr>,
-    //allocator: &A,
-    //ctx: <A::Kind as Temp<'a>>::Ctx,
-) -> Result<Stmt>
-//where
-//    A: VarAllocator,
-//    A::Kind: Temp<'a>,
-{
+pub fn call<'a>(callee: String, inputs: Vec<Expr>, outputs: Vec<Expr>) -> Result<Stmt> {
     Ok(Wrap::new(
         CallStmt::new(
             callee,

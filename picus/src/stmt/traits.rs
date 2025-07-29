@@ -1,10 +1,11 @@
-use std::any::Any;
+use std::{any::Any, collections::HashSet};
 
 use super::Stmt;
 use crate::{
     display::TextRepresentable,
     expr::{traits::ConstraintExpr, Expr},
     felt::Felt,
+    vars::VarStr,
 };
 use anyhow::Result;
 
@@ -12,6 +13,10 @@ pub trait ExprArgs {
     fn args(&self) -> Vec<Expr>;
 
     fn replace_arg(&mut self, idx: usize, expr: Expr) -> Result<()>;
+}
+
+pub trait FreeVars {
+    fn free_vars(&self) -> HashSet<&VarStr>;
 }
 
 pub trait ConstraintLike {
@@ -100,5 +105,6 @@ pub trait StmtLike:
     + std::fmt::Debug
     + StmtEq
     + AsStmtEq
+    + FreeVars
 {
 }

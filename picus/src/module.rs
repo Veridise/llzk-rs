@@ -1,5 +1,6 @@
 use std::{
     cell::RefCell,
+    collections::HashSet,
     fmt,
     ops::{Deref, DerefMut},
     rc::Rc,
@@ -9,9 +10,10 @@ use crate::{
     display::{ListItem, TextRepresentable, TextRepresentation},
     expr::{self, traits::ConstraintEmitter, Expr},
     felt::Felt,
+    ident::Ident,
     stmt::{
         self,
-        traits::{ConstraintLike as _, StmtConstantFolding as _},
+        traits::{ConstraintLike as _, FreeVars as _, StmtConstantFolding as _},
         Stmt,
     },
     vars::{VarAllocator, VarKind, VarStr, Vars},
@@ -38,11 +40,11 @@ struct ModuleSummary {
 type TR<'a> = TextRepresentation<'a>;
 
 #[derive(Clone)]
-pub struct ModuleHeader(String);
+pub struct ModuleHeader(Ident);
 
 impl From<String> for ModuleHeader {
     fn from(value: String) -> Self {
-        Self(value)
+        Self(value.into())
     }
 }
 
@@ -50,13 +52,13 @@ impl Deref for ModuleHeader {
     type Target = String;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.0.value()
     }
 }
 
 impl DerefMut for ModuleHeader {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        self.0.value_mut()
     }
 }
 
@@ -200,7 +202,15 @@ impl<K: VarKind> Module<K> {
     fn summarize(&self) -> ModuleSummary {
         let input_count = self.vars.inputs().count();
         let output_count = self.vars.outputs().count();
-        let temp_count = self.vars.temporaries().count();
+        let free_vars = self
+            .stmts
+            .iter()
+            .flat_map(|s| s.free_vars())
+            .map(|fv| fv.as_ref())
+            .collect::<HashSet<_>>();
+        let temps = self.vars.temporaries().collect::<HashSet<_>>();
+        let used_temps = temps.intersection(&free_vars);
+        let temp_count = used_temps.count();
         let constraint_count = self.stmts.iter().filter(|s| s.is_constraint()).count();
 
         ModuleSummary {

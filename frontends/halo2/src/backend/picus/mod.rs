@@ -310,6 +310,13 @@ macro_rules! codegen_impl {
                 Self::FuncOutput: 'f,
                 'c: 'f,
             {
+                log::debug!("[Picus codegen::define_gate_function] selectors = {selectors:?}");
+                log::debug!(
+                    "[Picus codegen::define_gate_function] input_queries = {input_queries:?}"
+                );
+                log::debug!(
+                    "[Picus codegen::define_gate_function] output_queries = {output_queries:?}"
+                );
                 let nc = self.naming_convention();
                 self.inner.borrow_mut().add_module(
                     name.to_owned(),

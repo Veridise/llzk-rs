@@ -178,7 +178,7 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
         inputs: &[Self::CellOutput],
         outputs: &[FuncIO],
     ) -> Result<()> {
-        self.module.borrow_mut().add_stmt(stmt::call(
+        let stmt = stmt::call(
             name.to_owned(),
             inputs.to_vec(),
             outputs
@@ -186,7 +186,8 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
                 .copied()
                 .map(|o| self.lower_func_io(o, None))
                 .collect(),
-        )?);
+        )?;
+        self.module.borrow_mut().add_stmt(stmt);
         Ok(())
     }
 
@@ -270,11 +271,8 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
     }
 
     fn generate_assume_deterministic(&self, func_io: FuncIO) -> Result<()> {
-        self.module
-            .borrow_mut()
-            .add_stmt(stmt::assume_deterministic(
-                self.lower_func_io(func_io, None),
-            )?);
+        let stmt = stmt::assume_deterministic(self.lower_func_io(func_io, None))?;
+        self.module.borrow_mut().add_stmt(stmt);
         Ok(())
     }
 }

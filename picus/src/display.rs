@@ -20,8 +20,8 @@ impl ListPunctuation {
         match self {
             ListPunctuation::None => "",
             ListPunctuation::Parens => "(",
-            ListPunctuation::Brackets => "[",
-            ListPunctuation::SquareBrackets => "{",
+            ListPunctuation::Brackets => "{",
+            ListPunctuation::SquareBrackets => "[",
         }
     }
 
@@ -29,8 +29,8 @@ impl ListPunctuation {
         match self {
             ListPunctuation::None => "",
             ListPunctuation::Parens => ")",
-            ListPunctuation::Brackets => "]",
-            ListPunctuation::SquareBrackets => "}",
+            ListPunctuation::Brackets => "}",
+            ListPunctuation::SquareBrackets => "]",
         }
     }
 }

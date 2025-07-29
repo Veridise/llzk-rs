@@ -1,4 +1,4 @@
-use std::{fmt, slice::Iter};
+use std::{collections::HashSet, fmt, slice::Iter};
 
 use anyhow::{anyhow, bail, Result};
 
@@ -10,13 +10,14 @@ use crate::{
         Expr,
     },
     felt::Felt,
+    ident::Ident,
     vars::VarStr,
 };
 
 use super::{
     traits::{
-        CallLike, CallLikeAdaptor, ConstraintLike, ExprArgs, MaybeCallLike, StmtConstantFolding,
-        StmtLike,
+        CallLike, CallLikeAdaptor, ConstraintLike, ExprArgs, FreeVars, MaybeCallLike,
+        StmtConstantFolding, StmtLike,
     },
     Stmt, Wrap,
 };
@@ -106,7 +107,7 @@ impl TextRepresentable for Inputs {
 
 #[derive(Debug, PartialEq)]
 pub struct CallStmt {
-    callee: String,
+    callee: Ident,
     inputs: Inputs,
     outputs: Outputs,
 }
@@ -114,7 +115,7 @@ pub struct CallStmt {
 impl CallStmt {
     pub fn new(callee: String, inputs: Vec<Expr>, outputs: Vec<VarStr>) -> Self {
         Self {
-            callee,
+            callee: callee.into(),
             inputs: inputs.into(),
             outputs: outputs.into(),
         }
@@ -160,13 +161,13 @@ impl ConstraintLike for CallStmt {
 
 impl CallLike for CallStmt {
     fn callee(&self) -> &str {
-        &self.callee
+        &self.callee.value()
     }
 
     fn with_new_callee(&self, callee: String) -> Stmt {
         Wrap::new(
             Self {
-                callee,
+                callee: callee.into(),
                 inputs: self.inputs.clone(),
                 outputs: self.outputs.clone(),
             }
@@ -206,6 +207,14 @@ impl TextRepresentable for CallStmt {
 
     fn width_hint(&self) -> usize {
         9 + self.callee.len() + self.outputs.width_hint() + self.inputs.width_hint()
+    }
+}
+
+impl FreeVars for CallStmt {
+    fn free_vars(&self) -> HashSet<&VarStr> {
+        let mut fv = HashSet::from_iter(self.outputs.0.iter());
+        fv.extend(self.inputs.iter().flat_map(|e| e.free_vars()));
+        fv
     }
 }
 
@@ -272,6 +281,12 @@ impl TextRepresentable for ConstraintStmt {
     }
 }
 
+impl FreeVars for ConstraintStmt {
+    fn free_vars(&self) -> HashSet<&VarStr> {
+        self.0.free_vars()
+    }
+}
+
 impl StmtLike for ConstraintStmt {}
 
 //===----------------------------------------------------------------------===//
@@ -335,6 +350,12 @@ impl TextRepresentable for CommentLine {
     }
 }
 
+impl FreeVars for CommentLine {
+    fn free_vars(&self) -> HashSet<&VarStr> {
+        Default::default()
+    }
+}
+
 impl StmtLike for CommentLine {}
 
 //===----------------------------------------------------------------------===//
@@ -392,11 +413,17 @@ impl StmtConstantFolding for AssumeDeterministicStmt {
 
 impl TextRepresentable for AssumeDeterministicStmt {
     fn to_repr(&self) -> TextRepresentation {
-        owned_list!("assume-deterministic", &self.0)
+        owned_list!("assume-deterministic", &self.0).break_line()
     }
 
     fn width_hint(&self) -> usize {
         self.0.width_hint() + "(assume-deterministic)".len()
+    }
+}
+
+impl FreeVars for AssumeDeterministicStmt {
+    fn free_vars(&self) -> HashSet<&VarStr> {
+        [&self.0].into()
     }
 }
 

@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt,
     hash::{DefaultHasher, Hash as _, Hasher as _},
 };
@@ -107,6 +107,10 @@ impl MaybeVarLike for ConstExpr {
     fn renamed(&self, _: &HashMap<VarStr, VarStr>) -> Option<Expr> {
         None
     }
+
+    fn free_vars(&self) -> HashSet<&VarStr> {
+        Default::default()
+    }
 }
 
 impl ConstraintLike for ConstExpr {
@@ -197,6 +201,10 @@ impl MaybeVarLike for VarExpr {
             return Some(Wrap::new(VarExpr(new_name)));
         }
         None
+    }
+
+    fn free_vars(&self) -> HashSet<&VarStr> {
+        HashSet::from([&self.0])
     }
 }
 
@@ -476,6 +484,12 @@ macro_rules! binary_expr_common {
                 }
                 .map(|(lhs, rhs)| -> Expr { Wrap::new(Self(self.0.clone(), lhs, rhs)) })
             }
+
+            fn free_vars(&self) -> HashSet<&VarStr> {
+                let mut fv = self.1.free_vars();
+                fv.extend(self.2.free_vars());
+                fv
+            }
         }
     };
 }
@@ -650,6 +664,10 @@ impl MaybeVarLike for NegExpr {
 
     fn renamed(&self, map: &HashMap<VarStr, VarStr>) -> Option<Expr> {
         self.0.renamed(map).map(|e| -> Expr { Wrap::new(Self(e)) })
+    }
+
+    fn free_vars(&self) -> HashSet<&VarStr> {
+        self.0.free_vars()
     }
 }
 

@@ -30,6 +30,12 @@ impl IRBuilder {
         self
     }
 
+    pub fn push_fixed(mut self, col: usize, row: usize) -> Self {
+        self.push();
+        self.ir.push(MockExprIR::Fixed(col, row));
+        self
+    }
+
     pub fn push_arg(mut self, idx: usize) -> Self {
         self.push();
         self.ir.push(MockExprIR::Arg(idx.into()));

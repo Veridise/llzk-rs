@@ -2,6 +2,7 @@
 pub mod display;
 pub mod expr;
 pub mod felt;
+pub mod ident;
 mod module;
 pub mod opt;
 mod program;

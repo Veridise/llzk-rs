@@ -1,4 +1,7 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 
 use anyhow::Result;
 use impls::{BinaryExpr, BinaryOp, ConstExpr, ConstraintKind, NegExpr, VarExpr};
@@ -68,6 +71,10 @@ impl<T: MaybeVarLike + ?Sized> MaybeVarLike for Wrap<T> {
 
     fn renamed(&self, map: &HashMap<VarStr, VarStr>) -> Option<Expr> {
         self.as_ref().renamed(map)
+    }
+
+    fn free_vars(&self) -> HashSet<&VarStr> {
+        self.as_ref().free_vars()
     }
 }
 

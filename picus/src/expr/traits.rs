@@ -1,4 +1,7 @@
-use std::{any::Any, collections::HashMap};
+use std::{
+    any::Any,
+    collections::{HashMap, HashSet},
+};
 
 use crate::{display::TextRepresentable, felt::Felt, stmt::traits::ConstraintLike, vars::VarStr};
 
@@ -9,6 +12,8 @@ pub trait MaybeVarLike {
     fn var_name(&self) -> Option<&VarStr>;
 
     fn renamed(&self, map: &HashMap<VarStr, VarStr>) -> Option<Expr>;
+
+    fn free_vars(&self) -> HashSet<&VarStr>;
 }
 
 pub trait ConstraintEmitter {
