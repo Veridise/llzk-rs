@@ -298,18 +298,14 @@ macro_rules! codegen_impl {
             type FuncOutput = PicusModuleLowering<L>;
             type F = L;
 
-            fn define_gate_function<'f>(
+            fn define_gate_function(
                 &self,
                 name: &str,
                 selectors: &[&Selector],
                 input_queries: &[AnyQuery],
                 output_queries: &[AnyQuery],
                 syn: &CircuitSynthesis<L>,
-            ) -> Result<Self::FuncOutput>
-            where
-                Self::FuncOutput: 'f,
-                'c: 'f,
-            {
+            ) -> Result<Self::FuncOutput> {
                 log::debug!("[Picus codegen::define_gate_function] selectors = {selectors:?}");
                 log::debug!(
                     "[Picus codegen::define_gate_function] input_queries = {input_queries:?}"
@@ -326,14 +322,10 @@ macro_rules! codegen_impl {
                 )
             }
 
-            fn define_main_function<'f>(
-                &self,
+            fn define_main_function<'a: 'c>(
+                &'a self,
                 syn: &CircuitSynthesis<L>,
-            ) -> Result<Self::FuncOutput>
-            where
-                Self::FuncOutput: 'f,
-                'c: 'f,
-            {
+            ) -> Result<Self::FuncOutput> {
                 let ep = self.inner.borrow().entrypoint();
                 let instance_io = syn.instance_io();
                 let advice_io = syn.advice_io();

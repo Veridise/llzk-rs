@@ -430,11 +430,12 @@ pub trait Codegen<'c>: Sized {
     type FuncOutput: Lowering<F = Self::F> + Clone;
     type F: Field + Clone;
 
-    fn within_main<FN>(&self, syn: &CircuitSynthesis<Self::F>, f: FN) -> Result<()>
+    fn within_main<'a, FN>(&'a self, syn: &CircuitSynthesis<Self::F>, f: FN) -> Result<()>
     where
         FN: FnOnce(
             &Self::FuncOutput,
         ) -> WithinMainResult<<Self::FuncOutput as Lowering>::CellOutput>,
+        'a: 'c,
     {
         let main = self.define_main_function(syn)?;
         let stmts = f(&main)?;
@@ -442,22 +443,19 @@ pub trait Codegen<'c>: Sized {
         self.on_scope_end(&main)
     }
 
-    fn define_gate_function<'f>(
+    fn define_gate_function(
         &self,
         name: &str,
         selectors: &[&Selector],
         input_queries: &[AnyQuery],
         output_queries: &[AnyQuery],
         syn: &CircuitSynthesis<Self::F>,
-    ) -> Result<Self::FuncOutput>
-    where
-        Self::FuncOutput: 'f,
-        'c: 'f;
+    ) -> Result<Self::FuncOutput>;
 
-    fn define_main_function<'f>(&self, syn: &CircuitSynthesis<Self::F>) -> Result<Self::FuncOutput>
-    where
-        Self::FuncOutput: 'f,
-        'c: 'f;
+    fn define_main_function<'a: 'c>(
+        &'a self,
+        syn: &CircuitSynthesis<Self::F>,
+    ) -> Result<Self::FuncOutput>;
 
     fn lower_stmts(
         &self,

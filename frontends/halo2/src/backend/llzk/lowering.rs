@@ -45,6 +45,13 @@ pub struct LlzkStructLowering<'c, 'v, F> {
 }
 
 impl<'c, 'v: 'c, F: PrimeField> LlzkStructLowering<'c, 'v, F> {
+    pub fn new(struct_ref: StructDefOpRef<'c, 'v>) -> Self {
+        Self {
+            struct_ref,
+            constraints_counter: Rc::new(Default::default()),
+            _marker: Default::default(),
+        }
+    }
     fn context(&self) -> &'c Context {
         unsafe { self.struct_ref.context().to_ref() }
     }
@@ -206,6 +213,7 @@ impl<'c, 'v: 'c, F: PrimeField> Lowering for LlzkStructLowering<'c, 'v, F> {
     }
 
     fn generate_comment(&self, _s: String) -> Result<()> {
+        // If the final target is picus generate a 'picus.comment' op. Otherwise do nothing.
         unimplemented!()
     }
 
@@ -215,6 +223,10 @@ impl<'c, 'v: 'c, F: PrimeField> Lowering for LlzkStructLowering<'c, 'v, F> {
         _selectors: &[Self::CellOutput],
         _queries: &[FuncIO],
     ) -> Result<()> {
+        // 1. Define a field of the type of the struct that is going to be called
+        // 2. Load the field into a value
+        // 3. Call the constrain function
+        // 4. Read each output field from the struct into a ssa value
         unimplemented!()
     }
 
@@ -300,7 +312,8 @@ impl<'c, 'v: 'c, F: PrimeField> Lowering for LlzkStructLowering<'c, 'v, F> {
         )?)
     }
 
-    fn generate_assume_deterministic(&self, func_io: FuncIO) -> Result<()> {
+    fn generate_assume_deterministic(&self, _func_io: FuncIO) -> Result<()> {
+        // If the final target is picus generate a 'picus.assume_deterministic' op. Otherwise do nothing.
         todo!()
     }
 }
