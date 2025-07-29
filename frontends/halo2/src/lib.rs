@@ -1,5 +1,5 @@
 use anyhow::Result;
-use backend::InlineConstraintsStrat;
+use backend::codegen::strats::inline::InlineConstraintsStrat;
 
 mod arena;
 pub(crate) mod backend;
@@ -25,7 +25,7 @@ pub use error::to_plonk_error;
 pub use io::{CircuitIO, CircuitWithIO};
 pub use ir::{BinaryBoolOp, CircuitStmt};
 
-pub fn create_picus_backend<'b, L: LiftLike>(params: PicusParams) -> PicusBackend<'b, L> {
+pub fn create_picus_backend<L: LiftLike>(params: PicusParams) -> PicusBackend<L> {
     PicusBackend::initialize(params)
 }
 

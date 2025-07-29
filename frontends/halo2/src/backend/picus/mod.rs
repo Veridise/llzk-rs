@@ -7,9 +7,9 @@ use std::{
 };
 
 use super::{
+    codegen::lower_stmts,
     events::{EmitStmtsMessage, EventReceiver},
     func::FuncIO,
-    lower_stmts,
     lowering::Lowering as _,
     resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     Backend, Codegen,
@@ -144,31 +144,32 @@ impl Default for PicusParams {
     }
 }
 
-struct PicusBackendInner<'a, L> {
+struct PicusBackendInner<L> {
     params: PicusParams,
     modules: Vec<PicusModuleRef>,
     current_scope: Option<PicusModuleLowering<L>>,
     enqueued_stmts: HashMap<RegionIndex, Vec<CircuitStmt<Expression<L>>>>,
-    _lift_guard: LiftIRGuard<'a>,
+    _lift_guard: LiftIRGuard,
     _marker: PhantomData<L>,
 }
 
 #[derive(Clone)]
-pub struct PicusEventReceiver<'a, L> {
-    inner: Rc<RefCell<PicusBackendInner<'a, L>>>,
+pub struct PicusEventReceiver<L> {
+    inner: Rc<RefCell<PicusBackendInner<L>>>,
 }
 
-impl<L> PicusEventReceiver<'_, L> {
+impl<L> PicusEventReceiver<L> {
     fn naming_convention(&self) -> NamingConvention {
         self.inner.borrow().params.naming_convention
     }
 }
 
-pub struct PicusBackend<'a, L> {
-    inner: Rc<RefCell<PicusBackendInner<'a, L>>>,
+#[derive(Clone)]
+pub struct PicusBackend<L> {
+    inner: Rc<RefCell<PicusBackendInner<L>>>,
 }
 
-impl<L> PicusBackend<'_, L> {
+impl<L> PicusBackend<L> {
     fn naming_convention(&self) -> NamingConvention {
         self.inner.borrow().params.naming_convention
     }
@@ -184,8 +185,8 @@ where
     (0..count).map(move |i| f(i.into(), c))
 }
 
-impl<'a, L: PrimeField> PicusBackend<'a, L> {
-    pub fn event_receiver(&self) -> PicusEventReceiver<'a, L> {
+impl<L: PrimeField> PicusBackend<L> {
+    pub fn event_receiver(&self) -> PicusEventReceiver<L> {
         PicusEventReceiver {
             inner: self.inner.clone(),
         }
@@ -253,7 +254,7 @@ impl<'a, L: PrimeField> PicusBackend<'a, L> {
     }
 }
 
-impl<L: LiftLike> PicusBackendInner<'_, L> {
+impl<L: LiftLike> PicusBackendInner<L> {
     fn add_module<O>(
         &mut self,
         name: String,
@@ -294,7 +295,7 @@ impl<L: LiftLike> PicusBackendInner<'_, L> {
 
 macro_rules! codegen_impl {
     ($t:ident) => {
-        impl<'c, L: LiftLike> Codegen<'c> for $t<'c, L> {
+        impl<'c, L: LiftLike> Codegen<'c> for $t<L> {
             type FuncOutput = PicusModuleLowering<L>;
             type F = L;
 
@@ -322,10 +323,7 @@ macro_rules! codegen_impl {
                 )
             }
 
-            fn define_main_function<'a: 'c>(
-                &'a self,
-                syn: &CircuitSynthesis<L>,
-            ) -> Result<Self::FuncOutput> {
+            fn define_main_function(&self, syn: &CircuitSynthesis<L>) -> Result<Self::FuncOutput> {
                 let ep = self.inner.borrow().entrypoint();
                 let instance_io = syn.instance_io();
                 let advice_io = syn.advice_io();
@@ -346,9 +344,9 @@ macro_rules! codegen_impl {
                 )
             }
 
-            fn on_scope_end(&self, scope: &Self::FuncOutput) -> Result<()> {
+            fn on_scope_end(&self, scope: Self::FuncOutput) -> Result<()> {
                 log::debug!("Closing scope");
-                self.inner.borrow_mut().dequeue_stmts(scope)
+                self.inner.borrow_mut().dequeue_stmts(&scope)
             }
         }
     };
@@ -407,7 +405,9 @@ impl SelectorResolver for NullSelectorResolver {
     }
 }
 
-impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<'c, L> {
+impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<L> {
+    type Codegen = Self;
+
     fn initialize(params: PicusParams) -> Self {
         let enable_lifting = params.lift_fixed;
         let inner: Rc<RefCell<PicusBackendInner<L>>> = Rc::new(
@@ -424,11 +424,15 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams, PicusOutput<L>> for PicusBackend<
         PicusBackend { inner }
     }
 
-    fn generate_output(self) -> Result<PicusOutput<Self::F>> {
+    fn generate_output(self) -> Result<PicusOutput<<Self as Codegen<'c>>::F>> {
         let mut output = PicusOutput::from(self.inner.borrow().modules.clone());
         self.var_consistency_check(&output)?;
         self.optimization_pipeline().optimize(&mut output)?;
         Ok(output)
+    }
+
+    fn create_codegen(&self) -> Self::Codegen {
+        self.clone()
     }
 }
 
@@ -484,7 +488,7 @@ fn dequeue_stmts_impl<L: LiftLike>(
     )
 }
 
-impl<L: LiftLike> PicusBackendInner<'_, L> {
+impl<L: LiftLike> PicusBackendInner<L> {
     pub fn enqueue_stmts(
         &mut self,
         region: RegionIndex,
@@ -510,7 +514,7 @@ impl<L: LiftLike> PicusBackendInner<'_, L> {
     }
 }
 
-impl<L: LiftLike> EventReceiver for PicusEventReceiver<'_, L> {
+impl<L: LiftLike> EventReceiver for PicusEventReceiver<L> {
     type Message = EmitStmtsMessage<L>;
 
     fn accept(&self, msg: &Self::Message) -> Result<()> {

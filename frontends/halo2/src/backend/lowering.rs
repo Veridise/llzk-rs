@@ -12,7 +12,7 @@ use anyhow::{bail, Result};
 use super::{func::FuncIO, QueryResolver, SelectorResolver};
 
 pub trait Lowering {
-    type CellOutput: fmt::Debug + Clone;
+    type CellOutput;
     type F: Field;
 
     fn generate_constraint(

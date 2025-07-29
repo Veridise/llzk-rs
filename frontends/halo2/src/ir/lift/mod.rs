@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use ouroboros::self_referencing;
 use std::{
     fmt,
     iter::{Product, Sum},
@@ -45,26 +46,32 @@ fn is_lifting_enabled() -> bool {
         .unwrap_or_default()
 }
 
-pub struct LiftIRGuard<'a> {
-    _guard: MutexGuard<'a, ()>,
+#[self_referencing]
+struct LiftIRGuardInner {
     prev: Option<bool>,
+    #[borrows(prev)]
+    #[not_covariant]
+    guard: MutexGuard<'this, ()>,
 }
 
-impl LiftIRGuard<'_> {
+pub struct LiftIRGuard {
+    inner: LiftIRGuardInner
+}
+
+impl LiftIRGuard {
     pub fn lock(enable: bool) -> Self {
         // Lock the guard to avoid others writing
         let guard = LIFT_GUARD.lock().unwrap();
         let prev = enable_lifting(enable);
         Self {
-            _guard: guard,
-            prev,
+            inner: LiftIRGuardInner::new(prev, |_| guard)
         }
     }
 }
 
-impl Drop for LiftIRGuard<'_> {
+impl Drop for LiftIRGuard {
     fn drop(&mut self) {
-        if let Some(prev) = self.prev {
+        if let Some(prev) = *self.inner.borrow_prev() {
             enable_lifting(prev);
         }
     }

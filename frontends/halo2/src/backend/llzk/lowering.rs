@@ -1,6 +1,7 @@
 use std::{borrow::Cow, iter, marker::PhantomData, rc::Rc};
 
 use anyhow::{anyhow, Result};
+use llzk::dialect::r#struct::StructDefOp;
 use llzk::error::Error;
 use llzk::{
     builder::OpBuilder,
@@ -11,6 +12,7 @@ use llzk::{
         r#struct::{self, FieldDefOpLike as _, FieldDefOpRef, StructDefOpLike, StructDefOpRef},
     },
 };
+use melior::ir::ValueLike;
 use melior::{
     ir::{
         attribute::FlatSymbolRefAttribute,
@@ -21,6 +23,7 @@ use melior::{
     Context, ContextRef,
 };
 use midnight_halo2_proofs::plonk::{AdviceQuery, Challenge, FixedQuery, InstanceQuery, Selector};
+use mlir_sys::MlirValue;
 use num_bigint::BigUint;
 
 use crate::backend::func::FieldId;
@@ -36,28 +39,33 @@ use crate::{
 };
 
 use super::counter::Counter;
+use super::extras::{block_list, operations_list};
 
-#[derive(Clone)]
-pub struct LlzkStructLowering<'c, 'v, F> {
-    struct_ref: StructDefOpRef<'c, 'v>,
+pub struct LlzkStructLowering<'c, F> {
+    struct_op: StructDefOp<'c>,
     constraints_counter: Rc<Counter>,
     _marker: PhantomData<F>,
 }
 
-impl<'c, 'v: 'c, F: PrimeField> LlzkStructLowering<'c, 'v, F> {
-    pub fn new(struct_ref: StructDefOpRef<'c, 'v>) -> Self {
+impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
+    pub fn new(struct_op: StructDefOp<'c>) -> Self {
         Self {
-            struct_ref,
+            struct_op,
             constraints_counter: Rc::new(Default::default()),
             _marker: Default::default(),
         }
     }
+
+    pub fn take_struct(self) -> StructDefOp<'c> {
+        self.struct_op
+    }
+
     fn context(&self) -> &'c Context {
-        unsafe { self.struct_ref.context().to_ref() }
+        unsafe { self.struct_op.context().to_ref() }
     }
 
     fn struct_name(&self) -> &str {
-        StructDefOpLike::name(&self.struct_ref)
+        StructDefOpLike::name(&self.struct_op)
     }
 
     /// Tries to fetch an advice cell field, if it doesn't exist creates a field that represents
@@ -67,9 +75,9 @@ impl<'c, 'v: 'c, F: PrimeField> LlzkStructLowering<'c, 'v, F> {
         col: usize,
         row: usize,
         fqn: Option<&Cow<FQN>>,
-    ) -> Result<FieldDefOpRef<'c, 'v>> {
+    ) -> Result<FieldDefOpRef<'c, '_>> {
         let name = format!("adv_{col}_{row}");
-        Ok(self.struct_ref.get_or_create_field_def(&name, || {
+        Ok(self.struct_op.get_or_create_field_def(&name, || {
             let field_name = FlatSymbolRefAttribute::new(self.context(), &name);
             let filename = format!(
                 "struct {} | advice field{}",
@@ -83,20 +91,20 @@ impl<'c, 'v: 'c, F: PrimeField> LlzkStructLowering<'c, 'v, F> {
         })?)
     }
 
-    fn get_output(&self, field: FieldId) -> Result<FieldDefOpRef<'c, 'v>> {
-        self.struct_ref
+    fn get_output(&self, field: FieldId) -> Result<FieldDefOpRef<'c, '_>> {
+        self.struct_op
             .get_field_def(format!("out_{field}").as_str())
             .ok_or_else(|| anyhow!("Struct is missing output #{field}"))
     }
 
-    fn get_constrain_func(&self) -> Result<FuncDefOpRef<'c, 'v>> {
-        self.struct_ref
+    fn get_constrain_func(&self) -> Result<FuncDefOpRef<'c, '_>> {
+        self.struct_op
             .get_constrain_func()
             .ok_or_else(|| anyhow!("Constrain function is missing!"))
     }
 
     /// Adds an operation at the end of the constrain function.
-    fn append_op<O>(&self, op: O) -> Result<OperationRef<'c, 'v>>
+    fn append_op<O>(&self, op: O) -> Result<OperationRef<'c, '_>>
     where
         O: Into<Operation<'c>>,
     {
@@ -110,30 +118,31 @@ impl<'c, 'v: 'c, F: PrimeField> LlzkStructLowering<'c, 'v, F> {
 
     /// Adds an operation at the end of the constrain function and returns the first resulf of the
     /// operation.
-    fn append_expr<O>(&self, op: O) -> Result<Value<'c, 'v>>
+    fn append_expr<O>(&self, op: O) -> Result<Value<'c, '_>>
     where
         O: Into<Operation<'c>>,
     {
         Ok(self.append_op(op)?.result(0)?.into())
     }
 
+    fn get_arg_impl(&self, idx: usize) -> Result<Value<'c, '_>> {
+        self.get_constrain_func()?
+            .argument(idx)
+            .map(Into::into)
+            .map_err(Into::into)
+    }
+
     /// Returns the (n+1)-th argument of the constrain function. The index is offset by one because
     /// in the constrain function the first argument is always an instance of the struct.
-    fn get_arg(&self, arg_no: ArgNo) -> Result<Value<'c, 'v>> {
-        self.get_constrain_func()?
-            .argument(*arg_no + 1)
-            .map(Into::into)
-            .map_err(Into::into)
+    fn get_arg(&self, arg_no: ArgNo) -> Result<Value<'c, '_>> {
+        self.get_arg_impl(*arg_no + 1)
     }
 
-    fn get_component(&self) -> Result<Value<'c, 'v>> {
-        self.get_constrain_func()?
-            .argument(0)
-            .map(Into::into)
-            .map_err(Into::into)
+    fn get_component(&self) -> Result<Value<'c, '_>> {
+        self.get_arg_impl(0)
     }
 
-    fn read_field(&self, name: &str, result_type: Type<'c>) -> Result<Value<'c, 'v>> {
+    fn read_field(&self, name: &str, result_type: Type<'c>) -> Result<Value<'c, '_>> {
         let builder = OpBuilder::new(self.context());
 
         self.append_expr(r#struct::readf(
@@ -145,13 +154,27 @@ impl<'c, 'v: 'c, F: PrimeField> LlzkStructLowering<'c, 'v, F> {
         )?)
     }
 
+    fn lower_constant_impl(&self, f: F) -> Result<Value<'c, '_>> {
+        let repr = BigUint::from_bytes_le(f.to_repr().as_ref());
+        let const_attr = FeltConstAttribute::parse(
+            self.context(),
+            repr.to_string().as_str(),
+            repr.bits().try_into()?,
+            Radix::Base10,
+        );
+        self.append_expr(felt::constant(
+            Location::unknown(self.context()),
+            const_attr,
+        )?)
+    }
+
     fn lower_resolved_query(
         &self,
         query: ResolvedQuery<F>,
         fqn: Option<&Cow<FQN>>,
-    ) -> Result<Value<'c, 'v>> {
+    ) -> Result<Value<'c, '_>> {
         match query {
-            ResolvedQuery::Lit(f) => self.lower_constant(f),
+            ResolvedQuery::Lit(f) => self.lower_constant_impl(f),
             ResolvedQuery::IO(FuncIO::Arg(arg)) => self.get_arg(arg),
             ResolvedQuery::IO(FuncIO::Field(field)) => {
                 let field = self.get_output(field)?;
@@ -166,8 +189,9 @@ impl<'c, 'v: 'c, F: PrimeField> LlzkStructLowering<'c, 'v, F> {
     }
 }
 
-impl<'c, 'v: 'c, F: PrimeField> Lowering for LlzkStructLowering<'c, 'v, F> {
-    type CellOutput = Value<'c, 'v>;
+impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
+    //type CellOutput = Value<'c, '_>;
+    type CellOutput = MlirValue;
 
     type F = F;
 
@@ -184,7 +208,9 @@ impl<'c, 'v: 'c, F: PrimeField> Lowering for LlzkStructLowering<'c, 'v, F> {
             0,
         );
         self.append_op(match op {
-            BinaryBoolOp::Eq => constrain::eq(loc, *lhs, *rhs),
+            BinaryBoolOp::Eq => constrain::eq(loc, unsafe { Value::from_raw(*lhs) }, unsafe {
+                Value::from_raw(*rhs)
+            }),
             BinaryBoolOp::Lt => todo!(),
             BinaryBoolOp::Le => todo!(),
             BinaryBoolOp::Gt => todo!(),
@@ -198,8 +224,8 @@ impl<'c, 'v: 'c, F: PrimeField> Lowering for LlzkStructLowering<'c, 'v, F> {
         self.get_constrain_func()
             .map(|op| {
                 op.regions()
-                    .flat_map(|r| iter::successors(r.first_block(), |b| b.next_in_region()))
-                    .flat_map(|op| iter::successors(op.first_operation(), |op| op.next_in_block()))
+                    .flat_map(block_list)
+                    .flat_map(operations_list)
                     .filter(|o| {
                         o.name()
                             .as_string_ref()
@@ -235,7 +261,12 @@ impl<'c, 'v: 'c, F: PrimeField> Lowering for LlzkStructLowering<'c, 'v, F> {
         lhs: &Self::CellOutput,
         rhs: &Self::CellOutput,
     ) -> Result<Self::CellOutput> {
-        self.append_expr(felt::add(Location::unknown(self.context()), *lhs, *rhs)?)
+        self.append_expr(felt::add(
+            Location::unknown(self.context()),
+            unsafe { Value::from_raw(*lhs) },
+            unsafe { Value::from_raw(*rhs) },
+        )?)
+        .map(|v| v.to_raw())
     }
 
     fn lower_product(
@@ -243,11 +274,19 @@ impl<'c, 'v: 'c, F: PrimeField> Lowering for LlzkStructLowering<'c, 'v, F> {
         lhs: &Self::CellOutput,
         rhs: &Self::CellOutput,
     ) -> Result<Self::CellOutput> {
-        self.append_expr(felt::mul(Location::unknown(self.context()), *lhs, *rhs)?)
+        self.append_expr(felt::mul(
+            Location::unknown(self.context()),
+            unsafe { Value::from_raw(*lhs) },
+            unsafe { Value::from_raw(*rhs) },
+        )?)
+        .map(|v| v.to_raw())
     }
 
     fn lower_neg(&self, expr: &Self::CellOutput) -> Result<Self::CellOutput> {
-        self.append_expr(felt::neg(Location::unknown(self.context()), *expr)?)
+        self.append_expr(felt::neg(Location::unknown(self.context()), unsafe {
+            Value::from_raw(*expr)
+        })?)
+        .map(|v| v.to_raw())
     }
 
     fn lower_scaled(
@@ -255,7 +294,12 @@ impl<'c, 'v: 'c, F: PrimeField> Lowering for LlzkStructLowering<'c, 'v, F> {
         expr: &Self::CellOutput,
         scale: &Self::CellOutput,
     ) -> Result<Self::CellOutput> {
-        self.append_expr(felt::mul(Location::unknown(self.context()), *expr, *scale)?)
+        self.append_expr(felt::mul(
+            Location::unknown(self.context()),
+            unsafe { Value::from_raw(*expr) },
+            unsafe { Value::from_raw(*scale) },
+        )?)
+        .map(|v| v.to_raw())
     }
 
     fn lower_challenge(&self, _challenge: &Challenge) -> Result<Self::CellOutput> {
@@ -269,7 +313,7 @@ impl<'c, 'v: 'c, F: PrimeField> Lowering for LlzkStructLowering<'c, 'v, F> {
     ) -> Result<Self::CellOutput> {
         match resolver.resolve_selector(sel)? {
             ResolvedSelector::Const(b) => self.lower_constant(b.to_f()),
-            ResolvedSelector::Arg(arg_no) => self.get_arg(arg_no),
+            ResolvedSelector::Arg(arg_no) => self.get_arg(arg_no).map(|v| v.to_raw()),
         }
     }
 
@@ -280,6 +324,7 @@ impl<'c, 'v: 'c, F: PrimeField> Lowering for LlzkStructLowering<'c, 'v, F> {
     ) -> Result<Self::CellOutput> {
         let (query, fqn) = resolver.resolve_advice_query(query)?;
         self.lower_resolved_query(query, fqn.as_ref())
+            .map(|v| v.to_raw())
     }
 
     fn lower_instance_query(
@@ -288,6 +333,7 @@ impl<'c, 'v: 'c, F: PrimeField> Lowering for LlzkStructLowering<'c, 'v, F> {
         resolver: &dyn QueryResolver<Self::F>,
     ) -> Result<Self::CellOutput> {
         self.lower_resolved_query(resolver.resolve_instance_query(query)?, None)
+            .map(|v| v.to_raw())
     }
 
     fn lower_fixed_query(
@@ -296,20 +342,11 @@ impl<'c, 'v: 'c, F: PrimeField> Lowering for LlzkStructLowering<'c, 'v, F> {
         resolver: &dyn QueryResolver<Self::F>,
     ) -> Result<Self::CellOutput> {
         self.lower_resolved_query(resolver.resolve_fixed_query(query)?, None)
+            .map(|v| v.to_raw())
     }
 
     fn lower_constant(&self, f: Self::F) -> Result<Self::CellOutput> {
-        let repr = BigUint::from_bytes_le(f.to_repr().as_ref());
-        let const_attr = FeltConstAttribute::parse(
-            self.context(),
-            repr.to_string().as_str(),
-            repr.bits().try_into()?,
-            Radix::Base10,
-        );
-        self.append_expr(felt::constant(
-            Location::unknown(self.context()),
-            const_attr,
-        )?)
+        self.lower_constant_impl(f).map(|v| v.to_raw())
     }
 
     fn generate_assume_deterministic(&self, _func_io: FuncIO) -> Result<()> {
