@@ -17,6 +17,7 @@ use super::{
     traits::{
         ConstantFolding, ConstraintExpr, ExprLike, ExprSize, GetExprHash, MaybeVarLike, WrappedExpr,
     },
+    util::map_cexpr,
     Expr, ExprHash, Wrap,
 };
 
@@ -342,6 +343,7 @@ pub enum ConstraintKind {
     Gt,
     Ge,
     Eq,
+    Ne,
 }
 
 impl OpFolder for ConstraintKind {
@@ -360,6 +362,7 @@ impl OpFolder for ConstraintKind {
             ConstraintKind::Gt => Some(BinaryExpr::new(Self::Le, rhs.clone(), lhs.clone())),
             ConstraintKind::Ge => Some(BinaryExpr::new(Self::Lt, rhs.clone(), lhs.clone())),
             ConstraintKind::Eq => Some(BinaryExpr::new(Self::Eq, rhs.clone(), lhs.clone())),
+            ConstraintKind::Ne => Some(BinaryExpr::new(Self::Ne, rhs.clone(), lhs.clone())),
         }
     }
 }
@@ -372,13 +375,14 @@ impl TextRepresentable for ConstraintKind {
             ConstraintKind::Gt => ">",
             ConstraintKind::Ge => ">=",
             ConstraintKind::Eq => "=",
+            ConstraintKind::Ne => "!=",
         })
     }
 
     fn width_hint(&self) -> usize {
         match self {
             ConstraintKind::Lt | ConstraintKind::Gt | ConstraintKind::Eq => 1,
-            ConstraintKind::Le | ConstraintKind::Ge => 2,
+            ConstraintKind::Le | ConstraintKind::Ge | ConstraintKind::Ne => 2,
         }
     }
 }
@@ -389,17 +393,47 @@ pub enum Boolean {
     Or,
 }
 
+impl Boolean {
+    fn fold_side(&self, lhs: &Expr, rhs: &Expr) -> Option<Expr> {
+        log::debug!("Trying to fold ({self:?}  {lhs:?}  {rhs:?})");
+        lhs.constraint_expr()
+            .zip(rhs.constraint_expr())
+            .and_then(move |(clhs, crhs)| match self {
+                Boolean::And if clhs.is_constant_false() => Some(rhs.clone()),
+                Boolean::Or if clhs.is_constant_true() => Some(lhs.clone()),
+                Boolean::And if clhs.is_constant_true() && crhs.is_constant_true() => {
+                    Some(super::r#true())
+                }
+                Boolean::Or if clhs.is_constant_false() && crhs.is_constant_false() => {
+                    Some(super::r#false())
+                }
+                _ => None,
+            })
+            .inspect(|e| log::debug!("Folded to {e:?}"))
+    }
+}
+
 impl OpFolder for Boolean {
-    fn fold(&self, _lhs: Expr, _rhs: Expr, _prime: &Felt) -> Option<Expr> {
-        None
+    fn fold(&self, lhs: Expr, rhs: Expr, prime: &Felt) -> Option<Expr> {
+        let lhs = lhs.fold(prime).unwrap_or(lhs.clone());
+        let rhs = rhs.fold(prime).unwrap_or(rhs.clone());
+        self.fold_side(&lhs, &rhs)
+            .or_else(|| {
+                self.flip(&lhs, &rhs)
+                    .and_then(|flipped| flipped.op().fold_side(&flipped.lhs(), &flipped.rhs()))
+            })
+            .and_then(|e| e.fold(prime).or_else(|| Some(e.clone())))
     }
 
     fn commutative(&self) -> bool {
-        false
+        true
     }
 
-    fn flip(&self, _lhs: &Expr, _rhs: &Expr) -> Option<BinaryExpr<Self>> {
-        None
+    fn flip(&self, lhs: &Expr, rhs: &Expr) -> Option<BinaryExpr<Self>> {
+        match self {
+            Boolean::And => Some(BinaryExpr::new(Self::And, rhs.clone(), lhs.clone())),
+            Boolean::Or => Some(BinaryExpr::new(Self::Or, rhs.clone(), lhs.clone())),
+        }
     }
 }
 
@@ -578,6 +612,42 @@ impl ConstraintExpr for BinaryExpr<ConstraintKind> {
     }
 }
 
+impl ConstraintExpr for BinaryExpr<Boolean> {
+    fn is_eq(&self) -> bool {
+        false
+    }
+
+    fn lhs(&self) -> Expr {
+        self.1.clone()
+    }
+
+    fn rhs(&self) -> Expr {
+        self.2.clone()
+    }
+
+    fn is_constant_true(&self) -> bool {
+        map_cexpr(&self.1, &self.2, |lhs, rhs| {
+            let lhs = lhs.is_constant_true();
+            let rhs = rhs.is_constant_true();
+            match self.op() {
+                Boolean::And => lhs && rhs,
+                Boolean::Or => lhs || rhs,
+            }
+        })
+    }
+
+    fn is_constant_false(&self) -> bool {
+        map_cexpr(&self.1, &self.2, |lhs, rhs| {
+            let lhs = lhs.is_constant_false();
+            let rhs = rhs.is_constant_false();
+            match self.op() {
+                Boolean::And => lhs || rhs,
+                Boolean::Or => lhs && rhs,
+            }
+        })
+    }
+}
+
 impl ConstraintLike for BinaryExpr<ConstraintKind> {
     fn is_constraint(&self) -> bool {
         true
@@ -598,14 +668,13 @@ impl ConstraintLike for BinaryExpr<BinaryOp> {
     }
 }
 
-// I'm not implementing this trait for now
 impl ConstraintLike for BinaryExpr<Boolean> {
     fn is_constraint(&self) -> bool {
-        false
+        true
     }
 
     fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
-        None
+        Some(self)
     }
 }
 

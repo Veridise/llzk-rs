@@ -18,6 +18,7 @@ use crate::{
 
 mod impls;
 pub mod traits;
+mod util;
 
 type Wrap<T> = Rc<T>;
 
@@ -186,6 +187,10 @@ pub fn eq(lhs: &Expr, rhs: &Expr) -> Expr {
     constraint(ConstraintKind::Eq, lhs, rhs)
 }
 
+pub fn ne(lhs: &Expr, rhs: &Expr) -> Expr {
+    constraint(ConstraintKind::Ne, lhs, rhs)
+}
+
 pub fn neg(expr: &Expr) -> Expr {
     Wrap::new(NegExpr::new(expr.clone()))
 }
@@ -200,4 +205,12 @@ pub fn and(lhs: &Expr, rhs: &Expr) -> Expr {
 
 pub fn or(lhs: &Expr, rhs: &Expr) -> Expr {
     boolean(Boolean::Or, lhs, rhs)
+}
+
+pub fn r#true() -> Expr {
+    eq(&r#const(0), &r#const(0))
+}
+
+pub fn r#false() -> Expr {
+    ne(&r#const(0), &r#const(0))
 }

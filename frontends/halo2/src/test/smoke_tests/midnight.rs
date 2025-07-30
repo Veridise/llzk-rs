@@ -11,6 +11,7 @@ use crate::halo2::{Field, Fr};
 use crate::test::fixtures::midnight::fibonacci::FibonacciCircuit;
 use crate::test::fixtures::midnight::lookup::LookupCircuit;
 use crate::test::fixtures::midnight::lookup_2x3::Lookup2x3Circuit;
+use crate::test::fixtures::midnight::lookup_2x3_zerosel::Lookup2x3ZeroSelCircuit;
 use crate::test::fixtures::midnight::mul::MulCircuit;
 use crate::test::fixtures::midnight::mul_with_fixed_constraint::MulWithFixedConstraintCircuit;
 use crate::test::mock::backend::{MockBackend, MockFunc, MockOutput};
@@ -196,6 +197,11 @@ picus_inlined_lookups_test_noopt!(
 picus_inlined_lookups_test!(
     test_lookup_2x3_circuit_picus_codegen_inlined_lookups,
     Lookup2x3Circuit<Lift<Fr>>
+);
+
+picus_inlined_lookups_test!(
+    test_lookup_2x3_zerosel_circuit_picus_codegen_inlined_lookups,
+    Lookup2x3ZeroSelCircuit<Lift<Fr>>
 );
 
 picus_inlined_lookups_test_noopt!(

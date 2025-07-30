@@ -5,7 +5,7 @@ use std::{
 
 use crate::{display::TextRepresentable, felt::Felt, stmt::traits::ConstraintLike, vars::VarStr};
 
-use super::{Expr, ExprHash};
+use super::{util::map_consts, Expr, ExprHash};
 use anyhow::Result;
 
 pub trait MaybeVarLike {
@@ -73,6 +73,14 @@ pub trait ConstraintExpr {
     fn lhs(&self) -> Expr;
 
     fn rhs(&self) -> Expr;
+
+    fn is_constant_true(&self) -> bool {
+        self.is_eq() && map_consts(&self.lhs(), &self.rhs(), |lhs, rhs| lhs == rhs)
+    }
+
+    fn is_constant_false(&self) -> bool {
+        self.is_eq() && map_consts(&self.lhs(), &self.rhs(), |lhs, rhs| lhs != rhs)
+    }
 }
 
 pub trait GetExprHash {
