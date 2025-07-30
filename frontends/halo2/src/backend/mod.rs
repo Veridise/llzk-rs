@@ -9,7 +9,10 @@ pub mod lowering;
 pub mod picus;
 pub mod resolvers;
 
-use codegen::{strats::inline::InlineConstraintsStrat, Codegen, CodegenStrategy};
+use codegen::{
+    lookup::codegen::LookupAsRowConstraint, strats::inline::InlineConstraintsStrat, Codegen,
+    CodegenStrategy,
+};
 use resolvers::{QueryResolver, SelectorResolver};
 
 pub trait Backend<'c, Params: Default>: Sized {
@@ -25,7 +28,7 @@ pub trait Backend<'c, Params: Default>: Sized {
         C: CircuitWithIO<<Self::Codegen as Codegen<'c>>::F>,
         Self: 'c,
     {
-        self.codegen_with_strat::<C, InlineConstraintsStrat>(circuit)
+        self.codegen_with_strat::<C, InlineConstraintsStrat<LookupAsRowConstraint>>(circuit)
     }
 
     /// Generate code using the given strategy.

@@ -120,6 +120,7 @@ pub fn lower_stmts<Scope: Lowering>(
             CircuitStmt::AssumeDeterministic(func_io) => {
                 scope.generate_assume_deterministic(func_io)?
             }
+            CircuitStmt::Assert(expr) => scope.generate_assert(&expr)?,
         };
     }
     Ok(())

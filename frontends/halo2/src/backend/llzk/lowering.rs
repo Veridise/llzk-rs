@@ -14,9 +14,8 @@ use llzk::{
 use melior::ir::ValueLike;
 use melior::{
     ir::{
-        attribute::FlatSymbolRefAttribute,
-        operation::OperationLike as _, BlockLike as _, Location, Operation, OperationRef, RegionLike as _, Type,
-        Value,
+        attribute::FlatSymbolRefAttribute, operation::OperationLike as _, BlockLike as _, Location,
+        Operation, OperationRef, RegionLike as _, Type, Value,
     },
     Context,
 };
@@ -80,8 +79,7 @@ impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
             let filename = format!(
                 "struct {} | advice field{}",
                 self.struct_name(),
-                fqn.map(|fqn| format!(" | {fqn}"))
-                    .unwrap_or_default()
+                fqn.map(|fqn| format!(" | {fqn}")).unwrap_or_default()
             );
             let loc = Location::new(self.context(), &filename, col, row);
 
@@ -183,6 +181,7 @@ impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
                 self.read_field(field.field_name(), field.field_type())
             }
             ResolvedQuery::IO(FuncIO::Fixed(_, _)) => todo!(),
+            ResolvedQuery::IO(FuncIO::TableLookup(_, _, _)) => todo!(),
         }
     }
 }
@@ -349,6 +348,26 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
 
     fn generate_assume_deterministic(&self, _func_io: FuncIO) -> Result<()> {
         // If the final target is picus generate a 'picus.assume_deterministic' op. Otherwise do nothing.
+        todo!()
+    }
+
+    fn lower_eq(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
+        todo!()
+    }
+
+    fn lower_and(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        todo!()
+    }
+
+    fn lower_or(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
+        todo!()
+    }
+
+    fn generate_assert(&self, expr: &Self::CellOutput) -> Result<()> {
         todo!()
     }
 }

@@ -87,6 +87,7 @@ impl NamingConvention {
                     FuncIO::Field(field_id) => format!("Output_{field_id}"),
                     FuncIO::Advice(col, row) => format!("Advice_{col}_{row}"),
                     FuncIO::Fixed(col, row) => format!("Fixed_{col}_{row}"),
+                    FuncIO::TableLookup(id, col, row) => format!("Lookup_{id}_{col}_{row}"),
                 }
             ),
             NamingConvention::Short => match func_io {
@@ -94,6 +95,7 @@ impl NamingConvention {
                 FuncIO::Field(field_id) => format!("out_{field_id}"),
                 FuncIO::Advice(col, row) => format!("adv_{col}_{row}"),
                 FuncIO::Fixed(col, row) => format!("fix_{col}_{row}"),
+                FuncIO::TableLookup(id, col, row) => format!("lkp{id}_{col}_{row}"),
             },
         }
     }

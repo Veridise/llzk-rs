@@ -1,21 +1,18 @@
-
+use crate::backend::func::FuncIO;
 use crate::backend::lowering::Lowering;
 use crate::backend::resolvers::{QueryResolver, ResolvedQuery};
 use crate::{
     gates::{compute_gate_arity, AnyQuery},
-    halo2::{
-        Expression, Field, Selector,
-    },
+    halo2::{Expression, Field, Selector},
     ir::CircuitStmt,
-    synthesis::{
-        regions::RegionRow,
-        CircuitSynthesis,
-    },
+    synthesis::{regions::RegionRow, CircuitSynthesis},
 };
 use anyhow::{anyhow, Result};
 
 use super::strats::GateScopedResolver;
 use super::Codegen;
+
+pub mod codegen;
 
 #[derive(Clone)]
 pub struct Lookup<'a, F: Field> {
@@ -112,23 +109,20 @@ impl<'a, F: Field> Lookup<'a, F> {
     {
         let mut inputs = scope.lower_selectors(&self.selectors, r)?;
         inputs.extend(scope.lower_any_queries(&self.queries, r)?);
-        let resolved = self
-            .table
-            .iter()
-            .inspect(|o| log::debug!("Table query: {o:?}"))
-            .map(|o| r.resolve_any_query(o))
-            .map(|r| match r? {
-                ResolvedQuery::Lit(f) => Err(anyhow!(
-                    "Fixed table columns cannot have an assigned fixed value: {f:?}"
-                )),
-                ResolvedQuery::IO(func_io) => Ok(func_io),
-            })
-            .collect::<Result<Vec<_>>>()?;
+
+        let resolved = self.resolve_table_column_queries(r.row_number()).collect();
 
         Ok(CircuitStmt::ConstraintCall(
             self.module_name(),
             inputs,
             resolved,
         ))
+    }
+
+    fn resolve_table_column_queries(&self, row: usize) -> impl Iterator<Item = FuncIO> {
+        self.table
+            .iter()
+            .inspect(|q| log::debug!("Table query: {q:?}"))
+            .map(move |q| FuncIO::TableLookup(self.id, q.column_index(), row))
     }
 }

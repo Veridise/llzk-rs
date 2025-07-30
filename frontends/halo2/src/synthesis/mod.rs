@@ -6,7 +6,7 @@ use std::collections::{hash_set::Iter, HashMap, HashSet};
 
 use anyhow::{anyhow, Result};
 use constraint::{EqConstraint, Graph};
-use regions::{RegionData, RegionRow, Regions, FQN};
+use regions::{RegionData, RegionRow, Regions, TableData, FQN};
 
 use crate::{
     gates::find_gate_selector_set,
@@ -74,6 +74,10 @@ impl<F: Field> CircuitSynthesis<F> {
 
     pub fn regions<'a>(&'a self) -> Vec<RegionData<'a, F>> {
         self.regions.regions()
+    }
+
+    pub fn tables(&self) -> &[TableData<F>] {
+        self.regions.tables()
     }
 
     pub fn regions_by_index(&self) -> HashMap<RegionIndex, RegionStart> {

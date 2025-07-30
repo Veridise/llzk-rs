@@ -8,6 +8,7 @@ use crate::{
     CircuitIO,
 };
 use anyhow::{bail, Result};
+use data::{RegionDataImpl, RegionKind};
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
@@ -16,280 +17,23 @@ use std::{
     ops::{AddAssign, Range, RangeFrom},
 };
 
-#[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub struct FQN {
-    region: String,
-    region_idx: Option<RegionIndex>,
-    namespaces: Vec<String>,
-    tail: Option<String>,
-}
+mod data;
+mod fqn;
+mod shared;
+mod table;
 
-impl fmt::Display for FQN {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn clean_string(s: &str) -> String {
-            s.trim()
-                .replace(|c: char| !c.is_ascii_alphanumeric() && c != '_', "_")
-        }
-        write!(f, "{}", clean_string(&self.region))?;
-        if let Some(index) = self.region_idx {
-            write!(f, "_{}", *index)?;
-        }
-        if !self.namespaces.is_empty() {
-            write!(f, "__{}", clean_string(&self.namespaces.join("__")))?;
-        }
-        if let Some(name) = &self.tail {
-            write!(f, "__{}", clean_string(name))?;
-        }
-        write!(f, "")
-    }
-}
-
-impl FQN {
-    pub fn new(
-        region: &str,
-        region_idx: Option<RegionIndex>,
-        namespaces: &[String],
-        tail: Option<String>,
-    ) -> Self {
-        Self {
-            region: region.to_string(),
-            region_idx,
-            namespaces: namespaces.to_vec(),
-            tail,
-        }
-    }
-}
-
-/// Data shared across regions.
-#[derive(Debug, Default)]
-pub struct SharedRegionData {
-    advice_names: HashMap<(usize, usize), FQN>,
-}
-
-impl AddAssign for SharedRegionData {
-    fn add_assign(&mut self, rhs: Self) {
-        for (k, v) in rhs.advice_names {
-            self.advice_names.insert(k, v);
-        }
-    }
-}
+pub use data::RegionData;
+pub use fqn::FQN;
+pub use shared::SharedRegionData;
+pub use table::TableData;
 
 type BlanketFills<F> = Vec<(RangeFrom<usize>, Value<F>)>;
 
-#[derive(Debug, Default)]
-struct RegionDataInner<F> {
-    /// Constant values assigned to fixed columns in the region.
-    fixed: HashMap<(usize, usize), Value<F>>,
-    /// Represents the circuit filling rows with a single value.
-    /// Row start offsets are maintained in chronological order, so when
-    /// querying a row the latest that matches is the correct value.
-    blanket_fills: HashMap<usize, BlanketFills<F>>,
-    /// The selectors that have been enabled in this region. All other selectors are by
-    /// construction not enabled.
-    enabled_selectors: HashMap<Selector, Vec<usize>>,
-    /// The columns involved in this region.
-    columns: HashSet<Column<Any>>,
-    /// The rows that this region starts and ends on, if known.
-    rows: Option<(usize, usize)>,
-    namespaces: Vec<String>,
-}
-
-#[derive(Debug)]
-enum RegionKind {
-    Region,
-    Table,
-}
-
-#[derive(Debug)]
-pub struct RegionDataImpl<F> {
-    /// The name of the region. Not required to be unique.
-    name: String,
-    kind: RegionKind,
-    index: Option<RegionIndex>,
-    inner: RegionDataInner<F>,
-    shared: Option<SharedRegionData>,
-}
-
-impl<F: Default + Clone + Copy + std::fmt::Debug> RegionDataImpl<F> {
-    pub fn new<S: Into<String>>(name: S, index: RegionIndex) -> Self {
-        Self {
-            name: name.into(),
-            kind: RegionKind::Region,
-            index: Some(index),
-            inner: Default::default(),
-            shared: Some(Default::default()),
-        }
-    }
-
-    pub fn mark_as_table(&mut self) {
-        self.index = None;
-        self.kind = RegionKind::Table;
-    }
-
-    pub fn selectors_enabled_for_row(&self, row: usize) -> Vec<&Selector> {
-        self.inner
-            .enabled_selectors
-            .iter()
-            .filter(|(_, rows)| rows.contains(&row))
-            .map(|(sel, _)| sel)
-            .collect()
-    }
-
-    pub fn blanket_fill(&mut self, column: Column<Fixed>, row: usize, value: Value<F>) {
-        self.inner
-            .blanket_fills
-            .entry(column.index())
-            .or_default()
-            .push((row.., value));
-        self.update_extent(column.into(), row);
-    }
-
-    pub fn update_extent(&mut self, column: Column<Any>, row: usize) {
-        self.inner.columns.insert(column);
-
-        // The region start is the earliest row assigned to.
-        // The region end is the latest row assigned to.
-        let (mut start, mut end) = self.inner.rows.unwrap_or((row, row));
-        if row < start {
-            // The first row assigned was not at start 0 within the region.
-            start = row;
-        }
-        if row > end {
-            end = row;
-        }
-        self.inner.rows = Some((start, end));
-    }
-
-    pub fn enable_selector(&mut self, s: Selector, row: usize) {
-        self.inner.enabled_selectors.entry(s).or_default().push(row);
-    }
-
-    pub fn assign_fixed<VR>(&mut self, fixed: Column<Fixed>, row: usize, value: Value<VR>)
-    where
-        F: Field,
-        VR: Into<Assigned<F>>,
-    {
-        let value = value.map(|vr| vr.into());
-        log::debug!(
-            "Recording fixed assignment @ col = {}, row = {row}, value = {value:?}",
-            fixed.index()
-        );
-        self.inner
-            .fixed
-            .insert((fixed.index(), row), value.map(|vr| vr.evaluate()));
-    }
-
-    fn resolve_from_blanket_fills(&self, column: usize, row: usize) -> Option<Value<F>> {
-        self.inner
-            .blanket_fills
-            .get(&column)
-            .and_then(|values| values.iter().rfind(|(range, _)| range.contains(&row)))
-            .map(|(_, v)| *v)
-    }
-
-    pub fn resolve_fixed(&self, column: usize, row: usize) -> Option<Value<F>> {
-        log::debug!("Fixed values: {:?}", self.inner.fixed);
-        self.inner
-            .fixed
-            .get(&(column, row))
-            .inspect(|v| {
-                log::debug!(
-                    "[Region {}] For ({column}, {row}) we got value {v:?}",
-                    self.name
-                )
-            })
-            .cloned()
-            .or_else(|| self.resolve_from_blanket_fills(column, row))
-    }
-
-    pub fn rows(&self) -> Range<usize> {
-        self.inner
-            .rows
-            .map(|(begin, end)| begin..end + 1)
-            .unwrap_or(0..0)
-    }
-
-    pub fn note_advice(&mut self, column: Column<Advice>, row: usize, name: String) {
-        let fqn = FQN::new(
-            self.name.as_str(),
-            self.index,
-            &self.inner.namespaces,
-            name.into(),
-        );
-        log::debug!(
-            "Recording advice assignment @ col = {}, row = {row}, name = {fqn}",
-            column.index()
-        );
-        self.shared
-            .as_mut()
-            .unwrap()
-            .advice_names
-            .insert((column.index(), row), fqn);
-    }
-
-    pub fn push_namespace<NR, N>(&mut self, name: N)
-    where
-        NR: Into<String>,
-        N: FnOnce() -> NR,
-    {
-        self.inner.namespaces.push(name().into())
-    }
-
-    pub fn pop_namespace(&mut self, name: Option<String>) {
-        match name {
-            Some(name) => {
-                if let Some(idx) = self.inner.namespaces.iter().rposition(|e| *e == name) {
-                    self.inner.namespaces.remove(idx);
-                }
-            }
-            None => {
-                self.inner.namespaces.pop();
-            }
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct RegionData<'a, F> {
-    shared: &'a SharedRegionData,
-    inner: &'a RegionDataImpl<F>,
-}
-
-impl<'a, F: Default + Clone + Copy + std::fmt::Debug> RegionData<'a, F> {
-    pub fn find_advice_name(&self, col: usize, row: usize) -> Cow<'a, FQN> {
-        self.shared
-            .advice_names
-            .get(&(col, row))
-            .map(Cow::Borrowed)
-            .unwrap_or_else(|| {
-                Cow::Owned(FQN::new(
-                    self.inner.name.as_str(),
-                    self.inner.index,
-                    &[],
-                    None,
-                ))
-            })
-    }
-
-    pub fn rows(&self) -> Range<usize> {
-        self.inner.rows()
-    }
-
-    pub fn name(&self) -> &str {
-        &self.inner.name
-    }
-
-    pub fn find_fixed_col_assignment(&self, col: Column<Fixed>, row: usize) -> Option<Value<F>> {
-        self.inner.resolve_fixed(col.index(), row)
-    }
-}
-
 #[derive(Default, Debug)]
-pub struct Regions<F> {
+pub struct Regions<F: Copy> {
     shared: SharedRegionData,
     regions: Vec<RegionDataImpl<F>>,
-    tables: Vec<RegionDataImpl<F>>,
+    tables: Vec<TableData<F>>,
     current: Option<RegionDataImpl<F>>,
     current_is_table: bool,
 }
@@ -307,14 +51,14 @@ impl<F: Default + Clone + Copy + std::fmt::Debug> Regions<F> {
                 log::debug!(
                     "Demoting region {} {:?} to table",
                     table
-                        .index
+                        .index()
                         .as_deref()
                         .map(ToString::to_string)
                         .unwrap_or_else(|| "<unk>".to_owned()),
-                    table.name
+                    table.name()
                 );
                 table.mark_as_table();
-                self.tables.push(table);
+                self.tables.push(table.into());
             }
         }
 
@@ -332,18 +76,18 @@ impl<F: Default + Clone + Copy + std::fmt::Debug> Regions<F> {
         if self.current_is_table {
             log::debug!(
                 "Region {} {:?} is a table",
-                *region.index.unwrap(),
-                region.name
+                *region.index().unwrap(),
+                region.name()
             );
             region.mark_as_table();
-            self.tables.push(region);
+            self.tables.push(region.into());
         } else {
             log::debug!(
                 "Region {} {:?} added to the regions list",
-                *region.index.unwrap(),
-                region.name
+                *region.index().unwrap(),
+                region.name()
             );
-            self.shared += region.shared.take().unwrap();
+            self.shared += region.take_shared().unwrap();
             self.regions.push(region);
         }
     }
@@ -374,15 +118,12 @@ impl<F: Default + Clone + Copy + std::fmt::Debug> Regions<F> {
     pub fn regions<'a>(&'a self) -> Vec<RegionData<'a, F>> {
         self.regions
             .iter()
-            .map(|inner| RegionData {
-                inner,
-                shared: &self.shared,
-            })
-            //.chain(self.tables.iter().map(|inner| RegionData {
-            //    inner,
-            //    shared: &self.shared,
-            //}))
+            .map(|inner| RegionData::new(&self.shared, inner))
             .collect()
+    }
+
+    pub fn tables(&self) -> &[TableData<F>] {
+        &self.tables
     }
 
     pub fn mark_current_as_table(&mut self) {
@@ -390,7 +131,7 @@ impl<F: Default + Clone + Copy + std::fmt::Debug> Regions<F> {
     }
 
     pub fn seen_advice_cells(&self) -> impl Iterator<Item = (&(usize, usize), &FQN)> {
-        self.shared.advice_names.iter()
+        self.shared.advice_names().iter()
     }
 }
 
@@ -537,12 +278,12 @@ impl<'r, 'io, F: Field> RegionRow<'r, 'io, F> {
 
     #[inline]
     pub fn region_name(&self) -> &'r str {
-        &self.region.inner.name
+        &self.region.inner.name()
     }
 
     #[inline]
     pub fn region_index(&self) -> Option<usize> {
-        self.region.inner.index.map(|f| *f)
+        self.region.inner.index().map(|f| *f)
     }
 
     #[inline]
@@ -552,12 +293,12 @@ impl<'r, 'io, F: Field> RegionRow<'r, 'io, F> {
 
     #[inline]
     pub fn header(&self) -> String {
-        match (&self.region.inner.kind, &self.region.inner.index) {
-            (RegionKind::Region, None) => format!("region <unk> {:?}", self.region.inner.name),
+        match (&self.region.inner.kind(), &self.region.inner.index()) {
+            (RegionKind::Region, None) => format!("region <unk> {:?}", self.region.inner.name()),
             (RegionKind::Region, Some(index)) => {
-                format!("region {} {:?}", **index, self.region.inner.name)
+                format!("region {} {:?}", **index, self.region.inner.name())
             }
-            (RegionKind::Table, None) => format!("table {:?}", self.region.inner.name),
+            (RegionKind::Table, None) => format!("table {:?}", self.region.inner.name()),
             _ => unreachable!(),
         }
     }
@@ -588,8 +329,8 @@ impl<F: Field> QueryResolver<F> for RegionRow<'_, '_, F> {
                 Some(match func_io {
                     FuncIO::Advice(col, row) => self.region.find_advice_name(col, row),
                     _ => Cow::Owned(FQN::new(
-                        &self.region.inner.name,
-                        self.region.inner.index,
+                        &self.region.inner.name(),
+                        self.region.inner.index(),
                         &[],
                         None,
                     )),
@@ -608,8 +349,7 @@ impl<F: Field> SelectorResolver for RegionRow<'_, '_, F> {
         let selected = self
             .region
             .inner
-            .inner
-            .enabled_selectors
+            .enabled_selectors()
             .get(selector)
             .map(|rows| rows.contains(&self.row.row))
             .unwrap_or(false);

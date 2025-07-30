@@ -36,3 +36,22 @@ macro_rules! picus_codegen_test {
         codegen_test!($c, PicusBackend<Lift<Fr>>, InlineConstraintsStrat, $params)
     };
 }
+
+#[macro_export]
+macro_rules! picus_codegen_with_inline_lookups_test {
+    ($c:ty) => {
+        codegen_test!(
+            $c,
+            PicusBackend<Lift<Fr>>,
+            InlineConstraintsStrat<LookupAsRowConstraint>
+        )
+    };
+    ($c:ty, $params:expr) => {
+        codegen_test!(
+            $c,
+            PicusBackend<Lift<Fr>>,
+            InlineConstraintsStrat<LookupAsRowConstraint>,
+            $params
+        )
+    };
+}

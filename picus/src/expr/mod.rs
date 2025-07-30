@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
-use impls::{BinaryExpr, BinaryOp, ConstExpr, ConstraintKind, NegExpr, VarExpr};
+use impls::{BinaryExpr, BinaryOp, Boolean, ConstExpr, ConstraintKind, NegExpr, VarExpr};
 use traits::{
     ConstantFolding, ConstraintExpr, ExprLike, ExprSize, GetExprHash, MaybeVarLike, WrappedExpr,
 };
@@ -188,4 +188,16 @@ pub fn eq(lhs: &Expr, rhs: &Expr) -> Expr {
 
 pub fn neg(expr: &Expr) -> Expr {
     Wrap::new(NegExpr::new(expr.clone()))
+}
+
+fn boolean(kind: Boolean, lhs: &Expr, rhs: &Expr) -> Expr {
+    Wrap::new(BinaryExpr::new(kind, lhs.clone(), rhs.clone()))
+}
+
+pub fn and(lhs: &Expr, rhs: &Expr) -> Expr {
+    boolean(Boolean::And, lhs, rhs)
+}
+
+pub fn or(lhs: &Expr, rhs: &Expr) -> Expr {
+    boolean(Boolean::Or, lhs, rhs)
 }

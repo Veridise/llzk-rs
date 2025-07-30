@@ -1,9 +1,6 @@
-
 use crate::{
     gates::AnyQuery,
-    halo2::{
-        AdviceQuery, Challenge, Expression, Field, FixedQuery, Gate, InstanceQuery, Selector,
-    },
+    halo2::{AdviceQuery, Challenge, Expression, Field, FixedQuery, Gate, InstanceQuery, Selector},
     ir::{BinaryBoolOp, CircuitStmt},
 };
 use anyhow::{bail, Result};
@@ -213,4 +210,11 @@ pub trait Lowering {
                 ))
             }))
     }
+
+    fn lower_eq(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput>;
+    fn lower_and(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput)
+        -> Result<Self::CellOutput>;
+    fn lower_or(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput>;
+
+    fn generate_assert(&self, expr: &Self::CellOutput) -> Result<()>;
 }

@@ -383,6 +383,48 @@ impl TextRepresentable for ConstraintKind {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Hash)]
+pub enum Boolean {
+    And,
+    Or,
+}
+
+impl OpFolder for Boolean {
+    fn fold(&self, _lhs: Expr, _rhs: Expr, _prime: &Felt) -> Option<Expr> {
+        None
+    }
+
+    fn commutative(&self) -> bool {
+        false
+    }
+
+    fn flip(&self, _lhs: &Expr, _rhs: &Expr) -> Option<BinaryExpr<Self>> {
+        None
+    }
+}
+
+impl TextRepresentable for Boolean {
+    fn to_repr(&self) -> TextRepresentation {
+        TextRepresentation::atom(match self {
+            Boolean::And => "&&",
+            Boolean::Or => "||",
+        })
+    }
+
+    fn width_hint(&self) -> usize {
+        match self {
+            Boolean::And => 2,
+            Boolean::Or => 2,
+        }
+    }
+}
+
+impl OpLike for Boolean {
+    fn extraible(&self) -> bool {
+        false
+    }
+}
+
 pub trait OpLike:
     Clone + PartialEq + OpFolder + TextRepresentable + std::fmt::Debug + std::hash::Hash + 'static
 {
@@ -496,6 +538,7 @@ macro_rules! binary_expr_common {
 
 binary_expr_common!(BinaryOp);
 binary_expr_common!(ConstraintKind);
+binary_expr_common!(Boolean);
 
 impl<K: Clone + PartialEq> BinaryExpr<K> {
     fn lhs(&self) -> Expr {
@@ -555,6 +598,17 @@ impl ConstraintLike for BinaryExpr<BinaryOp> {
     }
 }
 
+// I'm not implementing this trait for now
+impl ConstraintLike for BinaryExpr<Boolean> {
+    fn is_constraint(&self) -> bool {
+        false
+    }
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
+        None
+    }
+}
+
 impl<K: OpLike> BinaryExpr<K> {
     fn eq_flipped(&self, other: &Self, flipped: bool) -> bool {
         if flipped {
@@ -590,6 +644,7 @@ impl<K: OpLike> GetExprHash for BinaryExpr<K> {
 
 impl ExprLike for BinaryExpr<ConstraintKind> {}
 impl ExprLike for BinaryExpr<BinaryOp> {}
+impl ExprLike for BinaryExpr<Boolean> {}
 
 //===----------------------------------------------------------------------===//
 // NegExpr

@@ -273,4 +273,26 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
         self.module.borrow_mut().add_stmt(stmt);
         Ok(())
     }
+
+    fn lower_eq(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
+        Ok(expr::eq(lhs, rhs))
+    }
+
+    fn lower_and(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        Ok(expr::and(lhs, rhs))
+    }
+
+    fn lower_or(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
+        Ok(expr::or(lhs, rhs))
+    }
+
+    fn generate_assert(&self, expr: &Self::CellOutput) -> Result<()> {
+        let stmt = stmt::constrain(expr.clone());
+        self.module.borrow_mut().add_stmt(stmt);
+        Ok(())
+    }
 }

@@ -51,6 +51,7 @@ pub struct PicusParams {
     entrypoint: String,
     lift_fixed: bool,
     naming_convention: NamingConvention,
+    optimize: bool,
 }
 
 impl PicusParams {
@@ -125,6 +126,16 @@ impl PicusParamsBuilder {
         self.0.naming_convention = NamingConvention::Short;
         self
     }
+
+    pub fn optimize(mut self) -> Self {
+        self.0.optimize = true;
+        self
+    }
+
+    pub fn no_optimize(mut self) -> Self {
+        self.0.optimize = false;
+        self
+    }
 }
 
 impl From<PicusParamsBuilder> for PicusParams {
@@ -140,6 +151,7 @@ impl Default for PicusParams {
             entrypoint: "Main".to_owned(),
             lift_fixed: false,
             naming_convention: NamingConvention::Default,
+            optimize: true,
         }
     }
 }
@@ -347,7 +359,9 @@ impl<'c, L: LiftLike> Codegen<'c> for PicusBackend<L> {
     fn generate_output(self) -> Result<Self::Output> {
         let mut output = PicusOutput::from(self.inner.borrow().modules.clone());
         self.var_consistency_check(&output)?;
-        self.optimization_pipeline().optimize(&mut output)?;
+        if self.inner.borrow().params.optimize {
+            self.optimization_pipeline().optimize(&mut output)?;
+        }
         Ok(output)
     }
 }
@@ -501,6 +515,7 @@ fn lower_stmt<L: LiftLike>(
         ),
         CircuitStmt::Comment(s) => CircuitStmt::Comment(s.clone()),
         CircuitStmt::AssumeDeterministic(func_io) => CircuitStmt::AssumeDeterministic(*func_io),
+        CircuitStmt::Assert(expr) => CircuitStmt::Assert(scope.lower_expr(expr, qr, sr)?),
     })
 }
 

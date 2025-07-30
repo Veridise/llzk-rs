@@ -58,6 +58,8 @@ pub enum FuncIO {
     Field(FieldId),
     Advice(usize, usize),
     Fixed(usize, usize),
+    // lookup idx, column, row
+    TableLookup(usize, usize, usize),
 }
 
 impl From<ArgNo> for FuncIO {

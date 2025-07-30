@@ -18,6 +18,7 @@ pub enum CircuitStmt<T> {
     Constraint(BinaryBoolOp, T, T),
     Comment(String),
     AssumeDeterministic(FuncIO),
+    Assert(T),
 }
 
 impl<T: Clone> Clone for CircuitStmt<T> {
@@ -31,6 +32,7 @@ impl<T: Clone> Clone for CircuitStmt<T> {
             }
             CircuitStmt::Comment(c) => CircuitStmt::Comment(c.clone()),
             CircuitStmt::AssumeDeterministic(func_io) => CircuitStmt::AssumeDeterministic(*func_io),
+            CircuitStmt::Assert(e) => CircuitStmt::Assert(e.clone()),
         }
     }
 }

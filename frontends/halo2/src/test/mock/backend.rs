@@ -56,6 +56,7 @@ pub enum MockExprIR {
     Const(Fr),
     Temp(usize, usize),
     Fixed(usize, usize),
+    LookupCell(usize, usize, usize),
     Constraint(usize, usize),
     Call(String, Vec<usize>),
 }
@@ -67,6 +68,7 @@ impl From<FuncIO> for MockExprIR {
             FuncIO::Field(field_id) => MockExprIR::Field(field_id),
             FuncIO::Advice(col, row) => MockExprIR::Temp(col, row),
             FuncIO::Fixed(col, row) => MockExprIR::Fixed(col, row),
+            FuncIO::TableLookup(id, col, row) => MockExprIR::LookupCell(id, col, row),
         }
     }
 }
@@ -95,6 +97,7 @@ impl fmt::Debug for MockExprIR {
                 }
                 write!(f, ")")
             }
+            MockExprIR::LookupCell(id, col, row) => write!(f, "lookup {id}[{col}, {row}]"),
         }
     }
 }
@@ -313,6 +316,26 @@ impl Lowering for MockFuncRef {
     }
 
     fn generate_assume_deterministic(&self, func_io: FuncIO) -> Result<()> {
+        todo!()
+    }
+
+    fn lower_eq(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
+        todo!()
+    }
+
+    fn lower_and(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        todo!()
+    }
+
+    fn lower_or(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
+        todo!()
+    }
+
+    fn generate_assert(&self, expr: &Self::CellOutput) -> Result<()> {
         todo!()
     }
 }
