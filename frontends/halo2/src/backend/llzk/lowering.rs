@@ -181,7 +181,7 @@ impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
                 self.read_field(field.field_name(), field.field_type())
             }
             ResolvedQuery::IO(FuncIO::Fixed(_, _)) => todo!(),
-            ResolvedQuery::IO(FuncIO::TableLookup(_, _, _)) => todo!(),
+            ResolvedQuery::IO(FuncIO::TableLookup(_, _, _, _)) => todo!(),
         }
     }
 }
@@ -368,6 +368,21 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
     }
 
     fn generate_assert(&self, expr: &Self::CellOutput) -> Result<()> {
+        todo!()
+    }
+
+    fn lower_function_input(&self, i: usize) -> FuncIO {
+        todo!()
+    }
+
+    fn lower_function_output(&self, o: usize) -> FuncIO {
+        todo!()
+    }
+
+    fn lower_funcio<IO>(&self, io: IO) -> Result<Self::CellOutput>
+    where
+        IO: Into<FuncIO>,
+    {
         todo!()
     }
 }

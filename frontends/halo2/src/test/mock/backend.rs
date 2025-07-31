@@ -56,7 +56,7 @@ pub enum MockExprIR {
     Const(Fr),
     Temp(usize, usize),
     Fixed(usize, usize),
-    LookupCell(usize, usize, usize),
+    LookupCell(u64, usize, usize, usize),
     Constraint(usize, usize),
     Call(String, Vec<usize>),
 }
@@ -68,7 +68,7 @@ impl From<FuncIO> for MockExprIR {
             FuncIO::Field(field_id) => MockExprIR::Field(field_id),
             FuncIO::Advice(col, row) => MockExprIR::Temp(col, row),
             FuncIO::Fixed(col, row) => MockExprIR::Fixed(col, row),
-            FuncIO::TableLookup(id, col, row) => MockExprIR::LookupCell(id, col, row),
+            FuncIO::TableLookup(id, col, row, idx) => MockExprIR::LookupCell(id, col, row, idx),
         }
     }
 }
@@ -97,7 +97,9 @@ impl fmt::Debug for MockExprIR {
                 }
                 write!(f, ")")
             }
-            MockExprIR::LookupCell(id, col, row) => write!(f, "lookup {id}[{col}, {row}]"),
+            MockExprIR::LookupCell(id, col, row, idx) => {
+                write!(f, "lookup{id}[{col}, {row}] @ {idx}")
+            }
         }
     }
 }
@@ -338,6 +340,21 @@ impl Lowering for MockFuncRef {
     fn generate_assert(&self, expr: &Self::CellOutput) -> Result<()> {
         todo!()
     }
+
+    fn lower_function_input(&self, i: usize) -> FuncIO {
+        todo!()
+    }
+
+    fn lower_function_output(&self, o: usize) -> FuncIO {
+        todo!()
+    }
+
+    fn lower_funcio<IO>(&self, io: IO) -> Result<Self::CellOutput>
+    where
+        IO: Into<FuncIO>,
+    {
+        todo!()
+    }
 }
 
 impl<'c> Codegen<'c> for MockBackend {
@@ -385,6 +402,16 @@ impl<'c> Codegen<'c> for MockBackend {
         let gates = ctx.gates.iter().map(clone_func).collect();
         let main = ctx.main.as_ref().map(clone_func);
         Ok(MockOutput { gates, main })
+    }
+
+    fn define_function(
+        &self,
+        _name: &str,
+        _inputs: usize,
+        _outputs: usize,
+        _syn: &CircuitSynthesis<Self::F>,
+    ) -> Result<Self::FuncOutput> {
+        todo!()
     }
 }
 

@@ -11,6 +11,7 @@ use crate::halo2::{Field, Fr};
 use crate::test::fixtures::midnight::fibonacci::FibonacciCircuit;
 use crate::test::fixtures::midnight::lookup::LookupCircuit;
 use crate::test::fixtures::midnight::lookup_2x3::Lookup2x3Circuit;
+use crate::test::fixtures::midnight::lookup_2x3_fixed::Lookup2x3Circuit as Lookup2x3FixedCircuit;
 use crate::test::fixtures::midnight::lookup_2x3_zerosel::Lookup2x3ZeroSelCircuit;
 use crate::test::fixtures::midnight::mul::MulCircuit;
 use crate::test::fixtures::midnight::mul_with_fixed_constraint::MulWithFixedConstraintCircuit;
@@ -140,8 +141,14 @@ macro_rules! picus_test {
         #[test]
         fn $name() {
             let _ = TestLogger::init(LevelFilter::Debug, Config::default());
-            let output =
-                picus_codegen_test!($circ, PicusParamsBuilder::new().no_lift_fixed().into());
+            let output = picus_codegen_test!(
+                $circ,
+                PicusParamsBuilder::new()
+                    .no_lift_fixed()
+                    .short_names()
+                    .no_optimize()
+                    .into()
+            );
             println!("{}", output.display());
         }
     };
@@ -197,6 +204,16 @@ picus_inlined_lookups_test_noopt!(
 picus_inlined_lookups_test!(
     test_lookup_2x3_circuit_picus_codegen_inlined_lookups,
     Lookup2x3Circuit<Lift<Fr>>
+);
+
+picus_test!(
+    test_lookup_2x3_circuit_picus_codegen,
+    Lookup2x3Circuit<Lift<Fr>>
+);
+
+picus_test!(
+    test_lookup_2x3_fixed_circuit_picus_codegen,
+    Lookup2x3FixedCircuit<Lift<Fr>>
 );
 
 picus_inlined_lookups_test!(

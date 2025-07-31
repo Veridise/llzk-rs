@@ -28,7 +28,7 @@ pub trait Backend<'c, Params: Default>: Sized {
         C: CircuitWithIO<<Self::Codegen as Codegen<'c>>::F>,
         Self: 'c,
     {
-        self.codegen_with_strat::<C, InlineConstraintsStrat<LookupAsRowConstraint>>(circuit)
+        self.codegen_with_strat::<C, InlineConstraintsStrat>(circuit)
     }
 
     /// Generate code using the given strategy.

@@ -1,3 +1,5 @@
+#![feature(iter_intersperse)]
+
 use anyhow::Result;
 use backend::codegen::strats::inline::InlineConstraintsStrat;
 

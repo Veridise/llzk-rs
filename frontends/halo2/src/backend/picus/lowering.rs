@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     backend::{
-        func::FuncIO,
+        func::{ArgNo, FieldId, FuncIO},
         lowering::Lowering,
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     },
@@ -65,10 +65,7 @@ impl<L: LiftLike> PicusModuleLowering<L> {
     ) -> Result<PicusExpr> {
         Ok(match query {
             ResolvedQuery::Lit(f) => self.lower(&f, true)?,
-            ResolvedQuery::IO(func_io) => {
-                let seed = VarKeySeed::named_io(func_io, fqn, self.naming_convention);
-                expr::var(&self.module, seed)
-            }
+            ResolvedQuery::IO(func_io) => self.lower_func_io(func_io, fqn),
         })
     }
 }
@@ -228,10 +225,7 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
     ) -> Result<Self::CellOutput> {
         match resolver.resolve_selector(sel)? {
             ResolvedSelector::Const(value) => Lowering::lower_constant(self, value.to_f()),
-            ResolvedSelector::Arg(arg_no) => Ok(expr::var(
-                &self.module,
-                VarKeySeed::io(arg_no, self.naming_convention),
-            )),
+            ResolvedSelector::Arg(arg_no) => Ok(self.lower_func_io(arg_no.into(), None)),
         }
     }
 
@@ -294,5 +288,20 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
         let stmt = stmt::constrain(expr.clone());
         self.module.borrow_mut().add_stmt(stmt);
         Ok(())
+    }
+
+    fn lower_function_input(&self, i: usize) -> FuncIO {
+        ArgNo::from(i).into()
+    }
+
+    fn lower_function_output(&self, o: usize) -> FuncIO {
+        FieldId::from(o).into()
+    }
+
+    fn lower_funcio<IO>(&self, io: IO) -> Result<Self::CellOutput>
+    where
+        IO: Into<FuncIO>,
+    {
+        Ok(self.lower_func_io(io.into(), None))
     }
 }

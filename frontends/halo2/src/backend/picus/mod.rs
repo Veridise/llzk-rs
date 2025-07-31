@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     cell::RefCell,
     collections::{HashMap, HashSet},
+    convert::identity,
     marker::PhantomData,
     rc::Rc,
 };
@@ -364,6 +365,22 @@ impl<'c, L: LiftLike> Codegen<'c> for PicusBackend<L> {
         }
         Ok(output)
     }
+
+    fn define_function(
+        &self,
+        name: &str,
+        inputs: usize,
+        outputs: usize,
+        syn: &CircuitSynthesis<Self::F>,
+    ) -> Result<Self::FuncOutput> {
+        let nc = self.naming_convention();
+        self.inner.borrow_mut().add_module(
+            name.to_owned(),
+            mk_io(inputs, VarKeySeed::arg, nc),
+            mk_io(outputs, VarKeySeed::field, nc),
+            syn,
+        )
+    }
 }
 
 impl<'c, L: LiftLike> Codegen<'c> for PicusEventReceiver<L> {
@@ -419,6 +436,22 @@ impl<'c, L: LiftLike> Codegen<'c> for PicusEventReceiver<L> {
 
     fn generate_output(self) -> Result<Self::Output> {
         unreachable!()
+    }
+
+    fn define_function(
+        &self,
+        name: &str,
+        inputs: usize,
+        outputs: usize,
+        syn: &CircuitSynthesis<Self::F>,
+    ) -> Result<Self::FuncOutput> {
+        let nc = self.naming_convention();
+        self.inner.borrow_mut().add_module(
+            name.to_owned(),
+            mk_io(inputs, VarKeySeed::arg, nc),
+            mk_io(outputs, VarKeySeed::field, nc),
+            syn,
+        )
     }
 }
 
@@ -502,21 +535,25 @@ fn lower_stmt<L: LiftLike>(
     qr: &dyn QueryResolver<L>,
     sr: &dyn SelectorResolver,
 ) -> Result<CircuitStmt<PicusExpr>> {
-    Ok(match stmt {
-        CircuitStmt::ConstraintCall(callee, inputs, outputs) => CircuitStmt::ConstraintCall(
-            callee.clone(),
-            scope.lower_exprs(inputs, qr, sr)?,
-            outputs.clone(),
-        ),
-        CircuitStmt::Constraint(op, lhs, rhs) => CircuitStmt::Constraint(
-            *op,
-            scope.lower_expr(lhs, qr, sr)?,
-            scope.lower_expr(rhs, qr, sr)?,
-        ),
-        CircuitStmt::Comment(s) => CircuitStmt::Comment(s.clone()),
-        CircuitStmt::AssumeDeterministic(func_io) => CircuitStmt::AssumeDeterministic(*func_io),
-        CircuitStmt::Assert(expr) => CircuitStmt::Assert(scope.lower_expr(expr, qr, sr)?),
-    })
+    stmt.map(
+        &|callee, inputs, output| {
+            Ok((
+                callee.to_owned(),
+                scope.lower_exprs(inputs, qr, sr)?,
+                output.to_vec(),
+            ))
+        },
+        &|op, lhs, rhs| {
+            Ok((
+                op,
+                scope.lower_expr(lhs, qr, sr)?,
+                scope.lower_expr(rhs, qr, sr)?,
+            ))
+        },
+        &|s| Ok(s.to_string()),
+        &Ok,
+        &|e| scope.lower_expr(e, qr, sr),
+    )
 }
 
 fn dequeue_stmts_impl<L: LiftLike>(

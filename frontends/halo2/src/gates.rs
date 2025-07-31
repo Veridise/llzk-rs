@@ -142,6 +142,24 @@ impl From<&FixedQuery> for AnyQuery {
     }
 }
 
+impl From<AdviceQuery> for AnyQuery {
+    fn from(query: AdviceQuery) -> Self {
+        Self::Advice(query)
+    }
+}
+
+impl From<InstanceQuery> for AnyQuery {
+    fn from(query: InstanceQuery) -> Self {
+        Self::Instance(query)
+    }
+}
+
+impl From<FixedQuery> for AnyQuery {
+    fn from(query: FixedQuery) -> Self {
+        Self::Fixed(query)
+    }
+}
+
 fn find_queries<F: Field>(poly: &Expression<F>) -> HashSet<AnyQuery> {
     match poly {
         Expression::Advice(query) => [query.into()].into(),

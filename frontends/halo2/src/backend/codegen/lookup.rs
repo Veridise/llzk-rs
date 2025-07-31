@@ -1,40 +1,47 @@
-use crate::backend::func::FuncIO;
-use crate::backend::lowering::Lowering;
-use crate::backend::resolvers::{QueryResolver, ResolvedQuery};
+use std::{
+    convert::identity,
+    hash::{DefaultHasher, Hash as _, Hasher as _},
+    ops::BitOr,
+};
+
 use crate::{
     gates::{compute_gate_arity, AnyQuery},
-    halo2::{Expression, Field, Selector},
-    ir::CircuitStmt,
-    synthesis::{regions::RegionRow, CircuitSynthesis},
+    halo2::{Expression, Field, FixedQuery, Selector},
+    synthesis::CircuitSynthesis,
 };
 use anyhow::{anyhow, Result};
 
 use super::strats::GateScopedResolver;
-use super::Codegen;
 
 pub mod codegen;
 
 #[derive(Clone)]
 pub struct Lookup<'a, F: Field> {
     name: &'a str,
-    id: usize,
+    idx: usize,
+    kind: LookupKind,
     inputs: &'a [Expression<F>],
-    table_expressions: &'a [Expression<F>],
+    table: &'a [Expression<F>],
     selectors: Vec<&'a Selector>,
     queries: Vec<AnyQuery>,
-    table: Vec<AnyQuery>,
+    table_queries: Vec<AnyQuery>,
+}
+
+pub fn query_from_table_expr<F: Field>(e: &Expression<F>) -> Result<FixedQuery> {
+    match e {
+        Expression::Fixed(fixed_query) => Ok(*fixed_query),
+        _ => Err(anyhow!(
+            "Table row expressions can only be fixed cell queries"
+        )),
+    }
 }
 
 fn compute_table_cells<'a, F: Field>(
     table: impl Iterator<Item = &'a Expression<F>>,
 ) -> Result<Vec<AnyQuery>> {
     table
-        .map(|e| match e {
-            Expression::Fixed(fixed_query) => Ok(fixed_query.into()),
-            _ => Err(anyhow!(
-                "Table row expressions can only be fixed cell queries"
-            )),
-        })
+        .map(query_from_table_expr)
+        .map(|e| e.map(Into::into))
         .collect()
 }
 
@@ -44,85 +51,128 @@ impl<'a, F: Field> Lookup<'a, F> {
             .lookups()
             .iter()
             .enumerate()
-            .map(|(id, a)| {
-                let inputs = a.input_expressions();
-                let (selectors, queries) = compute_gate_arity(inputs);
-                let table = compute_table_cells(a.table_expressions().iter())?;
-                Ok(Self {
-                    name: a.name(),
-                    id,
-                    inputs,
-                    table_expressions: a.table_expressions(),
-                    selectors,
-                    queries,
-                    table,
-                })
+            .map(|(idx, a)| {
+                //let inputs = a.input_expressions();
+                Self::new(
+                    idx,
+                    a.name(),
+                    &a.input_expressions(),
+                    &a.table_expressions(),
+                )
             })
             .collect()
     }
 
-    fn module_name(&self) -> String {
-        format!("lookup{}_{}", self.id, self.name)
+    fn new(
+        idx: usize,
+        name: &'a str,
+        inputs: &'a [Expression<F>],
+        table: &'a [Expression<F>],
+    ) -> Result<Self> {
+        let (selectors, queries) = compute_gate_arity(inputs);
+        let table_queries = compute_table_cells(table.iter())?;
+        let kind = LookupKind::new(table, inputs)?;
+
+        Ok(Self {
+            kind,
+            idx,
+            name,
+            inputs,
+            table,
+            table_queries,
+            selectors,
+            queries,
+        })
     }
 
-    pub fn create_scope<'c, C>(
-        &self,
-        backend: &C,
-        syn: &CircuitSynthesis<C::F>,
-    ) -> Result<C::FuncOutput>
-    where
-        C: Codegen<'c>,
-    {
-        backend.define_gate_function(
-            &self.module_name(),
-            &self.selectors,
-            &self.queries,
-            self.output_queries(),
-            syn,
-        )
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn idx(&self) -> usize {
+        self.idx
+    }
+
+    fn module_name(&self) -> String {
+        self.kind.module_name()
     }
 
     pub fn output_queries(&self) -> &[AnyQuery] {
-        &self.table
-    }
-
-    pub fn create_resolver(&self) -> GateScopedResolver {
-        GateScopedResolver {
-            selectors: &self.selectors,
-            queries: &self.queries,
-            outputs: &self.table,
-        }
+        &self.table_queries
     }
 
     pub fn expressions(&self) -> impl Iterator<Item = (&Expression<F>, &Expression<F>)> {
-        self.inputs.iter().zip(self.table_expressions)
+        self.inputs.iter().zip(self.table)
     }
 
-    pub fn create_call_stmt<L>(
-        &self,
-        scope: &L,
-        r: &RegionRow<F>,
-    ) -> Result<CircuitStmt<L::CellOutput>>
-    where
-        F: Field,
-        L: Lowering<F = F>,
-    {
-        let mut inputs = scope.lower_selectors(&self.selectors, r)?;
-        inputs.extend(scope.lower_any_queries(&self.queries, r)?);
-
-        let resolved = self.resolve_table_column_queries(r.row_number()).collect();
-
-        Ok(CircuitStmt::ConstraintCall(
-            self.module_name(),
-            inputs,
-            resolved,
-        ))
+    pub fn kind(&self) -> &LookupKind {
+        &self.kind
     }
+}
 
-    fn resolve_table_column_queries(&self, row: usize) -> impl Iterator<Item = FuncIO> {
-        self.table
+/// Uniquely identifies a lookup target by the table columns required by it and its arity.
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct LookupKind {
+    columns: Vec<usize>,
+    io: (usize, usize),
+}
+
+pub fn contains_fixed<F: Field>(e: &&Expression<F>) -> bool {
+    fn false_cb<I>(_: I) -> bool {
+        false
+    }
+    e.evaluate(
+        &false_cb,
+        &false_cb,
+        &|_| true,
+        &false_cb,
+        &false_cb,
+        &false_cb,
+        &identity,
+        &BitOr::bitor,
+        &BitOr::bitor,
+        &|b, _| b,
+    )
+}
+
+impl LookupKind {
+    /// Constructs a lookup kind. The columns are obtained from the tables array, which have to be
+    /// expressions of type FixedQuery and the io is obtained from the inputs. Expressions that
+    /// contain fixed columns are considered inputs while expressions that don't are considered
+    /// outputs.
+    pub fn new<F: Field>(
+        tables: &[Expression<F>],
+        inputs: &[Expression<F>],
+    ) -> anyhow::Result<Self> {
+        let columns = tables
             .iter()
-            .inspect(|q| log::debug!("Table query: {q:?}"))
-            .map(move |q| FuncIO::TableLookup(self.id, q.column_index(), row))
+            .map(|e| match e {
+                Expression::Fixed(q) => Ok(q.column_index()),
+                _ => anyhow::bail!("Unsupported table column definition: {e:?}"),
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        let (ins, outs) = inputs.iter().partition::<Vec<_>, _>(contains_fixed);
+        Ok(Self {
+            columns,
+            io: (ins.len(), outs.len()),
+        })
+    }
+
+    pub fn id(&self) -> u64 {
+        let mut s = DefaultHasher::new();
+        self.hash(&mut s);
+        s.finish()
+    }
+
+    pub fn module_name(&self) -> String {
+        format!("lookup_{}", self.id())
+    }
+
+    pub fn inputs(&self) -> usize {
+        self.io.0
+    }
+
+    pub fn outputs(&self) -> usize {
+        self.io.1
     }
 }

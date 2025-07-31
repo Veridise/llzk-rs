@@ -1,4 +1,4 @@
-use super::lowering::Lowering;
+use super::{func::FuncIO, lowering::Lowering};
 use crate::{
     gates::AnyQuery,
     halo2::{Any, Column, Expression, Field, Fixed, Rotation, Selector},
@@ -11,7 +11,12 @@ use anyhow::Result;
 pub mod lookup;
 pub mod strats;
 
-pub type WithinMainResult<O> = Result<Vec<CircuitStmt<O>>>;
+pub type BodyResult<O> = Result<Vec<CircuitStmt<O>>>;
+
+#[inline]
+fn lower_io<O>(count: usize, f: impl Fn(usize) -> O) -> Vec<O> {
+    (0..count).map(f).collect()
+}
 
 pub trait Codegen<'c>: Sized {
     type FuncOutput: Lowering<F = Self::F>;
@@ -20,9 +25,7 @@ pub trait Codegen<'c>: Sized {
 
     fn within_main<FN>(&self, syn: &CircuitSynthesis<Self::F>, f: FN) -> Result<()>
     where
-        FN: FnOnce(
-            &Self::FuncOutput,
-        ) -> WithinMainResult<<Self::FuncOutput as Lowering>::CellOutput>,
+        FN: FnOnce(&Self::FuncOutput) -> BodyResult<<Self::FuncOutput as Lowering>::CellOutput>,
     {
         let main = self.define_main_function(syn)?;
         let stmts = f(&main)?;
@@ -38,6 +41,37 @@ pub trait Codegen<'c>: Sized {
         output_queries: &[AnyQuery],
         syn: &CircuitSynthesis<Self::F>,
     ) -> Result<Self::FuncOutput>;
+
+    fn define_function(
+        &self,
+        name: &str,
+        inputs: usize,
+        outputs: usize,
+        syn: &CircuitSynthesis<Self::F>,
+    ) -> Result<Self::FuncOutput>;
+
+    fn define_function_with_body<FN>(
+        &self,
+        name: &str,
+        inputs: usize,
+        outputs: usize,
+        syn: &CircuitSynthesis<Self::F>,
+        f: FN,
+    ) -> Result<()>
+    where
+        FN: FnOnce(
+            &Self::FuncOutput,
+            &[FuncIO],
+            &[FuncIO],
+        ) -> BodyResult<<Self::FuncOutput as Lowering>::CellOutput>,
+    {
+        let func = self.define_function(name, inputs, outputs, syn)?;
+        let inputs = func.lower_function_inputs(0..inputs);
+        let outputs = func.lower_function_outputs(0..outputs);
+        let stmts = f(&func, &inputs, &outputs)?;
+        self.lower_stmts(&func, stmts.into_iter().map(Ok))?;
+        self.on_scope_end(func)
+    }
 
     fn define_main_function(&self, syn: &CircuitSynthesis<Self::F>) -> Result<Self::FuncOutput>;
 
@@ -105,23 +139,18 @@ pub trait CodegenStrategy: Default {
 
 pub fn lower_stmts<Scope: Lowering>(
     scope: &Scope,
-    stmts: impl Iterator<Item = Result<CircuitStmt<<Scope as Lowering>::CellOutput>>>,
+    mut stmts: impl Iterator<Item = Result<CircuitStmt<<Scope as Lowering>::CellOutput>>>,
 ) -> Result<()> {
-    for stmt in stmts {
-        let stmt = stmt?;
-        match stmt {
-            CircuitStmt::ConstraintCall(name, inputs, outputs) => {
-                scope.generate_call(&name, &inputs, &outputs)?;
-            }
-            CircuitStmt::Constraint(op, lhs, rhs) => {
-                scope.checked_generate_constraint(op, &lhs, &rhs)?;
-            }
-            CircuitStmt::Comment(s) => scope.generate_comment(s)?,
-            CircuitStmt::AssumeDeterministic(func_io) => {
-                scope.generate_assume_deterministic(func_io)?
-            }
-            CircuitStmt::Assert(expr) => scope.generate_assert(&expr)?,
-        };
-    }
-    Ok(())
+    stmts.try_for_each(|stmt| {
+        stmt.and_then(|stmt| {
+            stmt.reduce(
+                &|name, inputs, outputs| scope.generate_call(&name, &inputs, &outputs),
+                &|op, lhs, rhs| scope.checked_generate_constraint(op, &lhs, &rhs),
+                &|s| scope.generate_comment(s),
+                &|func_io| scope.generate_assume_deterministic(func_io),
+                &|expr| scope.generate_assert(&expr),
+                &|_, _| (),
+            )
+        })
+    })
 }

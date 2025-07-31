@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use crate::{
     gates::AnyQuery,
     halo2::{AdviceQuery, Challenge, Expression, Field, FixedQuery, Gate, InstanceQuery, Selector},
@@ -144,6 +146,20 @@ pub trait Lowering {
             .collect()
     }
 
+    #[allow(dead_code)]
+    fn lower_expr_refs(
+        &self,
+        exprs: &[&Expression<Self::F>],
+        query_resolver: &dyn QueryResolver<Self::F>,
+        selector_resolver: &dyn SelectorResolver,
+    ) -> Result<Vec<Self::CellOutput>> {
+        exprs
+            .iter()
+            .copied()
+            .map(|e| self.lower_expr(e, query_resolver, selector_resolver))
+            .collect()
+    }
+
     fn lower_selectors(
         &self,
         sels: &[&Selector],
@@ -217,4 +233,18 @@ pub trait Lowering {
     fn lower_or(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput>;
 
     fn generate_assert(&self, expr: &Self::CellOutput) -> Result<()>;
+
+    fn lower_function_input(&self, i: usize) -> FuncIO;
+    fn lower_function_output(&self, o: usize) -> FuncIO;
+
+    fn lower_function_inputs(&self, ins: Range<usize>) -> Vec<FuncIO> {
+        ins.map(|i| self.lower_function_input(i)).collect()
+    }
+    fn lower_function_outputs(&self, outs: Range<usize>) -> Vec<FuncIO> {
+        outs.map(|o| self.lower_function_output(o)).collect()
+    }
+
+    fn lower_funcio<IO>(&self, io: IO) -> Result<Self::CellOutput>
+    where
+        IO: Into<FuncIO>;
 }

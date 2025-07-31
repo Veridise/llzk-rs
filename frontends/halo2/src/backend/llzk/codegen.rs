@@ -82,4 +82,14 @@ impl<'c, F: LiftLike> Codegen<'c> for LlzkCodegen<'c, F> {
     fn generate_output(self) -> Result<Self::Output> {
         todo!()
     }
+
+    fn define_function(
+        &self,
+        _name: &str,
+        _inputs: usize,
+        _outputs: usize,
+        _syn: &CircuitSynthesis<Self::F>,
+    ) -> Result<Self::FuncOutput> {
+        todo!()
+    }
 }
