@@ -181,7 +181,7 @@ impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
                 self.read_field(field.field_name(), field.field_type())
             }
             ResolvedQuery::IO(FuncIO::Fixed(_, _)) => todo!(),
-            ResolvedQuery::IO(FuncIO::TableLookup(_, _, _, _)) => todo!(),
+            ResolvedQuery::IO(FuncIO::TableLookup(_, _, _, _, _)) => todo!(),
         }
     }
 }

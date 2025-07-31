@@ -56,7 +56,7 @@ pub enum MockExprIR {
     Const(Fr),
     Temp(usize, usize),
     Fixed(usize, usize),
-    LookupCell(u64, usize, usize, usize),
+    LookupCell(u64, usize, usize, usize, usize),
     Constraint(usize, usize),
     Call(String, Vec<usize>),
 }
@@ -68,7 +68,9 @@ impl From<FuncIO> for MockExprIR {
             FuncIO::Field(field_id) => MockExprIR::Field(field_id),
             FuncIO::Advice(col, row) => MockExprIR::Temp(col, row),
             FuncIO::Fixed(col, row) => MockExprIR::Fixed(col, row),
-            FuncIO::TableLookup(id, col, row, idx) => MockExprIR::LookupCell(id, col, row, idx),
+            FuncIO::TableLookup(id, col, row, idx, region_idx) => {
+                MockExprIR::LookupCell(id, col, row, idx, region_idx)
+            }
         }
     }
 }
@@ -97,8 +99,8 @@ impl fmt::Debug for MockExprIR {
                 }
                 write!(f, ")")
             }
-            MockExprIR::LookupCell(id, col, row, idx) => {
-                write!(f, "lookup{id}[{col}, {row}] @ {idx}")
+            MockExprIR::LookupCell(id, col, row, idx, ridx) => {
+                write!(f, "lookup{id}[{col}, {row}] @ {idx} @ region {ridx}")
             }
         }
     }

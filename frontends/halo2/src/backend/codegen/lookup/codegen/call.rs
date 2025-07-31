@@ -104,8 +104,16 @@ where
     outputs
         .into_iter()
         .map(|(e, o)| {
-            let o = query_from_table_expr(o)
-                .map(|q| FuncIO::TableLookup(lookup_id, q.column_index(), row, lookup.idx))?;
+            let o = query_from_table_expr(o).and_then(|q| {
+                Ok(FuncIO::TableLookup(
+                    lookup_id,
+                    q.column_index(),
+                    row,
+                    lookup.idx,
+                    r.region_index()
+                        .ok_or_else(|| anyhow::anyhow!("No region index"))?,
+                ))
+            })?;
             let e = scope.lower_expr(e, r, r)?;
             let oe = scope.lower_funcio(o)?;
             Ok((o, CircuitStmt::Constraint(BinaryBoolOp::Eq, e, oe)))
@@ -128,9 +136,14 @@ where
     Ok(CircuitStmt::Seq(
         [
             CircuitStmt::Comment(format!(
-                "Lookup {} '{}' @ row {}",
+                "Lookup {} '{}' @ region {} '{}' @ row {}",
                 lookup.idx(),
                 lookup.name(),
+                r.region_index()
+                    .as_ref()
+                    .map(ToString::to_string)
+                    .unwrap_or_else(|| "<unk>".to_string()),
+                r.region_name(),
                 r.row_number()
             )),
             CircuitStmt::ConstraintCall(
