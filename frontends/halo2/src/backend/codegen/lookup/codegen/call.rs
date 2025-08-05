@@ -1,18 +1,20 @@
-use std::collections::HashSet;
-
 use anyhow::Result;
 
 use crate::{
     backend::{
         codegen::{
-            lookup::{contains_fixed, query_from_table_expr, Lookup},
+            lookup::{contains_fixed, query_from_table_expr},
             Codegen,
         },
         func::FuncIO,
-        lowering::Lowering,
+        lowering::{Lowerable, LowerableOrIO, Lowering, LoweringOutput},
+        resolvers::ResolversProvider,
     },
+    expressions::{ExpressionFactory as _, ScopedExpression},
     halo2::{Expression, Field},
-    synthesis::{regions::RegionRow, CircuitSynthesis},
+    ir::chain_lowerable_stmts,
+    lookups::{callbacks::LookupCallbacks, Lookup},
+    synthesis::{regions::RegionRowLike, CircuitSynthesis},
     BinaryBoolOp, CircuitStmt,
 };
 
@@ -22,138 +24,151 @@ use super::LookupCodegenStrategy;
 pub struct InvokeLookupAsModule {}
 
 impl LookupCodegenStrategy for InvokeLookupAsModule {
-    fn define_modules<'c, C>(&self, codegen: &C, syn: &CircuitSynthesis<C::F>) -> Result<()>
+    fn define_modules<'c, C>(
+        &self,
+        codegen: &C,
+        syn: &CircuitSynthesis<C::F>,
+        lookups: &dyn LookupCallbacks<C::F>,
+    ) -> Result<()>
     where
         C: Codegen<'c>,
     {
-        Lookup::load(syn)?
-            .iter()
-            .map(|l| l.kind())
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .try_for_each(|kind| {
-                codegen.define_function_with_body(
-                    &kind.module_name(),
-                    kind.inputs(),
-                    kind.outputs(),
-                    syn,
-                    |_, _, outputs| {
-                        Ok(outputs
+        for kind in syn.lookup_kinds(lookups)? {
+            codegen.define_function_with_body(
+                &kind.module_name(),
+                kind.inputs(),
+                kind.outputs(),
+                syn,
+                |_, inputs, outputs| {
+                    struct Dummy<F>(F);
+
+                    impl<F: Field> Lowerable for Dummy<F> {
+                        type F = F;
+
+                        fn lower<L>(self, _l: &L) -> Result<impl Into<LoweringOutput<L>>>
+                        where
+                            L: Lowering<F = Self::F> + ?Sized,
+                        {
+                            anyhow::bail!("Dummy value should not be lowered");
+                            #[allow(unreachable_code)]
+                            Ok(())
+                        }
+                    }
+                    Ok(chain_lowerable_stmts!(
+                        outputs
                             .into_iter()
                             .copied()
-                            .map(CircuitStmt::AssumeDeterministic)
-                            .collect())
-                    },
-                )
-            })
+                            .map(CircuitStmt::<Dummy<C::F>>::assume_deterministic),
+                        lookups.on_body(&kind, inputs, outputs)?
+                    )
+                    .collect())
+                },
+            )?
+        }
+        Ok(())
     }
 
-    fn invoke_lookups<L>(
+    fn invoke_lookups<'s, F: Field>(
         &self,
-        scope: &L,
-        syn: &CircuitSynthesis<L::F>,
-    ) -> Result<impl Iterator<Item = Result<CircuitStmt<L::CellOutput>>>>
-    where
-        L: Lowering,
-    {
-        let region_rows = move || {
-            syn.regions().into_iter().flat_map(move |r| {
-                r.rows()
-                    .map(move |row| RegionRow::new(r, row, syn.advice_io(), syn.instance_io()))
-            })
-        };
-        Ok(Lookup::load(syn)?
-            .into_iter()
-            .flat_map(move |l| region_rows().map(move |r| create_call_stmt(&l, scope, &r))))
+        syn: &'s CircuitSynthesis<F>,
+        lookups: &'s dyn LookupCallbacks<F>,
+    ) -> Result<impl Iterator<Item = Result<CircuitStmt<impl Lowerable<F = F> + 's>>> + 's> {
+        Ok(syn.lookups_per_region_row(lookups).map(|(r, l)| {
+            let additional = l.callbacks().on_call(&r, l)?;
+            Ok(chain_lowerable_stmts!(create_call_stmt(l, r), additional)
+                .collect::<CircuitStmt<_>>())
+        }))
     }
 }
 
 type TableLookup<'a, F> = (&'a Expression<F>, &'a Expression<F>);
 
 fn get_lookup_io<'a, F: Field>(
-    lookup: &'a Lookup<'a, F>,
+    lookup: Lookup<'a, F>,
 ) -> (Vec<TableLookup<'a, F>>, Vec<TableLookup<'a, F>>) {
     lookup
         .expressions()
         .partition::<Vec<_>, _>(|(e, _)| contains_fixed(e))
 }
 
-fn process_inputs<L>(
-    inputs: Vec<TableLookup<L::F>>,
-    scope: &L,
-    r: &RegionRow<L::F>,
-) -> Result<Vec<L::CellOutput>>
+fn process_outputs<'a, 'r, I, T, F: Field>(
+    lookup_id: u64,
+    lookup_idx: usize,
+    outputs: I,
+    region_row: T,
+) -> Result<(
+    Vec<FuncIO>,
+    Vec<CircuitStmt<LowerableOrIO<ScopedExpression<'a, 'r, F>>>>,
+)>
 where
-    L: Lowering,
+    I: Iterator<Item = TableLookup<'a, F>>,
+    T: ResolversProvider<F> + RegionRowLike + Copy + 'r,
 {
-    let inputs = inputs.into_iter().map(|(e, _)| e).collect::<Vec<_>>();
-    scope.lower_expr_refs(inputs.as_slice(), r, r)
-}
-
-fn process_outputs<L>(
-    lookup: &Lookup<L::F>,
-    outputs: Vec<TableLookup<L::F>>,
-    scope: &L,
-    r: &RegionRow<L::F>,
-) -> Result<(Vec<FuncIO>, Vec<CircuitStmt<L::CellOutput>>)>
-where
-    L: Lowering,
-{
-    let lookup_id = lookup.kind().id();
-    let row = r.row_number();
+    let row = region_row.row_number();
     outputs
         .into_iter()
-        .map(|(e, o)| {
+        .map(move |(e, o)| {
             let o = query_from_table_expr(o).and_then(|q| {
                 Ok(FuncIO::TableLookup(
                     lookup_id,
                     q.column_index(),
                     row,
-                    lookup.idx,
-                    r.region_index()
+                    lookup_idx,
+                    region_row
+                        .region_index()
                         .ok_or_else(|| anyhow::anyhow!("No region index"))?,
                 ))
             })?;
-            let e = scope.lower_expr(e, r, r)?;
-            let oe = scope.lower_funcio(o)?;
-            Ok((o, CircuitStmt::Constraint(BinaryBoolOp::Eq, e, oe)))
+            let e = LowerableOrIO::from(region_row.create_ref(e));
+            let oe = LowerableOrIO::from(o);
+            Ok((o, CircuitStmt::constraint(BinaryBoolOp::Eq, oe, e)))
         })
         .collect::<Result<Vec<_>>>()
-        .map(|v| v.into_iter().unzip())
+        .map(move |v| v.into_iter().unzip())
 }
 
-fn create_call_stmt<L>(
-    lookup: &Lookup<L::F>,
-    scope: &L,
-    r: &RegionRow<L::F>,
-) -> Result<CircuitStmt<L::CellOutput>>
+fn process_inputs<'r, I, T, F>(
+    inputs: I,
+    r: T,
+) -> impl Iterator<Item = ScopedExpression<'r, 'r, F>> + 'r
 where
-    L: Lowering,
+    I: Iterator<Item = TableLookup<'r, F>> + 'r,
+    T: ResolversProvider<F> + Copy + 'r,
+    F: Field,
 {
-    let (inputs, outputs) = get_lookup_io(lookup);
-    let (vars, constraints) = process_outputs(lookup, outputs, scope, r)?;
+    inputs.into_iter().map(move |(e, _)| r.create_ref(e))
+}
 
-    Ok(CircuitStmt::Seq(
-        [
-            CircuitStmt::Comment(format!(
-                "Lookup {} '{}' @ region {} '{}' @ row {}",
-                lookup.idx(),
-                lookup.name(),
-                r.region_index()
-                    .as_ref()
-                    .map(ToString::to_string)
-                    .unwrap_or_else(|| "<unk>".to_string()),
-                r.region_name(),
-                r.row_number()
-            )),
-            CircuitStmt::ConstraintCall(
-                lookup.module_name(),
-                process_inputs(inputs, scope, r)?,
-                vars,
-            ),
-        ]
-        .into_iter()
-        .chain(constraints)
-        .collect::<Vec<_>>(),
-    ))
+fn create_call_stmt<'r, T, F: Field>(
+    lookup: Lookup<'r, F>,
+    r: T,
+) -> Result<CircuitStmt<impl Lowerable<F = F> + 'r>>
+where
+    T: ResolversProvider<F> + RegionRowLike + Copy + 'r,
+{
+    let lookup_id = lookup.kind()?.id();
+    let lookup_idx = lookup.idx();
+    let (inputs, outputs) = get_lookup_io(lookup);
+    let (vars, constraints) = process_outputs(lookup_id, lookup_idx, outputs.into_iter(), r)?;
+
+    let call = CircuitStmt::call(
+        lookup.module_name()?,
+        process_inputs(inputs.into_iter(), r),
+        vars,
+    );
+
+    let comment = CircuitStmt::comment(format!(
+        "Lookup {} '{}' @ region {} '{}' @ row {}",
+        lookup.idx(),
+        lookup.name(),
+        r.region_index()
+            .as_ref()
+            .map(ToString::to_string)
+            .unwrap_or_else(|| "<unk>".to_string()),
+        r.region_name(),
+        r.row_number()
+    ));
+    Ok(chain_lowerable_stmts!([comment, call], constraints)
+        .map(|s| s.map(&|l| l.fold_right()))
+        .collect::<CircuitStmt<_>>())
 }

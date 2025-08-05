@@ -5,7 +5,7 @@ use super::{
 use crate::{
     backend::{
         func::{ArgNo, FieldId, FuncIO},
-        lowering::Lowering,
+        lowering::{tag::LoweringOutput, Lowering},
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     },
     halo2::{
@@ -135,6 +135,8 @@ impl<L: LiftLike> LiftLowering for PicusModuleLowering<L> {
         bail!("Conditional select operation is not expressible in Picus")
     }
 }
+
+impl LoweringOutput for PicusExpr {}
 
 impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
     type CellOutput = PicusExpr;

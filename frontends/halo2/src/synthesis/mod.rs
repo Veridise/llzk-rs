@@ -12,8 +12,9 @@ use crate::{
     gates::find_gate_selector_set,
     halo2::*,
     io::{AdviceIOValidator, InstanceIOValidator},
+    lookups::{callbacks::LookupCallbacks, Lookup, LookupKind},
     value::steal,
-    CircuitIO, CircuitWithIO,
+    CircuitCallbacks, CircuitIO,
 };
 
 pub struct CircuitSynthesis<F: Field> {
@@ -32,7 +33,7 @@ pub struct CircuitSynthesis<F: Field> {
 pub type AnyCell = (Column<Any>, usize);
 
 impl<F: Field> CircuitSynthesis<F> {
-    fn init<C: CircuitWithIO<F>>() -> (Self, C::Config) {
+    fn init<C: Circuit<F>, CB: CircuitCallbacks<F, C>>() -> (Self, C::Config) {
         let mut cs = ConstraintSystem::default();
         let config = C::configure(&mut cs);
 
@@ -42,8 +43,8 @@ impl<F: Field> CircuitSynthesis<F> {
                 regions: Default::default(),
                 #[cfg(feature = "phase-tracking")]
                 current_phase: FirstPhase.to_sealed(),
-                advice_io: C::advice_io(&config),
-                instance_io: C::instance_io(&config),
+                advice_io: CB::advice_io(&config),
+                instance_io: CB::instance_io(&config),
                 eq_constraints: Default::default(),
                 materialized_fixed_cells: Default::default(),
                 out_of_region_fixed_cells: Default::default(),
@@ -52,8 +53,8 @@ impl<F: Field> CircuitSynthesis<F> {
         )
     }
 
-    pub fn new<C: CircuitWithIO<F>>(circuit: &C) -> Result<Self> {
-        let (mut syn, config) = Self::init::<C>();
+    pub fn new<C: Circuit<F>, CB: CircuitCallbacks<F, C>>(circuit: &C) -> Result<Self> {
+        let (mut syn, config) = Self::init::<C, CB>();
 
         syn.synthesize(circuit, config)?;
         log::debug!("cs = {:?}", syn.cs);
@@ -74,6 +75,35 @@ impl<F: Field> CircuitSynthesis<F> {
 
     pub fn regions<'a>(&'a self) -> Vec<RegionData<'a, F>> {
         self.regions.regions()
+    }
+
+    pub fn region_rows<'a>(&'a self) -> impl Iterator<Item = RegionRow<'a, 'a, F>> + 'a {
+        self.regions().into_iter().flat_map(move |r| {
+            r.rows()
+                .map(move |row| RegionRow::new(r, row, self.advice_io(), self.instance_io()))
+        })
+    }
+
+    pub fn lookups<'a>(
+        &'a self,
+        lookups: &'a (dyn LookupCallbacks<F> + 'a),
+    ) -> impl Iterator<Item = Lookup<'a, F>> + 'a {
+        Lookup::load(self, lookups).into_iter()
+    }
+
+    pub fn lookup_kinds<'a>(
+        &'a self,
+        lookups: &'a (dyn LookupCallbacks<F> + 'a),
+    ) -> Result<HashSet<LookupKind>> {
+        self.lookups(lookups).map(|l| l.kind()).collect()
+    }
+
+    pub fn lookups_per_region_row<'a>(
+        &'a self,
+        lookups: &'a (dyn LookupCallbacks<F> + 'a),
+    ) -> impl Iterator<Item = (RegionRow<'a, 'a, F>, Lookup<'a, F>)> + 'a {
+        self.region_rows()
+            .flat_map(|r| self.lookups(lookups).map(move |l| (r, l)))
     }
 
     pub fn tables(&self) -> &[TableData<F>] {
@@ -97,8 +127,14 @@ impl<F: Field> CircuitSynthesis<F> {
         &self.instance_io
     }
 
-    pub fn constraints<'a>(&'a self) -> Iter<'a, (AnyCell, AnyCell)> {
-        self.eq_constraints.iter()
+    pub fn constraints(&self) -> impl Iterator<Item = (AnyCell, AnyCell)> {
+        self.eq_constraints.into_iter().copied()
+    }
+
+    pub fn sorted_constraints(&self) -> Vec<(AnyCell, AnyCell)> {
+        let mut constraints = self.eq_constraints.iter().copied().collect::<Vec<_>>();
+        constraints.sort();
+        constraints
     }
 
     /// Returns an iterator with equality constraints

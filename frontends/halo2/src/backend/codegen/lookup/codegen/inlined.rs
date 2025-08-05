@@ -9,6 +9,7 @@ use crate::{
         resolvers::{QueryResolver as _, ResolvedQuery},
     },
     halo2::{Expression, Value},
+    lookups::Lookup,
     synthesis::{
         regions::{RegionRow, TableData},
         CircuitSynthesis,
@@ -16,8 +17,6 @@ use crate::{
     value::steal,
     BinaryBoolOp, CircuitStmt,
 };
-
-use crate::backend::codegen::lookup::Lookup;
 
 use super::LookupCodegenStrategy;
 
@@ -78,13 +77,13 @@ impl LookupCodegenStrategy for LookupAsRowConstraint {
                         .into_iter()
                         .map(|vals| {
                             assert!(
-                                l.inputs.len() == vals.len(),
+                                l.inputs().len() == vals.len(),
                                 "inputs({}) = {:?} | vals({}) = {vals:?}",
-                                l.inputs.len(),
-                                l.inputs,
+                                l.inputs().len(),
+                                l.inputs(),
                                 vals.len()
                             );
-                            vals.into_iter().zip(l.inputs).collect::<Vec<_>>()
+                            vals.into_iter().zip(l.inputs()).collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
 
@@ -119,7 +118,7 @@ where
         .map(|(v, e)| {
             let v = steal(v).ok_or_else(|| anyhow!("Table value was unknown!"))?;
             let v = scope.lower_constant(v)?;
-            let e = scope.lower_expr(e, &row, &row)?;
+            let e = scope.lower_expr(e, &row)?;
 
             scope.lower_eq(&v, &e)
         })

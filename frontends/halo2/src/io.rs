@@ -125,12 +125,3 @@ impl<F: Field> IOValidator for InstanceIOValidator<'_, F> {
         self.sets_are_disjoint(io).map(|_| {})
     }
 }
-
-/// Defines, for a given circuit, what advices and instances are inputs or are outputs. This
-/// information is required by the LLZK codegen module to construct the IR representation of the
-/// circuit.
-pub trait CircuitWithIO<F: Field>: Circuit<F> {
-    fn advice_io(config: &Self::Config) -> CircuitIO<Advice>;
-
-    fn instance_io(config: &Self::Config) -> CircuitIO<Instance>;
-}

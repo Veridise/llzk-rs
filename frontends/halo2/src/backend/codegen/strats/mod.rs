@@ -4,14 +4,12 @@ use crate::backend::func::{ArgNo, FieldId, FuncIO};
 use crate::backend::resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver};
 use crate::{
     gates::AnyQuery,
-    halo2::{
-        AdviceQuery, Field, FixedQuery, InstanceQuery, Selector,
-    },
+    halo2::{AdviceQuery, Field, FixedQuery, InstanceQuery, Selector},
     synthesis::regions::FQN,
 };
 use anyhow::{anyhow, Result};
 
-pub mod call_gates;
+//pub mod call_gates;
 pub mod inline;
 
 #[derive(Copy, Clone)]
@@ -20,10 +18,11 @@ enum IO {
     O(usize),
 }
 
+#[derive(Clone)]
 pub struct GateScopedResolver<'a> {
-    pub selectors: &'a [&'a Selector],
-    pub queries: &'a [AnyQuery],
-    pub outputs: &'a [AnyQuery],
+    pub selectors: Vec<&'a Selector>,
+    pub queries: Vec<AnyQuery>,
+    pub outputs: Vec<AnyQuery>,
 }
 
 fn resolve<'a, A, B, I, O>(mut it: I, b: &B, err: &'static str) -> Result<O>
@@ -55,7 +54,7 @@ impl<'a> GateScopedResolver<'a> {
             .map(|(idx, s)| (s, IO::I(idx)))
     }
 
-    fn io_queries(&self) -> impl Iterator<Item = (&'a AnyQuery, IO)> {
+    fn io_queries<'q>(&'q self) -> impl Iterator<Item = (&'q AnyQuery, IO)> {
         let input_base = self.selectors.len();
         self.queries
             .iter()

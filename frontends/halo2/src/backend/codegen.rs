@@ -1,10 +1,18 @@
-use super::{func::FuncIO, lowering::Lowering};
+use super::{
+    func::FuncIO,
+    lowering::{Lowerable, Lowering},
+    resolvers::ResolversProvider,
+};
 use crate::{
+    expressions::{ExpressionFactory, ScopedExpression},
     gates::AnyQuery,
-    halo2::{Any, Column, Expression, Field, Fixed, Rotation, Selector},
+    halo2::{Any, Column, ColumnType, Expression, Field, Fixed, Gate, Rotation, Selector},
     ir::{BinaryBoolOp, CircuitStmt},
-    synthesis::{regions::Row, CircuitSynthesis},
-    CircuitWithIO,
+    lookups::callbacks::LookupCallbacks,
+    synthesis::{
+        regions::{RegionRow, Row},
+        CircuitSynthesis,
+    },
 };
 use anyhow::Result;
 
@@ -23,9 +31,11 @@ pub trait Codegen<'c>: Sized {
     type Output;
     type F: Field + Clone;
 
-    fn within_main<FN>(&self, syn: &CircuitSynthesis<Self::F>, f: FN) -> Result<()>
+    fn within_main<FN, L, I>(&self, syn: &CircuitSynthesis<Self::F>, f: FN) -> Result<()>
     where
-        FN: FnOnce(&Self::FuncOutput) -> BodyResult<<Self::FuncOutput as Lowering>::CellOutput>,
+        FN: FnOnce(&Self::FuncOutput) -> Result<I>,
+        I: IntoIterator<Item = CircuitStmt<L>>,
+        L: Lowerable<F = Self::F>,
     {
         let main = self.define_main_function(syn)?;
         let stmts = f(&main)?;
@@ -50,7 +60,7 @@ pub trait Codegen<'c>: Sized {
         syn: &CircuitSynthesis<Self::F>,
     ) -> Result<Self::FuncOutput>;
 
-    fn define_function_with_body<FN>(
+    fn define_function_with_body<FN, L>(
         &self,
         name: &str,
         inputs: usize,
@@ -59,11 +69,8 @@ pub trait Codegen<'c>: Sized {
         f: FN,
     ) -> Result<()>
     where
-        FN: FnOnce(
-            &Self::FuncOutput,
-            &[FuncIO],
-            &[FuncIO],
-        ) -> BodyResult<<Self::FuncOutput as Lowering>::CellOutput>,
+        FN: FnOnce(&Self::FuncOutput, &[FuncIO], &[FuncIO]) -> BodyResult<L>,
+        L: Lowerable<F = Self::F>,
     {
         let func = self.define_function(name, inputs, outputs, syn)?;
         let inputs = func.lower_function_inputs(0..inputs);
@@ -78,7 +85,7 @@ pub trait Codegen<'c>: Sized {
     fn lower_stmts(
         &self,
         scope: &Self::FuncOutput,
-        stmts: impl Iterator<Item = Result<CircuitStmt<<Self::FuncOutput as Lowering>::CellOutput>>>,
+        stmts: impl Iterator<Item = Result<CircuitStmt<impl Lowerable<F = Self::F>>>>,
     ) -> Result<()> {
         lower_stmts(scope, stmts)
     }
@@ -90,67 +97,115 @@ pub trait Codegen<'c>: Sized {
     fn generate_output(self) -> Result<Self::Output>;
 }
 
-pub trait CodegenStrategy: Default {
-    fn codegen<'c, C>(&self, codegen: &C, syn: &CircuitSynthesis<C::F>) -> Result<()>
-    where
-        C: Codegen<'c>;
+#[derive(Copy, Clone)]
+struct IRCHelper<'s, F: Field> {
+    syn: &'s CircuitSynthesis<F>,
+}
 
-    fn inter_region_constraints<'c, F, L>(
-        &self,
-        scope: &'c L,
-        syn: &'c CircuitSynthesis<F>,
-    ) -> impl Iterator<Item = Result<CircuitStmt<L::CellOutput>>> + 'c
+impl<'s, F: Field> IRCHelper<'s, F> {
+    fn lower_cell<'e, C: ColumnType>(
+        self,
+        (col, row): (Column<C>, usize),
+    ) -> ScopedExpression<'e, 's, F>
     where
-        F: Field,
-        L: Lowering<F = F>,
+        's: 'e,
     {
-        let lower_cell = |(col, row): &(Column<Any>, usize)| -> Result<L::CellOutput> {
-            let q = col.query_cell::<L::F>(Rotation::cur());
-            let row = Row::new(*row, syn.advice_io(), syn.instance_io());
-            scope.lower_expr(&q, &row, &row)
-        };
-
-        let mut constraints = syn.constraints().collect::<Vec<_>>();
-        constraints.sort();
-        constraints
-            .into_iter()
-            .map(move |(from, to)| {
-                log::debug!("{from:?} == {to:?}");
-                Ok(CircuitStmt::Constraint(
-                    BinaryBoolOp::Eq,
-                    lower_cell(from)?,
-                    lower_cell(to)?,
-                ))
-            })
-            .chain(
-                syn.fixed_constraints()
-                    .inspect(|r| log::debug!("Fixed constraint: {r:?}"))
-                    .map(|r| {
-                        r.and_then(|(col, row, f): (Column<Fixed>, _, _)| {
-                            let r = Row::new(row, syn.advice_io(), syn.instance_io());
-                            let lhs = scope.lower_expr(&col.query_cell(Rotation::cur()), &r, &r)?;
-                            let rhs = scope.lower_expr(&Expression::Constant(f), &r, &r)?;
-                            Ok(CircuitStmt::Constraint(BinaryBoolOp::Eq, lhs, rhs))
-                        })
-                    }),
-            )
+        self.lower_expr(col.query_cell::<F>(Rotation::cur()), row)
     }
+
+    fn lower_const<'e>(self, c: F, row: usize) -> ScopedExpression<'e, 's, F>
+    where
+        's: 'e,
+    {
+        self.lower_expr(Expression::Constant(c), row)
+    }
+
+    fn lower_expr<'e>(self, e: Expression<F>, row: usize) -> ScopedExpression<'e, 's, F>
+    where
+        's: 'e,
+    {
+        Row::new(row, self.syn.advice_io(), self.syn.instance_io()).create(e)
+    }
+}
+
+pub fn inter_region_constraints<'r, F: Field>(
+    syn: &'r CircuitSynthesis<F>,
+) -> Result<impl IntoIterator<Item = CircuitStmt<ScopedExpression<'r, 'r, F>>> + 'r> {
+    syn.sorted_constraints()
+        .into_iter()
+        .map(move |(from, to)| {
+            log::debug!("{from:?} == {to:?}");
+            let helper = IRCHelper { syn };
+            Ok(CircuitStmt::constraint(
+                BinaryBoolOp::Eq,
+                helper.lower_cell(from),
+                helper.lower_cell(to),
+            ))
+        })
+        .chain(
+            syn.fixed_constraints()
+                .inspect(|r| log::debug!("Fixed constraint: {r:?}"))
+                .map(|r| {
+                    r.map(|(col, row, f): (Column<Fixed>, _, _)| {
+                        let helper = IRCHelper { syn };
+                        CircuitStmt::constraint(
+                            BinaryBoolOp::Eq,
+                            helper.lower_cell((col, row)),
+                            helper.lower_const(f, row),
+                        )
+                    })
+                }),
+        )
+        .collect::<Result<Vec<_>>>()
+}
+
+pub trait CodegenStrategy: Default {
+    fn codegen<'c, 's, C>(
+        &self,
+        codegen: &C,
+        syn: &'s CircuitSynthesis<C::F>,
+        lookups: &dyn LookupCallbacks<C::F>,
+    ) -> Result<()>
+    where
+        C: Codegen<'c>,
+        Row<'s, C::F>: ResolversProvider<C::F> + 's,
+        RegionRow<'s, 's, C::F>: ResolversProvider<C::F> + 's;
+}
+
+pub fn lower_constraints<'g, F, R, S>(
+    gate: &'g Gate<F>,
+    resolvers: R,
+    region_header: S,
+    row: Option<usize>,
+) -> impl Iterator<Item = CircuitStmt<ScopedExpression<'g, 'g, F>>> + 'g
+where
+    R: ResolversProvider<F> + Clone + 'g,
+    S: ToString,
+    F: Field,
+{
+    let stmts = match row {
+        Some(row) => vec![CircuitStmt::comment(format!(
+            "gate '{}' @ {} @ row {}",
+            gate.name(),
+            region_header.to_string(),
+            row
+        ))],
+        None => vec![],
+    };
+    stmts
+        .into_iter()
+        .chain(gate.polynomials().iter().map(move |lhs| {
+            CircuitStmt::constraint(
+                BinaryBoolOp::Eq,
+                resolvers.clone().create_ref(lhs),
+                resolvers.clone().create(Expression::Constant(F::ZERO)),
+            )
+        }))
 }
 
 pub fn lower_stmts<Scope: Lowering>(
     scope: &Scope,
-    mut stmts: impl Iterator<Item = Result<CircuitStmt<<Scope as Lowering>::CellOutput>>>,
+    mut stmts: impl Iterator<Item = Result<CircuitStmt<impl Lowerable<F = Scope::F>>>>,
 ) -> Result<()> {
-    stmts.try_for_each(|stmt| {
-        stmt.and_then(|stmt| {
-            stmt.reduce(
-                &|name, inputs, outputs| scope.generate_call(&name, &inputs, &outputs),
-                &|op, lhs, rhs| scope.checked_generate_constraint(op, &lhs, &rhs),
-                &|s| scope.generate_comment(s),
-                &|func_io| scope.generate_assume_deterministic(func_io),
-                &|expr| scope.generate_assert(&expr),
-                &|_, _| (),
-            )
-        })
-    })
+    stmts.try_for_each(|stmt| stmt.and_then(|stmt| scope.lower_stmt(stmt)))
 }

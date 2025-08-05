@@ -1,17 +1,199 @@
 use std::ops::Range;
 
 use crate::{
+    expressions::ScopedExpression,
     gates::AnyQuery,
     halo2::{AdviceQuery, Challenge, Expression, Field, FixedQuery, Gate, InstanceQuery, Selector},
     ir::{BinaryBoolOp, CircuitStmt},
 };
 use anyhow::{bail, Result};
 
-use super::{func::FuncIO, QueryResolver, SelectorResolver};
+use super::{func::FuncIO, resolvers::ResolversProvider, QueryResolver, SelectorResolver};
+
+pub enum LoweringOutput<L: Lowering + ?Sized> {
+    Value(L::CellOutput),
+    Stmt,
+}
+
+impl<L: Lowering + ?Sized> From<()> for LoweringOutput<L> {
+    fn from(_: ()) -> Self {
+        Self::Stmt
+    }
+}
+
+impl<O: tag::LoweringOutput, L: Lowering<CellOutput = O> + ?Sized> From<O> for LoweringOutput<L> {
+    fn from(value: O) -> Self {
+        Self::Value(value)
+    }
+}
+
+pub trait Lowerable {
+    type F: Field;
+
+    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    where
+        L: Lowering<F = Self::F> + ?Sized;
+}
+
+impl<T> Lowerable for Result<T>
+where
+    T: Lowerable,
+{
+    type F = T::F;
+
+    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    where
+        L: Lowering<F = Self::F> + ?Sized,
+    {
+        self.and_then(|t| t.lower(l))
+    }
+}
+
+pub enum LowerableOrIO<L> {
+    Lowerable(L),
+    IO(FuncIO),
+}
+
+impl<L> From<L> for LowerableOrIO<L>
+where
+    L: Lowerable,
+{
+    fn from(value: L) -> Self {
+        Self::Lowerable(value)
+    }
+}
+
+impl<L> From<FuncIO> for LowerableOrIO<L>
+where
+    L: Lowerable,
+{
+    fn from(value: FuncIO) -> Self {
+        Self::IO(value)
+    }
+}
+
+impl<LW> Lowerable for LowerableOrIO<LW>
+where
+    LW: Lowerable,
+{
+    type F = LW::F;
+
+    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    where
+        L: Lowering<F = Self::F> + ?Sized,
+    {
+        match self {
+            LowerableOrIO::Lowerable(lowerable) => lowerable.lower(l).map(Into::into),
+            LowerableOrIO::IO(func_io) => l.lower_funcio(func_io).map(LoweringOutput::Value),
+        }
+    }
+}
+
+pub enum EitherLowerable<L, R> {
+    Left(L),
+    Right(R),
+}
+
+impl<L, R> EitherLowerable<L, R>
+where
+    L: Into<R>,
+{
+    /// If L: Into<R> fold this enum into R
+    pub fn fold_right(self) -> R {
+        match self {
+            EitherLowerable::Left(l) => l.into(),
+            EitherLowerable::Right(r) => r,
+        }
+    }
+}
+
+impl<L, R> EitherLowerable<L, R>
+where
+    R: Into<L>,
+{
+    /// If R: Into<L> fold this enum into L
+    pub fn fold_left(self) -> L {
+        match self {
+            EitherLowerable::Left(l) => l,
+            EitherLowerable::Right(r) => r.into(),
+        }
+    }
+}
+
+impl<T> EitherLowerable<T, T> {
+    pub fn unwrap(value: EitherLowerable<T, T>) -> T {
+        match value {
+            EitherLowerable::Left(l) => l,
+            EitherLowerable::Right(r) => r,
+        }
+    }
+}
+
+impl<L, R> EitherLowerable<CircuitStmt<L>, CircuitStmt<R>>
+where
+    L: Into<R>,
+{
+    /// If L: Into<R> fold this enum into R
+    pub fn fold_stmt_right(self) -> CircuitStmt<R> {
+        match self {
+            EitherLowerable::Left(l) => l.map(&Into::into),
+            EitherLowerable::Right(r) => r,
+        }
+    }
+}
+
+impl<L, R> EitherLowerable<CircuitStmt<L>, CircuitStmt<R>>
+where
+    R: Into<L>,
+{
+    /// If R: Into<L> fold this enum into L
+    pub fn fold_stmt_left(self) -> CircuitStmt<L> {
+        match self {
+            EitherLowerable::Left(l) => l,
+            EitherLowerable::Right(r) => r.map(&Into::into),
+        }
+    }
+}
+
+impl<Left, Right> Lowerable for EitherLowerable<Left, Right>
+where
+    Left: Lowerable,
+    Right: Lowerable<F = Left::F>,
+{
+    type F = Left::F;
+
+    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    where
+        L: Lowering<F = Self::F> + ?Sized,
+    {
+        match self {
+            EitherLowerable::Left(left) => left.lower(l).map(Into::into),
+            EitherLowerable::Right(right) => right.lower(l).map(Into::into),
+        }
+    }
+}
+
+pub mod tag {
+    pub trait LoweringOutput {}
+}
 
 pub trait Lowering {
-    type CellOutput;
+    type CellOutput: tag::LoweringOutput;
     type F: Field;
+
+    fn lower_value(&self, l: impl Lowerable<F = Self::F>) -> Result<Self::CellOutput> {
+        l.lower(self).and_then(|r| match r.into() {
+            LoweringOutput::Value(e) => Ok(e),
+            LoweringOutput::Stmt => anyhow::bail!("Expected value but got statement"),
+        })
+    }
+
+    fn lower_stmt(&self, l: impl Lowerable<F = Self::F>) -> Result<()> {
+        l.lower(self).and_then(|r| match r.into() {
+            LoweringOutput::Value(_) => anyhow::bail!("Expected statement but got value"),
+            LoweringOutput::Stmt => Ok(()),
+        })
+    }
 
     fn generate_constraint(
         &self,
@@ -96,18 +278,18 @@ pub trait Lowering {
     fn lower_expr(
         &self,
         expr: &Expression<Self::F>,
-        query_resolver: &dyn QueryResolver<Self::F>,
-        selector_resolver: &dyn SelectorResolver,
+        resolvers: &dyn ResolversProvider<Self::F>,
     ) -> Result<Self::CellOutput> {
         let constant = |f| self.lower_constant(f);
 
-        let selector_column = |selector| self.lower_selector(&selector, selector_resolver);
+        let selector_column =
+            |selector| self.lower_selector(&selector, resolvers.selector_resolver());
 
-        let fixed_column = |query| self.lower_fixed_query(&query, query_resolver);
+        let fixed_column = |query| self.lower_fixed_query(&query, resolvers.query_resolver());
 
-        let advice_column = |query| self.lower_advice_query(&query, query_resolver);
+        let advice_column = |query| self.lower_advice_query(&query, resolvers.query_resolver());
 
-        let instance_column = |query| self.lower_instance_query(&query, query_resolver);
+        let instance_column = |query| self.lower_instance_query(&query, resolvers.query_resolver());
 
         let challenge = |challenge| self.lower_challenge(&challenge);
 
@@ -137,12 +319,11 @@ pub trait Lowering {
     fn lower_exprs(
         &self,
         exprs: &[Expression<Self::F>],
-        query_resolver: &dyn QueryResolver<Self::F>,
-        selector_resolver: &dyn SelectorResolver,
+        resolvers: &dyn ResolversProvider<Self::F>,
     ) -> Result<Vec<Self::CellOutput>> {
         exprs
             .iter()
-            .map(|e| self.lower_expr(e, query_resolver, selector_resolver))
+            .map(|e| self.lower_expr(e, resolvers))
             .collect()
     }
 
@@ -150,13 +331,12 @@ pub trait Lowering {
     fn lower_expr_refs(
         &self,
         exprs: &[&Expression<Self::F>],
-        query_resolver: &dyn QueryResolver<Self::F>,
-        selector_resolver: &dyn SelectorResolver,
+        resolvers: &dyn ResolversProvider<Self::F>,
     ) -> Result<Vec<Self::CellOutput>> {
         exprs
             .iter()
             .copied()
-            .map(|e| self.lower_expr(e, query_resolver, selector_resolver))
+            .map(|e| self.lower_expr(e, resolvers))
             .collect()
     }
 
@@ -195,37 +375,37 @@ pub trait Lowering {
             .collect()
     }
 
-    #[allow(clippy::needless_lifetimes)]
-    fn lower_constraints<R, S>(
-        &self,
-        gate: &Gate<Self::F>,
-        resolver: R,
-        region_header: S,
-        row: Option<usize>,
-    ) -> impl Iterator<Item = Result<CircuitStmt<Self::CellOutput>>>
-    where
-        R: QueryResolver<Self::F> + SelectorResolver,
-        S: ToString,
-    {
-        let stmts = match row {
-            Some(row) => vec![Ok(CircuitStmt::Comment(format!(
-                "gate '{}' @ {} @ row {}",
-                gate.name(),
-                region_header.to_string(),
-                row
-            )))],
-            None => vec![],
-        };
-        stmts
-            .into_iter()
-            .chain(gate.polynomials().iter().map(move |lhs| {
-                Ok(CircuitStmt::Constraint(
-                    BinaryBoolOp::Eq,
-                    self.lower_expr(lhs, &resolver, &resolver)?,
-                    self.lower_expr(&Expression::Constant(Self::F::ZERO), &resolver, &resolver)?,
-                ))
-            }))
-    }
+    //#[allow(clippy::needless_lifetimes)]
+    //fn lower_constraints<R, S>(
+    //    &self,
+    //    gate: &Gate<Self::F>,
+    //    resolvers: R,
+    //    region_header: S,
+    //    row: Option<usize>,
+    //) -> impl Iterator<Item = Result<CircuitStmt<Self::CellOutput>>>
+    //where
+    //    R: ResolversProvider<Self::F>,
+    //    S: ToString,
+    //{
+    //    let stmts = match row {
+    //        Some(row) => vec![Ok(CircuitStmt::comment(format!(
+    //            "gate '{}' @ {} @ row {}",
+    //            gate.name(),
+    //            region_header.to_string(),
+    //            row
+    //        )))],
+    //        None => vec![],
+    //    };
+    //    stmts
+    //        .into_iter()
+    //        .chain(gate.polynomials().iter().map(move |lhs| {
+    //            Ok(CircuitStmt::constraint(
+    //                BinaryBoolOp::Eq,
+    //                self.lower_expr(lhs, &resolvers)?,
+    //                self.lower_expr(&Expression::Constant(Self::F::ZERO), &resolvers)?,
+    //            ))
+    //        }))
+    //}
 
     fn lower_eq(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput>;
     fn lower_and(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput)

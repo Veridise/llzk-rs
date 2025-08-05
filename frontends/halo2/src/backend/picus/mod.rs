@@ -11,15 +11,21 @@ use super::{
     codegen::lower_stmts,
     events::{EmitStmtsMessage, EventReceiver},
     func::FuncIO,
-    lowering::Lowering as _,
-    resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
+    lowering::{Lowerable, Lowering, LoweringOutput},
+    resolvers::{
+        QueryResolver, ResolvedQuery, ResolvedSelector, ResolversProvider, SelectorResolver,
+    },
     Backend, Codegen,
 };
 use crate::{
+    expressions::ScopedExpression,
     gates::AnyQuery,
     halo2::{Expression, Field, PrimeField, RegionIndex, Selector},
     ir::{lift::LiftIRGuard, CircuitStmt},
-    synthesis::{regions::FQN, CircuitSynthesis},
+    synthesis::{
+        regions::{RegionRow, Row, FQN},
+        CircuitSynthesis,
+    },
     LiftLike,
 };
 use anyhow::{anyhow, Result};
@@ -455,6 +461,7 @@ impl<'c, L: LiftLike> Codegen<'c> for PicusEventReceiver<L> {
     }
 }
 
+#[derive(Copy, Clone)]
 struct OnlyAdviceQueriesResolver<'s, F> {
     region: RegionIndex,
     scope: &'s PicusModuleLowering<F>,
@@ -495,6 +502,7 @@ impl<F: Field> QueryResolver<F> for OnlyAdviceQueriesResolver<'_, F> {
     }
 }
 
+#[derive(Copy, Clone)]
 struct NullSelectorResolver;
 
 impl SelectorResolver for NullSelectorResolver {
@@ -529,69 +537,62 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams> for PicusBackend<L> {
     }
 }
 
-fn lower_stmt<L: LiftLike>(
-    stmt: &CircuitStmt<Expression<L>>,
-    scope: &PicusModuleLowering<L>,
-    qr: &dyn QueryResolver<L>,
-    sr: &dyn SelectorResolver,
-) -> Result<CircuitStmt<PicusExpr>> {
-    stmt.map(
-        &|callee, inputs, output| {
-            Ok((
-                callee.to_owned(),
-                scope.lower_exprs(inputs, qr, sr)?,
-                output.to_vec(),
-            ))
-        },
-        &|op, lhs, rhs| {
-            Ok((
-                op,
-                scope.lower_expr(lhs, qr, sr)?,
-                scope.lower_expr(rhs, qr, sr)?,
-            ))
-        },
-        &|s| Ok(s.to_string()),
-        &Ok,
-        &|e| scope.lower_expr(e, qr, sr),
-    )
-}
-
-fn dequeue_stmts_impl<L: LiftLike>(
-    scope: &PicusModuleLowering<L>,
+fn dequeue_stmts_impl<'s, L: LiftLike>(
+    scope: &'s PicusModuleLowering<L>,
     enqueued_stmts: &mut HashMap<RegionIndex, Vec<CircuitStmt<Expression<L>>>>,
-) -> Result<()> {
-    lower_stmts(
-        scope,
-        // Delete the elements waiting in the queue.
-        std::mem::take(enqueued_stmts)
-            .into_iter()
-            .flat_map(|(region, stmts)| {
-                [Ok(CircuitStmt::Comment(format!(
-                    "In-flight statements @ Region {} (start row: {})",
-                    *region,
-                    *scope.find_region(&region).unwrap()
-                )))]
-                .into_iter()
-                .chain(stmts.into_iter().map(move |stmt| {
-                    let query_resolver = OnlyAdviceQueriesResolver::new(region, scope);
-                    let selector_resolver = NullSelectorResolver;
-                    lower_stmt(&stmt, scope, &query_resolver, &selector_resolver)
-                }))
-                .chain([Ok(CircuitStmt::Comment(format!(
-                    "End of in-flight statements @ Region {} (start row: {})",
-                    *region,
-                    *scope.find_region(&region).unwrap()
-                )))])
-            }),
-    )
+) -> Result<()>
+where
+    (OnlyAdviceQueriesResolver<'s, L>, NullSelectorResolver): ResolversProvider<L> + 's,
+{
+    struct Dummy<F>(PhantomData<F>);
+
+    impl<F: Field> Lowerable for Dummy<F> {
+        type F = F;
+
+        fn lower<L>(self, _: &L) -> Result<impl Into<LoweringOutput<L>>>
+        where
+            L: Lowering<F = Self::F> + ?Sized,
+        {
+            unreachable!();
+            #[allow(unreachable_code)]
+            Ok(())
+        }
+    }
+    // Delete the elements waiting in the queue.
+    for (region, stmts) in std::mem::take(enqueued_stmts) {
+        scope.lower_stmt(CircuitStmt::<Dummy<L>>::comment(format!(
+            "In-flight statements @ Region {} (start row: {})",
+            *region,
+            *scope.find_region(&region).unwrap()
+        )))?;
+
+        for stmt in stmts {
+            let query_resolver = OnlyAdviceQueriesResolver::new(region, scope);
+            let selector_resolver = NullSelectorResolver;
+            let stmt = stmt.map(&ScopedExpression::make_ctor((
+                query_resolver,
+                selector_resolver,
+            )));
+            scope.lower_stmt(stmt)?;
+        }
+        scope.lower_stmt(CircuitStmt::<Dummy<L>>::comment(format!(
+            "End of in-flight statements @ Region {} (start row: {})",
+            *region,
+            *scope.find_region(&region).unwrap()
+        )))?;
+    }
+    Ok(())
 }
 
 impl<L: LiftLike> PicusBackendInner<L> {
-    pub fn enqueue_stmts(
-        &mut self,
+    pub fn enqueue_stmts<'s>(
+        &'s mut self,
         region: RegionIndex,
         stmts: &[CircuitStmt<Expression<L>>],
-    ) -> Result<()> {
+    ) -> Result<()>
+//where
+    //    (OnlyAdviceQueriesResolver<'s, L>, NullSelectorResolver): ResolversProvider<L> + 's,
+    {
         self.enqueued_stmts
             .entry(region)
             .or_default()
@@ -601,13 +602,17 @@ impl<L: LiftLike> PicusBackendInner<L> {
             stmts.len(),
             self.enqueued_stmts.len()
         );
-        self.current_scope
-            .as_ref()
-            .map(|scope| dequeue_stmts_impl(scope, &mut self.enqueued_stmts))
-            .unwrap_or_else(|| Ok(()))
+        Ok(())
+        //self.current_scope
+        //    .as_ref()
+        //    .map(|scope| dequeue_stmts_impl(scope, &mut self.enqueued_stmts))
+        //    .unwrap_or_else(|| Ok(()))
     }
 
-    pub fn dequeue_stmts(&mut self, scope: &PicusModuleLowering<L>) -> Result<()> {
+    pub fn dequeue_stmts<'s>(&mut self, scope: &'s PicusModuleLowering<L>) -> Result<()>
+    where
+        (OnlyAdviceQueriesResolver<'s, L>, NullSelectorResolver): ResolversProvider<L> + 's,
+    {
         dequeue_stmts_impl(scope, &mut self.enqueued_stmts)
     }
 }

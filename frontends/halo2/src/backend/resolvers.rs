@@ -1,4 +1,7 @@
-use std::borrow::Cow;
+use std::{
+    borrow::{Borrow, Cow},
+    marker::PhantomData,
+};
 
 use super::func::{ArgNo, FuncIO};
 use crate::{
@@ -8,6 +11,46 @@ use crate::{
     value::steal,
 };
 use anyhow::Result;
+
+pub trait ResolversProvider<F> {
+    fn query_resolver(&self) -> &dyn QueryResolver<F>;
+    fn selector_resolver(&self) -> &dyn SelectorResolver;
+}
+
+pub(crate) fn boxed_resolver<'a, F: Field, T: ResolversProvider<F> + 'a>(
+    t: T,
+) -> Box<dyn ResolversProvider<F> + 'a> {
+    Box::new(t)
+}
+
+impl<Q, F, S> ResolversProvider<F> for (Q, S)
+where
+    Q: QueryResolver<F> + Clone,
+    F: Field,
+    S: SelectorResolver + Clone,
+{
+    fn query_resolver(&self) -> &dyn QueryResolver<F> {
+        &self.0
+    }
+
+    fn selector_resolver(&self) -> &dyn SelectorResolver {
+        &self.1
+    }
+}
+
+impl<T, F> ResolversProvider<F> for T
+where
+    T: QueryResolver<F> + SelectorResolver + Clone,
+    F: Field,
+{
+    fn query_resolver(&self) -> &dyn QueryResolver<F> {
+        self
+    }
+
+    fn selector_resolver(&self) -> &dyn SelectorResolver {
+        self
+    }
+}
 
 pub struct Bool(bool);
 
@@ -110,5 +153,28 @@ pub trait QueryResolver<F: Field> {
             AnyQuery::Instance(instance_query) => self.resolve_instance_query(instance_query),
             AnyQuery::Fixed(fixed_query) => self.resolve_fixed_query(fixed_query),
         }
+    }
+}
+
+impl<F: Field, Q: QueryResolver<F> + Clone> QueryResolver<F> for Cow<'_, Q> {
+    fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>> {
+        self.as_ref().resolve_fixed_query(query)
+    }
+
+    fn resolve_advice_query<'a>(
+        &'a self,
+        query: &AdviceQuery,
+    ) -> Result<(ResolvedQuery<F>, Option<Cow<'a, FQN>>)> {
+        self.as_ref().resolve_advice_query(query)
+    }
+
+    fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>> {
+        self.as_ref().resolve_instance_query(query)
+    }
+}
+
+impl<S: SelectorResolver + Clone> SelectorResolver for Cow<'_, S> {
+    fn resolve_selector(&self, selector: &Selector) -> Result<ResolvedSelector> {
+        self.as_ref().resolve_selector(selector)
     }
 }

@@ -32,6 +32,13 @@ pub enum AnyQuery {
 }
 
 impl AnyQuery {
+    pub fn expr<F>(&self) -> Expression<F> {
+        match self {
+            AnyQuery::Advice(advice_query) => Expression::Advice(*advice_query),
+            AnyQuery::Instance(instance_query) => Expression::Instance(*instance_query),
+            AnyQuery::Fixed(fixed_query) => Expression::Fixed(*fixed_query),
+        }
+    }
     pub fn column_index(&self) -> usize {
         match self {
             AnyQuery::Advice(advice_query) => advice_query.column_index(),

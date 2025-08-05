@@ -24,6 +24,7 @@ use mlir_sys::MlirValue;
 use num_bigint::BigUint;
 
 use crate::backend::func::FieldId;
+use crate::backend::lowering::tag::LoweringOutput;
 use crate::{
     backend::{
         func::{ArgNo, FuncIO},
@@ -185,6 +186,8 @@ impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
         }
     }
 }
+
+impl LoweringOutput for MlirValue {}
 
 impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
     //type CellOutput = Value<'c, '_>;
@@ -351,35 +354,43 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
         todo!()
     }
 
-    fn lower_eq(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
+    fn lower_eq(
+        &self,
+        _lhs: &Self::CellOutput,
+        _rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
         todo!()
     }
 
     fn lower_and(
         &self,
-        lhs: &Self::CellOutput,
-        rhs: &Self::CellOutput,
+        _lhs: &Self::CellOutput,
+        _rhs: &Self::CellOutput,
     ) -> Result<Self::CellOutput> {
         todo!()
     }
 
-    fn lower_or(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
+    fn lower_or(
+        &self,
+        _lhs: &Self::CellOutput,
+        _rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
         todo!()
     }
 
-    fn generate_assert(&self, expr: &Self::CellOutput) -> Result<()> {
+    fn generate_assert(&self, _expr: &Self::CellOutput) -> Result<()> {
         todo!()
     }
 
-    fn lower_function_input(&self, i: usize) -> FuncIO {
+    fn lower_function_input(&self, _i: usize) -> FuncIO {
         todo!()
     }
 
-    fn lower_function_output(&self, o: usize) -> FuncIO {
+    fn lower_function_output(&self, _o: usize) -> FuncIO {
         todo!()
     }
 
-    fn lower_funcio<IO>(&self, io: IO) -> Result<Self::CellOutput>
+    fn lower_funcio<IO>(&self, _io: IO) -> Result<Self::CellOutput>
     where
         IO: Into<FuncIO>,
     {

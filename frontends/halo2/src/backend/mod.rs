@@ -1,4 +1,7 @@
-use crate::{synthesis::CircuitSynthesis, CircuitWithIO};
+use crate::{
+    halo2::Circuit, lookups::callbacks::DefaultLookupCallbacks, synthesis::CircuitSynthesis,
+    CircuitCallbacks,
+};
 use anyhow::Result;
 
 pub mod codegen;
@@ -9,11 +12,10 @@ pub mod lowering;
 pub mod picus;
 pub mod resolvers;
 
-use codegen::{
-    lookup::codegen::LookupAsRowConstraint, strats::inline::InlineConstraintsStrat, Codegen,
-    CodegenStrategy,
-};
+use codegen::{strats::inline::InlineConstraintsStrat, Codegen, CodegenStrategy};
 use resolvers::{QueryResolver, SelectorResolver};
+
+type DefaultStrat = InlineConstraintsStrat;
 
 pub trait Backend<'c, Params: Default>: Sized {
     type Codegen: Codegen<'c>;
@@ -23,28 +25,31 @@ pub trait Backend<'c, Params: Default>: Sized {
     fn create_codegen(&'c self) -> Self::Codegen;
 
     /// Generate code using the default strategy.
-    fn codegen<C>(&'c self, circuit: &C) -> Result<<Self::Codegen as Codegen<'c>>::Output>
+    fn codegen<C, CB>(&'c self, circuit: &C) -> Result<<Self::Codegen as Codegen<'c>>::Output>
     where
-        C: CircuitWithIO<<Self::Codegen as Codegen<'c>>::F>,
+        C: Circuit<<Self::Codegen as Codegen<'c>>::F>,
+        CB: CircuitCallbacks<<Self::Codegen as Codegen<'c>>::F, C>,
         Self: 'c,
     {
-        self.codegen_with_strat::<C, InlineConstraintsStrat>(circuit)
+        self.codegen_with_strat::<C, CB, DefaultStrat>(circuit)
     }
 
     /// Generate code using the given strategy.
-    fn codegen_with_strat<'a, C, S>(
+    fn codegen_with_strat<'a, C, CB, S>(
         &'c self,
         circuit: &C,
     ) -> Result<<Self::Codegen as Codegen<'c>>::Output>
     where
-        C: CircuitWithIO<<Self::Codegen as Codegen<'c>>::F>,
+        C: Circuit<<Self::Codegen as Codegen<'c>>::F>,
+        CB: CircuitCallbacks<<Self::Codegen as Codegen<'c>>::F, C>,
         S: CodegenStrategy,
         Self: 'c,
     {
-        let syn = CircuitSynthesis::new(circuit)?;
+        let syn = CircuitSynthesis::new::<C, CB>(circuit)?;
+        let lookup_cbs = CB::lookup_callbacks().unwrap_or(Box::new(DefaultLookupCallbacks));
 
         let codegen = self.create_codegen();
-        S::default().codegen(&codegen, &syn)?;
+        S::default().codegen(&codegen, &syn, &*lookup_cbs)?;
 
         codegen.generate_output()
     }

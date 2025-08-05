@@ -84,6 +84,16 @@ impl<'a, E: GraphEdge> IntoIterator for &'a Graph<E> {
     }
 }
 
+impl<E: GraphEdge + Copy> IntoIterator for Graph<E> {
+    type Item = (E::Node, E::Node);
+
+    type IntoIter = <HashSet<(E::Node, E::Node)> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.edges.into_iter()
+    }
+}
+
 impl<E: GraphEdge> Default for Graph<E> {
     fn default() -> Self {
         Self {

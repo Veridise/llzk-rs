@@ -244,10 +244,32 @@ impl<F> SelectorResolver for Row<'_, F> {
     }
 }
 
+pub trait RegionRowLike {
+    fn region_index(&self) -> Option<usize>;
+
+    fn region_name(&self) -> &str;
+
+    fn row_number(&self) -> usize;
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct RegionRow<'r, 'io, F: Field> {
     region: RegionData<'r, F>,
     row: Row<'io, F>,
+}
+
+impl<'r, 'io, F: Field> RegionRowLike for RegionRow<'r, 'io, F> {
+    fn region_index(&self) -> Option<usize> {
+        self.region.inner.index().map(|f| *f)
+    }
+
+    fn region_name(&self) -> &str {
+        &self.region.inner.name()
+    }
+
+    fn row_number(&self) -> usize {
+        self.row.row
+    }
 }
 
 impl<'r, 'io, F: Field> RegionRow<'r, 'io, F> {
@@ -274,21 +296,6 @@ impl<'r, 'io, F: Field> RegionRow<'r, 'io, F> {
     #[inline]
     pub fn gate_is_disabled(&self, selectors: &HashSet<&Selector>) -> bool {
         self.enabled().is_disjoint(selectors)
-    }
-
-    #[inline]
-    pub fn region_name(&self) -> &'r str {
-        &self.region.inner.name()
-    }
-
-    #[inline]
-    pub fn region_index(&self) -> Option<usize> {
-        self.region.inner.index().map(|f| *f)
-    }
-
-    #[inline]
-    pub fn row_number(&self) -> usize {
-        self.row.row
     }
 
     #[inline]

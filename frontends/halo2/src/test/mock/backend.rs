@@ -2,7 +2,7 @@ use crate::{
     backend::{
         codegen::Codegen,
         func::{ArgNo, FieldId, FuncIO},
-        lowering::Lowering,
+        lowering::{tag::LoweringOutput, Lowering},
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector},
         Backend,
     },
@@ -198,6 +198,8 @@ impl MockFuncRef {
         idx
     }
 }
+
+impl LoweringOutput for usize {}
 
 impl Lowering for MockFuncRef {
     type CellOutput = usize;
