@@ -11,7 +11,7 @@ use crate::{
     halo2::{
         AdviceQuery, Challenge, FixedQuery, InstanceQuery, RegionIndex, RegionStart, Selector,
     },
-    ir::{lift::LiftLowering, BinaryBoolOp},
+    ir::{lift::LiftLowering, CmpOp},
     synthesis::regions::FQN,
     LiftLike,
 };
@@ -147,17 +147,17 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
 
     fn generate_constraint(
         &self,
-        op: BinaryBoolOp,
+        op: CmpOp,
         lhs: &Self::CellOutput,
         rhs: &Self::CellOutput,
     ) -> Result<()> {
         self.module.borrow_mut().add_constraint(match op {
-            BinaryBoolOp::Eq => expr::eq(lhs, rhs),
-            BinaryBoolOp::Lt => expr::lt(lhs, rhs),
-            BinaryBoolOp::Le => expr::le(lhs, rhs),
-            BinaryBoolOp::Gt => expr::gt(lhs, rhs),
-            BinaryBoolOp::Ge => expr::ge(lhs, rhs),
-            BinaryBoolOp::Ne => unimplemented!(),
+            CmpOp::Eq => expr::eq(lhs, rhs),
+            CmpOp::Lt => expr::lt(lhs, rhs),
+            CmpOp::Le => expr::le(lhs, rhs),
+            CmpOp::Gt => expr::gt(lhs, rhs),
+            CmpOp::Ge => expr::ge(lhs, rhs),
+            CmpOp::Ne => unimplemented!(),
         });
         Ok(())
     }

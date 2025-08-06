@@ -4,7 +4,7 @@ use crate::{
     expressions::ScopedExpression,
     gates::AnyQuery,
     halo2::{AdviceQuery, Challenge, Expression, Field, FixedQuery, Gate, InstanceQuery, Selector},
-    ir::{stmt::IRStmt, BinaryBoolOp},
+    ir::{stmt::IRStmt, CmpOp},
 };
 use anyhow::{bail, Result};
 
@@ -197,7 +197,7 @@ pub trait Lowering {
 
     fn generate_constraint(
         &self,
-        op: BinaryBoolOp,
+        op: CmpOp,
         lhs: &Self::CellOutput,
         rhs: &Self::CellOutput,
     ) -> Result<()>;
@@ -206,7 +206,7 @@ pub trait Lowering {
 
     fn checked_generate_constraint(
         &self,
-        op: BinaryBoolOp,
+        op: CmpOp,
         lhs: &Self::CellOutput,
         rhs: &Self::CellOutput,
     ) -> Result<()> {
@@ -400,7 +400,7 @@ pub trait Lowering {
     //        .into_iter()
     //        .chain(gate.polynomials().iter().map(move |lhs| {
     //            Ok(IRStmt::constraint(
-    //                BinaryBoolOp::Eq,
+    //                CmpOp::Eq,
     //                self.lower_expr(lhs, &resolvers)?,
     //                self.lower_expr(&Expression::Constant(Self::F::ZERO), &resolvers)?,
     //            ))

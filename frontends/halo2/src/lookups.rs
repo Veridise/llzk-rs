@@ -12,7 +12,6 @@ use crate::{
     },
     gates::{compute_gate_arity, AnyQuery},
     halo2::{Column, Expression, Field, FixedQuery, Selector},
-    ir::expr::IRExpr,
     synthesis::{regions::RegionRowLike, CircuitSynthesis},
 };
 use anyhow::{anyhow, bail, Result};

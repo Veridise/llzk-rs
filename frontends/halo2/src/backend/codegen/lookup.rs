@@ -5,9 +5,13 @@ use crate::{
         lowering::{Lowerable, Lowering, LoweringOutput},
         resolvers::ResolversProvider,
     },
+    expressions::ScopedExpression,
     halo2::{Expression, Field, FixedQuery},
-    ir::{expr::IRExpr, stmt::chain_lowerable_stmts, stmt::IRStmt},
-    lookups::{callbacks::LookupCallbacks, Lookup},
+    ir::stmt::{chain_lowerable_stmts, IRStmt},
+    lookups::{
+        callbacks::{LazyLookupTableGenerator, LookupCallbacks, LookupTableGenerator},
+        Lookup,
+    },
     synthesis::{regions::RegionRowLike, CircuitSynthesis},
 };
 use anyhow::{anyhow, Result};
@@ -22,76 +26,76 @@ fn zip_res<L, R, E>(lhs: Result<L, E>, rhs: Result<R, E>) -> Result<(L, R), E> {
 }
 
 pub fn codegen_lookup_modules<'c, C>(
-    codegen: &C,
-    syn: &CircuitSynthesis<C::F>,
-    callbacks: &dyn LookupCallbacks<C::F>,
+    _codegen: &C,
+    _syn: &CircuitSynthesis<C::F>,
+    _callbacks: &dyn LookupCallbacks<C::F>,
 ) -> Result<()>
 where
     C: Codegen<'c>,
 {
-    // WIP
-    for (kind, lookups) in syn.lookup_kinds()? {
-        let io = kind
-            .columns()
-            .iter()
-            .copied()
-            .filter_map(|col| {
-                lookups
-                    .iter()
-                    .filter_map(|l| {
-                        l.expr_for_column(col)
-                            .map(|e| callbacks.assign_io_kind(e, col).map(|io| (col, io)))
-                            .transpose()
-                    })
-                    .reduce(|lhs, rhs| {
-                        zip_res(lhs, rhs).and_then(|(lhs, rhs)| {
-                            if lhs == rhs {
-                                anyhow::bail!("Column {col} assigned different IO types")
-                            }
-                            Ok(lhs)
-                        })
-                    })
-            })
-            .collect::<Result<Vec<_>>>()?;
-        if let Some(module) = callbacks.on_body(&kind, &io.into_iter())? {
-            module.generate(codegen)?;
-        }
-        //lookups.on_body(&kind, );
-        //codegen.define_function_with_body(
-        //    &kind.module_name(),
-        //    kind.inputs(),
-        //    kind.outputs(),
-        //    syn,
-        //    |_, inputs, outputs| {
-        //        struct Dummy<F>(F);
-        //
-        //        impl<F: Field> Lowerable for Dummy<F> {
-        //            type F = F;
-        //
-        //            fn lower<L>(self, _l: &L) -> Result<impl Into<LoweringOutput<L>>>
-        //            where
-        //                L: Lowering<F = Self::F> + ?Sized,
-        //            {
-        //                anyhow::bail!("Dummy value should not be lowered");
-        //                #[allow(unreachable_code)]
-        //                Ok(())
-        //            }
-        //        }
-        //        Ok(chain_lowerable_stmts!(
-        //            outputs
-        //                .into_iter()
-        //                .copied()
-        //                .map(IRStmt::<Dummy<C::F>>::assume_deterministic),
-        //            lookups.on_body(&kind, inputs, outputs)?
-        //        )
-        //        .collect())
-        //    },
-        //)?
-    }
+    //    // WIP
+    //    for (kind, lookups) in syn.lookup_kinds()? {
+    //        let io = kind
+    //            .columns()
+    //            .iter()
+    //            .copied()
+    //            .filter_map(|col| {
+    //                lookups
+    //                    .iter()
+    //                    .filter_map(|l| {
+    //                        l.expr_for_column(col)
+    //                            .map(|e| callbacks.assign_io_kind(e, col).map(|io| (col, io)))
+    //                            .transpose()
+    //                    })
+    //                    .reduce(|lhs, rhs| {
+    //                        zip_res(lhs, rhs).and_then(|(lhs, rhs)| {
+    //                            if lhs == rhs {
+    //                                anyhow::bail!("Column {col} assigned different IO types")
+    //                            }
+    //                            Ok(lhs)
+    //                        })
+    //                    })
+    //            })
+    //            .collect::<Result<Vec<_>>>()?;
+    //        if let Some(module) = callbacks.on_body(&kind, &io.into_iter())? {
+    //            module.generate(codegen)?;
+    //        }
+    //        //lookups.on_body(&kind, );
+    //        //codegen.define_function_with_body(
+    //        //    &kind.module_name(),
+    //        //    kind.inputs(),
+    //        //    kind.outputs(),
+    //        //    syn,
+    //        //    |_, inputs, outputs| {
+    //        //        struct Dummy<F>(F);
+    //        //
+    //        //        impl<F: Field> Lowerable for Dummy<F> {
+    //        //            type F = F;
+    //        //
+    //        //            fn lower<L>(self, _l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    //        //            where
+    //        //                L: Lowering<F = Self::F> + ?Sized,
+    //        //            {
+    //        //                anyhow::bail!("Dummy value should not be lowered");
+    //        //                #[allow(unreachable_code)]
+    //        //                Ok(())
+    //        //            }
+    //        //        }
+    //        //        Ok(chain_lowerable_stmts!(
+    //        //            outputs
+    //        //                .into_iter()
+    //        //                .copied()
+    //        //                .map(IRStmt::<Dummy<C::F>>::assume_deterministic),
+    //        //            lookups.on_body(&kind, inputs, outputs)?
+    //        //        )
+    //        //        .collect())
+    //        //    },
+    //        //)?
+    //    }
     Ok(())
 }
 
-fn comment<'r, T, F: Field>(lookup: Lookup<'r, F>, r: T) -> IRStmt<IRExpr<F>>
+fn comment<'r, T, F: Field>(lookup: Lookup<'r, F>, r: T) -> IRStmt<ScopedExpression<F>>
 where
     T: ResolversProvider<F> + RegionRowLike + Copy + 'r,
 {
@@ -111,16 +115,21 @@ where
 pub fn codegen_lookup_invocations<'s, F: Field>(
     syn: &'s CircuitSynthesis<F>,
     lookups: &'s dyn LookupCallbacks<F>,
-) -> Result<Vec<IRStmt<IRExpr<F>>>> {
+) -> Result<Vec<IRStmt<ScopedExpression<'s, 's, F>>>> {
     syn.lookups_per_region_row()
         .map(|(r, l)| {
-            syn.tables_for_lookup(&l)
-                .and_then(|table| lookups.on_lookup(&r, l, &table))
-                .map(|stmts| {
-                    chain_lowerable_stmts!([comment(l, r)], stmts)
-                        .collect::<IRStmt<_>>()
-                        .map(&|t| t.unwrap())
-                })
+            let g = LazyLookupTableGenerator::new(|| {
+                syn.tables_for_lookup(&l)
+                    .map(|table| table.into_boxed_slice())
+            });
+            lookups.on_lookup(l, &g).map(|stmts| {
+                let stmts = stmts
+                    .into_iter()
+                    .map(|stmt| stmt.map(&|e| ScopedExpression::from_ref(e, r)));
+                chain_lowerable_stmts!([comment(l, r)], stmts)
+                    .collect::<IRStmt<_>>()
+                    .map(&|t| t.unwrap())
+            })
         })
         .collect()
 }

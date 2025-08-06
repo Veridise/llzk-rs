@@ -25,6 +25,7 @@ use num_bigint::BigUint;
 
 use crate::backend::func::FieldId;
 use crate::backend::lowering::tag::LoweringOutput;
+use crate::ir::CmpOp;
 use crate::{
     backend::{
         func::{ArgNo, FuncIO},
@@ -33,7 +34,6 @@ use crate::{
     },
     halo2::PrimeField,
     synthesis::regions::FQN,
-    BinaryBoolOp,
 };
 
 use super::counter::Counter;
@@ -197,7 +197,7 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
 
     fn generate_constraint(
         &self,
-        op: BinaryBoolOp,
+        op: CmpOp,
         lhs: &Self::CellOutput,
         rhs: &Self::CellOutput,
     ) -> Result<()> {
@@ -208,14 +208,14 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
             0,
         );
         self.append_op(match op {
-            BinaryBoolOp::Eq => constrain::eq(loc, unsafe { Value::from_raw(*lhs) }, unsafe {
+            CmpOp::Eq => constrain::eq(loc, unsafe { Value::from_raw(*lhs) }, unsafe {
                 Value::from_raw(*rhs)
             }),
-            BinaryBoolOp::Lt => todo!(),
-            BinaryBoolOp::Le => todo!(),
-            BinaryBoolOp::Gt => todo!(),
-            BinaryBoolOp::Ge => todo!(),
-            BinaryBoolOp::Ne => todo!(),
+            CmpOp::Lt => todo!(),
+            CmpOp::Le => todo!(),
+            CmpOp::Gt => todo!(),
+            CmpOp::Ge => todo!(),
+            CmpOp::Ne => todo!(),
         })?;
         Ok(())
     }

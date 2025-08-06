@@ -1,4 +1,5 @@
 use std::{
+    cell::LazyCell,
     collections::HashMap,
     convert::identity,
     hash::{DefaultHasher, Hash as _, Hasher as _},
@@ -11,10 +12,10 @@ use crate::{
     },
     gates::{compute_gate_arity, AnyQuery},
     halo2::{Column, Expression, Field, Selector},
-    ir::{expr::IRExpr, stmt::IRStmt, IRModule},
+    ir::{stmt::IRStmt, IRModule},
     synthesis::{regions::RegionRowLike, CircuitSynthesis},
 };
-use anyhow::{bail, Result};
+use anyhow::{bail, Error, Result};
 
 use super::{Lookup, LookupKind, LookupTableRow};
 
@@ -24,6 +25,38 @@ pub enum LookupIO {
     O,
 }
 
+pub type LookupTableBox<F> = Result<Box<[LookupTableRow<F>]>>;
+
+pub trait LookupTableGenerator<F> {
+    fn table(&self) -> Result<&[LookupTableRow<F>], &Error>;
+}
+
+pub struct LazyLookupTableGenerator<F, FN>
+where
+    FN: FnOnce() -> LookupTableBox<F>,
+{
+    table: LazyCell<LookupTableBox<F>, FN>,
+}
+
+impl<F, FN> LazyLookupTableGenerator<F, FN>
+where
+    FN: FnOnce() -> LookupTableBox<F>,
+{
+    pub fn new(f: FN) -> Self {
+        Self {
+            table: LazyCell::new(f),
+        }
+    }
+}
+
+impl<F: Field, FN: FnOnce() -> LookupTableBox<F>> LookupTableGenerator<F>
+    for LazyLookupTableGenerator<F, FN>
+{
+    fn table(&self) -> Result<&[LookupTableRow<F>], &Error> {
+        (*self.table).as_ref().map(AsRef::as_ref)
+    }
+}
+
 pub trait LookupCallbacks<F: Field> {
     /// This callback offers the possibility of creating a module that encapsulates the lookup.
     /// By default returns Ok(None) indicating that no module is created.
@@ -31,19 +64,18 @@ pub trait LookupCallbacks<F: Field> {
         &self,
         _kind: &LookupKind,
         _io: &dyn Iterator<Item = (usize, LookupIO)>,
-    ) -> Result<Option<IRModule<IRExpr<F>>>> {
+    ) -> Result<Option<IRModule<Expression<F>>>> {
         Ok(None)
     }
 
-    fn on_lookup(
+    fn on_lookup<'a>(
         &self,
-        region_row: &dyn RegionRowLike,
-        lookup: Lookup<F>,
-        table: &[LookupTableRow<F>],
-    ) -> Result<Vec<IRStmt<IRExpr<F>>>>;
+        lookup: Lookup<'a, F>,
+        table: &dyn LookupTableGenerator<F>,
+    ) -> Result<IRStmt<&'a Expression<F>>>;
 
     /// This callbacks ask for the kind of io a column is. By default returns None.
-    fn assign_io_kind(&self, expr: &Expression<F>, column: usize) -> Option<LookupIO> {
+    fn assign_io_kind(&self, _expr: &Expression<F>, _column: usize) -> Option<LookupIO> {
         None
     }
 }
@@ -59,16 +91,15 @@ impl<F: Field> LookupCallbacks<F> for DefaultLookupCallbacks {
         &self,
         _kind: &LookupKind,
         _io: &dyn Iterator<Item = (usize, LookupIO)>,
-    ) -> Result<Option<IRModule<IRExpr<F>>>> {
+    ) -> Result<Option<IRModule<Expression<F>>>> {
         lookups_panic()
     }
 
-    fn on_lookup(
+    fn on_lookup<'a>(
         &self,
-        _region_row: &dyn RegionRowLike,
-        _lookup: Lookup<F>,
-        _table: &[LookupTableRow<F>],
-    ) -> Result<Vec<IRStmt<IRExpr<F>>>> {
+        _lookup: Lookup<'a, F>,
+        _table: &dyn LookupTableGenerator<F>,
+    ) -> Result<IRStmt<&'a Expression<F>>> {
         lookups_panic()
     }
 
@@ -83,12 +114,11 @@ impl<F: Field> LookupCallbacks<F> for DefaultLookupCallbacks {
 pub struct FixedTagLookup;
 
 impl<F: Field> LookupCallbacks<F> for FixedTagLookup {
-    fn on_lookup(
+    fn on_lookup<'a>(
         &self,
-        _region_row: &dyn RegionRowLike,
-        _lookup: Lookup<F>,
-        _table: &[LookupTableRow<F>],
-    ) -> Result<Vec<IRStmt<IRExpr<F>>>> {
+        _lookup: Lookup<'a, F>,
+        _table: &dyn LookupTableGenerator<F>,
+    ) -> Result<IRStmt<&'a Expression<F>>> {
         unreachable!()
     }
 

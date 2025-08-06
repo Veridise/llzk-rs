@@ -2,37 +2,13 @@ use std::{convert::identity, marker::PhantomData};
 
 use anyhow::Result;
 
-use crate::backend::{
-    func::FuncIO,
-    lowering::{Lowerable, Lowering, LoweringOutput},
+use crate::{
+    backend::{
+        func::FuncIO,
+        lowering::{Lowerable, Lowering, LoweringOutput},
+    },
+    ir::CmpOp,
 };
-
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub enum CmpOp {
-    Eq,
-    Lt,
-    Le,
-    Gt,
-    Ge,
-    Ne,
-}
-
-impl std::fmt::Display for CmpOp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                CmpOp::Eq => "==",
-                CmpOp::Lt => "<",
-                CmpOp::Le => "<=",
-                CmpOp::Gt => ">",
-                CmpOp::Ge => ">=",
-                CmpOp::Ne => "!=",
-            }
-        )
-    }
-}
 
 pub struct Constraint<T> {
     op: CmpOp,

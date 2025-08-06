@@ -1,11 +1,9 @@
-use std::{convert::identity, marker::PhantomData};
-
-use anyhow::Result;
-
+use super::{expr::IRBexpr, CmpOp};
 use crate::backend::{
     func::FuncIO,
     lowering::{EitherLowerable, Lowerable, Lowering, LoweringOutput},
 };
+use anyhow::Result;
 
 mod assert;
 mod assume_determ;
@@ -13,8 +11,6 @@ mod call;
 mod comment;
 mod constraint;
 mod seq;
-
-pub use constraint::CmpOp;
 
 use assert::Assert;
 use assume_determ::AssumeDeterministic;
@@ -83,7 +79,7 @@ impl<T> IRStmt<T> {
         AssumeDeterministic::new(f.into()).into()
     }
 
-    pub fn assert(cond: T) -> Self {
+    pub fn assert(cond: IRBexpr<T>) -> Self {
         Assert::new(cond).into()
     }
 
@@ -188,15 +184,6 @@ macro_rules! chain_lowerable_stmts {
 }
 pub(crate) use chain_lowerable_stmts;
 
-//impl<I, O> From<IRStmt<I>> for IRStmt<O>
-//where
-//    I: Into<O>,
-//{
-//    fn from(value: IRStmt<I>) -> Self {
-//        value.map(&Into::into)
-//    }
-//}
-
 macro_rules! impl_from {
     ($inner:ident, $ctor:ident) => {
         impl<T> From<$inner<T>> for IRStmt<T> {
@@ -260,8 +247,14 @@ mod test {
 
     #[test]
     fn iterator_nested_seqs() {
-        let nested = S::seq([S::assert(()), S::seq([S::assert(()), S::assert(())])]);
-        let expected = vec![S::assert(()); 3];
+        let nested = S::seq([
+            S::assert(IRBexpr::And(vec![])),
+            S::seq([
+                S::assert(IRBexpr::And(vec![])),
+                S::assert(IRBexpr::And(vec![])),
+            ]),
+        ]);
+        let expected = vec![S::assert(IRBexpr::And(vec![])); 3];
         let output = nested.into_iter().collect::<Vec<_>>();
         assert_eq!(expected, output);
     }

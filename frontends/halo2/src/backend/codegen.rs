@@ -7,7 +7,7 @@ use crate::{
     expressions::{ExpressionFactory, ScopedExpression},
     gates::AnyQuery,
     halo2::{Any, Column, ColumnType, Expression, Field, Fixed, Gate, Rotation, Selector},
-    ir::{stmt::IRStmt, BinaryBoolOp},
+    ir::{stmt::IRStmt, CmpOp},
     lookups::callbacks::LookupCallbacks,
     synthesis::{
         regions::{RegionRow, Row},
@@ -136,7 +136,7 @@ pub fn inter_region_constraints<'r, F: Field>(
             log::debug!("{from:?} == {to:?}");
             let helper = IRCHelper { syn };
             Ok(IRStmt::constraint(
-                BinaryBoolOp::Eq,
+                CmpOp::Eq,
                 helper.lower_cell(from),
                 helper.lower_cell(to),
             ))
@@ -148,7 +148,7 @@ pub fn inter_region_constraints<'r, F: Field>(
                     r.map(|(col, row, f): (Column<Fixed>, _, _)| {
                         let helper = IRCHelper { syn };
                         IRStmt::constraint(
-                            BinaryBoolOp::Eq,
+                            CmpOp::Eq,
                             helper.lower_cell((col, row)),
                             helper.lower_const(f, row),
                         )
@@ -195,7 +195,7 @@ where
         .into_iter()
         .chain(gate.polynomials().iter().map(move |lhs| {
             IRStmt::constraint(
-                BinaryBoolOp::Eq,
+                CmpOp::Eq,
                 resolvers.clone().create_ref(lhs),
                 resolvers.clone().create(Expression::Constant(F::ZERO)),
             )

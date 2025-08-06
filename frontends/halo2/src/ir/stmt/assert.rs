@@ -2,23 +2,26 @@ use std::{convert::identity, marker::PhantomData};
 
 use anyhow::Result;
 
-use crate::backend::{
-    func::FuncIO,
-    lowering::{Lowerable, Lowering, LoweringOutput},
+use crate::{
+    backend::{
+        func::FuncIO,
+        lowering::{Lowerable, Lowering, LoweringOutput},
+    },
+    ir::expr::IRBexpr,
 };
 
-pub struct Assert<T>(T);
+pub struct Assert<T>(IRBexpr<T>);
 
 impl<T> Assert<T> {
-    pub fn new(cond: T) -> Self {
+    pub fn new(cond: IRBexpr<T>) -> Self {
         Self(cond)
     }
 
     pub fn map<O>(self, f: &impl Fn(T) -> O) -> Assert<O> {
-        Assert::new(f(self.0))
+        Assert::new(self.0.map(f))
     }
     pub fn try_map<O>(self, f: &impl Fn(T) -> Result<O>) -> Result<Assert<O>> {
-        f(self.0).map(Assert::new)
+        self.0.try_map(f).map(Assert::new)
     }
 }
 

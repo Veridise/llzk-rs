@@ -29,7 +29,6 @@ pub use backend::picus::PicusParamsBuilder;
 pub use backend::Backend;
 pub use error::to_plonk_error;
 pub use io::CircuitIO;
-pub use ir::BinaryBoolOp;
 pub use synthesis::regions::RegionRowLike;
 
 /// Defines, for a given circuit, a set of callbacks with information

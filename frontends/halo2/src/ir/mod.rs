@@ -7,9 +7,35 @@ use crate::backend::{
     lowering::{Lowerable, Lowering, LoweringOutput},
 };
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum CmpOp {
+    Eq,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    Ne,
+}
+
+impl std::fmt::Display for CmpOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                CmpOp::Eq => "==",
+                CmpOp::Lt => "<",
+                CmpOp::Le => "<=",
+                CmpOp::Gt => ">",
+                CmpOp::Ge => ">=",
+                CmpOp::Ne => "!=",
+            }
+        )
+    }
+}
+
 pub mod lift;
 
-pub use stmt::CmpOp as BinaryBoolOp;
 pub mod expr;
 pub mod stmt;
 
