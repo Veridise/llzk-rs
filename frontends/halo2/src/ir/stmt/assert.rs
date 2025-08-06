@@ -38,3 +38,15 @@ impl<T: Clone> Clone for Assert<T> {
         Self(self.0.clone())
     }
 }
+
+impl<T: PartialEq> PartialEq for Assert<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for Assert<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "assert {:?}", self.0)
+    }
+}

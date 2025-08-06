@@ -6,7 +6,7 @@ use midnight_halo2_proofs::plonk::{
 use midnight_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
-use crate::{CircuitIO, CircuitWithIO};
+use crate::{CircuitCallbacks, CircuitIO};
 
 #[derive(Debug, Clone)]
 pub struct FibonacciConfig {
@@ -177,12 +177,12 @@ impl<F: Field> Circuit<F> for FibonacciCircuit<F> {
     }
 }
 
-impl<F: Field> CircuitWithIO<F> for FibonacciCircuit<F> {
-    fn advice_io(_: &Self::Config) -> CircuitIO<Advice> {
+impl<F: Field> CircuitCallbacks<F, Self> for FibonacciCircuit<F> {
+    fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }
 
-    fn instance_io(config: &Self::Config) -> CircuitIO<Instance> {
+    fn instance_io(config: &<Self as Circuit<F>>::Config) -> CircuitIO<Instance> {
         CircuitIO::new(&[(config.instance, &[0, 1])], &[(config.instance, &[2])])
     }
 }

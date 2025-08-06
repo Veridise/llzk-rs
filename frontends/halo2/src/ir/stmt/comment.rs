@@ -35,3 +35,15 @@ impl<T: Clone> Clone for Comment<T> {
         Self(self.0.clone(), Default::default())
     }
 }
+
+impl<T> PartialEq for Comment<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for Comment<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "comment '{}'", self.0)
+    }
+}

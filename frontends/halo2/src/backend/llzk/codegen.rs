@@ -88,7 +88,7 @@ impl<'c, F: LiftLike> Codegen<'c> for LlzkCodegen<'c, F> {
         _name: &str,
         _inputs: usize,
         _outputs: usize,
-        _syn: &CircuitSynthesis<Self::F>,
+        _syn: Option<&CircuitSynthesis<Self::F>>,
     ) -> Result<Self::FuncOutput> {
         todo!()
     }

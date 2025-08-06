@@ -7,7 +7,7 @@ use crate::backend::{
     lowering::{Lowerable, Lowering, LoweringOutput},
 };
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum CmpOp {
     Eq,
     Lt,
@@ -15,6 +15,23 @@ pub enum CmpOp {
     Gt,
     Ge,
     Ne,
+}
+
+impl std::fmt::Display for CmpOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                CmpOp::Eq => "==",
+                CmpOp::Lt => "<",
+                CmpOp::Le => "<=",
+                CmpOp::Gt => ">",
+                CmpOp::Ge => ">=",
+                CmpOp::Ne => "!=",
+            }
+        )
+    }
 }
 
 pub struct Constraint<T> {
@@ -56,5 +73,17 @@ impl<T: Clone> Clone for Constraint<T> {
             lhs: self.lhs.clone(),
             rhs: self.rhs.clone(),
         }
+    }
+}
+
+impl<T: PartialEq> PartialEq for Constraint<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.op == other.op && self.lhs == other.lhs && self.rhs == other.rhs
+    }
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for Constraint<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?} {} {:?}", self.lhs, self.op, self.rhs)
     }
 }

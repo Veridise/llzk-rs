@@ -1,4 +1,4 @@
-use crate::{gates::AnyQuery, halo2::Value};
+use crate::{gates::AnyQuery, halo2::Value, value::steal};
 use std::{
     cmp::Ordering,
     collections::{BTreeSet, HashMap, HashSet},
@@ -102,14 +102,7 @@ impl<F: Copy + Default> TableData<F> {
             })
     }
 
-    /// Returns the rows the table has for the given columns. The columns have to have
-    /// the same number of rows
-    pub fn get_rows(&self, cols: &[AnyQuery]) -> anyhow::Result<Vec<Vec<Value<F>>>> {
-        match self.check_columns(cols) {
-            ColumnMatch::Missing(q) => anyhow::bail!("Missing columns from table: {q:?}"),
-            _ => {}
-        }
-
+    fn get_rows_impl(&self, cols: &[AnyQuery]) -> anyhow::Result<Vec<Vec<F>>> {
         let tables = cols
             .iter()
             .map(|c| self.values[&c.column_index()].as_slice())
@@ -169,8 +162,27 @@ impl<F: Copy + Default> TableData<F> {
 
         tables
             .into_iter()
-            .map(|table| fill_table(table, upper_limit))
+            .map(|table| {
+                fill_table(table, upper_limit).and_then(|t| {
+                    t.into_iter()
+                        .map(|v| {
+                            steal(&v).ok_or_else(|| {
+                                anyhow::anyhow!("Table value filled with unknown value!")
+                            })
+                        })
+                        .collect::<anyhow::Result<Vec<_>>>()
+                })
+            })
             .collect()
+    }
+
+    /// Returns the rows the table has for the given columns. The columns have to have
+    /// the same number of rows
+    pub fn get_rows(&self, cols: &[AnyQuery]) -> Option<anyhow::Result<Vec<Vec<F>>>> {
+        if matches!(self.check_columns(cols), ColumnMatch::Missing(_)) {
+            return None;
+        }
+        Some(self.get_rows_impl(cols))
     }
 
     fn collect_columns(&self) -> HashSet<usize> {

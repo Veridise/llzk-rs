@@ -1,29 +1,25 @@
-use crate::backend::codegen::inter_region_constraints;
-use crate::backend::resolvers::ResolversProvider;
-use crate::ir::chain_lowerable_stmts;
-use crate::lookups::callbacks::LookupCallbacks;
-use crate::synthesis::regions::{RegionRow, RegionRowLike as _, Row};
 use crate::{
     backend::{
         codegen::{
-            lookup::codegen::{InvokeLookupAsModule, LookupCodegenStrategy},
+            inter_region_constraints,
+            lookup::{codegen_lookup_invocations, codegen_lookup_modules},
             lower_constraints, Codegen, CodegenStrategy,
         },
-        lowering::Lowering,
+        resolvers::ResolversProvider,
     },
-    synthesis::CircuitSynthesis,
+    ir::stmt::chain_lowerable_stmts,
+    lookups::callbacks::LookupCallbacks,
+    synthesis::{
+        regions::{RegionRow, RegionRowLike as _, Row},
+        CircuitSynthesis,
+    },
 };
 use anyhow::Result;
 
 #[derive(Default)]
-pub struct InlineConstraintsStrat<LookupStrat: Default = InvokeLookupAsModule> {
-    lookups: LookupStrat,
-}
+pub struct InlineConstraintsStrat {}
 
-impl<LS> CodegenStrategy for InlineConstraintsStrat<LS>
-where
-    LS: Default + LookupCodegenStrategy,
-{
+impl CodegenStrategy for InlineConstraintsStrat {
     fn codegen<'c, 's, C>(
         &self,
         codegen: &C,
@@ -35,13 +31,10 @@ where
         Row<'s, C::F>: ResolversProvider<C::F> + 's,
         RegionRow<'s, 's, C::F>: ResolversProvider<C::F> + 's,
     {
-        self.lookups.define_modules(codegen, syn, lookups)?;
+        //self.lookups.define_modules(codegen, syn, lookups)?;
+        codegen_lookup_modules(codegen, syn, lookups)?;
 
         codegen.within_main(syn, move |_| {
-            let lookups = self
-                .lookups
-                .invoke_lookups(syn, lookups)
-                .and_then(|l| l.collect::<Result<Vec<_>>>())?;
             // Do the region stmts first since backends may have more information about names for
             // cells there and some backends do not update the name and always use the first
             // one given.
@@ -52,7 +45,7 @@ where
                     r.header(),
                     Some(r.row_number())
                 )),
-                lookups,
+                codegen_lookup_invocations(syn, lookups)?,
                 inter_region_constraints(syn)?
             ))
         })

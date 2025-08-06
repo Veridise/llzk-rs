@@ -4,7 +4,7 @@ use crate::{
     expressions::ScopedExpression,
     gates::AnyQuery,
     halo2::{AdviceQuery, Challenge, Expression, Field, FixedQuery, Gate, InstanceQuery, Selector},
-    ir::{BinaryBoolOp, CircuitStmt},
+    ir::{stmt::IRStmt, BinaryBoolOp},
 };
 use anyhow::{bail, Result};
 
@@ -121,20 +121,20 @@ where
 }
 
 impl<T> EitherLowerable<T, T> {
-    pub fn unwrap(value: EitherLowerable<T, T>) -> T {
-        match value {
+    pub fn unwrap(self) -> T {
+        match self {
             EitherLowerable::Left(l) => l,
             EitherLowerable::Right(r) => r,
         }
     }
 }
 
-impl<L, R> EitherLowerable<CircuitStmt<L>, CircuitStmt<R>>
+impl<L, R> EitherLowerable<IRStmt<L>, IRStmt<R>>
 where
     L: Into<R>,
 {
     /// If L: Into<R> fold this enum into R
-    pub fn fold_stmt_right(self) -> CircuitStmt<R> {
+    pub fn fold_stmt_right(self) -> IRStmt<R> {
         match self {
             EitherLowerable::Left(l) => l.map(&Into::into),
             EitherLowerable::Right(r) => r,
@@ -142,12 +142,12 @@ where
     }
 }
 
-impl<L, R> EitherLowerable<CircuitStmt<L>, CircuitStmt<R>>
+impl<L, R> EitherLowerable<IRStmt<L>, IRStmt<R>>
 where
     R: Into<L>,
 {
     /// If R: Into<L> fold this enum into L
-    pub fn fold_stmt_left(self) -> CircuitStmt<L> {
+    pub fn fold_stmt_left(self) -> IRStmt<L> {
         match self {
             EitherLowerable::Left(l) => l,
             EitherLowerable::Right(r) => r.map(&Into::into),
@@ -382,13 +382,13 @@ pub trait Lowering {
     //    resolvers: R,
     //    region_header: S,
     //    row: Option<usize>,
-    //) -> impl Iterator<Item = Result<CircuitStmt<Self::CellOutput>>>
+    //) -> impl Iterator<Item = Result<IRStmt<Self::CellOutput>>>
     //where
     //    R: ResolversProvider<Self::F>,
     //    S: ToString,
     //{
     //    let stmts = match row {
-    //        Some(row) => vec![Ok(CircuitStmt::comment(format!(
+    //        Some(row) => vec![Ok(IRStmt::comment(format!(
     //            "gate '{}' @ {} @ row {}",
     //            gate.name(),
     //            region_header.to_string(),
@@ -399,7 +399,7 @@ pub trait Lowering {
     //    stmts
     //        .into_iter()
     //        .chain(gate.polynomials().iter().map(move |lhs| {
-    //            Ok(CircuitStmt::constraint(
+    //            Ok(IRStmt::constraint(
     //                BinaryBoolOp::Eq,
     //                self.lower_expr(lhs, &resolvers)?,
     //                self.lower_expr(&Expression::Constant(Self::F::ZERO), &resolvers)?,

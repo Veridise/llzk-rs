@@ -35,3 +35,15 @@ impl<T: Clone> Clone for AssumeDeterministic<T> {
         Self(self.0.clone(), Default::default())
     }
 }
+
+impl<T> PartialEq for AssumeDeterministic<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for AssumeDeterministic<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "assume-deterministic {:?}", self.0)
+    }
+}

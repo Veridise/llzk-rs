@@ -6,7 +6,7 @@ macro_rules! codegen_test {
     ($c:ty, $b:ty, $s:ty) => {{
         let circuit = <$c>::default();
         let backend = <$b>::initialize(Default::default());
-        let output = backend.codegen_with_strat::<_, $s>(&circuit);
+        let output = backend.codegen_with_strat::<_, $c, $s>(&circuit);
 
         output.unwrap()
     }};
@@ -14,7 +14,7 @@ macro_rules! codegen_test {
     ($c:ty, $b:ty, $s:ty, $params:expr) => {{
         let circuit = <$c>::default();
         let backend = <$b>::initialize($params);
-        let output = backend.codegen_with_strat::<_, $s>(&circuit);
+        let output = backend.codegen_with_strat::<_, $c, $s>(&circuit);
 
         output.unwrap()
     }};
@@ -34,24 +34,5 @@ macro_rules! picus_codegen_test {
     };
     ($c:ty, $params:expr) => {
         codegen_test!($c, PicusBackend<Lift<Fr>>, InlineConstraintsStrat, $params)
-    };
-}
-
-#[macro_export]
-macro_rules! picus_codegen_with_inline_lookups_test {
-    ($c:ty) => {
-        codegen_test!(
-            $c,
-            PicusBackend<Lift<Fr>>,
-            InlineConstraintsStrat<LookupAsRowConstraint>
-        )
-    };
-    ($c:ty, $params:expr) => {
-        codegen_test!(
-            $c,
-            PicusBackend<Lift<Fr>>,
-            InlineConstraintsStrat<LookupAsRowConstraint>,
-            $params
-        )
     };
 }

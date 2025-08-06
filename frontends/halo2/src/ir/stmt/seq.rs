@@ -15,6 +15,10 @@ impl<T> Seq<T> {
                 .collect(),
         )
     }
+
+    pub fn empty() -> Self {
+        Self(vec![])
+    }
 }
 
 impl<T: Lowerable> Lowerable for Seq<T> {
@@ -41,5 +45,17 @@ impl<T> IntoIterator for Seq<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+impl<T: PartialEq> PartialEq for Seq<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for Seq<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.iter().try_for_each(|stmt| write!(f, "{:?}", stmt))
     }
 }

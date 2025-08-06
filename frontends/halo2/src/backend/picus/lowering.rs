@@ -27,7 +27,7 @@ pub struct PicusModuleLowering<L> {
     module: PicusModuleRef,
     lift_fixed: bool,
     naming_convention: NamingConvention,
-    regions: HashMap<RegionIndex, RegionStart>,
+    regions: Option<HashMap<RegionIndex, RegionStart>>,
     _field: PhantomData<L>,
 }
 
@@ -35,7 +35,7 @@ impl<L> PicusModuleLowering<L> {
     pub fn new(
         module: PicusModuleRef,
         lift_fixed: bool,
-        regions: HashMap<RegionIndex, RegionStart>,
+        regions: Option<HashMap<RegionIndex, RegionStart>>,
         naming_convention: NamingConvention,
     ) -> Self {
         Self {
@@ -48,7 +48,9 @@ impl<L> PicusModuleLowering<L> {
     }
 
     pub fn find_region(&self, idx: &RegionIndex) -> Option<RegionStart> {
-        self.regions.get(idx).copied()
+        self.regions
+            .as_ref()
+            .and_then(|regions| regions.get(idx).copied())
     }
 }
 

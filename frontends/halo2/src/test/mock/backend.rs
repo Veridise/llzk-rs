@@ -371,7 +371,7 @@ impl<'c> Codegen<'c> for MockBackend {
         selectors: &[&Selector],
         queries: &[AnyQuery],
         _output_queries: &[AnyQuery],
-        _: &CircuitSynthesis<Fr>,
+        _: &CircuitSynthesis<Self::F>,
     ) -> Result<<Self as Codegen<'c>>::FuncOutput> {
         let mut ctx = self.0.borrow_mut();
         if ctx.gate_names.contains(name) {
@@ -413,7 +413,7 @@ impl<'c> Codegen<'c> for MockBackend {
         _name: &str,
         _inputs: usize,
         _outputs: usize,
-        _syn: &CircuitSynthesis<Self::F>,
+        _syn: Option<&CircuitSynthesis<Self::F>>,
     ) -> Result<Self::FuncOutput> {
         todo!()
     }

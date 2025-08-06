@@ -11,13 +11,12 @@ use crate::{
     },
     gates::{compute_gate_arity, AnyQuery},
     halo2::{Column, Expression, Field, Selector},
-    ir::expr::IRExpr,
+    ir::{expr::IRExpr, stmt::IRStmt, IRModule},
     synthesis::{regions::RegionRowLike, CircuitSynthesis},
-    CircuitStmt,
 };
 use anyhow::{bail, Result};
 
-use super::{Lookup, LookupKind};
+use super::{Lookup, LookupKind, LookupTableRow};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum LookupIO {
@@ -26,20 +25,27 @@ pub enum LookupIO {
 }
 
 pub trait LookupCallbacks<F: Field> {
+    /// This callback offers the possibility of creating a module that encapsulates the lookup.
+    /// By default returns Ok(None) indicating that no module is created.
     fn on_body(
         &self,
-        kind: &LookupKind,
-        inputs: &[FuncIO],
-        outputs: &[FuncIO],
-    ) -> Result<Vec<CircuitStmt<IRExpr<F>>>>;
+        _kind: &LookupKind,
+        _io: &dyn Iterator<Item = (usize, LookupIO)>,
+    ) -> Result<Option<IRModule<IRExpr<F>>>> {
+        Ok(None)
+    }
 
-    fn on_call(
+    fn on_lookup(
         &self,
         region_row: &dyn RegionRowLike,
         lookup: Lookup<F>,
-    ) -> Result<Vec<CircuitStmt<IRExpr<F>>>>;
+        table: &[LookupTableRow<F>],
+    ) -> Result<Vec<IRStmt<IRExpr<F>>>>;
 
-    fn assign_io_kind(&self, expr: &Expression<F>, column: usize) -> LookupIO;
+    /// This callbacks ask for the kind of io a column is. By default returns None.
+    fn assign_io_kind(&self, expr: &Expression<F>, column: usize) -> Option<LookupIO> {
+        None
+    }
 }
 
 pub(crate) struct DefaultLookupCallbacks;
@@ -52,21 +58,21 @@ impl<F: Field> LookupCallbacks<F> for DefaultLookupCallbacks {
     fn on_body(
         &self,
         _kind: &LookupKind,
-        _inputs: &[FuncIO],
-        _outputs: &[FuncIO],
-    ) -> Result<Vec<CircuitStmt<IRExpr<F>>>> {
+        _io: &dyn Iterator<Item = (usize, LookupIO)>,
+    ) -> Result<Option<IRModule<IRExpr<F>>>> {
         lookups_panic()
     }
 
-    fn on_call(
+    fn on_lookup(
         &self,
         _region_row: &dyn RegionRowLike,
         _lookup: Lookup<F>,
-    ) -> Result<Vec<CircuitStmt<IRExpr<F>>>> {
+        _table: &[LookupTableRow<F>],
+    ) -> Result<Vec<IRStmt<IRExpr<F>>>> {
         lookups_panic()
     }
 
-    fn assign_io_kind(&self, _expr: &Expression<F>, _column: usize) -> LookupIO {
+    fn assign_io_kind(&self, _expr: &Expression<F>, _column: usize) -> Option<LookupIO> {
         lookups_panic()
     }
 }
@@ -77,28 +83,20 @@ impl<F: Field> LookupCallbacks<F> for DefaultLookupCallbacks {
 pub struct FixedTagLookup;
 
 impl<F: Field> LookupCallbacks<F> for FixedTagLookup {
-    fn on_body(
-        &self,
-        _kind: &LookupKind,
-        _inputs: &[FuncIO],
-        _outputs: &[FuncIO],
-    ) -> Result<Vec<CircuitStmt<IRExpr<F>>>> {
-        Ok(vec![])
-    }
-
-    fn on_call(
+    fn on_lookup(
         &self,
         _region_row: &dyn RegionRowLike,
         _lookup: Lookup<F>,
-    ) -> Result<Vec<CircuitStmt<IRExpr<F>>>> {
-        Ok(vec![])
+        _table: &[LookupTableRow<F>],
+    ) -> Result<Vec<IRStmt<IRExpr<F>>>> {
+        unreachable!()
     }
 
-    fn assign_io_kind(&self, expr: &Expression<F>, column: usize) -> LookupIO {
+    fn assign_io_kind(&self, expr: &Expression<F>, _column: usize) -> Option<LookupIO> {
         if contains_fixed(&expr) {
-            LookupIO::I
+            Some(LookupIO::I)
         } else {
-            LookupIO::O
+            Some(LookupIO::O)
         }
     }
 }

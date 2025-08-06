@@ -7,7 +7,7 @@ use crate::{
     expressions::{ExpressionFactory, ScopedExpression},
     gates::AnyQuery,
     halo2::{Any, Column, ColumnType, Expression, Field, Fixed, Gate, Rotation, Selector},
-    ir::{BinaryBoolOp, CircuitStmt},
+    ir::{stmt::IRStmt, BinaryBoolOp},
     lookups::callbacks::LookupCallbacks,
     synthesis::{
         regions::{RegionRow, Row},
@@ -19,7 +19,7 @@ use anyhow::Result;
 pub mod lookup;
 pub mod strats;
 
-pub type BodyResult<O> = Result<Vec<CircuitStmt<O>>>;
+pub type BodyResult<O> = Result<Vec<IRStmt<O>>>;
 
 #[inline]
 fn lower_io<O>(count: usize, f: impl Fn(usize) -> O) -> Vec<O> {
@@ -34,7 +34,7 @@ pub trait Codegen<'c>: Sized {
     fn within_main<FN, L, I>(&self, syn: &CircuitSynthesis<Self::F>, f: FN) -> Result<()>
     where
         FN: FnOnce(&Self::FuncOutput) -> Result<I>,
-        I: IntoIterator<Item = CircuitStmt<L>>,
+        I: IntoIterator<Item = IRStmt<L>>,
         L: Lowerable<F = Self::F>,
     {
         let main = self.define_main_function(syn)?;
@@ -57,7 +57,7 @@ pub trait Codegen<'c>: Sized {
         name: &str,
         inputs: usize,
         outputs: usize,
-        syn: &CircuitSynthesis<Self::F>,
+        syn: Option<&CircuitSynthesis<Self::F>>,
     ) -> Result<Self::FuncOutput>;
 
     fn define_function_with_body<FN, L>(
@@ -65,14 +65,13 @@ pub trait Codegen<'c>: Sized {
         name: &str,
         inputs: usize,
         outputs: usize,
-        syn: &CircuitSynthesis<Self::F>,
         f: FN,
     ) -> Result<()>
     where
         FN: FnOnce(&Self::FuncOutput, &[FuncIO], &[FuncIO]) -> BodyResult<L>,
         L: Lowerable<F = Self::F>,
     {
-        let func = self.define_function(name, inputs, outputs, syn)?;
+        let func = self.define_function(name, inputs, outputs, None)?;
         let inputs = func.lower_function_inputs(0..inputs);
         let outputs = func.lower_function_outputs(0..outputs);
         let stmts = f(&func, &inputs, &outputs)?;
@@ -85,7 +84,7 @@ pub trait Codegen<'c>: Sized {
     fn lower_stmts(
         &self,
         scope: &Self::FuncOutput,
-        stmts: impl Iterator<Item = Result<CircuitStmt<impl Lowerable<F = Self::F>>>>,
+        stmts: impl Iterator<Item = Result<IRStmt<impl Lowerable<F = Self::F>>>>,
     ) -> Result<()> {
         lower_stmts(scope, stmts)
     }
@@ -130,13 +129,13 @@ impl<'s, F: Field> IRCHelper<'s, F> {
 
 pub fn inter_region_constraints<'r, F: Field>(
     syn: &'r CircuitSynthesis<F>,
-) -> Result<impl IntoIterator<Item = CircuitStmt<ScopedExpression<'r, 'r, F>>> + 'r> {
+) -> Result<impl IntoIterator<Item = IRStmt<ScopedExpression<'r, 'r, F>>> + 'r> {
     syn.sorted_constraints()
         .into_iter()
         .map(move |(from, to)| {
             log::debug!("{from:?} == {to:?}");
             let helper = IRCHelper { syn };
-            Ok(CircuitStmt::constraint(
+            Ok(IRStmt::constraint(
                 BinaryBoolOp::Eq,
                 helper.lower_cell(from),
                 helper.lower_cell(to),
@@ -148,7 +147,7 @@ pub fn inter_region_constraints<'r, F: Field>(
                 .map(|r| {
                     r.map(|(col, row, f): (Column<Fixed>, _, _)| {
                         let helper = IRCHelper { syn };
-                        CircuitStmt::constraint(
+                        IRStmt::constraint(
                             BinaryBoolOp::Eq,
                             helper.lower_cell((col, row)),
                             helper.lower_const(f, row),
@@ -177,14 +176,14 @@ pub fn lower_constraints<'g, F, R, S>(
     resolvers: R,
     region_header: S,
     row: Option<usize>,
-) -> impl Iterator<Item = CircuitStmt<ScopedExpression<'g, 'g, F>>> + 'g
+) -> impl Iterator<Item = IRStmt<ScopedExpression<'g, 'g, F>>> + 'g
 where
     R: ResolversProvider<F> + Clone + 'g,
     S: ToString,
     F: Field,
 {
     let stmts = match row {
-        Some(row) => vec![CircuitStmt::comment(format!(
+        Some(row) => vec![IRStmt::comment(format!(
             "gate '{}' @ {} @ row {}",
             gate.name(),
             region_header.to_string(),
@@ -195,7 +194,7 @@ where
     stmts
         .into_iter()
         .chain(gate.polynomials().iter().map(move |lhs| {
-            CircuitStmt::constraint(
+            IRStmt::constraint(
                 BinaryBoolOp::Eq,
                 resolvers.clone().create_ref(lhs),
                 resolvers.clone().create(Expression::Constant(F::ZERO)),
@@ -205,7 +204,7 @@ where
 
 pub fn lower_stmts<Scope: Lowering>(
     scope: &Scope,
-    mut stmts: impl Iterator<Item = Result<CircuitStmt<impl Lowerable<F = Scope::F>>>>,
+    mut stmts: impl Iterator<Item = Result<IRStmt<impl Lowerable<F = Scope::F>>>>,
 ) -> Result<()> {
     stmts.try_for_each(|stmt| stmt.and_then(|stmt| scope.lower_stmt(stmt)))
 }

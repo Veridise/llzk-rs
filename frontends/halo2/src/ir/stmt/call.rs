@@ -62,3 +62,19 @@ impl<T: Clone> Clone for Call<T> {
         }
     }
 }
+
+impl<T: PartialEq> PartialEq for Call<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.callee == other.callee && self.inputs == other.inputs && self.outputs == other.outputs
+    }
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for Call<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "call '{}'({:?}) -> ({:?})",
+            self.callee, self.inputs, self.outputs
+        )
+    }
+}

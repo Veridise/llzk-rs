@@ -21,7 +21,7 @@ use crate::{
     expressions::ScopedExpression,
     gates::AnyQuery,
     halo2::{Expression, Field, PrimeField, RegionIndex, Selector},
-    ir::{lift::LiftIRGuard, CircuitStmt},
+    ir::{lift::LiftIRGuard, stmt::IRStmt},
     synthesis::{
         regions::{RegionRow, Row, FQN},
         CircuitSynthesis,
@@ -167,7 +167,7 @@ struct PicusBackendInner<L> {
     params: PicusParams,
     modules: Vec<PicusModuleRef>,
     current_scope: Option<PicusModuleLowering<L>>,
-    enqueued_stmts: HashMap<RegionIndex, Vec<CircuitStmt<Expression<L>>>>,
+    enqueued_stmts: HashMap<RegionIndex, Vec<IRStmt<Expression<L>>>>,
     _lift_guard: LiftIRGuard,
     _marker: PhantomData<L>,
 }
@@ -279,22 +279,24 @@ impl<L: LiftLike> PicusBackendInner<L> {
         name: String,
         inputs: impl Iterator<Item = O>,
         outputs: impl Iterator<Item = O>,
-        syn: &CircuitSynthesis<L>,
+        syn: Option<&CircuitSynthesis<L>>,
     ) -> Result<PicusModuleLowering<L>>
     where
         O: Into<VarKey> + Into<VarStr> + Clone,
     {
-        let regions = syn.regions_by_index();
+        let regions = syn.map(|syn| syn.regions_by_index());
         log::debug!("Region data: {regions:?}");
         let module = PicusModule::shared(name.clone(), inputs, outputs);
-        module
-            .borrow_mut()
-            .add_vars(syn.seen_advice_cells().map(|((col, row), name)| {
-                VarKeySeed::new(
-                    VarKeySeedInner::IO(FuncIO::Advice(*col, *row), Some(Cow::Borrowed(name))),
-                    self.params.naming_convention,
-                )
-            }));
+        if let Some(syn) = syn {
+            module
+                .borrow_mut()
+                .add_vars(syn.seen_advice_cells().map(|((col, row), name)| {
+                    VarKeySeed::new(
+                        VarKeySeedInner::IO(FuncIO::Advice(*col, *row), Some(Cow::Borrowed(name))),
+                        self.params.naming_convention,
+                    )
+                }));
+        }
         self.modules.push(module.clone());
         let scope = PicusModuleLowering::new(
             module,
@@ -333,7 +335,7 @@ impl<'c, L: LiftLike> Codegen<'c> for PicusBackend<L> {
             name.to_owned(),
             mk_io(selectors.len() + input_queries.len(), VarKeySeed::arg, nc),
             mk_io(output_queries.len(), VarKeySeed::field, nc),
-            syn,
+            Some(syn),
         )
     }
 
@@ -354,7 +356,7 @@ impl<'c, L: LiftLike> Codegen<'c> for PicusBackend<L> {
                 VarKeySeed::field,
                 nc,
             ),
-            syn,
+            Some(syn),
         )
     }
 
@@ -377,7 +379,7 @@ impl<'c, L: LiftLike> Codegen<'c> for PicusBackend<L> {
         name: &str,
         inputs: usize,
         outputs: usize,
-        syn: &CircuitSynthesis<Self::F>,
+        syn: Option<&CircuitSynthesis<Self::F>>,
     ) -> Result<Self::FuncOutput> {
         let nc = self.naming_convention();
         self.inner.borrow_mut().add_module(
@@ -410,7 +412,7 @@ impl<'c, L: LiftLike> Codegen<'c> for PicusEventReceiver<L> {
             name.to_owned(),
             mk_io(selectors.len() + input_queries.len(), VarKeySeed::arg, nc),
             mk_io(output_queries.len(), VarKeySeed::field, nc),
-            syn,
+            Some(syn),
         )
     }
 
@@ -431,7 +433,7 @@ impl<'c, L: LiftLike> Codegen<'c> for PicusEventReceiver<L> {
                 VarKeySeed::field,
                 nc,
             ),
-            syn,
+            Some(syn),
         )
     }
 
@@ -449,7 +451,7 @@ impl<'c, L: LiftLike> Codegen<'c> for PicusEventReceiver<L> {
         name: &str,
         inputs: usize,
         outputs: usize,
-        syn: &CircuitSynthesis<Self::F>,
+        syn: Option<&CircuitSynthesis<Self::F>>,
     ) -> Result<Self::FuncOutput> {
         let nc = self.naming_convention();
         self.inner.borrow_mut().add_module(
@@ -539,7 +541,7 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams> for PicusBackend<L> {
 
 fn dequeue_stmts_impl<'s, L: LiftLike>(
     scope: &'s PicusModuleLowering<L>,
-    enqueued_stmts: &mut HashMap<RegionIndex, Vec<CircuitStmt<Expression<L>>>>,
+    enqueued_stmts: &mut HashMap<RegionIndex, Vec<IRStmt<Expression<L>>>>,
 ) -> Result<()>
 where
     (OnlyAdviceQueriesResolver<'s, L>, NullSelectorResolver): ResolversProvider<L> + 's,
@@ -560,7 +562,7 @@ where
     }
     // Delete the elements waiting in the queue.
     for (region, stmts) in std::mem::take(enqueued_stmts) {
-        scope.lower_stmt(CircuitStmt::<Dummy<L>>::comment(format!(
+        scope.lower_stmt(IRStmt::<Dummy<L>>::comment(format!(
             "In-flight statements @ Region {} (start row: {})",
             *region,
             *scope.find_region(&region).unwrap()
@@ -575,7 +577,7 @@ where
             )));
             scope.lower_stmt(stmt)?;
         }
-        scope.lower_stmt(CircuitStmt::<Dummy<L>>::comment(format!(
+        scope.lower_stmt(IRStmt::<Dummy<L>>::comment(format!(
             "End of in-flight statements @ Region {} (start row: {})",
             *region,
             *scope.find_region(&region).unwrap()
@@ -588,7 +590,7 @@ impl<L: LiftLike> PicusBackendInner<L> {
     pub fn enqueue_stmts<'s>(
         &'s mut self,
         region: RegionIndex,
-        stmts: &[CircuitStmt<Expression<L>>],
+        stmts: &[IRStmt<Expression<L>>],
     ) -> Result<()>
 //where
     //    (OnlyAdviceQueriesResolver<'s, L>, NullSelectorResolver): ResolversProvider<L> + 's,

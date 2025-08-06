@@ -23,17 +23,43 @@ use comment::Comment;
 use constraint::Constraint;
 use seq::Seq;
 
-// Temporary alias
-pub type IRStmt<T> = CircuitStmt<T>;
-
 /// IR for operations that occur in the main circuit.
-pub enum CircuitStmt<T> {
+pub enum IRStmt<T> {
     ConstraintCall(Call<T>),
     Constraint(Constraint<T>),
     Comment(Comment<T>),
     AssumeDeterministic(AssumeDeterministic<T>),
     Assert(Assert<T>),
     Seq(Seq<T>),
+}
+
+impl<T: PartialEq> PartialEq for IRStmt<T> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (IRStmt::ConstraintCall(lhs), IRStmt::ConstraintCall(rhs)) => lhs.eq(rhs),
+            (IRStmt::Constraint(lhs), IRStmt::Constraint(rhs)) => lhs.eq(rhs),
+            (IRStmt::Comment(lhs), IRStmt::Comment(rhs)) => lhs.eq(rhs),
+            (IRStmt::AssumeDeterministic(lhs), IRStmt::AssumeDeterministic(rhs)) => lhs.eq(rhs),
+            (IRStmt::Assert(lhs), IRStmt::Assert(rhs)) => lhs.eq(rhs),
+            (IRStmt::Seq(lhs), IRStmt::Seq(rhs)) => lhs.eq(rhs),
+            _ => false,
+        }
+    }
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for IRStmt<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IRStmt::ConstraintCall(call) => write!(f, "{call:?}"),
+            IRStmt::Constraint(constraint) => write!(f, "{constraint:?}"),
+            IRStmt::Comment(comment) => write!(f, "{comment:?}"),
+            IRStmt::AssumeDeterministic(assume_deterministic) => {
+                write!(f, "{assume_deterministic:?}")
+            }
+            IRStmt::Assert(assert) => write!(f, "{assert:?}"),
+            IRStmt::Seq(seq) => write!(f, "{seq:?}"),
+        }
+    }
 }
 
 impl<T> IRStmt<T> {
@@ -68,31 +94,41 @@ impl<T> IRStmt<T> {
         Seq::new(stmts).into()
     }
 
+    pub fn empty() -> Self {
+        Seq::empty().into()
+    }
+
     pub fn map<O>(self, f: &impl Fn(T) -> O) -> IRStmt<O> {
         match self {
-            CircuitStmt::ConstraintCall(call) => call.map(f).into(),
-            CircuitStmt::Constraint(constraint) => constraint.map(f).into(),
-            CircuitStmt::Comment(comment) => Comment::new(comment.value()).into(),
-            CircuitStmt::AssumeDeterministic(ad) => AssumeDeterministic::new(ad.value()).into(),
-            CircuitStmt::Assert(assert) => assert.map(f).into(),
-            CircuitStmt::Seq(seq) => Seq::new(seq.into_iter().map(|s| s.map(f))).into(),
+            IRStmt::ConstraintCall(call) => call.map(f).into(),
+            IRStmt::Constraint(constraint) => constraint.map(f).into(),
+            IRStmt::Comment(comment) => Comment::new(comment.value()).into(),
+            IRStmt::AssumeDeterministic(ad) => AssumeDeterministic::new(ad.value()).into(),
+            IRStmt::Assert(assert) => assert.map(f).into(),
+            IRStmt::Seq(seq) => Seq::new(seq.into_iter().map(|s| s.map(f))).into(),
         }
     }
 
     pub fn try_map<O>(self, f: &impl Fn(T) -> Result<O>) -> Result<IRStmt<O>> {
         Ok(match self {
-            CircuitStmt::ConstraintCall(call) => call.try_map(f)?.into(),
-            CircuitStmt::Constraint(constraint) => constraint.try_map(f)?.into(),
-            CircuitStmt::Comment(comment) => Comment::new(comment.value()).into(),
-            CircuitStmt::AssumeDeterministic(ad) => AssumeDeterministic::new(ad.value()).into(),
-            CircuitStmt::Assert(assert) => assert.try_map(f)?.into(),
-            CircuitStmt::Seq(seq) => Seq::new(
+            IRStmt::ConstraintCall(call) => call.try_map(f)?.into(),
+            IRStmt::Constraint(constraint) => constraint.try_map(f)?.into(),
+            IRStmt::Comment(comment) => Comment::new(comment.value()).into(),
+            IRStmt::AssumeDeterministic(ad) => AssumeDeterministic::new(ad.value()).into(),
+            IRStmt::Assert(assert) => assert.try_map(f)?.into(),
+            IRStmt::Seq(seq) => Seq::new(
                 seq.into_iter()
                     .map(|s| s.try_map(f))
                     .collect::<Result<Vec<_>>>()?,
             )
             .into(),
         })
+    }
+}
+
+impl<T> Default for IRStmt<T> {
+    fn default() -> Self {
+        Self::empty()
     }
 }
 
@@ -203,7 +239,7 @@ impl<T: Lowerable> Lowerable for IRStmt<T> {
     }
 }
 
-impl<T: Clone> Clone for CircuitStmt<T> {
+impl<T: Clone> Clone for IRStmt<T> {
     fn clone(&self) -> Self {
         match self {
             Self::ConstraintCall(call) => call.clone().into(),

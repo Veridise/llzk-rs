@@ -1,9 +1,7 @@
 use log::LevelFilter;
 use simplelog::{Config, TestLogger};
 
-use crate::backend::codegen::{
-    lookup::codegen::LookupAsRowConstraint, strats::inline::InlineConstraintsStrat,
-};
+use crate::backend::codegen::strats::inline::InlineConstraintsStrat;
 use crate::backend::func::{ArgNo, FieldId};
 use crate::backend::picus::{PicusBackend, PicusParamsBuilder};
 use crate::backend::Backend;
@@ -17,10 +15,7 @@ use crate::test::fixtures::midnight::mul::MulCircuit;
 use crate::test::fixtures::midnight::mul_with_fixed_constraint::MulWithFixedConstraintCircuit;
 use crate::test::mock::backend::{MockBackend, MockFunc, MockOutput};
 use crate::test::mock::IRBuilder;
-use crate::{
-    codegen_test, mock_codegen_test, picus_codegen_test, picus_codegen_with_inline_lookups_test,
-    Lift,
-};
+use crate::{codegen_test, mock_codegen_test, picus_codegen_test, Lift};
 
 fn args(count: usize) -> Vec<ArgNo> {
     (0..count).map(Into::into).collect()
@@ -154,54 +149,14 @@ macro_rules! picus_test {
     };
 }
 
-macro_rules! picus_inlined_lookups_test {
-    ($name:ident, $circ:ty) => {
-        #[test]
-        fn $name() {
-            let _ = TestLogger::init(LevelFilter::Debug, Config::default());
-            let output = picus_codegen_with_inline_lookups_test!(
-                $circ,
-                PicusParamsBuilder::new()
-                    .no_lift_fixed()
-                    .short_names()
-                    .into()
-            );
-            println!("{}", output.display());
-        }
-    };
-}
-
-macro_rules! picus_inlined_lookups_test_noopt {
-    ($name:ident, $circ:ty) => {
-        #[test]
-        fn $name() {
-            let _ = TestLogger::init(LevelFilter::Debug, Config::default());
-            let output = picus_codegen_with_inline_lookups_test!(
-                $circ,
-                PicusParamsBuilder::new()
-                    .no_lift_fixed()
-                    .no_optimize()
-                    .short_names()
-                    .into()
-            );
-            println!("{}", output.display());
-        }
-    };
-}
-
 picus_test!(test_mul_circuit_picus_codegen, MulCircuit<Lift<Fr>>);
 picus_test!(test_lookup_circuit_picus_codegen, LookupCircuit<Lift<Fr>>);
-picus_inlined_lookups_test!(
+picus_test!(
     test_lookup_circuit_picus_codegen_inlined_lookups,
     LookupCircuit<Lift<Fr>>
 );
 
-picus_inlined_lookups_test_noopt!(
-    test_lookup_circuit_picus_codegen_inlined_lookups_noopt,
-    LookupCircuit<Lift<Fr>>
-);
-
-picus_inlined_lookups_test!(
+picus_test!(
     test_lookup_2x3_circuit_picus_codegen_inlined_lookups,
     Lookup2x3Circuit<Lift<Fr>>
 );
@@ -216,15 +171,11 @@ picus_test!(
     Lookup2x3FixedCircuit<Lift<Fr>>
 );
 
-picus_inlined_lookups_test!(
+picus_test!(
     test_lookup_2x3_zerosel_circuit_picus_codegen_inlined_lookups,
     Lookup2x3ZeroSelCircuit<Lift<Fr>>
 );
 
-picus_inlined_lookups_test_noopt!(
-    test_lookup_2x3_circuit_picus_codegen_inlined_lookups_noopt,
-    Lookup2x3Circuit<Lift<Fr>>
-);
 picus_test!(
     test_mul_with_fixed_constraint_circuit_picus_codegen,
     MulWithFixedConstraintCircuit<Lift<Fr>>

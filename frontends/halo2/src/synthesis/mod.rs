@@ -2,17 +2,20 @@ mod constraint;
 mod matrix;
 pub mod regions;
 
-use std::collections::{hash_set::Iter, HashMap, HashSet};
+use std::{
+    collections::{hash_set::Iter, HashMap, HashSet},
+    convert::identity,
+};
 
 use anyhow::{anyhow, Result};
 use constraint::{EqConstraint, Graph};
 use regions::{RegionData, RegionRow, Regions, TableData, FQN};
 
 use crate::{
-    gates::find_gate_selector_set,
-    halo2::*,
+    gates::{find_gate_selector_set, AnyQuery},
+    halo2::{Field, *},
     io::{AdviceIOValidator, InstanceIOValidator},
-    lookups::{callbacks::LookupCallbacks, Lookup, LookupKind},
+    lookups::{callbacks::LookupCallbacks, Lookup, LookupKind, LookupTableRow},
     value::steal,
     CircuitCallbacks, CircuitIO,
 };
@@ -84,30 +87,66 @@ impl<F: Field> CircuitSynthesis<F> {
         })
     }
 
-    pub fn lookups<'a>(
-        &'a self,
-        lookups: &'a (dyn LookupCallbacks<F> + 'a),
-    ) -> impl Iterator<Item = Lookup<'a, F>> + 'a {
-        Lookup::load(self, lookups).into_iter()
+    pub fn lookups<'a>(&'a self) -> impl Iterator<Item = Lookup<'a, F>> + 'a {
+        Lookup::load(self).into_iter()
     }
 
-    pub fn lookup_kinds<'a>(
-        &'a self,
-        lookups: &'a (dyn LookupCallbacks<F> + 'a),
-    ) -> Result<HashSet<LookupKind>> {
-        self.lookups(lookups).map(|l| l.kind()).collect()
+    pub fn lookup_kinds<'a>(&'a self) -> Result<HashMap<LookupKind, Vec<Lookup<'a, F>>>> {
+        fn fold<'a, F: Field>(
+            mut map: HashMap<LookupKind, Vec<Lookup<'a, F>>>,
+            lookup: Result<(LookupKind, Lookup<'a, F>)>,
+        ) -> Result<HashMap<LookupKind, Vec<Lookup<'a, F>>>> {
+            lookup.map(|(k, l)| {
+                map.entry(k).or_default().push(l);
+                map
+            })
+        }
+
+        self.lookups()
+            .map(|l| Ok((l.kind()?, l)))
+            .try_fold(HashMap::default(), fold)
     }
 
     pub fn lookups_per_region_row<'a>(
         &'a self,
-        lookups: &'a (dyn LookupCallbacks<F> + 'a),
     ) -> impl Iterator<Item = (RegionRow<'a, 'a, F>, Lookup<'a, F>)> + 'a {
         self.region_rows()
-            .flat_map(|r| self.lookups(lookups).map(move |l| (r, l)))
+            .flat_map(|r| self.lookups().map(move |l| (r, l)))
     }
 
     pub fn tables(&self) -> &[TableData<F>] {
         self.regions.tables()
+    }
+
+    fn find_table(&self, q: &[AnyQuery]) -> Result<Vec<Vec<F>>> {
+        self.tables()
+            .iter()
+            .find_map(|table| table.get_rows(&q))
+            .ok_or_else(|| anyhow!("Could not get values from table"))
+            .and_then(identity)
+    }
+
+    fn tables_for_queries(&self, q: &[AnyQuery]) -> Result<Vec<LookupTableRow<F>>> {
+        // For each table region look if they have the columns we are looking for and
+        // collect all the fixed values
+        let columns = q.iter().map(|q| q.column_index()).collect::<Vec<_>>();
+        let table = self.find_table(q)?;
+        if q.len() != table.len() {
+            anyhow::bail!(
+                "Inconsistency check failed: Lookup has {} columns but table yielded {}",
+                q.len(),
+                table.len()
+            )
+        }
+
+        Ok(transpose(table)
+            .into_iter()
+            .map(|row| LookupTableRow::new(&columns, row))
+            .collect())
+    }
+
+    pub fn tables_for_lookup(&self, l: &Lookup<F>) -> Result<Vec<LookupTableRow<F>>> {
+        l.table_queries().and_then(|q| self.tables_for_queries(&q))
     }
 
     pub fn regions_by_index(&self) -> HashMap<RegionIndex, RegionStart> {
@@ -389,4 +428,18 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
     fn get_challenge(&self, _: Challenge) -> Value<F> {
         todo!()
     }
+}
+
+fn transpose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
+    assert!(!v.is_empty());
+    let len = v[0].len();
+    let mut iters: Vec<_> = v.into_iter().map(|n| n.into_iter()).collect();
+    (0..len)
+        .map(|_| {
+            iters
+                .iter_mut()
+                .map(|n| n.next().unwrap())
+                .collect::<Vec<T>>()
+        })
+        .collect()
 }
