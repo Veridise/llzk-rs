@@ -27,15 +27,19 @@ fn zip_option<L, R>(lhs: Option<L>, rhs: Option<R>) -> Option<(L, R)> {
 }
 
 impl ConstraintKind {
-    fn fold_impl(&self, lhs: &Expr, rhs: &Expr) -> Option<bool> {
-        zip_option(lhs.as_const(), rhs.as_const()).map(|(lhs, rhs)| match self {
+    pub fn cmp_felts(&self, lhs: &Felt, rhs: &Felt) -> bool {
+        match self {
             ConstraintKind::Lt => lhs < rhs,
             ConstraintKind::Le => lhs <= rhs,
             ConstraintKind::Gt => lhs > rhs,
             ConstraintKind::Ge => lhs >= rhs,
             ConstraintKind::Eq => lhs == rhs,
             ConstraintKind::Ne => lhs != rhs,
-        })
+        }
+    }
+
+    fn fold_impl(&self, lhs: &Expr, rhs: &Expr) -> Option<bool> {
+        zip_option(lhs.as_const(), rhs.as_const()).map(|(lhs, rhs)| self.cmp_felts(&lhs, &rhs))
     }
 }
 

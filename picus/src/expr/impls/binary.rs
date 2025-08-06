@@ -13,7 +13,7 @@ use crate::{
             ConstantFolding, ConstraintExpr, ExprLike, ExprSize, GetExprHash, MaybeVarLike,
             WrappedExpr,
         },
-        util::map_cexpr,
+        util::{map_cexpr, map_consts},
         Expr, ExprHash, Wrap,
     },
     felt::Felt,
@@ -168,6 +168,18 @@ impl ConstraintExpr for BinaryExpr<ConstraintKind> {
 
     fn rhs(&self) -> Expr {
         self.2.clone()
+    }
+
+    fn is_constant_true(&self) -> bool {
+        map_consts(&self.lhs(), &self.rhs(), |lhs, rhs| {
+            self.0.cmp_felts(&lhs, &rhs)
+        })
+    }
+
+    fn is_constant_false(&self) -> bool {
+        map_consts(&self.lhs(), &self.rhs(), |lhs, rhs| {
+            !self.0.cmp_felts(&lhs, &rhs)
+        })
     }
 }
 
