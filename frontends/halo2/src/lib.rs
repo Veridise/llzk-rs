@@ -30,6 +30,7 @@ pub use backend::Backend;
 pub use error::to_plonk_error;
 pub use io::CircuitIO;
 pub use ir::BinaryBoolOp;
+pub use synthesis::regions::RegionRowLike;
 
 /// Defines, for a given circuit, a set of callbacks with information
 /// required by the LLZK codegen module to construct the IR representation of the
