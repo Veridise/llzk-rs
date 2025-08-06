@@ -1,23 +1,14 @@
-use crate::{
-    halo2::*,
-    synthesis::regions::FQN,
-};
+use crate::{halo2::*, synthesis::regions::FQN};
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
     ops::Range,
 };
 
-use super::{BlanketFills, SharedRegionData, TableData};
+use super::{fixed::FixedData, BlanketFills, SharedRegionData, TableData};
 
 #[derive(Debug, Default)]
-struct RegionDataInner<F> {
-    /// Constant values assigned to fixed columns in the region.
-    fixed: HashMap<(usize, usize), Value<F>>,
-    /// Represents the circuit filling rows with a single value.
-    /// Row start offsets are maintained in chronological order, so when
-    /// querying a row the latest that matches is the correct value.
-    blanket_fills: HashMap<usize, BlanketFills<F>>,
+struct RegionDataInner {
     /// The selectors that have been enabled in this region. All other selectors are by
     /// construction not enabled.
     enabled_selectors: HashMap<Selector, Vec<usize>>,
@@ -35,13 +26,13 @@ pub(super) enum RegionKind {
 }
 
 #[derive(Debug)]
-pub struct RegionDataImpl<F> {
+pub struct RegionDataImpl<F: Copy + std::fmt::Debug> {
     /// The name of the region. Not required to be unique.
     name: String,
     kind: RegionKind,
     index: Option<RegionIndex>,
-    inner: RegionDataInner<F>,
-    shared: Option<SharedRegionData>,
+    inner: RegionDataInner,
+    shared: SharedRegionData<F>,
 }
 
 impl<F: Default + Clone + Copy + std::fmt::Debug> RegionDataImpl<F> {
@@ -51,7 +42,7 @@ impl<F: Default + Clone + Copy + std::fmt::Debug> RegionDataImpl<F> {
             kind: RegionKind::Region,
             index: Some(index),
             inner: Default::default(),
-            shared: Some(Default::default()),
+            shared: Default::default(),
         }
     }
 
@@ -71,8 +62,8 @@ impl<F: Default + Clone + Copy + std::fmt::Debug> RegionDataImpl<F> {
         self.index
     }
 
-    pub fn take_shared(&mut self) -> Option<SharedRegionData> {
-        self.shared.take()
+    pub fn take_shared(&mut self) -> SharedRegionData<F> {
+        self.shared.clone()
     }
 
     pub fn mark_as_table(&mut self) {
@@ -90,11 +81,7 @@ impl<F: Default + Clone + Copy + std::fmt::Debug> RegionDataImpl<F> {
     }
 
     pub fn blanket_fill(&mut self, column: Column<Fixed>, row: usize, value: Value<F>) {
-        self.inner
-            .blanket_fills
-            .entry(column.index())
-            .or_default()
-            .push((row.., value));
+        self.shared.fixed.blanket_fill(column, row, value);
         self.update_extent(column.into(), row);
     }
 
@@ -123,37 +110,7 @@ impl<F: Default + Clone + Copy + std::fmt::Debug> RegionDataImpl<F> {
         F: Field,
         VR: Into<Assigned<F>>,
     {
-        let value = value.map(|vr| vr.into());
-        log::debug!(
-            "Recording fixed assignment @ col = {}, row = {row}, value = {value:?}",
-            fixed.index()
-        );
-        self.inner
-            .fixed
-            .insert((fixed.index(), row), value.map(|vr| vr.evaluate()));
-    }
-
-    fn resolve_from_blanket_fills(&self, column: usize, row: usize) -> Option<Value<F>> {
-        self.inner
-            .blanket_fills
-            .get(&column)
-            .and_then(|values| values.iter().rfind(|(range, _)| range.contains(&row)))
-            .map(|(_, v)| *v)
-    }
-
-    pub fn resolve_fixed(&self, column: usize, row: usize) -> Option<Value<F>> {
-        log::debug!("Fixed values: {:?}", self.inner.fixed);
-        self.inner
-            .fixed
-            .get(&(column, row))
-            .inspect(|v| {
-                log::debug!(
-                    "[Region {}] For ({column}, {row}) we got value {v:?}",
-                    self.name
-                )
-            })
-            .cloned()
-            .or_else(|| self.resolve_from_blanket_fills(column, row))
+        self.shared.fixed.assign_fixed(fixed, row, value);
     }
 
     pub fn rows(&self) -> Range<usize> {
@@ -175,8 +132,6 @@ impl<F: Default + Clone + Copy + std::fmt::Debug> RegionDataImpl<F> {
             column.index()
         );
         self.shared
-            .as_mut()
-            .unwrap()
             .advice_names_mut()
             .insert((column.index(), row), fqn);
     }
@@ -203,20 +158,20 @@ impl<F: Default + Clone + Copy + std::fmt::Debug> RegionDataImpl<F> {
     }
 }
 
-impl<F: Copy + Default> From<RegionDataImpl<F>> for TableData<F> {
+impl<F: Copy + Default + std::fmt::Debug> From<RegionDataImpl<F>> for TableData<F> {
     fn from(value: RegionDataImpl<F>) -> Self {
-        Self::new(value.inner.fixed, value.inner.blanket_fills)
+        Self::new(value.shared.fixed)
     }
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct RegionData<'a, F> {
-    pub shared: &'a SharedRegionData,
-    pub inner: &'a RegionDataImpl<F>,
+pub struct RegionData<'a, F: Copy + std::fmt::Debug> {
+    shared: &'a SharedRegionData<F>,
+    inner: &'a RegionDataImpl<F>,
 }
 
 impl<'a, F: Default + Clone + Copy + std::fmt::Debug> RegionData<'a, F> {
-    pub fn new(shared: &'a SharedRegionData, inner: &'a RegionDataImpl<F>) -> Self {
+    pub fn new(shared: &'a SharedRegionData<F>, inner: &'a RegionDataImpl<F>) -> Self {
         Self { shared, inner }
     }
 
@@ -243,7 +198,27 @@ impl<'a, F: Default + Clone + Copy + std::fmt::Debug> RegionData<'a, F> {
         &self.inner.name
     }
 
+    pub fn index(&self) -> Option<RegionIndex> {
+        self.inner.index
+    }
+
+    pub fn kind(&self) -> RegionKind {
+        self.inner.kind
+    }
+
+    pub fn selectors_enabled_for_row(&self, row: usize) -> Vec<&'a Selector> {
+        self.inner.selectors_enabled_for_row(row)
+    }
+
     pub fn find_fixed_col_assignment(&self, col: Column<Fixed>, row: usize) -> Option<Value<F>> {
-        self.inner.resolve_fixed(col.index(), row)
+        self.resolve_fixed(col.index(), row)
+    }
+
+    pub fn resolve_fixed(&self, column: usize, row: usize) -> Option<Value<F>> {
+        self.shared.resolve_fixed(column, row)
+    }
+
+    pub fn enabled_selectors(&self) -> &'a HashMap<Selector, Vec<usize>> {
+        self.inner.enabled_selectors()
     }
 }

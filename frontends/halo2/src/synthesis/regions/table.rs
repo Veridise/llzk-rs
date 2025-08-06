@@ -6,7 +6,7 @@ use std::{
     ops::RangeFrom,
 };
 
-use super::BlanketFills;
+use super::{fixed::FixedData, BlanketFills};
 
 #[derive(Clone, Debug)]
 pub enum Fill<F: Copy> {
@@ -53,11 +53,9 @@ pub enum ColumnMatch {
     Missing(Vec<AnyQuery>),
 }
 
-impl<F: Copy + Default> TableData<F> {
-    pub fn new(
-        fixed: HashMap<(usize, usize), Value<F>>,
-        blanket_fills: HashMap<usize, BlanketFills<F>>,
-    ) -> Self {
+impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
+    pub fn new(fixed: FixedData<F>) -> Self {
+        let (fixed, blanket_fills) = fixed.take();
         let values = fixed
             .into_iter()
             .map(|((col, row), v)| (col, Fill::Single(row, v)))
