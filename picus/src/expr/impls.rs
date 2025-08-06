@@ -372,3 +372,105 @@ mod test_neg_expr {
         assert_eq!(value, Felt::from(0));
     }
 }
+
+//===----------------------------------------------------------------------===//
+// NotExpr
+//===----------------------------------------------------------------------===//
+
+#[derive(Clone, Debug)]
+pub struct NotExpr(Expr);
+
+impl NotExpr {
+    pub fn new(e: Expr) -> Self {
+        Self(e)
+    }
+}
+
+impl WrappedExpr for NotExpr {
+    fn wrap(&self) -> Expr {
+        Wrap::new(self.clone())
+    }
+}
+
+impl ExprSize for NotExpr {
+    fn size(&self) -> usize {
+        self.0.size() + 1
+    }
+
+    fn extraible(&self) -> bool {
+        true
+    }
+
+    fn args(&self) -> Vec<Expr> {
+        vec![self.0.clone()]
+    }
+
+    fn replace_args(&self, args: &[Option<Expr>]) -> Result<Option<Expr>> {
+        Ok(match args {
+            [None] => None,
+            [Some(expr)] => Some(expr),
+            _ => bail!("NotExpr expects 1 argument"),
+        }
+        .map(|expr| -> Expr { Wrap::new(Self(expr.clone())) }))
+    }
+}
+
+impl ConstantFolding for NotExpr {
+    fn as_const(&self) -> Option<Felt> {
+        None
+    }
+
+    fn fold(&self, prime: &Felt) -> Option<Expr> {
+        self.0
+            .fold(prime)
+            .map(|inner| -> Expr { Wrap::new(Self(inner)) })
+    }
+}
+
+impl TextRepresentable for NotExpr {
+    fn to_repr(&self) -> TextRepresentation<'_> {
+        owned_list!("!", &self.0)
+    }
+
+    fn width_hint(&self) -> usize {
+        3 + self.0.width_hint()
+    }
+}
+
+impl MaybeVarLike for NotExpr {
+    fn var_name(&self) -> Option<&VarStr> {
+        None
+    }
+
+    fn renamed(&self, map: &HashMap<VarStr, VarStr>) -> Option<Expr> {
+        self.0.renamed(map).map(|e| -> Expr { Wrap::new(Self(e)) })
+    }
+
+    fn free_vars(&self) -> HashSet<&VarStr> {
+        self.0.free_vars()
+    }
+}
+
+impl ConstraintLike for NotExpr {
+    fn is_constraint(&self) -> bool {
+        false
+    }
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
+        None
+    }
+}
+
+impl PartialEq for NotExpr {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == *other.0
+    }
+}
+
+impl GetExprHash for NotExpr {
+    fn hash(&self) -> ExprHash {
+        hash!('!', self.0.hash())
+    }
+}
+
+impl ExprLike for NotExpr {}

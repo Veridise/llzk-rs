@@ -17,16 +17,15 @@ impl Boolean {
     fn fold_side(&self, lhs: &Expr, rhs: &Expr) -> Option<Expr> {
         log::debug!("Trying to fold ({self:?}  {lhs:?}  {rhs:?})");
         lhs.constraint_expr()
-            .zip(rhs.constraint_expr())
-            .and_then(move |(clhs, crhs)| match self {
-                Boolean::And if clhs.is_constant_false() => Some(rhs.clone()),
-                Boolean::Or if clhs.is_constant_true() => Some(lhs.clone()),
-                Boolean::And if clhs.is_constant_true() && crhs.is_constant_true() => {
-                    Some(expr::r#true())
-                }
-                Boolean::Or if clhs.is_constant_false() && crhs.is_constant_false() => {
-                    Some(expr::r#false())
-                }
+            .and_then(move |clhs| match self {
+                // T && x == x
+                Boolean::And if clhs.is_constant_true() => Some(rhs.clone()),
+                // F && x == F
+                Boolean::And if clhs.is_constant_false() => Some(expr::r#false()),
+                // T || x == T
+                Boolean::Or if clhs.is_constant_true() => Some(expr::r#true()),
+                // F || x == x
+                Boolean::Or if clhs.is_constant_false() => Some(rhs.clone()),
                 _ => None,
             })
             .inspect(|e| log::debug!("Folded to {e:?}"))

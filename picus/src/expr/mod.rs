@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
-use impls::{BinaryExpr, BinaryOp, Boolean, ConstExpr, ConstraintKind, NegExpr, VarExpr};
+use impls::{BinaryExpr, BinaryOp, Boolean, ConstExpr, ConstraintKind, NegExpr, NotExpr, VarExpr};
 use traits::{
     ConstantFolding, ConstraintExpr, ExprLike, ExprSize, GetExprHash, MaybeVarLike, WrappedExpr,
 };
@@ -205,6 +205,10 @@ pub fn and(lhs: &Expr, rhs: &Expr) -> Expr {
 
 pub fn or(lhs: &Expr, rhs: &Expr) -> Expr {
     boolean(Boolean::Or, lhs, rhs)
+}
+
+pub fn not(expr: &Expr) -> Expr {
+    Wrap::new(NotExpr::new(expr.clone()))
 }
 
 pub fn r#true() -> Expr {

@@ -157,16 +157,16 @@ impl<A: Lowerable> Lowerable for IRBexpr<A> {
                 let rhs = l.lower_value(rhs)?;
                 match cmp_op {
                     CmpOp::Eq => l.lower_eq(&lhs, &rhs),
-                    CmpOp::Lt => todo!(),
-                    CmpOp::Le => todo!(),
-                    CmpOp::Gt => todo!(),
-                    CmpOp::Ge => todo!(),
-                    CmpOp::Ne => todo!(),
+                    CmpOp::Lt => l.lower_lt(&lhs, &rhs),
+                    CmpOp::Le => l.lower_le(&lhs, &rhs),
+                    CmpOp::Gt => l.lower_gt(&lhs, &rhs),
+                    CmpOp::Ge => l.lower_ge(&lhs, &rhs),
+                    CmpOp::Ne => l.lower_ne(&lhs, &rhs),
                 }
             }
             IRBexpr::And(exprs) => reduce_bool_expr(exprs, l, L::lower_and),
             IRBexpr::Or(exprs) => reduce_bool_expr(exprs, l, L::lower_or),
-            IRBexpr::Not(_expr) => todo!(),
+            IRBexpr::Not(expr) => l.lower_value(expr).and_then(|e| l.lower_not(&e)),
         }
     }
 }

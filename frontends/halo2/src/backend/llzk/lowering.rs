@@ -396,4 +396,48 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
     {
         todo!()
     }
+
+    fn lower_lt(
+        &self,
+        _lhs: &Self::CellOutput,
+        _rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        todo!()
+    }
+
+    fn lower_le(
+        &self,
+        _lhs: &Self::CellOutput,
+        _rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        todo!()
+    }
+
+    fn lower_gt(
+        &self,
+        _lhs: &Self::CellOutput,
+        _rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        todo!()
+    }
+
+    fn lower_ge(
+        &self,
+        _lhs: &Self::CellOutput,
+        _rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        todo!()
+    }
+
+    fn lower_ne(
+        &self,
+        _lhs: &Self::CellOutput,
+        _rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        todo!()
+    }
+
+    fn lower_not(&self, _value: &Self::CellOutput) -> Result<Self::CellOutput> {
+        todo!()
+    }
 }

@@ -308,4 +308,28 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
     {
         Ok(self.lower_func_io(io.into(), None))
     }
+
+    fn lower_lt(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
+        Ok(expr::lt(lhs, rhs))
+    }
+
+    fn lower_le(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
+        Ok(expr::le(lhs, rhs))
+    }
+
+    fn lower_gt(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
+        Ok(expr::gt(lhs, rhs))
+    }
+
+    fn lower_ge(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
+        Ok(expr::ge(lhs, rhs))
+    }
+
+    fn lower_ne(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
+        Ok(expr::ne(lhs, rhs))
+    }
+
+    fn lower_not(&self, value: &Self::CellOutput) -> Result<Self::CellOutput> {
+        Ok(expr::not(value))
+    }
 }

@@ -1,6 +1,6 @@
 use crate::{
     display::{TextRepresentable, TextRepresentation},
-    expr::{impls::BinaryExpr, Expr},
+    expr::{self, impls::BinaryExpr, Expr},
     felt::Felt,
 };
 
@@ -22,9 +22,27 @@ impl OpLike for ConstraintKind {
     }
 }
 
+fn zip_option<L, R>(lhs: Option<L>, rhs: Option<R>) -> Option<(L, R)> {
+    lhs.and_then(|lhs| rhs.map(|rhs| (lhs, rhs)))
+}
+
+impl ConstraintKind {
+    fn fold_impl(&self, lhs: &Expr, rhs: &Expr) -> Option<bool> {
+        zip_option(lhs.as_const(), rhs.as_const()).map(|(lhs, rhs)| match self {
+            ConstraintKind::Lt => lhs < rhs,
+            ConstraintKind::Le => lhs <= rhs,
+            ConstraintKind::Gt => lhs > rhs,
+            ConstraintKind::Ge => lhs >= rhs,
+            ConstraintKind::Eq => lhs == rhs,
+            ConstraintKind::Ne => lhs != rhs,
+        })
+    }
+}
+
 impl OpFolder for ConstraintKind {
-    fn fold(&self, _lhs: Expr, _rhs: Expr, _prime: &Felt) -> Option<Expr> {
-        None
+    fn fold(&self, lhs: Expr, rhs: Expr, _prime: &Felt) -> Option<Expr> {
+        self.fold_impl(&lhs, &rhs)
+            .map(|b| if b { expr::r#true() } else { expr::r#false() })
     }
 
     fn commutative(&self) -> bool {
@@ -37,14 +55,14 @@ impl OpFolder for ConstraintKind {
             ConstraintKind::Le => Some(BinaryExpr::new(Self::Gt, rhs.clone(), lhs.clone())),
             ConstraintKind::Gt => Some(BinaryExpr::new(Self::Le, rhs.clone(), lhs.clone())),
             ConstraintKind::Ge => Some(BinaryExpr::new(Self::Lt, rhs.clone(), lhs.clone())),
-            ConstraintKind::Eq => Some(BinaryExpr::new(Self::Eq, rhs.clone(), lhs.clone())),
-            ConstraintKind::Ne => Some(BinaryExpr::new(Self::Ne, rhs.clone(), lhs.clone())),
+            ConstraintKind::Eq => None,
+            ConstraintKind::Ne => None,
         }
     }
 }
 
 impl TextRepresentable for ConstraintKind {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         TextRepresentation::atom(match self {
             ConstraintKind::Lt => "<",
             ConstraintKind::Le => "<=",

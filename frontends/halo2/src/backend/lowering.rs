@@ -172,6 +172,17 @@ where
     }
 }
 
+impl<Lw: Lowerable> Lowerable for Box<Lw> {
+    type F = Lw::F;
+
+    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    where
+        L: Lowering<F = Self::F> + ?Sized,
+    {
+        (*self).lower(l)
+    }
+}
+
 pub mod tag {
     pub trait LoweringOutput {}
 }
@@ -374,42 +385,16 @@ pub trait Lowering {
             .collect()
     }
 
-    //#[allow(clippy::needless_lifetimes)]
-    //fn lower_constraints<R, S>(
-    //    &self,
-    //    gate: &Gate<Self::F>,
-    //    resolvers: R,
-    //    region_header: S,
-    //    row: Option<usize>,
-    //) -> impl Iterator<Item = Result<IRStmt<Self::CellOutput>>>
-    //where
-    //    R: ResolversProvider<Self::F>,
-    //    S: ToString,
-    //{
-    //    let stmts = match row {
-    //        Some(row) => vec![Ok(IRStmt::comment(format!(
-    //            "gate '{}' @ {} @ row {}",
-    //            gate.name(),
-    //            region_header.to_string(),
-    //            row
-    //        )))],
-    //        None => vec![],
-    //    };
-    //    stmts
-    //        .into_iter()
-    //        .chain(gate.polynomials().iter().map(move |lhs| {
-    //            Ok(IRStmt::constraint(
-    //                CmpOp::Eq,
-    //                self.lower_expr(lhs, &resolvers)?,
-    //                self.lower_expr(&Expression::Constant(Self::F::ZERO), &resolvers)?,
-    //            ))
-    //        }))
-    //}
-
     fn lower_eq(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput>;
+    fn lower_lt(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput>;
+    fn lower_le(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput>;
+    fn lower_gt(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput>;
+    fn lower_ge(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput>;
+    fn lower_ne(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput>;
     fn lower_and(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput)
         -> Result<Self::CellOutput>;
     fn lower_or(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput>;
+    fn lower_not(&self, value: &Self::CellOutput) -> Result<Self::CellOutput>;
 
     fn generate_assert(&self, expr: &Self::CellOutput) -> Result<()>;
 
