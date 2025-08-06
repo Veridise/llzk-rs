@@ -6,7 +6,7 @@ use super::{
 use crate::{
     expressions::{ExpressionFactory, ScopedExpression},
     gates::AnyQuery,
-    halo2::{Any, Column, ColumnType, Expression, Field, Fixed, Gate, Rotation, Selector},
+    halo2::{Column, ColumnType, Expression, Field, Fixed, Gate, Rotation, Selector},
     ir::{stmt::IRStmt, CmpOp},
     lookups::callbacks::LookupCallbacks,
     synthesis::{

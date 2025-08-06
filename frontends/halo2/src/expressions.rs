@@ -1,8 +1,7 @@
-use std::borrow::{Borrow, Cow};
-use std::marker::PhantomData;
+use std::borrow::Cow;
 
 use crate::backend::resolvers::{
-    boxed_resolver, QueryResolver, ResolversProvider, SelectorResolver,
+    boxed_resolver, ResolversProvider,
 };
 
 use crate::backend::lowering::{Lowerable, Lowering, LoweringOutput};

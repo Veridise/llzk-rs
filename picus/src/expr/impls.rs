@@ -17,7 +17,6 @@ use super::{
     traits::{
         ConstantFolding, ConstraintExpr, ExprLike, ExprSize, GetExprHash, MaybeVarLike, WrappedExpr,
     },
-    util::map_cexpr,
     Expr, ExprHash, Wrap,
 };
 

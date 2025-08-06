@@ -1,21 +1,14 @@
 use std::{
     cell::LazyCell,
-    collections::HashMap,
-    convert::identity,
-    hash::{DefaultHasher, Hash as _, Hasher as _},
+    hash::Hasher as _,
 };
 
 use crate::{
-    backend::{
-        codegen::lookup::{contains_fixed, query_from_table_expr},
-        func::FuncIO,
-    },
-    gates::{compute_gate_arity, AnyQuery},
-    halo2::{Column, Expression, Field, Selector},
+    backend::codegen::lookup::contains_fixed,
+    halo2::{Expression, Field},
     ir::{stmt::IRStmt, IRModule},
-    synthesis::{regions::RegionRowLike, CircuitSynthesis},
 };
-use anyhow::{bail, Error, Result};
+use anyhow::{Error, Result};
 
 use super::{Lookup, LookupKind, LookupTableRow};
 

@@ -3,7 +3,7 @@ mod matrix;
 pub mod regions;
 
 use std::{
-    collections::{hash_set::Iter, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     convert::identity,
 };
 
@@ -15,7 +15,7 @@ use crate::{
     gates::{find_gate_selector_set, AnyQuery},
     halo2::{Field, *},
     io::{AdviceIOValidator, InstanceIOValidator},
-    lookups::{callbacks::LookupCallbacks, Lookup, LookupKind, LookupTableRow},
+    lookups::{Lookup, LookupKind, LookupTableRow},
     value::steal,
     CircuitCallbacks, CircuitIO,
 };

@@ -1,12 +1,8 @@
-use std::{convert::identity, marker::PhantomData};
 
 use anyhow::Result;
 
 use crate::{
-    backend::{
-        func::FuncIO,
-        lowering::{Lowerable, Lowering, LoweringOutput},
-    },
+    backend::lowering::{Lowerable, Lowering, LoweringOutput},
     ir::expr::IRBexpr,
 };
 

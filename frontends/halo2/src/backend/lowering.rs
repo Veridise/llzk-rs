@@ -1,9 +1,8 @@
 use std::ops::Range;
 
 use crate::{
-    expressions::ScopedExpression,
     gates::AnyQuery,
-    halo2::{AdviceQuery, Challenge, Expression, Field, FixedQuery, Gate, InstanceQuery, Selector},
+    halo2::{AdviceQuery, Challenge, Expression, Field, FixedQuery, InstanceQuery, Selector},
     ir::{stmt::IRStmt, CmpOp},
 };
 use anyhow::{bail, Result};

@@ -1,20 +1,11 @@
 use crate::{
-    backend::{
-        func::{ArgNo, FieldId, FuncIO},
-        resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
-    },
     halo2::*,
-    io::IOCell,
     synthesis::regions::FQN,
-    CircuitIO,
 };
-use anyhow::{bail, Result};
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
-    fmt,
-    marker::PhantomData,
-    ops::{AddAssign, Range, RangeFrom},
+    ops::Range,
 };
 
 use super::{BlanketFills, SharedRegionData, TableData};

@@ -1,20 +1,15 @@
 use std::marker::PhantomData;
 
-use anyhow::Result;
 use codegen::LlzkCodegen;
-use counter::Counter;
-use llzk::dialect::r#struct::{StructDefOp, StructDefOpRef};
-use lowering::LlzkStructLowering;
 use melior::{
-    ir::{operation::OperationLike as _, BlockLike as _, Module},
+    ir::{operation::OperationLike as _, Module},
     Context,
 };
-use midnight_halo2_proofs::plonk::Selector;
 use ouroboros::self_referencing;
 
-use crate::{gates::AnyQuery, ir::lift::LiftIRGuard, synthesis::CircuitSynthesis, LiftLike};
+use crate::{ir::lift::LiftIRGuard, LiftLike};
 
-use super::{Backend, Codegen};
+use super::Backend;
 
 mod codegen;
 mod counter;

@@ -11,10 +11,9 @@ use anyhow::{bail, Result};
 use data::{RegionDataImpl, RegionKind};
 use std::{
     borrow::Cow,
-    collections::{HashMap, HashSet},
-    fmt,
+    collections::HashSet,
     marker::PhantomData,
-    ops::{AddAssign, Range, RangeFrom},
+    ops::RangeFrom,
 };
 
 mod data;

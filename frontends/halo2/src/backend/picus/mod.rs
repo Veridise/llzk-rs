@@ -2,13 +2,11 @@ use std::{
     borrow::Cow,
     cell::RefCell,
     collections::{HashMap, HashSet},
-    convert::identity,
     marker::PhantomData,
     rc::Rc,
 };
 
 use super::{
-    codegen::lower_stmts,
     events::{EmitStmtsMessage, EventReceiver},
     func::FuncIO,
     lowering::{Lowerable, Lowering, LoweringOutput},
@@ -23,7 +21,7 @@ use crate::{
     halo2::{Expression, Field, PrimeField, RegionIndex, Selector},
     ir::{lift::LiftIRGuard, stmt::IRStmt},
     synthesis::{
-        regions::{RegionRow, Row, FQN},
+        regions::FQN,
         CircuitSynthesis,
     },
     LiftLike,
@@ -34,7 +32,7 @@ mod lowering;
 mod vars;
 
 pub use lowering::PicusModuleLowering;
-use lowering::{PicusExpr, PicusModuleRef};
+use lowering::PicusModuleRef;
 use midnight_halo2_proofs::plonk::{AdviceQuery, FixedQuery, InstanceQuery};
 use num_bigint::BigUint;
 use picus::{

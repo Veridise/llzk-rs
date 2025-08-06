@@ -3,7 +3,7 @@ use crate::{
     expr::{
         self,
         impls::{BinaryExpr, ConstExpr, NegExpr},
-        traits::{ConstantFolding, ExprLike},
+        traits::ConstantFolding,
         Expr, Wrap,
     },
     felt::Felt,

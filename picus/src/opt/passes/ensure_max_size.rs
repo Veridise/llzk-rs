@@ -66,7 +66,7 @@ where
     /// replaces the expression with a temporary and emit a constraint that
     /// equates that fresh temporary with the expression.
     /// If not returns itself.
-    fn optimize(&mut self, expr: &(dyn ExprLike)) -> Result<Expr> {
+    fn optimize(&mut self, expr: &dyn ExprLike) -> Result<Expr> {
         if expr.size() < self.limit {
             return Ok(expr.wrap());
         }

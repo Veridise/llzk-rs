@@ -3,7 +3,7 @@ use crate::backend::lowering::{Lowerable, Lowering, LoweringOutput};
 use anyhow::Result;
 use std::{
     convert::identity,
-    ops::{BitAnd, BitAndAssign, BitOr, Not},
+    ops::{BitAnd, BitOr, Not},
 };
 
 /// Represents boolean expressions over some arithmetic expression type A.

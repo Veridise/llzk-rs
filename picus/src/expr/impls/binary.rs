@@ -1,17 +1,14 @@
 use std::{
     collections::{HashMap, HashSet},
-    fmt,
     hash::{DefaultHasher, Hash as _, Hasher as _},
 };
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use ops::{OpFolder as _, OpLike};
 
 use crate::{
     display::{TextRepresentable, TextRepresentation},
     expr::{
-        self,
-        impls::{ConstExpr, NegExpr},
         traits::{
             ConstantFolding, ConstraintExpr, ExprLike, ExprSize, GetExprHash, MaybeVarLike,
             WrappedExpr,

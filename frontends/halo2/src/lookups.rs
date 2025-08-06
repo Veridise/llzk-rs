@@ -1,21 +1,15 @@
 use std::{
-    collections::HashMap,
-    convert::identity,
     hash::{DefaultHasher, Hash as _, Hasher as _},
     ops::Index,
 };
 
 use crate::{
-    backend::{
-        codegen::lookup::{contains_fixed, query_from_table_expr},
-        func::FuncIO,
-    },
+    backend::codegen::lookup::query_from_table_expr,
     gates::{compute_gate_arity, AnyQuery},
-    halo2::{Column, Expression, Field, FixedQuery, Selector},
-    synthesis::{regions::RegionRowLike, CircuitSynthesis},
+    halo2::{Expression, Field, FixedQuery, Selector},
+    synthesis::CircuitSynthesis,
 };
-use anyhow::{anyhow, bail, Result};
-use callbacks::{LookupCallbacks, LookupIO};
+use anyhow::{bail, Result};
 
 pub mod callbacks;
 

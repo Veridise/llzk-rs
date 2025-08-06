@@ -1,4 +1,4 @@
-use crate::halo2::{Advice, Circuit, Column, ColumnType, ConstraintSystem, Field, Instance};
+use crate::halo2::{Advice, Column, ColumnType, ConstraintSystem, Field, Instance};
 use anyhow::{bail, Result};
 use std::collections::HashSet;
 use std::hash::Hash;

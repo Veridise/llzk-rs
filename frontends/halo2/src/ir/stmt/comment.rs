@@ -1,11 +1,8 @@
-use std::{convert::identity, marker::PhantomData};
+use std::marker::PhantomData;
 
 use anyhow::Result;
 
-use crate::backend::{
-    func::FuncIO,
-    lowering::{Lowerable, Lowering, LoweringOutput},
-};
+use crate::backend::lowering::{Lowerable, Lowering, LoweringOutput};
 
 pub struct Comment<T>(String, PhantomData<T>);
 

@@ -1,7 +1,7 @@
 use crate::{gates::AnyQuery, halo2::Value, value::steal};
 use std::{
     cmp::Ordering,
-    collections::{BTreeSet, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     convert::identity,
     ops::RangeFrom,
 };
