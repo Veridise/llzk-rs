@@ -1,3 +1,5 @@
+use std::{borrow::BorrowMut, cell::RefCell, sync::Mutex};
+
 use anyhow::{anyhow, Result};
 
 use crate::{
@@ -42,6 +44,7 @@ impl<'a, K: Temp<'a, Ctx = C>, C: Copy> MutOptimizer<Module<K>> for EnsureMaxExp
             limit: self.limit,
             emitter: &mut new_constraints,
             temporaries,
+            count: 0,
         };
 
         MutOptimizer::optimize(&mut r#impl, t)?;
@@ -55,6 +58,16 @@ struct EnsureMaxExprSizePassImpl<'a, E, T> {
     limit: usize,
     emitter: &'a mut E,
     temporaries: T,
+    count: usize,
+}
+
+impl<E, T> EnsureMaxExprSizePassImpl<'_, E, T> {
+    fn push_count<O>(&mut self, f: impl Fn(&mut Self) -> O) -> O {
+        self.count += 1;
+        let o = f(self);
+        self.count -= 1;
+        o
+    }
 }
 
 impl<E, T> Optimizer<dyn ExprLike, Expr> for EnsureMaxExprSizePassImpl<'_, E, T>
@@ -70,14 +83,16 @@ where
         if expr.size() < self.limit {
             return Ok(expr.wrap());
         }
-        let args: Vec<Option<Expr>> = expr
-            .args()
-            .iter()
-            .map(|arg| Optimizer::<dyn ExprLike, Expr>::optimize(self, arg.as_ref()))
-            .collect::<Result<Vec<_>>>()?
-            .into_iter()
-            .map(Some)
-            .collect();
+        let args: Vec<Option<Expr>> = self.push_count(|s| -> Result<_> {
+            Ok(expr
+                .args()
+                .iter()
+                .map(|arg| Optimizer::<dyn ExprLike, Expr>::optimize(s, arg.as_ref()))
+                .collect::<Result<Vec<_>>>()?
+                .into_iter()
+                .map(Some)
+                .collect())
+        })?;
         let transformed = expr.replace_args(&args)?;
 
         let expr = match &transformed {
@@ -85,7 +100,7 @@ where
             None => expr,
         };
 
-        if expr.size() < self.limit || !expr.extraible() {
+        if self.count == 0 || expr.size() < self.limit || !expr.extraible() {
             return Ok(expr.wrap());
         }
         let temp = expr::known_var(

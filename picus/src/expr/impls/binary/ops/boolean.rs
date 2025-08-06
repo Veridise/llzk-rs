@@ -1,6 +1,6 @@
 use crate::{
     display::{TextRepresentable, TextRepresentation},
-    expr::{self, impls::BinaryExpr, Expr},
+    expr::{impls::BinaryExpr, Expr},
     felt::Felt,
     stmt::traits::ConstraintLike,
 };
@@ -21,9 +21,9 @@ impl Boolean {
                 // T && x == x
                 Boolean::And if clhs.is_constant_true() => Some(rhs.clone()),
                 // F && x == F
-                Boolean::And if clhs.is_constant_false() => Some(expr::r#false()),
+                Boolean::And if clhs.is_constant_false() => Some(lhs.clone()),
                 // T || x == T
-                Boolean::Or if clhs.is_constant_true() => Some(expr::r#true()),
+                Boolean::Or if clhs.is_constant_true() => Some(lhs.clone()),
                 // F || x == x
                 Boolean::Or if clhs.is_constant_false() => Some(rhs.clone()),
                 _ => None,
@@ -53,7 +53,7 @@ impl OpFolder for Boolean {
 }
 
 impl TextRepresentable for Boolean {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         TextRepresentation::atom(match self {
             Boolean::And => "&&",
             Boolean::Or => "||",
