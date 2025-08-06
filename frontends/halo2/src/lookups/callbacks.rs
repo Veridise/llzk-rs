@@ -1,7 +1,4 @@
-use std::{
-    cell::LazyCell,
-    hash::Hasher as _,
-};
+use std::{borrow::Cow, cell::LazyCell, hash::Hasher as _};
 
 use crate::{
     backend::codegen::lookup::contains_fixed,
@@ -65,7 +62,7 @@ pub trait LookupCallbacks<F: Field> {
         &self,
         lookup: Lookup<'a, F>,
         table: &dyn LookupTableGenerator<F>,
-    ) -> Result<IRStmt<&'a Expression<F>>>;
+    ) -> Result<IRStmt<Cow<'a, Expression<F>>>>;
 
     /// This callbacks ask for the kind of io a column is. By default returns None.
     fn assign_io_kind(&self, _expr: &Expression<F>, _column: usize) -> Option<LookupIO> {
@@ -92,7 +89,7 @@ impl<F: Field> LookupCallbacks<F> for DefaultLookupCallbacks {
         &self,
         _lookup: Lookup<'a, F>,
         _table: &dyn LookupTableGenerator<F>,
-    ) -> Result<IRStmt<&'a Expression<F>>> {
+    ) -> Result<IRStmt<Cow<'a, Expression<F>>>> {
         lookups_panic()
     }
 
@@ -111,7 +108,7 @@ impl<F: Field> LookupCallbacks<F> for FixedTagLookup {
         &self,
         _lookup: Lookup<'a, F>,
         _table: &dyn LookupTableGenerator<F>,
-    ) -> Result<IRStmt<&'a Expression<F>>> {
+    ) -> Result<IRStmt<Cow<'a, Expression<F>>>> {
         unreachable!()
     }
 

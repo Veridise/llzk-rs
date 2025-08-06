@@ -1,8 +1,6 @@
 use std::borrow::Cow;
 
-use crate::backend::resolvers::{
-    boxed_resolver, ResolversProvider,
-};
+use crate::backend::resolvers::{boxed_resolver, ResolversProvider};
 
 use crate::backend::lowering::{Lowerable, Lowering, LoweringOutput};
 use crate::halo2::{Expression, Field};
@@ -56,6 +54,16 @@ where
     {
         Self {
             expression: Cow::Borrowed(expression),
+            resolvers: boxed_resolver(resolvers),
+        }
+    }
+
+    pub(crate) fn from_cow<R>(expression: Cow<'e, Expression<F>>, resolvers: R) -> Self
+    where
+        R: ResolversProvider<F> + 'r,
+    {
+        Self {
+            expression,
             resolvers: boxed_resolver(resolvers),
         }
     }

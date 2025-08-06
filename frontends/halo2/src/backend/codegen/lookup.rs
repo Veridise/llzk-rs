@@ -92,7 +92,7 @@ where
     Ok(())
 }
 
-fn comment<'r, T, F: Field>(lookup: Lookup<'r, F>, r: T) -> IRStmt<ScopedExpression<F>>
+fn comment<'r, T, F: Field>(lookup: Lookup<'r, F>, r: T) -> IRStmt<ScopedExpression<'r, 'r, F>>
 where
     T: ResolversProvider<F> + RegionRowLike + Copy + 'r,
 {
@@ -122,7 +122,7 @@ pub fn codegen_lookup_invocations<'s, F: Field>(
             lookups.on_lookup(l, &g).map(|stmts| {
                 let stmts = stmts
                     .into_iter()
-                    .map(|stmt| stmt.map(&|e| ScopedExpression::from_ref(e, r)));
+                    .map(|stmt| stmt.map(&|e| ScopedExpression::from_cow(e, r)));
                 chain_lowerable_stmts!([comment(l, r)], stmts)
                     .collect::<IRStmt<_>>()
                     .map(&|t| t.unwrap())
