@@ -20,7 +20,7 @@ struct RegionDataInner {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub(super) enum RegionKind {
+pub enum RegionKind {
     Region,
     Table,
 }
@@ -210,11 +210,17 @@ impl<'a, F: Default + Clone + Copy + std::fmt::Debug> RegionData<'a, F> {
         self.inner.selectors_enabled_for_row(row)
     }
 
-    pub fn find_fixed_col_assignment(&self, col: Column<Fixed>, row: usize) -> Option<Value<F>> {
+    pub fn find_fixed_col_assignment(&self, col: Column<Fixed>, row: usize) -> Option<Value<F>>
+    where
+        F: Field,
+    {
         self.resolve_fixed(col.index(), row)
     }
 
-    pub fn resolve_fixed(&self, column: usize, row: usize) -> Option<Value<F>> {
+    pub fn resolve_fixed(&self, column: usize, row: usize) -> Option<Value<F>>
+    where
+        F: Field,
+    {
         self.shared.resolve_fixed(column, row)
     }
 

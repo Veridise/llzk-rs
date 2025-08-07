@@ -45,14 +45,22 @@ impl<F: Copy + std::fmt::Debug> FixedData<F> {
             .insert((fixed.index(), row), value.map(|vr| vr.evaluate()));
     }
 
-    fn resolve_from_blanket_fills(&self, column: usize, row: usize) -> Option<Value<F>> {
+    fn resolve_from_blanket_fills(&self, column: usize, row: usize) -> Option<Value<F>>
+    where
+        F: Field,
+    {
         self.blanket_fills
             .get(&column)
             .and_then(|values| values.iter().rfind(|(range, _)| range.contains(&row)))
             .map(|(_, v)| *v)
+            // Default to zero if all else fails
+            .or(Some(Value::known(F::ZERO)))
     }
 
-    pub fn resolve_fixed(&self, column: usize, row: usize) -> Option<Value<F>> {
+    pub fn resolve_fixed(&self, column: usize, row: usize) -> Option<Value<F>>
+    where
+        F: Field,
+    {
         self.fixed
             .get(&(column, row))
             .inspect(|v| log::debug!(" For ({column}, {row}) we got value {v:?}",))

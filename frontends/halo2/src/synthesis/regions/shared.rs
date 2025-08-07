@@ -1,4 +1,4 @@
-use crate::halo2::Value;
+use crate::halo2::{Field, Value};
 
 use super::{fixed::FixedData, FQN};
 use std::{collections::HashMap, ops::AddAssign};
@@ -19,7 +19,10 @@ impl<F: Copy + std::fmt::Debug> SharedRegionData<F> {
         &mut self.advice_names
     }
 
-    pub fn resolve_fixed(&self, column: usize, row: usize) -> Option<Value<F>> {
+    pub fn resolve_fixed(&self, column: usize, row: usize) -> Option<Value<F>>
+    where
+        F: Field,
+    {
         self.fixed.resolve_fixed(column, row)
     }
 }
