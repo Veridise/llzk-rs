@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::backend::resolvers::{boxed_resolver, ResolversProvider};
 
-use crate::backend::lowering::{Lowerable, Lowering, LoweringOutput};
+use crate::backend::lowering::{lowerable::Lowerable, lowerable::LoweringOutput, Lowering};
 use crate::halo2::{Expression, Field};
 use anyhow::Result;
 

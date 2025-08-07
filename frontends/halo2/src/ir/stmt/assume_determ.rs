@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::backend::{
     func::FuncIO,
-    lowering::{Lowerable, Lowering, LoweringOutput},
+    lowering::{lowerable::Lowerable, lowerable::LoweringOutput, Lowering},
 };
 
 pub struct AssumeDeterministic<T>(FuncIO, PhantomData<T>);

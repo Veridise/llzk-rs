@@ -9,7 +9,7 @@ use std::{
 use super::{
     events::{EmitStmtsMessage, EventReceiver},
     func::FuncIO,
-    lowering::{Lowerable, Lowering, LoweringOutput},
+    lowering::{lowerable::Lowerable, lowerable::LoweringOutput, Lowering},
     resolvers::{
         QueryResolver, ResolvedQuery, ResolvedSelector, ResolversProvider, SelectorResolver,
     },
@@ -20,10 +20,7 @@ use crate::{
     gates::AnyQuery,
     halo2::{Expression, Field, PrimeField, RegionIndex, Selector},
     ir::{lift::LiftIRGuard, stmt::IRStmt},
-    synthesis::{
-        regions::FQN,
-        CircuitSynthesis,
-    },
+    synthesis::{regions::FQN, CircuitSynthesis},
     LiftLike,
 };
 use anyhow::{anyhow, Result};

@@ -1,5 +1,5 @@
 use super::CmpOp;
-use crate::backend::lowering::{Lowerable, Lowering, LoweringOutput};
+use crate::backend::lowering::{lowerable::Lowerable, lowerable::LoweringOutput, Lowering};
 use anyhow::Result;
 use std::{
     convert::identity,

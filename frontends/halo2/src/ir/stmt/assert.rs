@@ -1,8 +1,7 @@
-
 use anyhow::Result;
 
 use crate::{
-    backend::lowering::{Lowerable, Lowering, LoweringOutput},
+    backend::lowering::{lowerable::Lowerable, lowerable::LoweringOutput, Lowering},
     ir::expr::IRBexpr,
 };
 

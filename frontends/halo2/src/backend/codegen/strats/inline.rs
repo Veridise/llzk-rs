@@ -7,7 +7,8 @@ use crate::{
         },
         resolvers::ResolversProvider,
     },
-    ir::stmt::chain_lowerable_stmts,
+    halo2::Field,
+    ir::stmt::{chain_lowerable_stmts, IRStmt},
     lookups::callbacks::LookupCallbacks,
     synthesis::{
         regions::{RegionRow, RegionRowLike as _, Row},
@@ -15,6 +16,10 @@ use crate::{
     },
 };
 use anyhow::Result;
+
+fn header_comments<F: Field, S: ToString>(s: S) -> Vec<IRStmt<(F,)>> {
+    s.to_string().lines().map(IRStmt::comment).collect()
+}
 
 #[derive(Default)]
 pub struct InlineConstraintsStrat {}
@@ -39,6 +44,13 @@ impl CodegenStrategy for InlineConstraintsStrat {
             // cells there and some backends do not update the name and always use the first
             // one given.
             Ok(chain_lowerable_stmts!(
+                header_comments(format!(
+                    "minimum_rows = {}
+blinding_factors = {}
+",
+                    syn.cs().minimum_rows(),
+                    syn.cs().blinding_factors()
+                )),
                 syn.region_gates().flat_map(|(gate, r)| lower_constraints(
                     gate,
                     r,

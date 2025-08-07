@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use anyhow::Result;
 
-use crate::backend::lowering::{Lowerable, Lowering, LoweringOutput};
+use crate::backend::lowering::{lowerable::Lowerable, lowerable::LoweringOutput, Lowering};
 
 pub struct Comment<T>(String, PhantomData<T>);
 

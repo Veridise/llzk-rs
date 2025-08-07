@@ -1,6 +1,6 @@
 use super::{
     func::FuncIO,
-    lowering::{Lowerable, Lowering},
+    lowering::{lowerable::Lowerable, Lowering},
     resolvers::ResolversProvider,
 };
 use crate::{

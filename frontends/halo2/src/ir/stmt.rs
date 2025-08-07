@@ -1,7 +1,9 @@
 use super::{expr::IRBexpr, CmpOp};
 use crate::backend::{
     func::FuncIO,
-    lowering::{EitherLowerable, Lowerable, Lowering, LoweringOutput},
+    lowering::{
+        lowerable::EitherLowerable, lowerable::Lowerable, lowerable::LoweringOutput, Lowering,
+    },
 };
 use anyhow::Result;
 
@@ -177,7 +179,7 @@ macro_rules! chain_lowerable_stmts {
     };
     ($head:expr, $($tail:expr),* $(,)?) => {
 {
-        $head.into_iter().map(|stmt| stmt.map(&crate::backend::lowering::EitherLowerable::Left)).chain(chain_lowerable_stmts!($( $tail ),*).map(|stmt| stmt.map(&crate::backend::lowering::EitherLowerable::Right)))
+        $head.into_iter().map(|stmt| stmt.map(&crate::backend::lowering::lowerable::EitherLowerable::Left)).chain(chain_lowerable_stmts!($( $tail ),*).map(|stmt| stmt.map(&crate::backend::lowering::lowerable::EitherLowerable::Right)))
 
         }
     };

@@ -1,6 +1,9 @@
 use anyhow::Result;
 
-use crate::backend::lowering::{Lowerable, Lowering, LoweringOutput};
+use crate::backend::lowering::{
+    lowerable::{Lowerable, LoweringOutput},
+    Lowering,
+};
 
 use super::IRStmt;
 

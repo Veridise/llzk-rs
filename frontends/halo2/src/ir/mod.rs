@@ -4,7 +4,7 @@ use stmt::IRStmt;
 use crate::backend::{
     codegen::Codegen,
     func::{ArgNo, FieldId, FuncIO},
-    lowering::Lowerable,
+    lowering::lowerable::Lowerable,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq)]
