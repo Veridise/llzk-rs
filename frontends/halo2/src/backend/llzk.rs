@@ -11,7 +11,7 @@ use ouroboros::self_referencing;
 #[cfg(feature = "lift-field-operations")]
 use crate::{ir::lift::LiftIRGuard, LiftLike};
 
-use super::Backend;
+use super::{events::BackendEventReceiver, Backend};
 
 mod codegen;
 mod counter;
@@ -87,5 +87,11 @@ impl<'c, F: LlzkPrimeField> Backend<'c, LlzkParams> for LlzkBackend<F> {
 
     fn create_codegen(&'c self) -> Self::Codegen {
         LlzkCodegen::new(&self.context)
+    }
+
+    fn event_receiver(
+        &self,
+    ) -> BackendEventReceiver<<Self::Codegen as super::codegen::Codegen<'c>>::F> {
+        todo!()
     }
 }

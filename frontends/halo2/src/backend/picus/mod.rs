@@ -7,9 +7,14 @@ use std::{
 };
 
 use super::{
-    events::{EmitStmtsMessage, EventReceiver},
+    events::{
+        BackendEventReceiver, BackendMessages, BackendResponse, EmitStmtsMessage, EventReceiver,
+    },
     func::FuncIO,
-    lowering::{lowerable::Lowerable, lowerable::LoweringOutput, Lowering},
+    lowering::{
+        lowerable::{Lowerable, LoweringOutput},
+        Lowering,
+    },
     resolvers::{
         QueryResolver, ResolvedQuery, ResolvedSelector, ResolversProvider, SelectorResolver,
     },
@@ -526,6 +531,7 @@ impl<'c, L: PicusPrimeField> Backend<'c, PicusParams> for PicusBackend<L> {
     type Codegen = Self;
 
     fn initialize(params: PicusParams) -> Self {
+        #[cfg(feature = "lift-field-operations")]
         let enable_lifting = params.lift_fixed;
         let inner: Rc<RefCell<PicusBackendInner<L>>> = Rc::new(
             PicusBackendInner {
@@ -544,6 +550,12 @@ impl<'c, L: PicusPrimeField> Backend<'c, PicusParams> for PicusBackend<L> {
 
     fn create_codegen(&self) -> Self::Codegen {
         self.clone()
+    }
+
+    fn event_receiver(&self) -> BackendEventReceiver<<Self::Codegen as Codegen<'c>>::F> {
+        BackendEventReceiver::new(PicusEventReceiver {
+            inner: self.inner.clone(),
+        })
     }
 }
 
@@ -627,10 +639,27 @@ impl<L: PicusPrimeField> PicusBackendInner<L> {
     }
 }
 
-impl<L: PicusPrimeField> EventReceiver for PicusEventReceiver<L> {
-    type Message = EmitStmtsMessage<L>;
+//impl<L: PicusPrimeField> EventReceiver for PicusEventReceiver<L> {
+//    type Message = EmitStmtsMessage<L>;
+//
+//    fn accept(&self, msg: &Self::Message) -> Result<()> {
+//        self.inner.borrow_mut().enqueue_stmts(msg.0, &msg.1)
+//    }
+//}
 
-    fn accept(&self, msg: &Self::Message) -> Result<()> {
-        self.inner.borrow_mut().enqueue_stmts(msg.0, &msg.1)
+impl<F: PicusPrimeField> EventReceiver for PicusEventReceiver<F> {
+    type Message = BackendMessages<F>;
+
+    fn accept(
+        &self,
+        msg: &Self::Message,
+    ) -> Result<<Self::Message as super::events::Message>::Response> {
+        match msg {
+            BackendMessages::EmitStmts(msg) => self
+                .inner
+                .borrow_mut()
+                .enqueue_stmts(msg.0, &msg.1)
+                .map(BackendResponse::EmitStmts),
+        }
     }
 }

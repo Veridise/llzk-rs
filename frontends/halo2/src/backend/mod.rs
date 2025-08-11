@@ -13,6 +13,7 @@ pub mod picus;
 pub mod resolvers;
 
 use codegen::{strats::inline::InlineConstraintsStrat, Codegen, CodegenStrategy};
+use events::BackendEventReceiver;
 use resolvers::{QueryResolver, SelectorResolver};
 
 type DefaultStrat = InlineConstraintsStrat;
@@ -23,6 +24,8 @@ pub trait Backend<'c, Params: Default>: Sized {
     fn initialize(params: Params) -> Self;
 
     fn create_codegen(&'c self) -> Self::Codegen;
+
+    fn event_receiver(&self) -> BackendEventReceiver<<Self::Codegen as Codegen<'c>>::F>;
 
     /// Generate code using the default strategy.
     fn codegen<C, CB>(&'c self, circuit: &C) -> Result<<Self::Codegen as Codegen<'c>>::Output>

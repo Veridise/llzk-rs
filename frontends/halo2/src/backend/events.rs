@@ -1,6 +1,27 @@
+use std::rc::Rc;
+
 use crate::halo2::{Expression, RegionIndex};
 use crate::ir::stmt::IRStmt;
 use anyhow::Result;
+
+#[derive(Clone)]
+pub enum BackendMessages<F: Clone> {
+    EmitStmts(EmitStmtsMessage<F>),
+}
+
+impl<F: Clone> From<EmitStmtsMessage<F>> for BackendMessages<F> {
+    fn from(value: EmitStmtsMessage<F>) -> Self {
+        Self::EmitStmts(value)
+    }
+}
+
+impl<F: Clone> Message for BackendMessages<F> {
+    type Response = BackendResponse;
+}
+
+pub enum BackendResponse {
+    EmitStmts(()),
+}
 
 #[derive(Clone)]
 pub struct EmitStmtsMessage<F: Clone>(pub RegionIndex, pub Vec<IRStmt<Expression<F>>>);
@@ -17,6 +38,30 @@ pub trait EventReceiver {
     type Message: Message;
 
     fn accept(&self, msg: &Self::Message) -> Result<<Self::Message as Message>::Response>;
+}
+
+#[derive(Clone)]
+pub struct BackendEventReceiver<F: Clone> {
+    inner: Rc<dyn EventReceiver<Message = BackendMessages<F>>>,
+}
+
+impl<F: Clone> BackendEventReceiver<F> {
+    pub(crate) fn new<'i, I>(inner: I) -> Self
+    where
+        I: EventReceiver<Message = BackendMessages<F>> + Clone + 'static,
+    {
+        Self {
+            inner: Rc::new(inner.clone()),
+        }
+    }
+}
+
+impl<F: Clone> EventReceiver for BackendEventReceiver<F> {
+    type Message = BackendMessages<F>;
+
+    fn accept(&self, msg: &Self::Message) -> Result<<Self::Message as Message>::Response> {
+        self.inner.accept(msg)
+    }
 }
 
 #[derive(Copy)]
