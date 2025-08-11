@@ -13,11 +13,11 @@ use melior::{
 };
 use midnight_halo2_proofs::plonk::Selector;
 
-use crate::{gates::AnyQuery, synthesis::CircuitSynthesis, LiftLike};
+use crate::{gates::AnyQuery, synthesis::CircuitSynthesis};
 
 use crate::backend::codegen::Codegen;
 
-use super::factory;
+use super::{factory, LlzkPrimeField};
 
 pub struct LlzkCodegen<'c, F> {
     module: Module<'c>,
@@ -43,7 +43,7 @@ impl<'c, F> LlzkCodegen<'c, F> {
     }
 }
 
-impl<'c, F: LiftLike> Codegen<'c> for LlzkCodegen<'c, F> {
+impl<'c, F: LlzkPrimeField> Codegen<'c> for LlzkCodegen<'c, F> {
     type FuncOutput = LlzkStructLowering<'c, F>;
     type Output = LlzkOutput;
     type F = F;

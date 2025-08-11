@@ -1,5 +1,4 @@
 mod constraint;
-mod matrix;
 pub mod regions;
 
 use std::{

@@ -24,6 +24,7 @@ pub fn steal<T: Clone>(value: &Value<T>) -> Option<T> {
     stealer.steal(value.clone())
 }
 
+#[allow(dead_code)]
 pub fn steal_many<T: Clone>(values: &[Value<T>]) -> Option<Vec<T>> {
     values.iter().map(steal).collect()
 }

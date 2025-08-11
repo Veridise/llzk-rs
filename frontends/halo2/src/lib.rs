@@ -1,5 +1,6 @@
 #![feature(iter_intersperse)]
 
+use crate::halo2::PrimeField;
 use anyhow::Result;
 use backend::codegen::strats::inline::InlineConstraintsStrat;
 use lookups::callbacks::LookupCallbacks;
@@ -19,6 +20,7 @@ mod test;
 mod value;
 
 use crate::halo2::{Advice, Circuit, Field, Instance};
+#[cfg(feature = "lift-field-operations")]
 pub use crate::ir::lift::{Lift, LiftLike};
 pub use backend::events::{EmitStmtsMessage, EventReceiver, EventSender, OwnedEventSender};
 pub use backend::picus::PicusBackend;
@@ -44,10 +46,15 @@ pub trait CircuitCallbacks<F: Field, C: Circuit<F>> {
     }
 }
 
-pub fn create_picus_backend<L: LiftLike>(params: PicusParams) -> PicusBackend<L> {
+#[cfg(feature = "lift-field-operations")]
+pub fn create_picus_backend<L>(params: PicusParams) -> PicusBackend<L>
+where
+    L: LiftLike,
+{
     PicusBackend::initialize(params)
 }
 
+#[cfg(feature = "lift-field-operations")]
 pub fn picus_codegen_with_params<L, C>(circuit: &C, params: PicusParams) -> Result<PicusOutput<L>>
 where
     L: LiftLike,
@@ -57,9 +64,37 @@ where
     backend.codegen_with_strat::<C, C, InlineConstraintsStrat>(circuit)
 }
 
+#[cfg(feature = "lift-field-operations")]
 pub fn picus_codegen<L, C>(circuit: &C) -> Result<PicusOutput<L>>
 where
     L: LiftLike,
+    C: Circuit<L> + CircuitCallbacks<L, C>,
+{
+    picus_codegen_with_params(circuit, Default::default())
+}
+
+#[cfg(not(feature = "lift-field-operations"))]
+pub fn create_picus_backend<L>(params: PicusParams) -> PicusBackend<L>
+where
+    L: PrimeField,
+{
+    PicusBackend::initialize(params)
+}
+
+#[cfg(not(feature = "lift-field-operations"))]
+pub fn picus_codegen_with_params<L, C>(circuit: &C, params: PicusParams) -> Result<PicusOutput<L>>
+where
+    L: PrimeField,
+    C: Circuit<L> + CircuitCallbacks<L, C>,
+{
+    let backend = PicusBackend::initialize(params);
+    backend.codegen_with_strat::<C, C, InlineConstraintsStrat>(circuit)
+}
+
+#[cfg(not(feature = "lift-field-operations"))]
+pub fn picus_codegen<L, C>(circuit: &C) -> Result<PicusOutput<L>>
+where
+    L: PrimeField,
     C: Circuit<L> + CircuitCallbacks<L, C>,
 {
     picus_codegen_with_params(circuit, Default::default())

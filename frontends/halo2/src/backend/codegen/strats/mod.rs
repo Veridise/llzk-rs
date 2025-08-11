@@ -77,7 +77,7 @@ impl<F: Field> QueryResolver<F> for GateScopedResolver<'_> {
     fn resolve_advice_query(
         &self,
         query: &AdviceQuery,
-    ) -> Result<(ResolvedQuery<F>, Option<Cow<FQN>>)> {
+    ) -> Result<(ResolvedQuery<F>, Option<Cow<'_, FQN>>)> {
         Ok((
             resolve(self.io_queries(), query, "Query as argument not found")?,
             None,

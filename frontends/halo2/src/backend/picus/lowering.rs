@@ -1,7 +1,9 @@
 use super::{
     vars::{NamingConvention, VarKey, VarKeySeed},
-    FeltWrap,
+    FeltWrap, PicusPrimeField,
 };
+#[cfg(feature = "lift-field-operations")]
+use crate::ir::lift::{LiftLike, LiftLowering};
 use crate::{
     backend::{
         func::{ArgNo, FieldId, FuncIO},
@@ -11,9 +13,8 @@ use crate::{
     halo2::{
         AdviceQuery, Challenge, FixedQuery, InstanceQuery, RegionIndex, RegionStart, Selector,
     },
-    ir::{lift::LiftLowering, CmpOp},
+    ir::CmpOp,
     synthesis::regions::FQN,
-    LiftLike,
 };
 use anyhow::{bail, Result};
 use picus::{expr, stmt, ModuleLike as _};
@@ -54,7 +55,7 @@ impl<L> PicusModuleLowering<L> {
     }
 }
 
-impl<L: LiftLike> PicusModuleLowering<L> {
+impl<L: PicusPrimeField> PicusModuleLowering<L> {
     pub fn lower_func_io(&self, func_io: FuncIO, fqn: Option<Cow<FQN>>) -> PicusExpr {
         let seed = VarKeySeed::named_io(func_io, fqn, self.naming_convention);
         expr::var(&self.module, seed)
@@ -66,12 +67,13 @@ impl<L: LiftLike> PicusModuleLowering<L> {
         fqn: Option<Cow<FQN>>,
     ) -> Result<PicusExpr> {
         Ok(match query {
-            ResolvedQuery::Lit(f) => self.lower(&f, true)?,
+            ResolvedQuery::Lit(f) => Lowering::lower_constant(self, f)?,
             ResolvedQuery::IO(func_io) => self.lower_func_io(func_io, fqn),
         })
     }
 }
 
+#[cfg(feature = "lift-field-operations")]
 impl<L: LiftLike> LiftLowering for PicusModuleLowering<L> {
     type F = L::Inner;
 
@@ -140,7 +142,7 @@ impl<L: LiftLike> LiftLowering for PicusModuleLowering<L> {
 
 impl LoweringOutput for PicusExpr {}
 
-impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
+impl<L: PicusPrimeField> Lowering for PicusModuleLowering<L> {
     type CellOutput = PicusExpr;
 
     type F = L;
@@ -258,8 +260,18 @@ impl<L: LiftLike> Lowering for PicusModuleLowering<L> {
         self.lower_resolved_query(resolver.resolve_fixed_query(query)?, None)
     }
 
+    #[cfg(feature = "lift-field-operations")]
     fn lower_constant(&self, f: Self::F) -> Result<Self::CellOutput> {
         let expr = self.lower(&f, true)?;
+        log::debug!(
+            "[PicusBackend::lower_constant] Constant value {f:?} becomes expression {expr:?}"
+        );
+        Ok(expr)
+    }
+
+    #[cfg(not(feature = "lift-field-operations"))]
+    fn lower_constant(&self, f: Self::F) -> Result<Self::CellOutput> {
+        let expr = expr::r#const(FeltWrap(f));
         log::debug!(
             "[PicusBackend::lower_constant] Constant value {f:?} becomes expression {expr:?}"
         );

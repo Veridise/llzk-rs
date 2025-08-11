@@ -15,14 +15,16 @@ use super::{
     },
     Backend, Codegen,
 };
+#[cfg(feature = "lift-field-operations")]
+use crate::ir::lift::{LiftIRGuard, LiftLike};
 use crate::{
     expressions::ScopedExpression,
     gates::AnyQuery,
     halo2::{Expression, Field, PrimeField, RegionIndex, Selector},
-    ir::{lift::LiftIRGuard, stmt::IRStmt},
+    ir::stmt::IRStmt,
     synthesis::{regions::FQN, CircuitSynthesis},
-    LiftLike,
 };
+
 use anyhow::{anyhow, Result};
 
 mod lowering;
@@ -61,6 +63,15 @@ impl PicusParams {
         PicusParamsBuilder(Default::default())
     }
 }
+
+#[cfg(feature = "lift-field-operations")]
+trait PicusPrimeField: LiftLike {}
+#[cfg(feature = "lift-field-operations")]
+impl<F: LiftLike> PicusPrimeField for F {}
+#[cfg(not(feature = "lift-field-operations"))]
+trait PicusPrimeField: PrimeField {}
+#[cfg(not(feature = "lift-field-operations"))]
+impl<F: PrimeField> PicusPrimeField for F {}
 
 #[derive(Default)]
 pub struct FeltWrap<F: PrimeField>(F);
@@ -163,6 +174,7 @@ struct PicusBackendInner<L> {
     modules: Vec<PicusModuleRef>,
     current_scope: Option<PicusModuleLowering<L>>,
     enqueued_stmts: HashMap<RegionIndex, Vec<IRStmt<Expression<L>>>>,
+    #[cfg(feature = "lift-field-operations")]
     _lift_guard: LiftIRGuard,
     _marker: PhantomData<L>,
 }
@@ -199,7 +211,7 @@ where
     (0..count).map(move |i| f(i.into(), c))
 }
 
-impl<L: PrimeField> PicusBackend<L> {
+impl<L: PicusPrimeField> PicusBackend<L> {
     pub fn event_receiver(&self) -> PicusEventReceiver<L> {
         PicusEventReceiver {
             inner: self.inner.clone(),
@@ -268,7 +280,7 @@ impl<L: PrimeField> PicusBackend<L> {
     }
 }
 
-impl<L: LiftLike> PicusBackendInner<L> {
+impl<L: PicusPrimeField> PicusBackendInner<L> {
     fn add_module<O>(
         &mut self,
         name: String,
@@ -309,7 +321,7 @@ impl<L: LiftLike> PicusBackendInner<L> {
     }
 }
 
-impl<'c, L: LiftLike> Codegen<'c> for PicusBackend<L> {
+impl<'c, L: PicusPrimeField> Codegen<'c> for PicusBackend<L> {
     type FuncOutput = PicusModuleLowering<L>;
     type F = L;
     type Output = PicusOutput<L>;
@@ -386,7 +398,7 @@ impl<'c, L: LiftLike> Codegen<'c> for PicusBackend<L> {
     }
 }
 
-impl<'c, L: LiftLike> Codegen<'c> for PicusEventReceiver<L> {
+impl<'c, L: PicusPrimeField> Codegen<'c> for PicusEventReceiver<L> {
     type FuncOutput = PicusModuleLowering<L>;
     type F = L;
     type Output = ();
@@ -480,7 +492,7 @@ impl<F: Field> QueryResolver<F> for OnlyAdviceQueriesResolver<'_, F> {
     fn resolve_advice_query(
         &self,
         query: &AdviceQuery,
-    ) -> Result<(ResolvedQuery<F>, Option<Cow<FQN>>)> {
+    ) -> Result<(ResolvedQuery<F>, Option<Cow<'_, FQN>>)> {
         let offset: usize = query.rotation().0.try_into()?;
         let start = self
             .scope
@@ -510,7 +522,7 @@ impl SelectorResolver for NullSelectorResolver {
     }
 }
 
-impl<'c, L: LiftLike> Backend<'c, PicusParams> for PicusBackend<L> {
+impl<'c, L: PicusPrimeField> Backend<'c, PicusParams> for PicusBackend<L> {
     type Codegen = Self;
 
     fn initialize(params: PicusParams) -> Self {
@@ -521,6 +533,7 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams> for PicusBackend<L> {
                 modules: Default::default(),
                 _marker: Default::default(),
                 enqueued_stmts: Default::default(),
+                #[cfg(feature = "lift-field-operations")]
                 _lift_guard: LiftIRGuard::lock(enable_lifting),
                 current_scope: None,
             }
@@ -534,7 +547,7 @@ impl<'c, L: LiftLike> Backend<'c, PicusParams> for PicusBackend<L> {
     }
 }
 
-fn dequeue_stmts_impl<'s, L: LiftLike>(
+fn dequeue_stmts_impl<'s, L: PicusPrimeField>(
     scope: &'s PicusModuleLowering<L>,
     enqueued_stmts: &mut HashMap<RegionIndex, Vec<IRStmt<Expression<L>>>>,
 ) -> Result<()>
@@ -581,7 +594,7 @@ where
     Ok(())
 }
 
-impl<L: LiftLike> PicusBackendInner<L> {
+impl<L: PicusPrimeField> PicusBackendInner<L> {
     pub fn enqueue_stmts<'s>(
         &'s mut self,
         region: RegionIndex,
@@ -614,7 +627,7 @@ impl<L: LiftLike> PicusBackendInner<L> {
     }
 }
 
-impl<L: LiftLike> EventReceiver for PicusEventReceiver<L> {
+impl<L: PicusPrimeField> EventReceiver for PicusEventReceiver<L> {
     type Message = EmitStmtsMessage<L>;
 
     fn accept(&self, msg: &Self::Message) -> Result<()> {

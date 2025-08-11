@@ -34,6 +34,7 @@ impl std::fmt::Display for CmpOp {
     }
 }
 
+#[cfg(feature = "lift-field-operations")]
 pub mod lift;
 
 pub mod expr;

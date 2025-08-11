@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use crate::halo2::PrimeField;
 use codegen::LlzkCodegen;
 use melior::{
     ir::{operation::OperationLike as _, Module},
@@ -7,6 +8,7 @@ use melior::{
 };
 use ouroboros::self_referencing;
 
+#[cfg(feature = "lift-field-operations")]
 use crate::{ir::lift::LiftIRGuard, LiftLike};
 
 use super::Backend;
@@ -20,6 +22,7 @@ mod lowering;
 #[derive(Default)]
 pub struct LlzkParams {
     top_level: Option<String>,
+    #[cfg(feature = "lift-field-operations")]
     lift_fixed: bool,
 }
 
@@ -44,14 +47,25 @@ impl LlzkOutput {
 pub struct LlzkBackend<F> {
     params: LlzkParams,
     context: Context,
+    #[cfg(feature = "lift-field-operations")]
     _lift_guard: LiftIRGuard,
     _marker: PhantomData<F>,
 }
 
-impl<'c, F: LiftLike> Backend<'c, LlzkParams> for LlzkBackend<F> {
+#[cfg(feature = "lift-field-operations")]
+trait LlzkPrimeField: LiftLike {}
+#[cfg(feature = "lift-field-operations")]
+impl<F: LiftLike> LlzkPrimeField for F {}
+#[cfg(not(feature = "lift-field-operations"))]
+trait LlzkPrimeField: PrimeField {}
+#[cfg(not(feature = "lift-field-operations"))]
+impl<F: PrimeField> LlzkPrimeField for F {}
+
+impl<'c, F: LlzkPrimeField> Backend<'c, LlzkParams> for LlzkBackend<F> {
     type Codegen = LlzkCodegen<'c, F>;
 
     fn initialize(params: LlzkParams) -> Self {
+        #[cfg(feature = "lift-field-operations")]
         let enable_lifting = params.lift_fixed;
         //let inner = LlzkOutputInner::new(Context::new(), |context| {
         //    let loc = match &params.top_level {
@@ -65,6 +79,7 @@ impl<'c, F: LiftLike> Backend<'c, LlzkParams> for LlzkBackend<F> {
         Self {
             context,
             params,
+            #[cfg(feature = "lift-field-operations")]
             _lift_guard: LiftIRGuard::lock(enable_lifting),
             _marker: Default::default(),
         }
