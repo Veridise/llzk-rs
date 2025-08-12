@@ -33,7 +33,7 @@ pub use backend::picus::PicusParams;
 pub use backend::picus::PicusParamsBuilder;
 pub use backend::Backend;
 pub use error::to_plonk_error;
-pub use gates::GateCallbacks;
+pub use gates::{GateCallbacks, GateRewritePattern, GateScope, RewriteError, RewriteOutput};
 pub use io::CircuitIO;
 pub use synthesis::regions::RegionRowLike;
 
