@@ -1,6 +1,6 @@
 use crate::{
-    halo2::Circuit, lookups::callbacks::DefaultLookupCallbacks, synthesis::CircuitSynthesis,
-    CircuitCallbacks,
+    gates::DefaultGateCallbacks, halo2::Circuit, lookups::callbacks::DefaultLookupCallbacks,
+    synthesis::CircuitSynthesis, CircuitCallbacks,
 };
 use anyhow::Result;
 
@@ -50,9 +50,10 @@ pub trait Backend<'c, Params: Default>: Sized {
     {
         let syn = CircuitSynthesis::new::<C, CB>(circuit)?;
         let lookup_cbs = CB::lookup_callbacks().unwrap_or(Box::new(DefaultLookupCallbacks));
+        let gate_cbs = CB::gate_callbacks().unwrap_or(Box::new(DefaultGateCallbacks));
 
         let codegen = self.create_codegen();
-        S::default().codegen(&codegen, &syn, &*lookup_cbs)?;
+        S::default().codegen(&codegen, &syn, &*lookup_cbs, &*gate_cbs)?;
 
         codegen.generate_output()
     }

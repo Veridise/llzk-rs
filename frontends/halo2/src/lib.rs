@@ -33,6 +33,7 @@ pub use backend::picus::PicusParams;
 pub use backend::picus::PicusParamsBuilder;
 pub use backend::Backend;
 pub use error::to_plonk_error;
+pub use gates::GateCallbacks;
 pub use io::CircuitIO;
 pub use synthesis::regions::RegionRowLike;
 
@@ -45,6 +46,10 @@ pub trait CircuitCallbacks<F: Field, C: Circuit<F>> {
     fn instance_io(config: &C::Config) -> CircuitIO<Instance>;
 
     fn lookup_callbacks() -> Option<Box<dyn LookupCallbacks<F>>> {
+        None
+    }
+
+    fn gate_callbacks() -> Option<Box<dyn GateCallbacks<F>>> {
         None
     }
 }

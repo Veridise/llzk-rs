@@ -13,6 +13,7 @@ use crate::{
         regions::{RegionRow, Row},
         CircuitSynthesis,
     },
+    GateCallbacks,
 };
 use anyhow::Result;
 
@@ -164,6 +165,7 @@ pub trait CodegenStrategy: Default {
         codegen: &C,
         syn: &'s CircuitSynthesis<C::F>,
         lookups: &dyn LookupCallbacks<C::F>,
+        gate_cbs: &dyn GateCallbacks<C::F>,
     ) -> Result<()>
     where
         C: Codegen<'c>,

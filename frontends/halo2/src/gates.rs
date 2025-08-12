@@ -1,8 +1,219 @@
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::hash::Hash;
+use std::ops::{Range, RangeInclusive};
 
-use crate::halo2::*;
+use crate::ir::stmt::IRStmt;
+use crate::synthesis::regions::{RegionData, RegionRow};
+use crate::{halo2::*, CircuitIO};
+
+pub enum RewriteError {
+    NoMatch,
+    Err(anyhow::Error),
+}
+
+/// Scope in which a gate is being called
+#[derive(Copy, Clone, Debug)]
+pub struct GateScope<'a, F>
+where
+    F: Field,
+{
+    gate: &'a Gate<F>,
+    region: RegionData<'a, F>,
+    row_bounds: (usize, usize),
+    advice_io: &'a CircuitIO<Advice>,
+    instance_io: &'a CircuitIO<Instance>,
+}
+
+impl<'a, F: Field> GateScope<'a, F> {
+    pub(crate) fn new(
+        gate: &'a Gate<F>,
+        region: RegionData<'a, F>,
+        row_bounds: (usize, usize),
+        advice_io: &'a CircuitIO<Advice>,
+        instance_io: &'a CircuitIO<Instance>,
+    ) -> Self {
+        Self {
+            gate,
+            region,
+            row_bounds,
+            advice_io,
+            instance_io,
+        }
+    }
+
+    pub(crate) fn region(&self) -> RegionData<'a, F> {
+        self.region
+    }
+
+    pub(crate) fn region_row(&self, row: usize) -> anyhow::Result<RegionRow<'a, 'a, F>> {
+        if !self.rows().contains(&row) {
+            anyhow::bail!(
+                "Row {} is not within the rows of the scope [{}, {}]",
+                row,
+                self.start_row(),
+                self.end_row()
+            )
+        }
+        Ok(RegionRow::new(
+            self.region(),
+            row,
+            self.advice_io,
+            self.instance_io,
+        ))
+    }
+
+    pub fn gate_name(&self) -> &str {
+        self.gate.name()
+    }
+
+    pub fn polynomials(&self) -> &'a [Expression<F>] {
+        self.gate.polynomials()
+    }
+
+    pub fn region_name(&self) -> &str {
+        self.region.name()
+    }
+
+    pub fn region_index(&self) -> Option<RegionIndex> {
+        self.region.index()
+    }
+
+    pub fn region_header(&self) -> impl ToString {
+        self.region.header()
+    }
+
+    pub fn start_row(&self) -> usize {
+        self.row_bounds.0
+    }
+
+    pub fn end_row(&self) -> usize {
+        self.row_bounds.1
+    }
+
+    pub fn rows(&self) -> RangeInclusive<usize> {
+        (self.row_bounds.0)..=(self.row_bounds.1)
+    }
+}
+
+/// The type used for rewriting the gates. Each expression has an associated row that is used as
+/// the base offset on the queries.
+pub type RewriteOutput<'a, F> = IRStmt<(usize, Cow<'a, Expression<F>>)>;
+
+pub trait GateRewritePattern<F> {
+    fn match_gate<'a>(&self, gate: GateScope<'a, F>) -> Result<(), RewriteError>
+    where
+        F: Field,
+    {
+        panic!("Implement match_gate and rewrite_gate OR match_and_rewrite")
+    }
+
+    fn rewrite_gate<'a>(
+        &self,
+        gate: GateScope<'a, F>,
+    ) -> Result<RewriteOutput<'a, F>, anyhow::Error>
+    where
+        F: Field,
+    {
+        panic!("Implement match_gate and rewrite_gate OR match_and_rewrite")
+    }
+
+    fn match_and_rewrite<'a>(
+        &self,
+        gate: GateScope<'a, F>,
+    ) -> Result<RewriteOutput<'a, F>, RewriteError>
+    where
+        F: Field,
+    {
+        self.match_gate(gate)?;
+        self.rewrite_gate(gate).map_err(RewriteError::Err)
+    }
+}
+
+pub trait GateCallbacks<F> {
+    fn patterns(&self) -> Vec<Box<dyn GateRewritePattern<F>>>
+    where
+        F: Field;
+}
+
+pub(crate) struct DefaultGateCallbacks;
+
+impl<F> GateCallbacks<F> for DefaultGateCallbacks {
+    fn patterns(&self) -> Vec<Box<dyn GateRewritePattern<F>>>
+    where
+        F: Field,
+    {
+        vec![]
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct RewritePatternSet<F>(Vec<Box<dyn GateRewritePattern<F>>>);
+
+impl<F> RewritePatternSet<F> {
+    pub fn add(&mut self, p: impl GateRewritePattern<F> + 'static) {
+        self.0.push(Box::new(p))
+    }
+}
+
+impl<F> Extend<Box<dyn GateRewritePattern<F>>> for RewritePatternSet<F> {
+    fn extend<T: IntoIterator<Item = Box<dyn GateRewritePattern<F>>>>(&mut self, iter: T) {
+        self.0.extend(iter)
+    }
+}
+
+pub(crate) struct RewritePatternSetIter<'a, F>(
+    std::slice::Iter<'a, Box<dyn GateRewritePattern<F>>>,
+);
+
+impl<'a, F> Iterator for RewritePatternSetIter<'a, F> {
+    type Item = &'a dyn GateRewritePattern<F>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|b| b.as_ref())
+    }
+}
+
+impl<'a, F> IntoIterator for &'a RewritePatternSet<F> {
+    type Item = &'a dyn GateRewritePattern<F>;
+
+    type IntoIter = RewritePatternSetIter<'a, F>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        RewritePatternSetIter(self.0.iter())
+    }
+}
+
+impl<F> GateRewritePattern<F> for RewritePatternSet<F> {
+    fn match_and_rewrite<'a>(
+        &self,
+        gate: GateScope<'a, F>,
+    ) -> Result<RewriteOutput<'a, F>, RewriteError>
+    where
+        F: Field,
+    {
+        let mut errors = vec![];
+        for pattern in &self.0 {
+            match pattern.match_and_rewrite(gate) {
+                Ok(r) => return Ok(r),
+                Err(RewriteError::NoMatch) => {}
+                Err(RewriteError::Err(e)) => {
+                    errors.push(e);
+                }
+            }
+        }
+
+        Err(if errors.is_empty() {
+            RewriteError::NoMatch
+        } else {
+            RewriteError::Err(anyhow::anyhow!(errors
+                .into_iter()
+                .flat_map(|e: anyhow::Error| [e.to_string(), "\n".to_string()])
+                .collect::<String>()))
+        })
+    }
+}
 
 fn find_in_binop<'a, QR, F, Q>(lhs: &'a Expression<F>, rhs: &'a Expression<F>, q: Q) -> HashSet<QR>
 where

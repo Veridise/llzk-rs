@@ -11,7 +11,7 @@ use constraint::{EqConstraint, Graph};
 use regions::{RegionData, RegionRow, Regions, TableData, FQN};
 
 use crate::{
-    gates::{find_gate_selector_set, AnyQuery},
+    gates::{find_gate_selector_set, AnyQuery, GateScope},
     halo2::{Field, *},
     io::{AdviceIOValidator, InstanceIOValidator},
     lookups::{Lookup, LookupKind, LookupTableRow},
@@ -229,6 +229,27 @@ impl<F: Field> CircuitSynthesis<F> {
     }
 
     pub fn region_gates<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = (&'a Gate<F>, RegionData<'a, F>)> + 'a {
+        self.regions()
+            .into_iter()
+            .flat_map(|r| self.gates().iter().map(move |g| (g, r)))
+    }
+
+    pub fn gate_scopes<'a>(&'a self) -> impl Iterator<Item = GateScope<'a, F>> + 'a {
+        self.region_gates().map(|(g, r): (_, RegionData<'a, F>)| {
+            let rows = r.rows();
+            GateScope::new(
+                g,
+                r,
+                (rows.start, rows.end - 1),
+                self.advice_io(),
+                self.instance_io(),
+            )
+        })
+    }
+
+    pub fn regionrow_gates<'a>(
         &'a self,
     ) -> impl Iterator<Item = (&'a Gate<F>, RegionRow<'a, 'a, F>)> + 'a {
         self.regions()

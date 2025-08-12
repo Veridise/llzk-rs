@@ -6,6 +6,7 @@ use midnight_halo2_proofs::plonk::{
 use midnight_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
+use crate::lookups::callbacks::LookupCallbacks;
 use crate::{CircuitCallbacks, CircuitIO};
 
 #[derive(Debug, Clone)]
@@ -193,5 +194,9 @@ impl<F: Field> CircuitCallbacks<F, Self> for LookupCircuit<F> {
 
     fn instance_io(config: &<Self as Circuit<F>>::Config) -> CircuitIO<Instance> {
         CircuitIO::new(&[(config.instance, &[0])], &[(config.instance, &[1])])
+    }
+
+    fn lookup_callbacks() -> Option<Box<dyn LookupCallbacks<F>>> {
+        Some(Box::new(super::LookupCallbackHandler))
     }
 }

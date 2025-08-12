@@ -194,7 +194,7 @@ impl<'a, F: Default + Clone + Copy + std::fmt::Debug> RegionData<'a, F> {
         self.inner.rows()
     }
 
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &'a str {
         &self.inner.name
     }
 
@@ -226,5 +226,17 @@ impl<'a, F: Default + Clone + Copy + std::fmt::Debug> RegionData<'a, F> {
 
     pub fn enabled_selectors(&self) -> &'a HashMap<Selector, Vec<usize>> {
         self.inner.enabled_selectors()
+    }
+
+    #[inline]
+    pub fn header(&self) -> String {
+        match (&self.kind(), &self.index()) {
+            (RegionKind::Region, None) => format!("region <unk> {:?}", self.name()),
+            (RegionKind::Region, Some(index)) => {
+                format!("region {} {:?}", **index, self.name())
+            }
+            (RegionKind::Table, None) => format!("table {:?}", self.name()),
+            _ => unreachable!(),
+        }
     }
 }

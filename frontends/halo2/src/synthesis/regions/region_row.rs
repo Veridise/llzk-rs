@@ -65,14 +65,7 @@ impl<'r, 'io, F: Field> RegionRow<'r, 'io, F> {
 
     #[inline]
     pub fn header(&self) -> String {
-        match (&self.region.kind(), &self.region.index()) {
-            (RegionKind::Region, None) => format!("region <unk> {:?}", self.region.name()),
-            (RegionKind::Region, Some(index)) => {
-                format!("region {} {:?}", **index, self.region.name())
-            }
-            (RegionKind::Table, None) => format!("table {:?}", self.region.name()),
-            _ => unreachable!(),
-        }
+        self.region.header()
     }
 }
 
