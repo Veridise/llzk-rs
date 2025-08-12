@@ -42,7 +42,7 @@ use num_bigint::BigUint;
 use picus::{
     felt::{Felt, IntoPrime},
     opt::{
-        passes::{EnsureMaxExprSizePass, FoldExprsPass},
+        passes::{ConsolidateVarNamesPass, EnsureMaxExprSizePass, FoldExprsPass},
         MutOptimizer as _,
     },
     vars::VarStr,
@@ -273,14 +273,14 @@ impl<L: PicusPrimeField> PicusBackend<L> {
     }
 
     fn optimization_pipeline(&self) -> Pipeline<L> {
-        let params = &self.inner.borrow().params;
+        let _params = &self.inner.borrow().params;
         PipelineBuilder::<L>::new()
             .add_pass::<FoldExprsPass<FeltWrap<L>>>()
-            //.add_pass::<ConsolidateVarNamesPass>()
-            .add_pass_with_params::<EnsureMaxExprSizePass<NamingConvention>>((
-                params.expr_cutoff,
-                params.naming_convention,
-            ))
+            .add_pass::<ConsolidateVarNamesPass>()
+            //.add_pass_with_params::<EnsureMaxExprSizePass<NamingConvention>>((
+            //    params.expr_cutoff,
+            //    params.naming_convention,
+            //))
             .into()
     }
 }
@@ -611,10 +611,7 @@ impl<L: PicusPrimeField> PicusBackendInner<L> {
         &'s mut self,
         region: RegionIndex,
         stmts: &[IRStmt<Expression<L>>],
-    ) -> Result<()>
-//where
-    //    (OnlyAdviceQueriesResolver<'s, L>, NullSelectorResolver): ResolversProvider<L> + 's,
-    {
+    ) -> Result<()> {
         self.enqueued_stmts
             .entry(region)
             .or_default()
@@ -625,10 +622,6 @@ impl<L: PicusPrimeField> PicusBackendInner<L> {
             self.enqueued_stmts.len()
         );
         Ok(())
-        //self.current_scope
-        //    .as_ref()
-        //    .map(|scope| dequeue_stmts_impl(scope, &mut self.enqueued_stmts))
-        //    .unwrap_or_else(|| Ok(()))
     }
 
     pub fn dequeue_stmts<'s>(&mut self, scope: &'s PicusModuleLowering<L>) -> Result<()>
@@ -638,14 +631,6 @@ impl<L: PicusPrimeField> PicusBackendInner<L> {
         dequeue_stmts_impl(scope, &mut self.enqueued_stmts)
     }
 }
-
-//impl<L: PicusPrimeField> EventReceiver for PicusEventReceiver<L> {
-//    type Message = EmitStmtsMessage<L>;
-//
-//    fn accept(&self, msg: &Self::Message) -> Result<()> {
-//        self.inner.borrow_mut().enqueue_stmts(msg.0, &msg.1)
-//    }
-//}
 
 impl<F: PicusPrimeField> EventReceiver for PicusEventReceiver<F> {
     type Message = BackendMessages<F>;
