@@ -196,23 +196,23 @@ pub(crate) struct RewritePatternSetIter<'a, F>(
     std::slice::Iter<'a, Box<dyn GateRewritePattern<F>>>,
 );
 
-impl<'a, F> Iterator for RewritePatternSetIter<'a, F> {
-    type Item = &'a dyn GateRewritePattern<F>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|b| b.as_ref())
-    }
-}
-
-impl<'a, F> IntoIterator for &'a RewritePatternSet<F> {
-    type Item = &'a dyn GateRewritePattern<F>;
-
-    type IntoIter = RewritePatternSetIter<'a, F>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        RewritePatternSetIter(self.0.iter())
-    }
-}
+//impl<'a, F> Iterator for RewritePatternSetIter<'a, F> {
+//    type Item = &'a dyn GateRewritePattern<F>;
+//
+//    fn next(&mut self) -> Option<Self::Item> {
+//        self.0.next().map(|b| b.as_ref())
+//    }
+//}
+//
+//impl<'a, F> IntoIterator for &'a RewritePatternSet<F> {
+//    type Item = &'a dyn GateRewritePattern<F>;
+//
+//    type IntoIter = RewritePatternSetIter<'a, F>;
+//
+//    fn into_iter(self) -> Self::IntoIter {
+//        RewritePatternSetIter(self.0.iter())
+//    }
+//}
 
 impl<F> GateRewritePattern<F> for RewritePatternSet<F> {
     fn match_and_rewrite<'a>(
@@ -228,7 +228,7 @@ impl<F> GateRewritePattern<F> for RewritePatternSet<F> {
             gate.gate_name(),
             gate.region_name()
         );
-        for pattern in &self.0 {
+        for pattern in self.0.iter() {
             log::debug!("Starting pattern");
             match pattern.match_and_rewrite(gate) {
                 Ok(r) => {
