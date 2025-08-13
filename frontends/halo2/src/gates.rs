@@ -223,19 +223,33 @@ impl<F> GateRewritePattern<F> for RewritePatternSet<F> {
         F: Field,
     {
         let mut errors = vec![];
+        log::debug!(
+            "Starting match for gate '{}' on region '{}'",
+            gate.gate_name(),
+            gate.region_name()
+        );
         for pattern in &self.0 {
+            log::debug!("Starting pattern");
             match pattern.match_and_rewrite(gate) {
-                Ok(r) => return Ok(r),
-                Err(RewriteError::NoMatch) => {}
+                Ok(r) => {
+                    log::debug!("Returning a value from the pattern");
+                    return Ok(r);
+                }
+                Err(RewriteError::NoMatch) => {
+                    log::debug!("Pattern did not match");
+                }
                 Err(RewriteError::Err(e)) => {
+                    log::debug!("Pattern generated an error: {e}");
                     errors.push(e);
                 }
             }
         }
 
         Err(if errors.is_empty() {
+            log::debug!("No errors so returning NoMatch");
             RewriteError::NoMatch
         } else {
+            log::debug!("Returning {} errors", errors.len());
             RewriteError::Err(anyhow::anyhow!(errors
                 .into_iter()
                 .flat_map(|e: anyhow::Error| [e.to_string(), "\n".to_string()])
