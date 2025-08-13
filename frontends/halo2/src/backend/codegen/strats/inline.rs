@@ -57,11 +57,20 @@ impl<F> GateRewritePattern<F> for FallbackGateRewriter {
     where
         F: Field,
     {
-        let constraints = std::iter::repeat(gate.polynomials()).map(create_eq_constraints);
+        log::debug!(
+            "Generating gate '{}' on region '{}' with the fallback rewriter",
+            gate.gate_name(),
+            gate.region_name()
+        );
         let rows = gate.rows();
-        Ok(std::iter::zip(constraints, rows)
-            .map(|(c, r)| c.map(&|e| (r, e)))
+        Ok(rows
+            .map(|row| create_eq_constraints(gate.polynomials()).map(&|e| (row, e)))
             .collect())
+        //let constraints = std::iter::repeat(gate.polynomials()).map(create_eq_constraints);
+        //let rows = gate.rows();
+        //Ok(std::iter::zip(constraints, rows)
+        //    .map(|(c, r)| c.map(&|e| (r, e)))
+        //    .collect())
     }
 }
 
