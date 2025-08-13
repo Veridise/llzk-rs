@@ -22,6 +22,7 @@ where
 {
     gate: &'a Gate<F>,
     region: RegionData<'a, F>,
+    /// The bounds are [start,end).
     row_bounds: (usize, usize),
     advice_io: &'a CircuitIO<Advice>,
     instance_io: &'a CircuitIO<Instance>,
@@ -117,12 +118,17 @@ impl<'a, F: Field> GateScope<'a, F> {
         self.row_bounds.0
     }
 
+    /// The last row of the region.
     pub fn end_row(&self) -> usize {
-        self.row_bounds.1
+        let end = self.row_bounds.1;
+        if end == 0 {
+            return end;
+        }
+        end - 1
     }
 
-    pub fn rows(&self) -> RangeInclusive<usize> {
-        (self.row_bounds.0)..=(self.row_bounds.1)
+    pub fn rows(&self) -> Range<usize> {
+        (self.row_bounds.0)..(self.row_bounds.1)
     }
 }
 

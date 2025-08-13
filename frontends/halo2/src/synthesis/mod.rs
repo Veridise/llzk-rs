@@ -239,10 +239,11 @@ impl<F: Field> CircuitSynthesis<F> {
     pub fn gate_scopes<'a>(&'a self) -> impl Iterator<Item = GateScope<'a, F>> + 'a {
         self.region_gates().map(|(g, r): (_, RegionData<'a, F>)| {
             let rows = r.rows();
+
             GateScope::new(
                 g,
                 r,
-                (rows.start, rows.end - 1),
+                (rows.start, rows.end),
                 self.advice_io(),
                 self.instance_io(),
             )
