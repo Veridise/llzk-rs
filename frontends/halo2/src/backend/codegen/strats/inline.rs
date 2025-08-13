@@ -30,15 +30,21 @@ fn header_comments<F: Field, S: ToString>(s: S) -> Vec<IRStmt<(F,)>> {
 
 struct FallbackGateRewriter;
 
+fn zero<'a, F: Field>() -> Cow<'a, Expression<F>> {
+    Cow::Owned(Expression::Constant(F::ZERO))
+}
+
 fn create_eq_constraints<'a, F: Field>(
     i: impl IntoIterator<Item = &'a Expression<F>>,
 ) -> IRStmt<Cow<'a, Expression<F>>> {
-    let lhs = i.into_iter().map(Cow::Borrowed);
-    let rhs = std::iter::repeat(F::ZERO)
-        .map(Expression::Constant)
-        .map(Cow::Owned);
-    std::iter::zip(lhs, rhs)
-        .map(|(lhs, rhs)| IRStmt::constraint(CmpOp::Eq, lhs, rhs))
+    //let lhs =
+    i.into_iter()
+        .map(Cow::Borrowed)
+        //let rhs = std::iter::repeat(F::ZERO)
+        //    .map(Expression::Constant)
+        //    .map(Cow::Owned);
+        //std::iter::zip(lhs, rhs)
+        .map(|lhs| IRStmt::constraint(CmpOp::Eq, lhs, zero()))
         .collect()
 }
 
@@ -63,8 +69,12 @@ impl<F> GateRewritePattern<F> for FallbackGateRewriter {
             gate.region_name()
         );
         let rows = gate.rows();
+        log::debug!("The region has {} rows", gate.rows().count());
         Ok(rows
-            .map(|row| create_eq_constraints(gate.polynomials()).map(&|e| (row, e)))
+            .map(|row| {
+                log::debug!("Creating constraints for row {row}");
+                create_eq_constraints(gate.polynomials()).map(&|e| (row, e))
+            })
             .collect())
         //let constraints = std::iter::repeat(gate.polynomials()).map(create_eq_constraints);
         //let rows = gate.rows();
