@@ -18,6 +18,7 @@ pub mod lookup_2x3_fixed;
 pub mod lookup_2x3_zerosel;
 pub mod mul;
 pub mod mul_with_fixed_constraint;
+pub mod mul_with_rewriter;
 
 struct LookupCallbackHandler;
 

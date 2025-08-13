@@ -22,6 +22,10 @@ impl<T> Seq<T> {
     pub fn empty() -> Self {
         Self(vec![])
     }
+
+    pub fn iter<'a>(&'a self) -> std::slice::Iter<'a, IRStmt<T>> {
+        self.0.iter()
+    }
 }
 
 impl<T: Lowerable> Lowerable for Seq<T> {
@@ -59,6 +63,19 @@ impl<T: PartialEq> PartialEq for Seq<T> {
 
 impl<T: std::fmt::Debug> std::fmt::Debug for Seq<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.iter().try_for_each(|stmt| write!(f, "{:?}", stmt))
+        if f.alternate() {
+            writeln!(f, "{{")?;
+            self.0
+                .iter()
+                .enumerate()
+                .try_for_each(|(idx, stmt)| writeln!(f, "{idx}: {stmt:#?};"))?;
+            writeln!(f, "}}")
+        } else {
+            write!(f, "{{ ")?;
+            self.0
+                .iter()
+                .try_for_each(|stmt| write!(f, "{:?}; ", stmt))?;
+            write!(f, " }}")
+        }
     }
 }

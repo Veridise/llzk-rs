@@ -13,6 +13,7 @@ use crate::test::fixtures::midnight::lookup_2x3_fixed::Lookup2x3Circuit as Looku
 use crate::test::fixtures::midnight::lookup_2x3_zerosel::Lookup2x3ZeroSelCircuit;
 use crate::test::fixtures::midnight::mul::MulCircuit;
 use crate::test::fixtures::midnight::mul_with_fixed_constraint::MulWithFixedConstraintCircuit;
+use crate::test::fixtures::midnight::mul_with_rewriter::MulCircuit as MulWithRewriterCircuit;
 //use crate::test::mock::backend::{MockBackend, MockFunc, MockOutput};
 //use crate::test::mock::IRBuilder;
 use crate::{codegen_test, mock_codegen_test, picus_codegen_test};
@@ -143,6 +144,10 @@ macro_rules! picus_test {
 }
 
 picus_test!(test_mul_circuit_picus_codegen, MulCircuit<Fr>);
+picus_test!(
+    test_mul_with_rewriter_circuit_picus_codegen,
+    MulWithRewriterCircuit<Fr>
+);
 picus_test!(test_lookup_circuit_picus_codegen, LookupCircuit<Fr>);
 picus_test!(
     test_lookup_circuit_picus_codegen_inlined_lookups,

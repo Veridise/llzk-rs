@@ -32,16 +32,22 @@ pub enum IRStmt<T> {
 }
 
 impl<T: PartialEq> PartialEq for IRStmt<T> {
+    /// Equality is defined by the sequence of statements regardless of how they are structured
+    /// inside.
+    ///
+    /// For example:
+    ///     Seq([a, Seq([b, c])]) == Seq([a, b, c])
+    ///     a == Seq([a])
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
+        std::iter::zip(self.iter(), other.iter()).all(|(lhs, rhs)| match (lhs, rhs) {
             (IRStmt::ConstraintCall(lhs), IRStmt::ConstraintCall(rhs)) => lhs.eq(rhs),
             (IRStmt::Constraint(lhs), IRStmt::Constraint(rhs)) => lhs.eq(rhs),
             (IRStmt::Comment(lhs), IRStmt::Comment(rhs)) => lhs.eq(rhs),
             (IRStmt::AssumeDeterministic(lhs), IRStmt::AssumeDeterministic(rhs)) => lhs.eq(rhs),
             (IRStmt::Assert(lhs), IRStmt::Assert(rhs)) => lhs.eq(rhs),
-            (IRStmt::Seq(lhs), IRStmt::Seq(rhs)) => lhs.eq(rhs),
+            (IRStmt::Seq(_), _) | (_, IRStmt::Seq(_)) => unreachable!(),
             _ => false,
-        }
+        })
     }
 }
 
@@ -121,6 +127,31 @@ impl<T> IRStmt<T> {
             )
             .into(),
         })
+    }
+
+    fn iter<'a>(&'a self) -> IRStmtRefIter<'a, T> {
+        IRStmtRefIter { stack: vec![self] }
+    }
+}
+
+struct IRStmtRefIter<'a, T> {
+    stack: Vec<&'a IRStmt<T>>,
+}
+
+impl<'a, T> Iterator for IRStmtRefIter<'a, T> {
+    type Item = &'a IRStmt<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(node) = self.stack.pop() {
+            match node {
+                IRStmt::Seq(children) => {
+                    // Reverse to preserve left-to-right order
+                    self.stack.extend(children.iter().rev());
+                }
+                stmt => return Some(stmt),
+            }
+        }
+        None
     }
 }
 
@@ -242,22 +273,4 @@ impl<T: Clone> Clone for IRStmt<T> {
 }
 
 #[cfg(test)]
-mod test {
-    use super::*;
-
-    type S = IRStmt<()>;
-
-    #[test]
-    fn iterator_nested_seqs() {
-        let nested = S::seq([
-            S::assert(IRBexpr::And(vec![])),
-            S::seq([
-                S::assert(IRBexpr::And(vec![])),
-                S::assert(IRBexpr::And(vec![])),
-            ]),
-        ]);
-        let expected = vec![S::assert(IRBexpr::And(vec![])); 3];
-        let output = nested.into_iter().collect::<Vec<_>>();
-        assert_eq!(expected, output);
-    }
-}
+mod test;

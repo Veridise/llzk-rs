@@ -45,6 +45,11 @@ impl<T: PartialEq> PartialEq for Assert<T> {
 
 impl<T: std::fmt::Debug> std::fmt::Debug for Assert<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "assert {:?}", self.0)
+        write!(f, "assert ")?;
+        if f.alternate() {
+            write!(f, "{:#?}", self.0)
+        } else {
+            write!(f, "{:?}", self.0)
+        }
     }
 }
