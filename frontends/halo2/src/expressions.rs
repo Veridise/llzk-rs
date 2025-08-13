@@ -5,6 +5,12 @@ use crate::backend::resolvers::{boxed_resolver, ResolversProvider};
 use crate::backend::lowering::{lowerable::Lowerable, lowerable::LoweringOutput, Lowering};
 use crate::halo2::{Expression, Field};
 use anyhow::Result;
+use constant_folding::ConstantFolding;
+use rewriter::rewrite_expr;
+
+pub mod constant_folding;
+pub mod rewriter;
+pub mod utils;
 
 pub trait ExpressionFactory<'r, F: Field> {
     fn create<'a>(self, e: Expression<F>) -> ScopedExpression<'a, 'r, F>;
@@ -73,6 +79,13 @@ where
         R: Clone + ResolversProvider<F> + 'r,
     {
         move |e| Self::new(e, resolvers.clone())
+    }
+
+    pub fn fold_constants(&self) -> Expression<F> {
+        rewrite_expr(
+            self.expression.as_ref(),
+            &[&ConstantFolding::new(self.resolvers.as_ref())],
+        )
     }
 }
 

@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::ops::{Range, RangeInclusive};
 
+use crate::expressions::ScopedExpression;
 use crate::ir::stmt::IRStmt;
 use crate::synthesis::regions::{RegionData, RegionRow};
 use crate::{halo2::*, CircuitIO};
@@ -70,6 +71,34 @@ impl<'a, F: Field> GateScope<'a, F> {
 
     pub fn polynomials(&self) -> &'a [Expression<F>] {
         self.gate.polynomials()
+    }
+
+    pub fn polynomials_per_row(
+        &self,
+    ) -> anyhow::Result<Vec<(&'a Expression<F>, Vec<(usize, Expression<F>)>)>> {
+        self.polynomials()
+            .into_iter()
+            .map(|e| {
+                let rows = self
+                    .rows()
+                    .map(|row| {
+                        let folded = self.fold_polynomial_in_row(e, row)?;
+                        Ok((row, folded))
+                    })
+                    .collect::<anyhow::Result<Vec<_>>>()?;
+                Ok((e, rows))
+            })
+            .collect()
+    }
+
+    fn fold_polynomial_in_row(
+        &self,
+        e: &Expression<F>,
+        row: usize,
+    ) -> anyhow::Result<Expression<F>> {
+        let region_row = self.region_row(row)?;
+        let scoped = ScopedExpression::from_ref(e, region_row);
+        Ok(scoped.fold_constants())
     }
 
     pub fn region_name(&self) -> &str {
