@@ -7,8 +7,11 @@ use crate::{
         },
         resolvers::ResolversProvider,
     },
-    expressions::ScopedExpression,
-    gates::{GateRewritePattern, GateScope, RewriteError, RewriteOutput, RewritePatternSet},
+    expressions::{utils::ExprDebug, ScopedExpression},
+    gates::{
+        find_selectors, GateRewritePattern, GateScope, RewriteError, RewriteOutput,
+        RewritePatternSet,
+    },
     halo2::{Expression, Field},
     ir::{
         stmt::{chain_lowerable_stmts, IRStmt},
@@ -28,7 +31,17 @@ fn header_comments<F: Field, S: ToString>(s: S) -> Vec<IRStmt<(F,)>> {
     s.to_string().lines().map(IRStmt::comment).collect()
 }
 
-struct FallbackGateRewriter;
+struct FallbackGateRewriter {
+    ignore_disabled_gates: bool,
+}
+
+impl FallbackGateRewriter {
+    pub fn new(ignore_disabled_gates: bool) -> Self {
+        Self {
+            ignore_disabled_gates,
+        }
+    }
+}
 
 fn zero<'a, F: Field>() -> Cow<'a, Expression<F>> {
     Cow::Owned(Expression::Constant(F::ZERO))
@@ -36,15 +49,12 @@ fn zero<'a, F: Field>() -> Cow<'a, Expression<F>> {
 
 fn create_eq_constraints<'a, F: Field>(
     i: impl IntoIterator<Item = &'a Expression<F>>,
-) -> IRStmt<Cow<'a, Expression<F>>> {
-    //let lhs =
+    row: usize,
+) -> RewriteOutput<'a, F> {
     i.into_iter()
         .map(Cow::Borrowed)
-        //let rhs = std::iter::repeat(F::ZERO)
-        //    .map(Expression::Constant)
-        //    .map(Cow::Owned);
-        //std::iter::zip(lhs, rhs)
         .map(|lhs| IRStmt::constraint(CmpOp::Eq, lhs, zero()))
+        .map(|s| s.map(&|e: Cow<'a, _>| (row, e)))
         .collect()
 }
 
@@ -68,19 +78,26 @@ impl<F> GateRewritePattern<F> for FallbackGateRewriter {
             gate.gate_name(),
             gate.region_name()
         );
-        let rows = gate.rows();
+        let rows = gate.region_rows();
         log::debug!("The region has {} rows", gate.rows().count());
         Ok(rows
-            .map(|row| {
-                log::debug!("Creating constraints for row {row}");
-                create_eq_constraints(gate.polynomials()).map(&|e| (row, e))
+            .map(move |row| {
+                log::debug!("Creating constraints for row {}", row.row_number());
+
+                let filtered_polys = gate.polynomials().into_iter().filter_map(|e| {
+                    let set = find_selectors(e);
+                    if self.ignore_disabled_gates && row.gate_is_disabled(&set) {
+                        log::debug!(
+                            "Expression {:?} was ignored because its selectors are disabled",
+                            ExprDebug(e)
+                        );
+                        return None;
+                    }
+                    Some(e)
+                });
+                create_eq_constraints(filtered_polys, row.row_number())
             })
             .collect())
-        //let constraints = std::iter::repeat(gate.polynomials()).map(create_eq_constraints);
-        //let rows = gate.rows();
-        //Ok(std::iter::zip(constraints, rows)
-        //    .map(|(c, r)| c.map(&|e| (r, e)))
-        //    .collect())
     }
 }
 
@@ -119,6 +136,9 @@ fn lower_gates<'s, F: Field>(
                     })
                 })
                 .map(|stmt| {
+                    if stmt.is_empty() {
+                        return stmt;
+                    }
                     [
                         IRStmt::comment(format!(
                             "gate '{}' @ {} @ rows {}..={}",
@@ -157,7 +177,7 @@ impl CodegenStrategy for InlineConstraintsStrat {
         codegen.within_main(syn, move |_| {
             let mut patterns = RewritePatternSet::default();
             patterns.extend(gate_cbs.patterns());
-            patterns.add(FallbackGateRewriter);
+            patterns.add(FallbackGateRewriter::new(gate_cbs.ignore_disabled_gates()));
             // Do the region stmts first since backends may have more information about names for
             // cells there and some backends do not update the name and always use the first
             // one given.

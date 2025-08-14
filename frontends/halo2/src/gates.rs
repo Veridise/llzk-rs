@@ -66,6 +66,11 @@ impl<'a, F: Field> GateScope<'a, F> {
         ))
     }
 
+    pub(crate) fn region_rows(&self) -> impl Iterator<Item = RegionRow<'a, 'a, F>> {
+        self.rows()
+            .map(|row| RegionRow::new(self.region(), row, self.advice_io, self.instance_io))
+    }
+
     pub fn gate_name(&self) -> &str {
         self.gate.name()
     }
@@ -167,6 +172,13 @@ pub trait GateRewritePattern<F> {
 }
 
 pub trait GateCallbacks<F> {
+    /// Asks wether a gate's polynomial whose selectors are all disabled for a given region should be emitted or
+    /// not. Defaults to true.
+    fn ignore_disabled_gates(&self) -> bool {
+        true
+    }
+
+    /// Asks for a list of patterns that are checked before the default ones.
     fn patterns(&self) -> Vec<Box<dyn GateRewritePattern<F>>>
     where
         F: Field;
@@ -201,24 +213,6 @@ impl<F> Extend<Box<dyn GateRewritePattern<F>>> for RewritePatternSet<F> {
 pub(crate) struct RewritePatternSetIter<'a, F>(
     std::slice::Iter<'a, Box<dyn GateRewritePattern<F>>>,
 );
-
-//impl<'a, F> Iterator for RewritePatternSetIter<'a, F> {
-//    type Item = &'a dyn GateRewritePattern<F>;
-//
-//    fn next(&mut self) -> Option<Self::Item> {
-//        self.0.next().map(|b| b.as_ref())
-//    }
-//}
-//
-//impl<'a, F> IntoIterator for &'a RewritePatternSet<F> {
-//    type Item = &'a dyn GateRewritePattern<F>;
-//
-//    type IntoIter = RewritePatternSetIter<'a, F>;
-//
-//    fn into_iter(self) -> Self::IntoIter {
-//        RewritePatternSetIter(self.0.iter())
-//    }
-//}
 
 impl<F> GateRewritePattern<F> for RewritePatternSet<F> {
     fn match_and_rewrite<'a>(
@@ -273,7 +267,7 @@ where
     q(lhs).union(&q(rhs)).cloned().collect()
 }
 
-fn find_selectors<F: Field>(poly: &Expression<F>) -> HashSet<&Selector> {
+pub(crate) fn find_selectors<F: Field>(poly: &Expression<F>) -> HashSet<&Selector> {
     match poly {
         Expression::Selector(selector) => [selector].into(),
         Expression::Negated(expression) => find_selectors(expression),

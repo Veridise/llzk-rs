@@ -23,6 +23,10 @@ impl<T> Seq<T> {
         Self(vec![])
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn iter<'a>(&'a self) -> std::slice::Iter<'a, IRStmt<T>> {
         self.0.iter()
     }

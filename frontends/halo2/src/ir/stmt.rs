@@ -102,6 +102,13 @@ impl<T> IRStmt<T> {
         Seq::empty().into()
     }
 
+    pub fn is_empty(&self) -> bool {
+        match self {
+            IRStmt::Seq(s) => s.is_empty(),
+            _ => false,
+        }
+    }
+
     pub fn map<O>(self, f: &impl Fn(T) -> O) -> IRStmt<O> {
         match self {
             IRStmt::ConstraintCall(call) => call.map(f).into(),
