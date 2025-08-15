@@ -13,9 +13,25 @@ use std::{borrow::Cow, collections::HashSet};
 pub trait RegionRowLike {
     fn region_index(&self) -> Option<usize>;
 
+    fn region_index_as_str(&self) -> String {
+        match self.region_index() {
+            Some(i) => i.to_string(),
+            None => "<unk>".to_string(),
+        }
+    }
+
     fn region_name(&self) -> &str;
 
     fn row_number(&self) -> usize;
+
+    fn header(&self) -> String {
+        format!(
+            "region {} '{}' @ row {}",
+            self.region_index_as_str(),
+            self.region_name(),
+            self.row_number()
+        )
+    }
 }
 
 #[derive(Copy, Clone, Debug)]

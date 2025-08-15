@@ -1,6 +1,6 @@
 use std::{borrow::Cow, marker::PhantomData, rc::Rc};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use llzk::dialect::r#struct::StructDefOp;
 use llzk::{
     builder::OpBuilder,
@@ -13,19 +13,22 @@ use llzk::{
 };
 use melior::ir::ValueLike;
 use melior::{
-    ir::{
-        attribute::FlatSymbolRefAttribute, operation::OperationLike as _, BlockLike as _, Location,
-        Operation, OperationRef, RegionLike as _, Type, Value,
-    },
     Context,
+    ir::{
+        BlockLike as _, Location, Operation, OperationRef, RegionLike as _, Type, Value,
+        attribute::FlatSymbolRefAttribute, operation::OperationLike as _,
+    },
 };
 use midnight_halo2_proofs::plonk::{AdviceQuery, Challenge, FixedQuery, InstanceQuery, Selector};
 use mlir_sys::MlirValue;
 use num_bigint::BigUint;
 
+use crate::backend::codegen::queue::RegionStartResolver;
 use crate::backend::func::FieldId;
 use crate::backend::lowering::tag::LoweringOutput;
+use crate::halo2::{RegionIndex, RegionStart};
 use crate::ir::CmpOp;
+use crate::synthesis::regions::RegionIndexToStart;
 use crate::{
     backend::{
         func::{ArgNo, FuncIO},
@@ -40,15 +43,23 @@ use super::counter::Counter;
 use super::extras::{block_list, operations_list};
 
 pub struct LlzkStructLowering<'c, F> {
+    context: &'c Context,
     struct_op: StructDefOp<'c>,
     constraints_counter: Rc<Counter>,
+    regions: Option<RegionIndexToStart>,
     _marker: PhantomData<F>,
 }
 
 impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
-    pub fn new(struct_op: StructDefOp<'c>) -> Self {
+    pub fn new(
+        context: &'c Context,
+        struct_op: StructDefOp<'c>,
+        regions: Option<RegionIndexToStart>,
+    ) -> Self {
         Self {
+            context,
             struct_op,
+            regions,
             constraints_counter: Rc::new(Default::default()),
             _marker: Default::default(),
         }
@@ -59,7 +70,7 @@ impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
     }
 
     fn context(&self) -> &'c Context {
-        unsafe { self.struct_op.context().to_ref() }
+        self.context
     }
 
     fn struct_name(&self) -> &str {
@@ -153,12 +164,8 @@ impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
 
     fn lower_constant_impl(&self, f: F) -> Result<Value<'c, '_>> {
         let repr = BigUint::from_bytes_le(f.to_repr().as_ref());
-        let const_attr = FeltConstAttribute::parse(
-            self.context(),
-            repr.to_string().as_str(),
-            repr.bits().try_into()?,
-            Radix::Base10,
-        );
+        log::debug!("f as repr: {repr}");
+        let const_attr = FeltConstAttribute::parse(self.context(), repr.to_string().as_str());
         self.append_expr(felt::constant(
             Location::unknown(self.context()),
             const_attr,
@@ -187,11 +194,41 @@ impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
     }
 }
 
-impl LoweringOutput for MlirValue {}
+impl<L> RegionStartResolver for LlzkStructLowering<'_, L> {
+    fn find(&self, idx: RegionIndex) -> Result<RegionStart> {
+        self.regions
+            .as_ref()
+            .and_then(|regions| regions.get(&idx).copied())
+            .ok_or_else(|| anyhow::anyhow!("Failed to get start row for region {}", *idx))
+    }
+}
+
+/// Value wrapper used as lowering output for circumventing lifetime restrictions.
+#[derive(Copy, Clone)]
+pub struct ValueWrap(MlirValue);
+
+impl From<ValueWrap> for Value<'_, '_> {
+    fn from(value: ValueWrap) -> Self {
+        unsafe { Self::from_raw(value.0) }
+    }
+}
+
+impl From<&ValueWrap> for Value<'_, '_> {
+    fn from(value: &ValueWrap) -> Self {
+        unsafe { Self::from_raw(value.0) }
+    }
+}
+
+macro_rules! wrap {
+    ($r:expr) => {
+        ($r).map(|v| ValueWrap(v.to_raw()))
+    };
+}
+
+impl LoweringOutput for ValueWrap {}
 
 impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
-    //type CellOutput = Value<'c, '_>;
-    type CellOutput = MlirValue;
+    type CellOutput = ValueWrap;
 
     type F = F;
 
@@ -208,9 +245,7 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
             0,
         );
         self.append_op(match op {
-            CmpOp::Eq => constrain::eq(loc, unsafe { Value::from_raw(*lhs) }, unsafe {
-                Value::from_raw(*rhs)
-            }),
+            CmpOp::Eq => constrain::eq(loc, lhs.into(), rhs.into()),
             CmpOp::Lt => todo!(),
             CmpOp::Le => todo!(),
             CmpOp::Gt => todo!(),
@@ -238,9 +273,10 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
             .unwrap_or_default()
     }
 
-    fn generate_comment(&self, _s: String) -> Result<()> {
+    fn generate_comment(&self, s: String) -> Result<()> {
         // If the final target is picus generate a 'picus.comment' op. Otherwise do nothing.
-        unimplemented!()
+        log::warn!("Comment {s:?} was not generated");
+        Ok(())
     }
 
     fn generate_call(
@@ -261,12 +297,13 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
         lhs: &Self::CellOutput,
         rhs: &Self::CellOutput,
     ) -> Result<Self::CellOutput> {
-        self.append_expr(felt::add(
+        wrap! {
+            self.append_expr(felt::add(
             Location::unknown(self.context()),
-            unsafe { Value::from_raw(*lhs) },
-            unsafe { Value::from_raw(*rhs) },
+            lhs.into(),
+            rhs.into(),
         )?)
-        .map(|v| v.to_raw())
+        }
     }
 
     fn lower_product(
@@ -274,19 +311,17 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
         lhs: &Self::CellOutput,
         rhs: &Self::CellOutput,
     ) -> Result<Self::CellOutput> {
-        self.append_expr(felt::mul(
-            Location::unknown(self.context()),
-            unsafe { Value::from_raw(*lhs) },
-            unsafe { Value::from_raw(*rhs) },
-        )?)
-        .map(|v| v.to_raw())
+        wrap! {
+            self.append_expr(felt::mul(
+                Location::unknown(self.context()),
+                lhs.into(),
+                rhs.into(),
+            )?)
+        }
     }
 
     fn lower_neg(&self, expr: &Self::CellOutput) -> Result<Self::CellOutput> {
-        self.append_expr(felt::neg(Location::unknown(self.context()), unsafe {
-            Value::from_raw(*expr)
-        })?)
-        .map(|v| v.to_raw())
+        wrap! { self.append_expr(felt::neg(Location::unknown(self.context()), expr.into())?) }
     }
 
     fn lower_scaled(
@@ -294,12 +329,12 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
         expr: &Self::CellOutput,
         scale: &Self::CellOutput,
     ) -> Result<Self::CellOutput> {
+        wrap! {
         self.append_expr(felt::mul(
             Location::unknown(self.context()),
-            unsafe { Value::from_raw(*expr) },
-            unsafe { Value::from_raw(*scale) },
+            expr.into(), scale.into()
         )?)
-        .map(|v| v.to_raw())
+        }
     }
 
     fn lower_challenge(&self, _challenge: &Challenge) -> Result<Self::CellOutput> {
@@ -313,7 +348,7 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
     ) -> Result<Self::CellOutput> {
         match resolver.resolve_selector(sel)? {
             ResolvedSelector::Const(b) => self.lower_constant(b.to_f()),
-            ResolvedSelector::Arg(arg_no) => self.get_arg(arg_no).map(|v| v.to_raw()),
+            ResolvedSelector::Arg(arg_no) => wrap! {self.get_arg(arg_no) },
         }
     }
 
@@ -323,8 +358,7 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
         resolver: &dyn QueryResolver<Self::F>,
     ) -> Result<Self::CellOutput> {
         let (query, fqn) = resolver.resolve_advice_query(query)?;
-        self.lower_resolved_query(query, fqn.as_ref())
-            .map(|v| v.to_raw())
+        wrap! {self.lower_resolved_query(query, fqn.as_ref()) }
     }
 
     fn lower_instance_query(
@@ -332,8 +366,7 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
         query: &InstanceQuery,
         resolver: &dyn QueryResolver<Self::F>,
     ) -> Result<Self::CellOutput> {
-        self.lower_resolved_query(resolver.resolve_instance_query(query)?, None)
-            .map(|v| v.to_raw())
+        wrap! {self.lower_resolved_query(resolver.resolve_instance_query(query)?, None)}
     }
 
     fn lower_fixed_query(
@@ -341,12 +374,11 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
         query: &FixedQuery,
         resolver: &dyn QueryResolver<Self::F>,
     ) -> Result<Self::CellOutput> {
-        self.lower_resolved_query(resolver.resolve_fixed_query(query)?, None)
-            .map(|v| v.to_raw())
+        wrap! {self.lower_resolved_query(resolver.resolve_fixed_query(query)?, None)}
     }
 
     fn lower_constant(&self, f: Self::F) -> Result<Self::CellOutput> {
-        self.lower_constant_impl(f).map(|v| v.to_raw())
+        wrap! {self.lower_constant_impl(f)}
     }
 
     fn generate_assume_deterministic(&self, _func_io: FuncIO) -> Result<()> {

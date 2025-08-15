@@ -8,7 +8,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use constraint::{EqConstraint, Graph};
-use regions::{RegionData, RegionRow, Regions, TableData, FQN};
+use regions::{RegionData, RegionIndexToStart, RegionRow, Regions, TableData, FQN};
 
 use crate::{
     gates::{find_gate_selector_set, AnyQuery, GateScope},
@@ -58,12 +58,14 @@ impl<F: Field> CircuitSynthesis<F> {
     pub fn new<C: Circuit<F>, CB: CircuitCallbacks<F, C>>(circuit: &C) -> Result<Self> {
         let (mut syn, config) = Self::init::<C, CB>();
 
+        log::debug!("Starting synthesis");
         syn.synthesize(circuit, config)?;
-        log::debug!("cs = {:?}", syn.cs);
 
+        log::debug!("Validating io hints");
         syn.advice_io.validate(&AdviceIOValidator)?;
         syn.instance_io
             .validate(&InstanceIOValidator::new(&syn.cs))?;
+        log::debug!("Synthesis completed successfuly");
         Ok(syn)
     }
 
@@ -148,7 +150,7 @@ impl<F: Field> CircuitSynthesis<F> {
         l.table_queries().and_then(|q| self.tables_for_queries(&q))
     }
 
-    pub fn regions_by_index(&self) -> HashMap<RegionIndex, RegionStart> {
+    pub fn regions_by_index(&self) -> RegionIndexToStart {
         self.regions
             .regions()
             .into_iter()

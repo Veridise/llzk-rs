@@ -1,5 +1,5 @@
 use llzk_sys::{
-    llzkAttributeIsAFeltConstAttr, llzkFeltConstAttrGet, llzkFeltConstAttrParseFromStr,
+    llzkAttributeIsAFeltConstAttr, llzkFeltConstAttrGet, llzkFeltConstAttrParseFromBase10Str,
 };
 use melior::{
     ir::{Attribute, AttributeLike},
@@ -7,6 +7,7 @@ use melior::{
 };
 use mlir_sys::MlirAttribute;
 
+#[derive(Debug)]
 pub enum Radix {
     Base2,
     Base8,
@@ -52,14 +53,12 @@ impl<'c> FeltConstAttribute<'c> {
         unsafe { Self::from_raw(llzkFeltConstAttrGet(ctx.to_raw(), value as i64)) }
     }
 
-    pub fn parse(ctx: &'c Context, value: &str, num_bits: u32, radix: Radix) -> Self {
+    pub fn parse(ctx: &'c Context, value: &str) -> Self {
         let value = StringRef::new(value);
         unsafe {
-            Self::from_raw(llzkFeltConstAttrParseFromStr(
+            Self::from_raw(llzkFeltConstAttrParseFromBase10Str(
                 ctx.to_raw(),
-                num_bits,
                 value.to_raw(),
-                radix.into(),
             ))
         }
     }

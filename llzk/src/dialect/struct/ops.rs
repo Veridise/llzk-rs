@@ -24,6 +24,7 @@ use crate::{
     dialect::function::FuncDefOpRef,
     error::Error,
     ident,
+    macros::{concrete_op_ref_type, concrete_op_type},
 };
 
 use super::StructType;
@@ -163,126 +164,17 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
 // StructDefOp
 //===----------------------------------------------------------------------===//
 
-/// Represents an owned 'struct.def' op.
-pub struct StructDefOp<'c> {
-    inner: Operation<'c>,
-}
-
-impl StructDefOp<'_> {
-    /// Constructs Self from a MlirOperation.
-    /// # Safety
-    /// The MLIR operation must be a valid pointer of type llzk::component::StructDefOp.
-    pub unsafe fn from_raw(raw: MlirOperation) -> Self {
-        unsafe {
-            Self {
-                inner: Operation::from_raw(raw),
-            }
-        }
-    }
-}
-
-impl<'a, 'c: 'a> OperationLike<'c, 'a> for StructDefOp<'c> {
-    fn to_raw(&self) -> MlirOperation {
-        self.inner.to_raw()
-    }
-}
+concrete_op_type!(StructDefOp, llzkOperationIsAStructDefOp, "struct.def");
 
 impl<'a, 'c: 'a> StructDefOpLike<'c, 'a> for StructDefOp<'c> {}
-
-impl<'c> fmt::Display for StructDefOp<'c> {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.inner, formatter)
-    }
-}
-
-impl<'c> Deref for StructDefOp<'c> {
-    type Target = Operation<'c>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<'c> From<StructDefOp<'c>> for Operation<'c> {
-    fn from(op: StructDefOp<'c>) -> Operation<'c> {
-        op.inner
-    }
-}
-
-impl<'c> TryFrom<Operation<'c>> for StructDefOp<'c> {
-    type Error = Error;
-
-    fn try_from(op: Operation<'c>) -> Result<Self, Self::Error> {
-        if unsafe { llzkOperationIsAStructDefOp(op.to_raw()) } {
-            Ok(unsafe { Self::from_raw(op.to_raw()) })
-        } else {
-            Err(Self::Error::OperationExpected("struct.def", op.to_string()))
-        }
-    }
-}
 
 //===----------------------------------------------------------------------===//
 // StructDefOpRef
 //===----------------------------------------------------------------------===//
 
-/// Represents a non-owned reference to a 'struct.def' op.
-#[derive(Clone, Copy)]
-pub struct StructDefOpRef<'c, 'a> {
-    inner: OperationRef<'c, 'a>,
-}
-
-impl StructDefOpRef<'_, '_> {
-    /// Constructs Self from a MlirOperation.
-    /// # Safety
-    /// The MLIR operation must be a valid pointer of type llzk::component::StructDefOp.
-    pub unsafe fn from_raw(raw: MlirOperation) -> Self {
-        unsafe {
-            Self {
-                inner: OperationRef::from_raw(raw),
-            }
-        }
-    }
-}
-
-impl<'a, 'c: 'a> OperationLike<'c, 'a> for StructDefOpRef<'c, 'a> {
-    fn to_raw(&self) -> MlirOperation {
-        self.inner.to_raw()
-    }
-}
+concrete_op_ref_type!(StructDefOpRef, llzkOperationIsAStructDefOp, "struct.def");
 
 impl<'a, 'c: 'a> StructDefOpLike<'c, 'a> for StructDefOpRef<'c, 'a> {}
-
-impl fmt::Display for StructDefOpRef<'_, '_> {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.inner, formatter)
-    }
-}
-
-impl<'a, 'c: 'a> Deref for StructDefOpRef<'c, 'a> {
-    type Target = OperationRef<'c, 'a>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<'a, 'c: 'a> From<StructDefOpRef<'c, 'a>> for OperationRef<'c, 'a> {
-    fn from(op: StructDefOpRef<'c, 'a>) -> OperationRef<'c, 'a> {
-        op.inner
-    }
-}
-
-impl<'a, 'c: 'a> TryFrom<OperationRef<'c, 'a>> for StructDefOpRef<'c, 'a> {
-    type Error = Error;
-
-    fn try_from(op: OperationRef<'c, 'a>) -> Result<Self, Self::Error> {
-        if unsafe { llzkOperationIsAStructDefOp(op.to_raw()) } {
-            Ok(unsafe { Self::from_raw(op.to_raw()) })
-        } else {
-            Err(Self::Error::OperationExpected("struct.def", op.to_string()))
-        }
-    }
-}
 
 //===----------------------------------------------------------------------===//
 // FieldDefOpLike
@@ -319,132 +211,17 @@ pub trait FieldDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
 // FieldDefOp
 //===----------------------------------------------------------------------===//
 
-/// Represents an owned 'struct.field' op.
-pub struct FieldDefOp<'c> {
-    inner: Operation<'c>,
-}
-
-impl FieldDefOp<'_> {
-    /// Constructs Self from a MlirOperation.
-    /// # Safety
-    /// The MlirOperation must be a valid pointer to a llzk::component::FieldDefOp.
-    pub unsafe fn from_raw(raw: MlirOperation) -> Self {
-        unsafe {
-            Self {
-                inner: Operation::from_raw(raw),
-            }
-        }
-    }
-}
-
-impl<'a, 'c: 'a> OperationLike<'c, 'a> for FieldDefOp<'c> {
-    fn to_raw(&self) -> MlirOperation {
-        self.inner.to_raw()
-    }
-}
+concrete_op_type!(FieldDefOp, llzkOperationIsAFieldDefOp, "struct.field");
 
 impl<'a, 'c: 'a> FieldDefOpLike<'c, 'a> for FieldDefOp<'c> {}
-
-impl<'c> fmt::Display for FieldDefOp<'c> {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.inner, formatter)
-    }
-}
-
-impl<'c> Deref for FieldDefOp<'c> {
-    type Target = Operation<'c>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<'c> From<FieldDefOp<'c>> for Operation<'c> {
-    fn from(op: FieldDefOp<'c>) -> Operation<'c> {
-        op.inner
-    }
-}
-
-impl<'c> TryFrom<Operation<'c>> for FieldDefOp<'c> {
-    type Error = Error;
-
-    fn try_from(op: Operation<'c>) -> Result<Self, Self::Error> {
-        if unsafe { llzkOperationIsAFieldDefOp(op.to_raw()) } {
-            Ok(unsafe { Self::from_raw(op.to_raw()) })
-        } else {
-            Err(Self::Error::OperationExpected(
-                "struct.field",
-                op.to_string(),
-            ))
-        }
-    }
-}
 
 //===----------------------------------------------------------------------===//
 // FieldDefOpRef
 //===----------------------------------------------------------------------===//
 
-/// Represents a non-owned reference to a 'struct.field' op.
-#[derive(Clone, Copy)]
-pub struct FieldDefOpRef<'c, 'a> {
-    inner: OperationRef<'c, 'a>,
-}
-
-impl FieldDefOpRef<'_, '_> {
-    /// Constructs Self from a MlirOperation.
-    /// # Safety
-    /// The MLIR operation must be a valid pointer of type llzk::component::FieldDefOp
-    pub unsafe fn from_raw(raw: MlirOperation) -> Self {
-        unsafe {
-            Self {
-                inner: OperationRef::from_raw(raw),
-            }
-        }
-    }
-}
-
-impl<'a, 'c: 'a> OperationLike<'c, 'a> for FieldDefOpRef<'c, 'a> {
-    fn to_raw(&self) -> MlirOperation {
-        self.inner.to_raw()
-    }
-}
+concrete_op_ref_type!(FieldDefOpRef, llzkOperationIsAFieldDefOp, "struct.field");
 
 impl<'a, 'c: 'a> FieldDefOpLike<'c, 'a> for FieldDefOpRef<'c, 'a> {}
-
-impl fmt::Display for FieldDefOpRef<'_, '_> {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.inner, formatter)
-    }
-}
-
-impl<'a, 'c: 'a> Deref for FieldDefOpRef<'c, 'a> {
-    type Target = OperationRef<'c, 'a>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<'a, 'c: 'a> From<FieldDefOpRef<'c, 'a>> for OperationRef<'c, 'a> {
-    fn from(field_ref: FieldDefOpRef<'c, 'a>) -> OperationRef<'c, 'a> {
-        field_ref.inner
-    }
-}
-
-impl<'a, 'c: 'a> TryFrom<OperationRef<'c, 'a>> for FieldDefOpRef<'c, 'a> {
-    type Error = Error;
-
-    fn try_from(op: OperationRef<'c, 'a>) -> Result<Self, Self::Error> {
-        if unsafe { llzkOperationIsAFieldDefOp(op.to_raw()) } {
-            Ok(unsafe { Self::from_raw(op.to_raw()) })
-        } else {
-            Err(Self::Error::OperationExpected(
-                "struct.field",
-                op.to_string(),
-            ))
-        }
-    }
-}
 
 //===----------------------------------------------------------------------===//
 // operation factories
@@ -461,6 +238,7 @@ where
     I: IntoIterator<Item = Result<Operation<'c>, Error>>,
 {
     let ctx = location.context();
+    log::debug!("ctx = {ctx:?}");
     let params: Vec<Attribute> = params.iter().map(|a| (*a).into()).collect();
     let params = ArrayAttribute::new(unsafe { ctx.to_ref() }, &params).into();
     let region = Region::new();

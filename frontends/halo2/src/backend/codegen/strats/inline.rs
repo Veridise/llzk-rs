@@ -160,7 +160,7 @@ fn lower_gates<'s, F: Field>(
 pub struct InlineConstraintsStrat {}
 
 impl CodegenStrategy for InlineConstraintsStrat {
-    fn codegen<'c, 's, C>(
+    fn codegen<'c: 'st, 's, 'st, C>(
         &self,
         codegen: &C,
         syn: &'s CircuitSynthesis<C::F>,
@@ -168,23 +168,45 @@ impl CodegenStrategy for InlineConstraintsStrat {
         gate_cbs: &dyn GateCallbacks<C::F>,
     ) -> Result<()>
     where
-        C: Codegen<'c>,
+        C: Codegen<'c, 'st>,
         Row<'s, C::F>: ResolversProvider<C::F> + 's,
         RegionRow<'s, 's, C::F>: ResolversProvider<C::F> + 's,
     {
+        log::debug!(
+            "Performing codegen with {} strategy",
+            std::any::type_name_of_val(self)
+        );
+
+        log::debug!("Generating lookup modules (if desired)");
         codegen_lookup_modules(codegen, syn, lookups)?;
 
+        log::debug!("Generating main body");
         codegen.within_main(syn, move |_| {
             let mut patterns = RewritePatternSet::default();
-            patterns.extend(gate_cbs.patterns());
+            let user_patterns = gate_cbs.patterns();
+            log::debug!("Loading {} user patterns", user_patterns.len());
+            patterns.extend(user_patterns);
+            log::debug!(
+                "Loading fallback pattern {}",
+                std::any::type_name::<FallbackGateRewriter>()
+            );
             patterns.add(FallbackGateRewriter::new(gate_cbs.ignore_disabled_gates()));
             // Do the region stmts first since backends may have more information about names for
             // cells there and some backends do not update the name and always use the first
             // one given.
             Ok(chain_lowerable_stmts!(
-                lower_gates(syn, &patterns)?,
-                codegen_lookup_invocations(syn, lookups)?,
-                inter_region_constraints(syn)?
+                {
+                    log::debug!("Lowering gates");
+                    lower_gates(syn, &patterns)?
+                },
+                {
+                    log::debug!("Lowering lookups");
+                    codegen_lookup_invocations(syn, lookups)?
+                },
+                {
+                    log::debug!("Lowering inter region equality constraints");
+                    inter_region_constraints(syn)?
+                }
             ))
         })
     }

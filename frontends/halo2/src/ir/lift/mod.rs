@@ -84,6 +84,10 @@ macro_rules! arena {
     }};
 }
 
+pub trait LiftingCfg {
+    pub fn lifting_enabled(&self) -> bool;
+}
+
 pub trait LiftLike: Sized + PrimeField {
     type Inner: PrimeField;
 

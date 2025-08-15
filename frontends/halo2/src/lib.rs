@@ -22,17 +22,17 @@ mod value;
 use crate::halo2::{Advice, Circuit, Field, Instance};
 #[cfg(feature = "lift-field-operations")]
 pub use crate::ir::lift::{Lift, LiftLike};
-pub use backend::events::{
-    BackendEventReceiver, BackendMessages, BackendResponse, EmitStmtsMessage, EventReceiver,
-    EventSender, OwnedEventSender,
+pub use backend::{
+    events::{
+        BackendEventReceiver, BackendMessages, BackendResponse, EmitStmtsMessage, EventReceiver,
+        EventSender, OwnedEventSender,
+    },
+    llzk::{LlzkBackend, LlzkOutput, LlzkParams, LlzkParamsBuilder},
+    picus::{PicusBackend, PicusOutput, PicusParams, PicusParamsBuilder},
+    Backend,
 };
-pub use backend::picus::PicusBackend;
-pub use backend::picus::PicusEventReceiver;
-pub use backend::picus::PicusOutput;
-pub use backend::picus::PicusParams;
-pub use backend::picus::PicusParamsBuilder;
-pub use backend::Backend;
 pub use error::to_plonk_error;
+pub use field::LoweringField;
 pub use gates::{GateCallbacks, GateRewritePattern, GateScope, RewriteError, RewriteOutput};
 pub use io::CircuitIO;
 pub use synthesis::regions::RegionRowLike;
@@ -55,55 +55,19 @@ pub trait CircuitCallbacks<F: Field, C: Circuit<F>> {
 }
 
 #[cfg(feature = "lift-field-operations")]
-pub fn create_picus_backend<L>(params: PicusParams) -> PicusBackend<L>
-where
-    L: LiftLike,
-{
-    PicusBackend::initialize(params)
-}
+pub mod field {
+    use crate::ir::lift::LiftLike;
 
-#[cfg(feature = "lift-field-operations")]
-pub fn picus_codegen_with_params<L, C>(circuit: &C, params: PicusParams) -> Result<PicusOutput<L>>
-where
-    L: LiftLike,
-    C: Circuit<L> + CircuitCallbacks<L, C>,
-{
-    let backend = PicusBackend::initialize(params);
-    backend.codegen_with_strat::<C, C, InlineConstraintsStrat>(circuit)
-}
+    pub trait LoweringField: LiftLike {}
 
-#[cfg(feature = "lift-field-operations")]
-pub fn picus_codegen<L, C>(circuit: &C) -> Result<PicusOutput<L>>
-where
-    L: LiftLike,
-    C: Circuit<L> + CircuitCallbacks<L, C>,
-{
-    picus_codegen_with_params(circuit, Default::default())
+    impl<F: LiftLike> LoweringField for F {}
 }
 
 #[cfg(not(feature = "lift-field-operations"))]
-pub fn create_picus_backend<L>(params: PicusParams) -> PicusBackend<L>
-where
-    L: PrimeField,
-{
-    PicusBackend::initialize(params)
-}
+pub mod field {
+    use crate::halo2::PrimeField;
 
-#[cfg(not(feature = "lift-field-operations"))]
-pub fn picus_codegen_with_params<L, C>(circuit: &C, params: PicusParams) -> Result<PicusOutput<L>>
-where
-    L: PrimeField,
-    C: Circuit<L> + CircuitCallbacks<L, C>,
-{
-    let backend = PicusBackend::initialize(params);
-    backend.codegen_with_strat::<C, C, InlineConstraintsStrat>(circuit)
-}
+    pub trait LoweringField: PrimeField {}
 
-#[cfg(not(feature = "lift-field-operations"))]
-pub fn picus_codegen<L, C>(circuit: &C) -> Result<PicusOutput<L>>
-where
-    L: PrimeField,
-    C: Circuit<L> + CircuitCallbacks<L, C>,
-{
-    picus_codegen_with_params(circuit, Default::default())
+    impl<F: PrimeField> LoweringField for F {}
 }

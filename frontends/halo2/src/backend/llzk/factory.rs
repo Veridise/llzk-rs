@@ -1,4 +1,4 @@
-use std::iter;
+use std::{borrow::Cow, iter};
 
 use llzk::{
     dialect::{
@@ -11,6 +11,11 @@ use llzk::{
 use melior::{
     ir::{attribute::FlatSymbolRefAttribute, r#type::FunctionType, Location, Operation, Type},
     Context,
+};
+
+use crate::{
+    halo2::{Advice, Instance},
+    CircuitIO,
 };
 
 fn struct_def_op_location<'c>(context: &'c Context, name: &str, index: usize) -> Location<'c> {
@@ -34,29 +39,115 @@ fn struct_type<'c>(context: &'c Context, name: &str) -> Type<'c> {
     StructType::from_str(context, name).into()
 }
 
+struct Field {
+    name: Cow<'static, str>,
+    public: bool,
+}
+
+impl From<(&'static str, bool)> for Field {
+    fn from(value: (&'static str, bool)) -> Self {
+        Self {
+            name: Cow::Borrowed(value.0),
+            public: value.1,
+        }
+    }
+}
+
+impl Field {
+    pub fn renamed(mut self, f: impl FnOnce(&str) -> String) -> Self {
+        let new = f(self.name.as_ref());
+        self.name = Cow::Owned(new);
+        self
+    }
+
+    pub fn name(&self) -> &str {
+        self.name.as_ref()
+    }
+
+    pub fn is_public(&self) -> bool {
+        self.public
+    }
+}
+
+pub struct StructIO {
+    private_inputs: usize,
+    public_inputs: usize,
+    private_outputs: usize,
+    public_outputs: usize,
+}
+
+macro_rules! field_iter {
+    ($name:ident, $base:expr) => {
+        fn $name(&self) -> impl Iterator<Item = Field> {
+            iter::repeat($base)
+                .map(Field::from)
+                .zip(0..self.$name)
+                .map(|(f, n)| f.renamed(|name| format!("{name}_{n}")))
+        }
+    };
+}
+
+impl StructIO {
+    fn fields(&self) -> impl IntoIterator<Item = Field> {
+        self.private_inputs()
+            .chain(self.private_outputs())
+            .chain(self.public_outputs())
+    }
+
+    field_iter!(private_inputs, ("in", false));
+    field_iter!(private_outputs, ("out", false));
+    field_iter!(public_outputs, ("out", true));
+
+    pub fn public_inputs<'c>(&self, ctx: &'c Context) -> impl IntoIterator<Item = Type<'c>> {
+        iter::repeat_with(|| FeltType::new(ctx).into()).take(self.public_inputs)
+    }
+}
+
+impl From<(&CircuitIO<Advice>, &CircuitIO<Instance>)> for StructIO {
+    fn from(value: (&CircuitIO<Advice>, &CircuitIO<Instance>)) -> Self {
+        Self {
+            private_inputs: value.0.inputs().len(),
+            public_inputs: value.1.inputs().len(),
+            private_outputs: value.0.outputs().len(),
+            public_outputs: value.1.outputs().len(),
+        }
+    }
+}
+
+impl From<(usize, usize)> for StructIO {
+    fn from(value: (usize, usize)) -> Self {
+        Self {
+            private_inputs: 0,
+            public_inputs: value.0,
+            private_outputs: value.0,
+            public_outputs: 0,
+        }
+    }
+}
+
 pub fn create_struct<'c>(
     context: &'c Context,
     struct_name: &str,
     idx: usize,
-    advice_inputs: usize,
-    instance_inputs: usize,
-    advice_outputs: usize,
-    instance_outputs: usize,
+    io: impl Into<StructIO>,
 ) -> Result<StructDefOp<'c>, Error> {
+    log::debug!("context = {context:?}");
+    let io = io.into();
     let loc = struct_def_op_location(context, struct_name, idx);
-    let fields = iter::zip(0..advice_inputs, iter::repeat(("in", false)))
-        .chain(iter::zip(0..advice_outputs, iter::repeat(("out", false))))
-        .chain(iter::zip(0..instance_outputs, iter::repeat(("out", true))))
-        .map(|(idx, (kind, public))| (format!("{kind}_{idx}"), public))
-        .map(|(name, public)| -> Result<Operation<'c>, Error> {
-            create_field(context, struct_name, &name, public).map(Into::into)
+    log::debug!("Struct location: {loc:?}");
+    let fields = io
+        .fields()
+        .into_iter()
+        .map(|field| -> Result<Operation<'c>, Error> {
+            create_field(context, struct_name, field.name(), field.is_public()).map(Into::into)
         });
 
     let func_args = [struct_type(context, struct_name)]
         .into_iter()
-        .chain(iter::repeat_with(|| FeltType::new(context).into()).take(instance_inputs))
+        .chain(io.public_inputs(context))
         .collect::<Vec<_>>();
 
+    log::debug!("Creating function with arguments: {func_args:?}");
     let constrain = function::def(
         loc,
         "constrain",
@@ -66,6 +157,7 @@ pub fn create_struct<'c>(
     )
     .inspect(|f| f.set_allow_constraint_attr(true));
 
+    log::debug!("Creating constraint op");
     r#struct::def(
         loc,
         FlatSymbolRefAttribute::new(context, struct_name),

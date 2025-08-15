@@ -24,6 +24,7 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 disjoint = "0.8"
 ouroboros = "0.18"
+paste = "1.0"
 
 # Different halo2 implementations
 [dependencies.axiom_halo2_proofs]

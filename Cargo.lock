@@ -627,6 +627,7 @@ dependencies = [
  "mlir-sys",
  "num-bigint",
  "ouroboros",
+ "paste",
  "picus",
  "rand",
  "serde",
@@ -1003,6 +1004,7 @@ name = "llzk"
 version = "0.1.0"
 dependencies = [
  "llzk-sys",
+ "log",
  "melior",
  "mlir-sys",
  "rstest",

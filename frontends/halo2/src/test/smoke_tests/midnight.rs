@@ -3,6 +3,7 @@ use simplelog::{Config, TestLogger};
 
 use crate::backend::codegen::strats::inline::InlineConstraintsStrat;
 use crate::backend::func::{ArgNo, FieldId};
+use crate::backend::llzk::{LlzkBackend, LlzkParamsBuilder};
 use crate::backend::picus::{PicusBackend, PicusParamsBuilder};
 use crate::backend::Backend;
 use crate::halo2::{Field, Fr};
@@ -16,7 +17,7 @@ use crate::test::fixtures::midnight::mul_with_fixed_constraint::MulWithFixedCons
 use crate::test::fixtures::midnight::mul_with_rewriter::MulCircuit as MulWithRewriterCircuit;
 //use crate::test::mock::backend::{MockBackend, MockFunc, MockOutput};
 //use crate::test::mock::IRBuilder;
-use crate::{codegen_test, mock_codegen_test, picus_codegen_test};
+use crate::{codegen_test, llzk_codegen_test, mock_codegen_test, picus_codegen_test};
 
 fn args(count: usize) -> Vec<ArgNo> {
     (0..count).map(Into::into).collect()
@@ -137,13 +138,28 @@ macro_rules! picus_test {
         #[test]
         fn $name() {
             let _ = TestLogger::init(LevelFilter::Debug, Config::default());
-            let output = picus_codegen_test!($circ, PicusParamsBuilder::new().short_names().into());
+            let output =
+                picus_codegen_test!($circ, PicusParamsBuilder::new().short_names().build());
             println!("{}", output.display());
         }
     };
 }
 
+macro_rules! llzk_test {
+    ($name:ident, $circ:ty) => {
+        #[test]
+        fn $name() {
+            let _ = TestLogger::init(LevelFilter::Debug, Config::default());
+            let ctx = llzk::LlzkContext::new();
+            log::debug!("ctx = {ctx:?}");
+            let output = llzk_codegen_test!($circ, LlzkParamsBuilder::new(&ctx).build());
+            println!("{}", output);
+        }
+    };
+}
+
 picus_test!(test_mul_circuit_picus_codegen, MulCircuit<Fr>);
+llzk_test!(test_mul_circuit_llzk_codegen, MulCircuit<Fr>);
 picus_test!(
     test_mul_with_rewriter_circuit_picus_codegen,
     MulWithRewriterCircuit<Fr>

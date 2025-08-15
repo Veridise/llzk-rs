@@ -1,11 +1,12 @@
 use super::{
     vars::{NamingConvention, VarKey, VarKeySeed},
-    FeltWrap, PicusPrimeField,
+    FeltWrap,
 };
 #[cfg(feature = "lift-field-operations")]
 use crate::ir::lift::{LiftLike, LiftLowering};
 use crate::{
     backend::{
+        codegen::queue::RegionStartResolver,
         func::{ArgNo, FieldId, FuncIO},
         lowering::{tag::LoweringOutput, Lowering},
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
@@ -14,9 +15,10 @@ use crate::{
         AdviceQuery, Challenge, FixedQuery, InstanceQuery, RegionIndex, RegionStart, Selector,
     },
     ir::CmpOp,
-    synthesis::regions::FQN,
+    synthesis::regions::{RegionIndexToStart, FQN},
+    LoweringField,
 };
-use anyhow::{bail, Result};
+use anyhow::Result;
 use picus::{expr, stmt, ModuleLike as _};
 use std::{borrow::Cow, collections::HashMap, marker::PhantomData};
 
@@ -26,36 +28,32 @@ pub(super) type PicusExpr = picus::expr::Expr;
 #[derive(Clone)]
 pub struct PicusModuleLowering<L> {
     module: PicusModuleRef,
+    #[cfg(feature = "lift-field-operations")]
     lift_fixed: bool,
     naming_convention: NamingConvention,
-    regions: Option<HashMap<RegionIndex, RegionStart>>,
+    regions: Option<RegionIndexToStart>,
     _field: PhantomData<L>,
 }
 
 impl<L> PicusModuleLowering<L> {
     pub fn new(
         module: PicusModuleRef,
-        lift_fixed: bool,
+        #[cfg(feature = "lift-field-operations")] lift_fixed: bool,
         regions: Option<HashMap<RegionIndex, RegionStart>>,
         naming_convention: NamingConvention,
     ) -> Self {
         Self {
             module,
+            #[cfg(feature = "lift-field-operations")]
             lift_fixed,
             regions,
             naming_convention,
             _field: Default::default(),
         }
     }
-
-    pub fn find_region(&self, idx: &RegionIndex) -> Option<RegionStart> {
-        self.regions
-            .as_ref()
-            .and_then(|regions| regions.get(idx).copied())
-    }
 }
 
-impl<L: PicusPrimeField> PicusModuleLowering<L> {
+impl<L: LoweringField> PicusModuleLowering<L> {
     pub fn lower_func_io(&self, func_io: FuncIO, fqn: Option<Cow<FQN>>) -> PicusExpr {
         let seed = VarKeySeed::named_io(func_io, fqn, self.naming_convention);
         expr::var(&self.module, seed)
@@ -70,6 +68,15 @@ impl<L: PicusPrimeField> PicusModuleLowering<L> {
             ResolvedQuery::Lit(f) => Lowering::lower_constant(self, f)?,
             ResolvedQuery::IO(func_io) => self.lower_func_io(func_io, fqn),
         })
+    }
+}
+
+impl<L> RegionStartResolver for PicusModuleLowering<L> {
+    fn find(&self, idx: RegionIndex) -> Result<RegionStart> {
+        self.regions
+            .as_ref()
+            .and_then(|regions| regions.get(&idx).copied())
+            .ok_or_else(|| anyhow::anyhow!("Failed to get start row for region {}", *idx))
     }
 }
 
@@ -92,7 +99,7 @@ impl<L: LiftLike> LiftLowering for PicusModuleLowering<L> {
         } else if let Some(f) = f {
             Ok(expr::r#const(FeltWrap(*f)))
         } else {
-            bail!(
+            anyhow::bail!(
                 "Lifted value did not have an inner value and the lowerer was not configured to lift"
             )
         }
@@ -123,11 +130,11 @@ impl<L: LiftLike> LiftLowering for PicusModuleLowering<L> {
     }
 
     fn lower_invert(&self, _expr: &Self::Output) -> Result<Self::Output> {
-        bail!("Inversion operation is not expressible in Picus")
+        unimplemented!()
     }
 
     fn lower_sqrt_ratio(&self, _lhs: &Self::Output, _rhs: &Self::Output) -> Result<Self::Output> {
-        todo!()
+        unimplemented!()
     }
 
     fn lower_cond_select(
@@ -136,13 +143,13 @@ impl<L: LiftLike> LiftLowering for PicusModuleLowering<L> {
         _then: &Self::Output,
         _else: &Self::Output,
     ) -> Result<Self::Output> {
-        bail!("Conditional select operation is not expressible in Picus")
+        unimplemented!()
     }
 }
 
 impl LoweringOutput for PicusExpr {}
 
-impl<L: PicusPrimeField> Lowering for PicusModuleLowering<L> {
+impl<L: LoweringField> Lowering for PicusModuleLowering<L> {
     type CellOutput = PicusExpr;
 
     type F = L;
@@ -271,7 +278,7 @@ impl<L: PicusPrimeField> Lowering for PicusModuleLowering<L> {
 
     #[cfg(not(feature = "lift-field-operations"))]
     fn lower_constant(&self, f: Self::F) -> Result<Self::CellOutput> {
-        let expr = expr::r#const(FeltWrap(f));
+        let expr = expr::r#const(FeltWrap::from(f));
         log::debug!(
             "[PicusBackend::lower_constant] Constant value {f:?} becomes expression {expr:?}"
         );

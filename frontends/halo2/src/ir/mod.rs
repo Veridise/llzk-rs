@@ -105,12 +105,12 @@ impl<T> IRModule<T> {
 }
 
 impl<T: Lowerable> IRModule<T> {
-    pub(crate) fn generate<'a>(self, codegen: &impl Codegen<'a, F = T::F>) -> anyhow::Result<()> {
-        codegen.define_function_with_body(
-            self.name.as_str(),
-            self.io.0,
-            self.io.1,
-            |scope, _, _| Ok(vec![self.body]),
-        )
+    pub(crate) fn generate<'a: 's, 's>(
+        self,
+        codegen: &impl Codegen<'a, 's, F = T::F>,
+    ) -> anyhow::Result<()> {
+        codegen.define_function_with_body(self.name.as_str(), self.io.0, self.io.1, |_, _, _| {
+            Ok(vec![self.body])
+        })
     }
 }

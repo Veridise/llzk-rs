@@ -1,4 +1,10 @@
-use std::{fmt, ops::Deref, ptr::null};
+use std::{
+    fmt,
+    marker::PhantomData,
+    mem::{self, forget},
+    ops::Deref,
+    ptr::null,
+};
 
 use llzk_sys::{
     llzkFuncDefOpCreateWithAttrsAndArgAttrs, llzkFuncDefOpGetFullyQualifiedName,
@@ -23,7 +29,12 @@ use mlir_sys::{
     mlirDictionaryAttrGet, mlirNamedAttributeGet, MlirAttribute, MlirNamedAttribute, MlirOperation,
 };
 
-use crate::{dialect::r#struct::StructType, error::Error, symbol_ref::SymbolRefAttribute};
+use crate::{
+    dialect::r#struct::StructType,
+    error::Error,
+    macros::{concrete_op_ref_type, concrete_op_type},
+    symbol_ref::SymbolRefAttribute,
+};
 
 //===----------------------------------------------------------------------===//
 // Helpers
@@ -124,130 +135,17 @@ pub trait FuncDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
 // FuncDefOp
 //===----------------------------------------------------------------------===//
 
-/// Represents an owned 'function.def' op.
-pub struct FuncDefOp<'c> {
-    inner: Operation<'c>,
-}
-
-impl FuncDefOp<'_> {
-    /// # Safety
-    /// The MLIR operation must be a valid pointer of type llzk::function::FuncDefOp.
-    pub unsafe fn from_raw(raw: MlirOperation) -> Self {
-        unsafe {
-            Self {
-                inner: Operation::from_raw(raw),
-            }
-        }
-    }
-}
-
-impl<'a, 'c: 'a> OperationLike<'c, 'a> for FuncDefOp<'c> {
-    fn to_raw(&self) -> MlirOperation {
-        self.inner.to_raw()
-    }
-}
+concrete_op_type!(FuncDefOp, llzkOperationIsAFuncDefOp, "function.def");
 
 impl<'a, 'c: 'a> FuncDefOpLike<'c, 'a> for FuncDefOp<'c> {}
-
-impl fmt::Display for FuncDefOp<'_> {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.inner, formatter)
-    }
-}
-
-impl<'c> Deref for FuncDefOp<'c> {
-    type Target = Operation<'c>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<'c> From<FuncDefOp<'c>> for Operation<'c> {
-    fn from(op: FuncDefOp<'c>) -> Operation<'c> {
-        op.inner
-    }
-}
-
-impl<'c> TryFrom<Operation<'c>> for FuncDefOp<'c> {
-    type Error = Error;
-
-    fn try_from(op: Operation<'c>) -> Result<Self, Self::Error> {
-        if unsafe { llzkOperationIsAFuncDefOp(op.to_raw()) } {
-            Ok(unsafe { Self::from_raw(op.to_raw()) })
-        } else {
-            Err(Self::Error::OperationExpected(
-                "function.def",
-                op.to_string(),
-            ))
-        }
-    }
-}
 
 //===----------------------------------------------------------------------===//
 // FuncDefOpRef
 //===----------------------------------------------------------------------===//
 
-/// Represents a non-owned reference to a 'function.def' op.
-#[derive(Clone, Copy)]
-pub struct FuncDefOpRef<'c, 'a> {
-    inner: OperationRef<'c, 'a>,
-}
-
-impl FuncDefOpRef<'_, '_> {
-    /// # Safety
-    /// The MLIR operation must be a valid pointer of type llzk::function::FuncDefOp.
-    pub unsafe fn from_raw(raw: MlirOperation) -> Self {
-        unsafe {
-            Self {
-                inner: OperationRef::from_raw(raw),
-            }
-        }
-    }
-}
-
-impl<'a, 'c: 'a> OperationLike<'c, 'a> for FuncDefOpRef<'c, 'a> {
-    fn to_raw(&self) -> MlirOperation {
-        self.inner.to_raw()
-    }
-}
+concrete_op_ref_type!(FuncDefOpRef, llzkOperationIsAFuncDefOp, "function.def");
 
 impl<'a, 'c: 'a> FuncDefOpLike<'c, 'a> for FuncDefOpRef<'c, 'a> {}
-
-impl fmt::Display for FuncDefOpRef<'_, '_> {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.inner, formatter)
-    }
-}
-
-impl<'a, 'c: 'a> Deref for FuncDefOpRef<'c, 'a> {
-    type Target = OperationRef<'c, 'a>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<'a, 'c: 'a> From<FuncDefOpRef<'c, 'a>> for OperationRef<'c, 'a> {
-    fn from(op: FuncDefOpRef<'c, 'a>) -> OperationRef<'c, 'a> {
-        op.inner
-    }
-}
-
-impl<'a, 'c: 'a> TryFrom<OperationRef<'c, 'a>> for FuncDefOpRef<'c, 'a> {
-    type Error = Error;
-
-    fn try_from(op: OperationRef<'c, 'a>) -> Result<Self, Self::Error> {
-        if unsafe { llzkOperationIsAFuncDefOp(op.to_raw()) } {
-            Ok(unsafe { Self::from_raw(op.to_raw()) })
-        } else {
-            Err(Self::Error::OperationExpected(
-                "function.def",
-                op.to_string(),
-            ))
-        }
-    }
-}
 
 //===----------------------------------------------------------------------===//
 // CallOpLike
@@ -260,130 +158,17 @@ pub trait CallOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {}
 // CallOp
 //===----------------------------------------------------------------------===//
 
-/// Represents an owned 'function.call' op.
-pub struct CallOp<'c> {
-    inner: Operation<'c>,
-}
-
-impl CallOp<'_> {
-    /// # Safety
-    /// The MLIR operation must be a valid pointer of type llzk::function::CallOp.
-    pub unsafe fn from_raw(raw: MlirOperation) -> Self {
-        unsafe {
-            Self {
-                inner: Operation::from_raw(raw),
-            }
-        }
-    }
-}
-
-impl<'a, 'c: 'a> OperationLike<'c, 'a> for CallOp<'c> {
-    fn to_raw(&self) -> MlirOperation {
-        self.inner.to_raw()
-    }
-}
+concrete_op_type!(CallOp, llzkOperationIsACallOp, "function.call");
 
 impl<'a, 'c: 'a> CallOpLike<'c, 'a> for CallOp<'c> {}
-
-impl fmt::Display for CallOp<'_> {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.inner, formatter)
-    }
-}
-
-impl<'c> Deref for CallOp<'c> {
-    type Target = Operation<'c>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<'c> From<CallOp<'c>> for Operation<'c> {
-    fn from(op: CallOp<'c>) -> Operation<'c> {
-        op.inner
-    }
-}
-
-impl<'c> TryFrom<Operation<'c>> for CallOp<'c> {
-    type Error = Error;
-
-    fn try_from(op: Operation<'c>) -> Result<Self, Self::Error> {
-        if unsafe { llzkOperationIsACallOp(op.to_raw()) } {
-            Ok(unsafe { Self::from_raw(op.to_raw()) })
-        } else {
-            Err(Self::Error::OperationExpected(
-                "function.call",
-                op.to_string(),
-            ))
-        }
-    }
-}
 
 //===----------------------------------------------------------------------===//
 // CallOpRef
 //===----------------------------------------------------------------------===//
 
-/// Represents a non-owned reference to a 'function.call' op.
-#[derive(Clone, Copy)]
-pub struct CallOpRef<'c, 'a> {
-    inner: OperationRef<'c, 'a>,
-}
-
-impl CallOpRef<'_, '_> {
-    /// # Safety
-    /// The MLIR operation must be a valid pointer of type llzk::function::CallOp
-    pub unsafe fn from_raw(raw: MlirOperation) -> Self {
-        unsafe {
-            Self {
-                inner: OperationRef::from_raw(raw),
-            }
-        }
-    }
-}
-
-impl<'a, 'c: 'a> OperationLike<'c, 'a> for CallOpRef<'c, 'a> {
-    fn to_raw(&self) -> MlirOperation {
-        self.inner.to_raw()
-    }
-}
+concrete_op_ref_type!(CallOpRef, llzkOperationIsACallOp, "function.call");
 
 impl<'a, 'c: 'a> CallOpLike<'c, 'a> for CallOpRef<'c, 'a> {}
-
-impl fmt::Display for CallOpRef<'_, '_> {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.inner, formatter)
-    }
-}
-
-impl<'a, 'c: 'a> Deref for CallOpRef<'c, 'a> {
-    type Target = OperationRef<'c, 'a>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<'a, 'c: 'a> From<CallOpRef<'c, 'a>> for OperationRef<'c, 'a> {
-    fn from(op: CallOpRef<'c, 'a>) -> OperationRef<'c, 'a> {
-        op.inner
-    }
-}
-
-impl<'a, 'c: 'a> TryFrom<OperationRef<'c, 'a>> for CallOpRef<'c, 'a> {
-    type Error = Error;
-
-    fn try_from(op: OperationRef<'c, 'a>) -> Result<Self, Self::Error> {
-        if unsafe { llzkOperationIsACallOp(op.to_raw()) } {
-            Ok(unsafe { Self::from_raw(op.to_raw()) })
-        } else {
-            Err(Self::Error::OperationExpected(
-                "function.call",
-                op.to_string(),
-            ))
-        }
-    }
-}
 
 //===----------------------------------------------------------------------===//
 // operation factories
@@ -398,7 +183,9 @@ fn prepare_arg_attrs<'c>(
     input_count: usize,
     ctx: &'c Context,
 ) -> Vec<MlirAttribute> {
+    log::debug!("prepare_arg_attrs(\n{arg_attrs:?},\n{input_count},\n{ctx:?})");
     if let Some(arg_attrs) = arg_attrs {
+        assert_eq!(arg_attrs.len(), input_count);
         arg_attrs
             .iter()
             .map(|arg_attr| {
@@ -415,6 +202,7 @@ fn prepare_arg_attrs<'c>(
     } else {
         (0..input_count)
             .map(|_| unsafe { mlirDictionaryAttrGet(ctx.to_raw(), 0, null()) })
+            .inspect(|a| log::debug!("attribute = {a:?}"))
             .collect()
     }
 }

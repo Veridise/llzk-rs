@@ -22,13 +22,13 @@ fn zip_res<L, R, E>(lhs: Result<L, E>, rhs: Result<R, E>) -> Result<(L, R), E> {
     lhs.and_then(|lhs| rhs.map(|rhs| (lhs, rhs)))
 }
 
-pub fn codegen_lookup_modules<'c, C>(
+pub fn codegen_lookup_modules<'c: 's, 's, C>(
     _codegen: &C,
     _syn: &CircuitSynthesis<C::F>,
     _callbacks: &dyn LookupCallbacks<C::F>,
 ) -> Result<()>
 where
-    C: Codegen<'c>,
+    C: Codegen<'c, 's>,
 {
     //    // WIP
     //    for (kind, lookups) in syn.lookup_kinds()? {
@@ -96,17 +96,7 @@ fn comment<'r, T, F: Field>(lookup: Lookup<'r, F>, r: T) -> IRStmt<ScopedExpress
 where
     T: ResolversProvider<F> + RegionRowLike + Copy + 'r,
 {
-    IRStmt::comment(format!(
-        "Lookup {} '{}' @ region {} '{}' @ row {}",
-        lookup.idx(),
-        lookup.name(),
-        r.region_index()
-            .as_ref()
-            .map(ToString::to_string)
-            .unwrap_or_else(|| "<unk>".to_string()),
-        r.region_name(),
-        r.row_number()
-    ))
+    IRStmt::comment(format!("{lookup} @ {}", r.header()))
 }
 
 pub fn codegen_lookup_invocations<'s, F: Field>(

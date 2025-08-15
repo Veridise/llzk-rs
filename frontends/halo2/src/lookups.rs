@@ -22,6 +22,12 @@ pub struct Lookup<'a, F: Field> {
     table: &'a [Expression<F>],
 }
 
+impl<F: Field> std::fmt::Display for Lookup<'_, F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Lookup {} '{}'", self.idx, self.name)
+    }
+}
+
 /// A heavier representation of the lookup
 #[derive(Clone)]
 pub struct LookupData<'a, F: Field> {

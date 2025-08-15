@@ -1,3 +1,7 @@
+use std::marker::PhantomData;
+use std::rc::Rc;
+
+use super::events::{BackendMessages, BackendResponse, EventReceiver, Message};
 use super::{
     func::FuncIO,
     lowering::{lowerable::Lowerable, Lowering},
@@ -18,19 +22,18 @@ use crate::{
 use anyhow::Result;
 
 pub mod lookup;
+pub mod queue;
 pub mod strats;
 
 pub type BodyResult<O> = Result<Vec<IRStmt<O>>>;
 
-#[inline]
-fn lower_io<O>(count: usize, f: impl Fn(usize) -> O) -> Vec<O> {
-    (0..count).map(f).collect()
-}
-
-pub trait Codegen<'c>: Sized {
+pub trait Codegen<'c: 's, 's>: Sized + 's {
     type FuncOutput: Lowering<F = Self::F>;
     type Output;
     type F: Field + Clone;
+    type State: 'c;
+
+    fn initialize(state: &'s Self::State) -> Self;
 
     fn within_main<FN, L, I>(&self, syn: &CircuitSynthesis<Self::F>, f: FN) -> Result<()>
     where
@@ -39,8 +42,11 @@ pub trait Codegen<'c>: Sized {
         L: Lowerable<F = Self::F>,
     {
         let main = self.define_main_function(syn)?;
+        log::debug!("Defined main function");
         let stmts = f(&main)?;
+        log::debug!("Collected function body");
         self.lower_stmts(&main, stmts.into_iter().map(Ok))?;
+        log::debug!("Lowered function body");
         self.on_scope_end(main)
     }
 
@@ -94,7 +100,76 @@ pub trait Codegen<'c>: Sized {
         Ok(())
     }
 
-    fn generate_output(self) -> Result<Self::Output>;
+    fn generate_output(self) -> Result<Self::Output>
+    where
+        Self::Output: 'c;
+}
+
+pub trait CodegenQueue<'c: 's, 's>: Codegen<'c, 's> {
+    fn event_receiver(
+        state: &'s Self::State,
+    ) -> impl EventReceiver<Message = BackendMessages<Self::F>> + Clone {
+        CodegenEventReceiver::new(Self::initialize(state))
+    }
+
+    fn enqueue_stmts(
+        &self,
+        region: crate::halo2::RegionIndex,
+        stmts: Vec<IRStmt<Expression<Self::F>>>,
+    ) -> Result<()>;
+}
+
+pub trait CodegenStrategy: Default {
+    fn codegen<'c: 'st, 's, 'st, C>(
+        &self,
+        codegen: &C,
+        syn: &'s CircuitSynthesis<C::F>,
+        lookups: &dyn LookupCallbacks<C::F>,
+        gate_cbs: &dyn GateCallbacks<C::F>,
+    ) -> Result<()>
+    where
+        C: Codegen<'c, 'st>,
+        Row<'s, C::F>: ResolversProvider<C::F> + 's,
+        RegionRow<'s, 's, C::F>: ResolversProvider<C::F> + 's;
+}
+
+pub struct CodegenEventReceiver<'c: 's, 's, C> {
+    codegen: Rc<C>,
+    _marker: PhantomData<(&'s (), &'c ())>,
+}
+
+impl<C> Clone for CodegenEventReceiver<'_, '_, C> {
+    fn clone(&self) -> Self {
+        Self {
+            codegen: self.codegen.clone(),
+            _marker: Default::default(),
+        }
+    }
+}
+
+impl<C> CodegenEventReceiver<'_, '_, C> {
+    pub fn new(codegen: C) -> Self {
+        Self {
+            codegen: Rc::new(codegen),
+            _marker: Default::default(),
+        }
+    }
+}
+
+impl<'c: 's, 's, C> EventReceiver for CodegenEventReceiver<'c, 's, C>
+where
+    C: CodegenQueue<'c, 's>,
+{
+    type Message = BackendMessages<C::F>;
+
+    fn accept(&self, msg: Self::Message) -> Result<<Self::Message as Message>::Response> {
+        match msg {
+            BackendMessages::EmitStmts(msg) => self
+                .codegen
+                .enqueue_stmts(msg.0, msg.1)
+                .map(BackendResponse::EmitStmts),
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -159,20 +234,6 @@ pub fn inter_region_constraints<'r, F: Field>(
         .collect::<Result<Vec<_>>>()
 }
 
-pub trait CodegenStrategy: Default {
-    fn codegen<'c, 's, C>(
-        &self,
-        codegen: &C,
-        syn: &'s CircuitSynthesis<C::F>,
-        lookups: &dyn LookupCallbacks<C::F>,
-        gate_cbs: &dyn GateCallbacks<C::F>,
-    ) -> Result<()>
-    where
-        C: Codegen<'c>,
-        Row<'s, C::F>: ResolversProvider<C::F> + 's,
-        RegionRow<'s, 's, C::F>: ResolversProvider<C::F> + 's;
-}
-
 pub fn lower_constraints<'g, F, R, S>(
     gate: &'g Gate<F>,
     resolvers: R,
@@ -209,4 +270,9 @@ pub fn lower_stmts<Scope: Lowering>(
     mut stmts: impl Iterator<Item = Result<IRStmt<impl Lowerable<F = Scope::F>>>>,
 ) -> Result<()> {
     stmts.try_for_each(|stmt| stmt.and_then(|stmt| scope.lower_stmt(stmt)))
+}
+
+#[inline]
+fn lower_io<O>(count: usize, f: impl Fn(usize) -> O) -> Vec<O> {
+    (0..count).map(f).collect()
 }

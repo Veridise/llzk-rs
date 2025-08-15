@@ -1,6 +1,6 @@
 use crate::halo2::*;
 use data::RegionDataImpl;
-use std::ops::RangeFrom;
+use std::{collections::HashMap, ops::RangeFrom};
 
 mod data;
 mod fixed;
@@ -18,6 +18,8 @@ pub use shared::SharedRegionData;
 pub use table::TableData;
 
 type BlanketFills<F> = Vec<(RangeFrom<usize>, Value<F>)>;
+
+pub type RegionIndexToStart = HashMap<RegionIndex, RegionStart>;
 
 #[derive(Default, Debug)]
 pub struct Regions<F: Copy + std::fmt::Debug> {
