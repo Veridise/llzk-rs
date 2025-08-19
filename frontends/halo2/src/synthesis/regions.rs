@@ -88,10 +88,10 @@ impl<F: Default + Clone + Copy + std::fmt::Debug> Regions<F> {
     where
         FN: FnOnce(&mut RegionDataImpl<F>) -> FR,
     {
-        if let Some(region) = self.current.as_mut() {
-            return Some(f(region));
+        if self.current.is_none() {
+            self.push("");
         }
-        None
+        Some(f(self.current.as_mut()));
     }
 
     pub fn edit_current_or_last<FN, FR>(&mut self, f: FN) -> Option<FR>
