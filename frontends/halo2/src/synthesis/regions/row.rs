@@ -51,7 +51,7 @@ impl<'io, F> Row<'io, F> {
         let target_cell = (col, self.resolve_rotation(rot)?);
         Ok(io
             .iter()
-            .map(|(col, row)| (col.index(), *row))
+            .map(|IOCell(col, row)| (col.index(), *row))
             .enumerate()
             .find_map(|(idx, cell)| {
                 if cell == target_cell {
@@ -69,8 +69,8 @@ impl<'io, F> Row<'io, F> {
         col: usize,
         rot: Rotation,
     ) -> Result<FuncIO> {
-        let as_input = self.resolve_as::<ArgNo, C>(io.inputs(), col, rot)?;
-        let as_output = self.resolve_as::<FieldId, C>(io.outputs(), col, rot)?;
+        let as_input = self.resolve_as::<ArgNo, C>(&io.inputs(), col, rot)?;
+        let as_output = self.resolve_as::<FieldId, C>(&io.outputs(), col, rot)?;
 
         Ok(match (as_input, as_output) {
             (None, None) => FuncIO::Advice(col, self.resolve_rotation(rot)?),

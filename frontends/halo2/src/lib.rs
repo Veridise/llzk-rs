@@ -14,6 +14,7 @@ mod halo2;
 mod io;
 pub mod ir;
 pub mod lookups;
+pub mod support;
 mod synthesis;
 #[cfg(test)]
 mod test;

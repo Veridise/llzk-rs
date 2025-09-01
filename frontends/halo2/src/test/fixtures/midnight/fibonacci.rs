@@ -6,6 +6,7 @@ use midnight_halo2_proofs::plonk::{
 use midnight_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
+use crate::support::roles::CellRole;
 use crate::{CircuitCallbacks, CircuitIO};
 
 #[derive(Debug, Clone)]
@@ -183,6 +184,13 @@ impl<F: Field> CircuitCallbacks<F, Self> for FibonacciCircuit<F> {
     }
 
     fn instance_io(config: &<Self as Circuit<F>>::Config) -> CircuitIO<Instance> {
-        CircuitIO::new(&[(config.instance, &[0, 1])], &[(config.instance, &[2])])
+        CircuitIO::new_with_roles(&[(
+            config.instance,
+            &[
+                CellRole::<Instance>::inputs(0..=1),
+                CellRole::<Instance>::outputs([2]),
+            ]
+            .concat(),
+        )])
     }
 }
