@@ -693,7 +693,7 @@ dependencies = [
 [[package]]
 name = "halo2_proofs"
 version = "0.3.0"
-source = "git+https://github.com/midnightntwrk/halo2.git?rev=92d9356#92d9356722f4e7943bec2dd5d2dcc5ebbedd4ff1"
+source = "git+https://github.com/Veridise/halo2-midnight.git?rev=8494d01#8494d0136357e6c374be953c79acdba108f3a9be"
 dependencies = [
  "blake2b_simd",
  "blstrs",

@@ -33,16 +33,19 @@ package = "halo2-axiom"
 optional = true
 
 [dependencies.midnight_halo2_proofs]
-git = "https://github.com/midnightntwrk/halo2.git"
+# git = "https://github.com/midnightntwrk/halo2.git"
+git = "https://github.com/Veridise/halo2-midnight.git"
 package = "halo2_proofs"
-optional = true
-rev = "92d9356"
+optional = true 
+# rev = "92d9356"
+rev = "8494d01"
 default-features = false
 features = [
     "bits",
     "cost-estimator",
     "circuit-params",
     "committed-instances",
+    "region-groups"
 ]
 
 [dependencies.pse_halo2_proofs]

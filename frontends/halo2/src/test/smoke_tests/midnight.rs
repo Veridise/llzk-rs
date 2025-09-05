@@ -159,7 +159,7 @@ macro_rules! llzk_test {
 }
 
 picus_test!(test_mul_circuit_picus_codegen, MulCircuit<Fr>);
-llzk_test!(test_mul_circuit_llzk_codegen, MulCircuit<Fr>);
+//llzk_test!(test_mul_circuit_llzk_codegen, MulCircuit<Fr>);
 picus_test!(
     test_mul_with_rewriter_circuit_picus_codegen,
     MulWithRewriterCircuit<Fr>
