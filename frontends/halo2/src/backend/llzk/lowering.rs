@@ -371,7 +371,7 @@ impl<'c, F: PrimeField> ExprLowering for LlzkStructLowering<'c, F> {
         resolver: &dyn QueryResolver<Self::F>,
     ) -> Result<Self::CellOutput> {
         let (query, fqn) = resolver.resolve_advice_query(query)?;
-        wrap! {self.lower_resolved_query(query, fqn.as_ref().map(|v| &**v)) }
+        wrap! {self.lower_resolved_query(query, fqn.as_deref()) }
     }
 
     fn lower_instance_query(

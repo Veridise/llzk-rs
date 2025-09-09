@@ -57,17 +57,17 @@ impl<F> IRAexpr<F> {
                 }
             }
             Expression::Challenge(challenge) => Self::Challenge(*challenge),
-            Expression::Negated(expr) => Self::Negated(Box::new(Self::new(&expr, sr, qr)?)),
+            Expression::Negated(expr) => Self::Negated(Box::new(Self::new(expr, sr, qr)?)),
             Expression::Sum(lhs, rhs) => Self::Sum(
-                Box::new(Self::new(&lhs, sr, qr)?),
-                Box::new(Self::new(&rhs, sr, qr)?),
+                Box::new(Self::new(lhs, sr, qr)?),
+                Box::new(Self::new(rhs, sr, qr)?),
             ),
             Expression::Product(lhs, rhs) => Self::Product(
-                Box::new(Self::new(&lhs, sr, qr)?),
-                Box::new(Self::new(&rhs, sr, qr)?),
+                Box::new(Self::new(lhs, sr, qr)?),
+                Box::new(Self::new(rhs, sr, qr)?),
             ),
             Expression::Scaled(lhs, rhs) => Self::Product(
-                Box::new(Self::new(&lhs, sr, qr)?),
+                Box::new(Self::new(lhs, sr, qr)?),
                 Box::new(Self::Constant(*rhs)),
             ),
         })

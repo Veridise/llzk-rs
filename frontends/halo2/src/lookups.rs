@@ -56,14 +56,7 @@ impl<'a, F: Field> Lookup<'a, F> {
         cs.lookups()
             .iter()
             .enumerate()
-            .map(|(idx, a)| {
-                Self::new(
-                    idx,
-                    a.name(),
-                    &a.input_expressions(),
-                    &a.table_expressions(),
-                )
-            })
+            .map(|(idx, a)| Self::new(idx, a.name(), a.input_expressions(), a.table_expressions()))
             .collect()
     }
 
@@ -83,7 +76,7 @@ impl<'a, F: Field> Lookup<'a, F> {
 
     /// Name given to the lookup.
     pub fn name(&self) -> &str {
-        &self.name
+        self.name
     }
 
     pub fn idx(&self) -> usize {
@@ -197,13 +190,12 @@ impl<F> Index<usize> for LookupTableRow<F> {
     type Output = F;
 
     fn index(&self, index: usize) -> &Self::Output {
-        let index = self.col_to_index(index).expect(
-            format!(
+        let index = self.col_to_index(index).unwrap_or_else(|| {
+            panic!(
                 "Can't index with a column outside of the valid range {:?}",
                 self.columns
             )
-            .as_str(),
-        );
+        });
         &self.table[index]
     }
 }

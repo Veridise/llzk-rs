@@ -45,15 +45,10 @@ impl<'a, F: Field> std::fmt::Debug for ExprDebug<'a, F> {
         fn fmt_binop<F: Field>(
             f: &mut std::fmt::Formatter<'_>,
             typ: &str,
-            lhs: &Box<Expression<F>>,
-            rhs: &Box<Expression<F>>,
+            lhs: &Expression<F>,
+            rhs: &Expression<F>,
         ) -> std::fmt::Result {
-            write!(
-                f,
-                "{typ}({:?}, {:?})",
-                ExprDebug(lhs.as_ref()),
-                ExprDebug(rhs.as_ref())
-            )
+            write!(f, "{typ}({:?}, {:?})", ExprDebug(lhs), ExprDebug(rhs))
         }
         match &self.0 {
             Expression::Constant(ff) => write!(f, "{:?}", FDebug(*ff)),

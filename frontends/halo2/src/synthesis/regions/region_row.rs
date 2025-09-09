@@ -45,7 +45,7 @@ impl<'r, 'io, 'fq, F: Field> RegionRowLike for RegionRow<'r, 'io, 'fq, F> {
     }
 
     fn region_name(&self) -> &str {
-        &self.region.name()
+        self.region.name()
     }
 
     fn row_number(&self) -> usize {

@@ -26,7 +26,7 @@ pub struct CodegenQueueHelper<F> {
 }
 
 impl<F> CodegenQueueHelper<F> {
-    pub fn enqueue_stmts<'s, I>(&'s mut self, region: RegionIndex, stmts: I) -> Result<()>
+    pub fn enqueue_stmts<I>(&mut self, region: RegionIndex, stmts: I) -> Result<()>
     where
         I: IntoIterator<Item = IRStmt<Expression<F>>>,
         I::IntoIter: ExactSizeIterator,
@@ -42,7 +42,7 @@ impl<F> CodegenQueueHelper<F> {
         Ok(())
     }
 
-    pub fn dequeue_stmts<'s, L>(&mut self, scope: &'s L) -> Result<()>
+    pub fn dequeue_stmts<L>(&mut self, scope: &L) -> Result<()>
     where
         L: Lowering<F = F> + RegionStartResolver,
     {
@@ -50,8 +50,8 @@ impl<F> CodegenQueueHelper<F> {
     }
 }
 
-fn dequeue_stmts_impl<'s, L>(
-    scope: &'s L,
+fn dequeue_stmts_impl<L>(
+    scope: &L,
     enqueued_stmts: &mut HashMap<RegionIndex, Vec<IRStmt<Expression<L::F>>>>,
 ) -> Result<()>
 where

@@ -78,10 +78,7 @@ impl Regions {
     }
 
     pub fn regions<'a>(&'a self) -> Vec<RegionData<'a>> {
-        self.regions
-            .iter()
-            .map(|inner| RegionData::new(inner))
-            .collect()
+        self.regions.iter().map(RegionData::new).collect()
     }
 
     /// Moves the last commited region to the tables vector.

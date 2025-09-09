@@ -33,7 +33,7 @@ impl Eq for Fill {}
 
 impl PartialOrd for Fill {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.row().partial_cmp(&other.row())
+        Some(self.cmp(other))
     }
 }
 

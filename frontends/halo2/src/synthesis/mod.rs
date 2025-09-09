@@ -57,7 +57,7 @@ impl<F: Field> CircuitSynthesis<F> {
     fn find_table(&self, q: &[AnyQuery]) -> Result<Vec<Vec<F>>> {
         self.tables
             .iter()
-            .find_map(|table| table.get_rows(&q))
+            .find_map(|table| table.get_rows(q))
             .ok_or_else(|| anyhow!("Could not get values from table"))
             .and_then(identity)
     }
@@ -131,7 +131,6 @@ impl<F: Field> CircuitSynthesis<F> {
             .as_ref()
             .iter()
             .flat_map(|g| g.regions())
-            .into_iter()
             .enumerate()
             .map(|(idx, region)| (idx.into(), region.rows().start.into()))
             .collect()

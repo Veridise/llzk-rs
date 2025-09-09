@@ -38,7 +38,7 @@ impl<T: LowerableExpr> LowerableStmt for AssumeDeterministic<T> {
 
 impl<T: Clone> Clone for AssumeDeterministic<T> {
     fn clone(&self) -> Self {
-        Self(self.0.clone(), Default::default())
+        Self(self.0, Default::default())
     }
 }
 

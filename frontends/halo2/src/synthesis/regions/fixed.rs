@@ -20,13 +20,11 @@ pub struct FixedData<F: Copy + std::fmt::Debug + Default> {
     blanket_fills: HashMap<usize, BlanketFills<F>>,
 }
 
+pub type FixedAssigned<F> = HashMap<(usize, usize), Value<F>>;
+pub type FixedBlanket<F> = HashMap<usize, BlanketFills<F>>;
+
 impl<F: Copy + std::fmt::Debug + Default> FixedData<F> {
-    pub fn take(
-        self,
-    ) -> (
-        HashMap<(usize, usize), Value<F>>,
-        HashMap<usize, BlanketFills<F>>,
-    ) {
+    pub fn take(self) -> (FixedAssigned<F>, FixedBlanket<F>) {
         (
             self.fixed
                 .into_iter()

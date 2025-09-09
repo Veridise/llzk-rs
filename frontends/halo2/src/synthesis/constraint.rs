@@ -33,7 +33,7 @@ impl<F: Field> EqConstraintArg<F> {
     }
 
     /// Creates an storage version, failing if the finite field value was not found
-    fn to_sto_ro(self, storage: &Vec<F>) -> Option<EqConstraintArgSto> {
+    fn to_sto_ro(self, storage: &[F]) -> Option<EqConstraintArgSto> {
         Some(match self {
             EqConstraintArg::Const(f) => {
                 EqConstraintArgSto::Const(storage.iter().position(|value| *value == f)?)
@@ -56,7 +56,7 @@ enum EqConstraintArgSto {
 }
 
 impl EqConstraintArgSto {
-    pub fn from_sto<F: Field>(self, storage: &[F]) -> EqConstraintArg<F> {
+    pub fn load_from_sto<F: Field>(self, storage: &[F]) -> EqConstraintArg<F> {
         match self {
             EqConstraintArgSto::Const(idx) => EqConstraintArg::Const(storage[idx]),
             EqConstraintArgSto::Any(column, row) => EqConstraintArg::Any(column, row),
@@ -148,7 +148,7 @@ impl<F: Field> EqConstraintGraph<F> {
         fn inner<F: Field>(
             from: EqConstraintArg<F>,
             to: EqConstraintArg<F>,
-            sto: &Vec<F>,
+            sto: &[F],
             edges: &BTreeSet<(EqConstraintArgSto, EqConstraintArgSto)>,
         ) -> Option<bool> {
             let from = from.to_sto_ro(sto)?;
@@ -166,14 +166,20 @@ impl<F: Field> EqConstraintGraph<F> {
         self.edges
             .iter()
             .copied()
-            .map(move |(f, t)| (f.from_sto(&self.ff_storage), t.from_sto(&self.ff_storage)).into())
+            .map(move |(f, t)| {
+                (
+                    f.load_from_sto(&self.ff_storage),
+                    t.load_from_sto(&self.ff_storage),
+                )
+                    .into()
+            })
             .collect()
     }
 
     pub fn vertices(&self) -> Vec<EqConstraintArg<F>> {
         self.vertices
             .iter()
-            .map(|v| v.from_sto(&self.ff_storage))
+            .map(|v| v.load_from_sto(&self.ff_storage))
             .collect()
     }
 }

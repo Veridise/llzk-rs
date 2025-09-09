@@ -60,17 +60,17 @@ impl<F> GateRewritePattern<F> for FallbackGateRewriter {
                 log::debug!("Creating constraints for row {}", row.row_number());
 
                 gate.polynomials()
-                    .into_iter()
-                    .filter_map(move |e| {
+                    .iter()
+                    .filter(move |e| {
                         let set = find_selectors(e);
                         if self.ignore_disabled_gates && row.gate_is_disabled(&set) {
                             log::debug!(
                                 "Expression {:?} was ignored because its selectors are disabled",
                                 ExprDebug(e)
                             );
-                            return None;
+                            return false;
                         }
-                        Some(e)
+                        true
                     })
                     .map(Cow::Borrowed)
                     .map(|lhs| {

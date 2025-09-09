@@ -31,7 +31,7 @@ pub enum GroupCell {
 }
 
 impl GroupCell {
-    pub fn to_expr<F: Field>(&self) -> Expression<F> {
+    pub fn to_expr<F: Field>(self) -> Expression<F> {
         match self {
             GroupCell::Assigned(cell) => cell.column.query_cell(Rotation::cur()),
             GroupCell::InstanceIO(cell) => cell.0.query_cell(Rotation::cur()),
@@ -168,8 +168,7 @@ impl Group {
             return "Main";
         }
         self.name
-            .as_ref()
-            .map(|s| s.as_str())
+            .as_deref()
             .map(|s| if s.is_empty() { "unnamed_group" } else { s })
             .unwrap_or("unnamed_group")
     }

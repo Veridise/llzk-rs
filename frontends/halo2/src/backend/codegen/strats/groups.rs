@@ -1,36 +1,36 @@
 use crate::{
+    CircuitIO, GateCallbacks,
     backend::{
         codegen::{
-            inter_region_constraints,
+            Codegen, CodegenStrategy, inter_region_constraints,
             lookup::codegen_lookup_invocations,
             scoped_exprs_to_aexpr,
             strats::{load_patterns, lower_gates},
-            Codegen, CodegenStrategy,
         },
         func::FuncIO,
         lowering::{
-            lowerable::{LowerableExpr as _, LowerableStmt},
             Lowering,
+            lowerable::{LowerableExpr as _, LowerableStmt},
         },
         resolvers::ResolversProvider,
     },
     expressions::ScopedExpression,
     gates::RewritePatternSet,
-    halo2::{groups::GroupKeyInstance, Field, RegionIndex},
+    halo2::{Field, RegionIndex, groups::GroupKeyInstance},
     ir::{
+        CmpOp,
         equivalency::{EqvRelation, SymbolicEqv},
         expr::IRAexpr,
         stmt::IRStmt,
-        CmpOp,
     },
     lookups::callbacks::LookupCallbacks,
     synthesis::{
+        CircuitSynthesis,
         constraint::EqConstraint,
         groups::{Group, GroupCell},
         regions::{RegionData, RegionRow, Row},
-        CircuitSynthesis,
     },
-    utils, CircuitIO, GateCallbacks,
+    utils,
 };
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
@@ -123,7 +123,7 @@ impl CodegenStrategy for GroupConstraintsStrat {
 /// Find the leaders of each equivalence class in the groups and annotate the required renames
 fn select_leaders<F: Field>(groups_ir: &[GroupBody<F>]) -> (Vec<usize>, Vec<Option<String>>) {
     // Separate the groups by their key and since main does not have a key we keep it separate.
-    let groups_by_key = organize_groups_by_key(&groups_ir);
+    let groups_by_key = organize_groups_by_key(groups_ir);
     let mut leaders = vec![];
     // For each group annotate its new name if it needs to be renamed.
     let mut updated_calldata: Vec<Option<String>> = vec![None; groups_ir.len()];
@@ -131,7 +131,7 @@ fn select_leaders<F: Field>(groups_ir: &[GroupBody<F>]) -> (Vec<usize>, Vec<Opti
     let mut used_names: HashSet<String> = HashSet::default();
     // For each set of groups with the same key we create equivalence classes and select a
     // leader for each class.
-    for (_, groups) in &groups_by_key {
+    for groups in groups_by_key.values() {
         let mut eqv_class = disjoint::DisjointSet::new();
         // Find the equivalence classes.
         for (i, j) in utils::product(groups.as_slice(), groups.as_slice()) {
@@ -233,7 +233,7 @@ fn cells_to_exprs<F: Field>(
     instance_io: &CircuitIO<crate::halo2::Instance>,
 ) -> anyhow::Result<Vec<IRAexpr<F>>> {
     cells
-        .into_iter()
+        .iter()
         .map(|cell| {
             let region: Option<RegionData<'_>> = cell
                 .region_index()
@@ -369,9 +369,9 @@ impl<F: Field> GroupBody<F> {
         let gates = lower_gates(
             ctx.syn.gates(),
             &group.regions(),
-            &ctx.patterns,
-            &advice_io,
-            &instance_io,
+            ctx.patterns,
+            advice_io,
+            instance_io,
             ctx.syn.fixed_query_resolver(),
         )
         .and_then(scoped_exprs_to_aexpr)?;
@@ -382,8 +382,8 @@ impl<F: Field> GroupBody<F> {
         );
         let eq_constraints = scoped_exprs_to_aexpr(inter_region_constraints(
             select_equality_constraints(group, ctx),
-            &advice_io,
-            &instance_io,
+            advice_io,
+            instance_io,
             ctx.syn.fixed_query_resolver(),
         ))?;
 
@@ -466,14 +466,13 @@ fn select_equality_constraints<F: Field>(
         .collect();
     let foreign_io: HashSet<_> = std::iter::chain(group.inputs(), group.outputs())
         .filter_map(|i| {
-            if let GroupCell::Assigned(cell) = i {
-                if !region_indices.contains(&cell.region_index) {
-                    // Copy constraints use absolute rows but the labels have relative
-                    // rows.
-                    let abs_row =
-                        cell.row_offset + ctx.regions_by_index[&cell.region_index].start()?;
-                    return Some((cell.column, abs_row));
-                }
+            if let GroupCell::Assigned(cell) = i
+                && !region_indices.contains(&cell.region_index)
+            {
+                // Copy constraints use absolute rows but the labels have relative
+                // rows.
+                let abs_row = cell.row_offset + ctx.regions_by_index[&cell.region_index].start()?;
+                return Some((cell.column, abs_row));
             }
 
             None

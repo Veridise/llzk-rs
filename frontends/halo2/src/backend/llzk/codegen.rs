@@ -56,7 +56,7 @@ impl<'c: 's, 's, F: LoweringField> Codegen<'c, 's> for LlzkCodegen<'c, 's, F> {
         Self {
             state,
             queue: Default::default(),
-            module: llzk_module(Location::unknown(&state.context())),
+            module: llzk_module(Location::unknown(state.context())),
             struct_count: Default::default(),
             _marker: Default::default(),
         }

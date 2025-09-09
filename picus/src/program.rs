@@ -5,13 +5,13 @@ use std::{
 };
 
 use crate::{
+    Module, ModuleRef,
     display::{Display, TextRepresentable, TextRepresentation},
     felt::{Felt, IntoPrime},
     stmt::traits::{CallLike as _, MaybeCallLike as _},
     vars::VarKind,
-    Module, ModuleRef,
 };
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 pub struct Program<F, K: VarKind> {
     prime: PrimeNumber,
@@ -78,11 +78,12 @@ impl<F, K: VarKind> Program<F, K> {
                 .stmts
                 .into_iter()
                 .map(|s| {
-                    if let Some(call) = s.as_call() {
-                        if renames.contains_key(call.callee()) {
-                            return call.with_new_callee(renames[call.callee()].clone());
-                        }
+                    if let Some(call) = s.as_call()
+                        && renames.contains_key(call.callee())
+                    {
+                        return call.with_new_callee(renames[call.callee()].clone());
                     }
+
                     s
                 })
                 .collect();

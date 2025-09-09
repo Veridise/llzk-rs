@@ -2,10 +2,7 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "lift-field-operations")]
 use crate::ir::lift::{LiftIRGuard, LiftingCfg};
-use crate::{
-    lookups::callbacks::LookupCallbacks,
-    synthesis::CircuitSynthesis, GateCallbacks,
-};
+use crate::{lookups::callbacks::LookupCallbacks, synthesis::CircuitSynthesis, GateCallbacks};
 use anyhow::Result;
 
 pub mod codegen;
@@ -16,10 +13,7 @@ pub mod lowering;
 pub mod picus;
 pub mod resolvers;
 
-use codegen::{
-    strats::groups::GroupConstraintsStrat,
-    Codegen, CodegenQueue, CodegenStrategy,
-};
+use codegen::{strats::groups::GroupConstraintsStrat, Codegen, CodegenQueue, CodegenStrategy};
 use events::BackendEventReceiver;
 use resolvers::{QueryResolver, SelectorResolver};
 
@@ -35,6 +29,7 @@ pub struct Backend<C, S> {
 }
 
 #[cfg(not(feature = "lift-field-operations"))]
+#[allow(clippy::extra_unused_lifetimes)]
 impl<'s, C, S: 's> Backend<C, S> {
     pub fn initialize<P: Clone + Into<S> + 's>(params: P) -> Self {
         Self {
@@ -45,6 +40,7 @@ impl<'s, C, S: 's> Backend<C, S> {
 }
 
 #[cfg(feature = "lift-field-operations")]
+#[allow(clippy::extra_unused_lifetimes)]
 impl<'s, C, S: 's> Backend<C, S> {
     pub fn initialize<P: Clone + Into<S> + LiftingCfg + 's>(params: P) -> Self {
         let enable_lifting = params.lifting_enabled();

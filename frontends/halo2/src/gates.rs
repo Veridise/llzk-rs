@@ -17,6 +17,9 @@ pub enum RewriteError {
     Err(anyhow::Error),
 }
 
+/// Result of constant-folding an expression for `n` rows.
+pub type FoldedExpressions<F> = Vec<(usize, Expression<F>)>;
+
 /// Scope in which a gate is being called
 #[derive(Copy, Clone)]
 pub struct GateScope<'a, F>
@@ -102,9 +105,9 @@ impl<'a, F: Field> GateScope<'a, F> {
     /// first.
     pub fn polynomials_per_row(
         &self,
-    ) -> anyhow::Result<Vec<(&'a Expression<F>, Vec<(usize, Expression<F>)>)>> {
+    ) -> anyhow::Result<Vec<(&'a Expression<F>, FoldedExpressions<F>)>> {
         self.polynomials()
-            .into_iter()
+            .iter()
             .map(|e| {
                 let rows = self
                     .rows()

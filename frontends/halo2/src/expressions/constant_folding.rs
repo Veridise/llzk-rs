@@ -1,6 +1,4 @@
-use midnight_halo2_proofs::plonk::{
-    Expression, FixedQuery, Selector,
-};
+use midnight_halo2_proofs::plonk::{Expression, FixedQuery, Selector};
 
 use crate::{
     backend::resolvers::{ResolvedQuery, ResolvedSelector, ResolversProvider},
@@ -29,11 +27,12 @@ fn expr_as_const<F: Copy>(e: &Expression<F>) -> Option<F> {
 
 fn sum_patterns<F: Field>(lhs: &Expression<F>, rhs: &Expression<F>) -> Option<Expression<F>> {
     fn patterns_inner<F: Field>(lhs: &Expression<F>, rhs: &Expression<F>) -> Option<Expression<F>> {
-        if let Some(f) = expr_as_const(lhs) {
-            if f == F::ZERO {
-                return Some(rhs.clone());
-            }
+        if let Some(f) = expr_as_const(lhs)
+            && f == F::ZERO
+        {
+            return Some(rhs.clone());
         }
+
         None
     }
 
@@ -60,12 +59,9 @@ fn product_patterns<F: Field>(lhs: &Expression<F>, rhs: &Expression<F>) -> Optio
 }
 
 fn neg_patterns<F: Field>(e: &Expression<F>) -> Option<Expression<F>> {
-    match e {
-        // Remove double negation
-        Expression::Negated(inner) => {
-            return Some(inner.as_ref().clone());
-        }
-        _ => {}
+    // Remove double negation
+    if let Expression::Negated(inner) = e {
+        return Some(inner.as_ref().clone());
     }
     None
 }
@@ -101,7 +97,7 @@ impl<F: Field> ExpressionRewriter<F> for ConstantFolding<'_, F> {
         expr_as_const(e)
             .map(|f| -f)
             .map(Expression::Constant)
-            .or_else(|| neg_patterns(&e))
+            .or_else(|| neg_patterns(e))
             .inspect(|folded| {
                 log::debug!(
                     "Folded Negated({:?}) to expression {:?}",
@@ -147,7 +143,7 @@ impl<F: Field> ExpressionRewriter<F> for ConstantFolding<'_, F> {
         expr_as_const(lhs)
             .map(|lhs| lhs * *rhs)
             .map(Expression::Constant)
-            .or_else(|| {
+            .or({
                 // TODO
                 None
             })

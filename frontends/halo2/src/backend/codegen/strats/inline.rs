@@ -64,8 +64,8 @@ impl CodegenStrategy for InlineConstraintsStrat {
                                 syn.gates(),
                                 &group.regions(),
                                 &patterns,
-                                &advice_io,
-                                &instance_io,
+                                advice_io,
+                                instance_io,
                                 syn.fixed_query_resolver(),
                             )
                             .and_then(scoped_exprs_to_aexpr)?
@@ -83,8 +83,8 @@ impl CodegenStrategy for InlineConstraintsStrat {
                             log::debug!("Lowering inter region equality constraints");
                             scoped_exprs_to_aexpr(inter_region_constraints(
                                 syn.constraints().edges(),
-                                &advice_io,
-                                &instance_io,
+                                advice_io,
+                                instance_io,
                                 syn.fixed_query_resolver(),
                             ))
                         }
