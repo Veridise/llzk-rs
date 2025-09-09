@@ -5,7 +5,7 @@ use std::{
 };
 
 use super::{
-    codegen::queue::{create_queue_helper, CodegenQueueHelper},
+    codegen::queue::CodegenQueueHelper,
     func::FuncIO,
     Backend, Codegen, CodegenQueue,
 };

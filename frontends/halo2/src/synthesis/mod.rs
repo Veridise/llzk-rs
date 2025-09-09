@@ -9,17 +9,17 @@ use anyhow::{anyhow, Result};
 use constraint::{EqConstraint, EqConstraintArg, EqConstraintGraph};
 use groups::{Group, GroupBuilder, GroupCell, Groups};
 use regions::{
-    data::RegionDataImpl, FixedData, RegionData, RegionIndexToStart, RegionRow, Regions, TableData,
+    FixedData, RegionIndexToStart, TableData,
     FQN,
 };
 
 use crate::{
-    gates::{find_gate_selector_set, AnyQuery, GateScope},
+    gates::AnyQuery,
     halo2::{
         groups::{GroupKey, RegionsGroup},
-        Field, PrimeField, *,
+        Field, *,
     },
-    io::{AdviceIOValidator, IOCell, InstanceIOValidator},
+    io::IOCell,
     lookups::{Lookup, LookupKind, LookupTableRow},
     value::steal,
     CircuitCallbacks, CircuitIO,

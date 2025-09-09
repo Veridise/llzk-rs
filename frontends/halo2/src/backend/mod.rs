@@ -3,11 +3,8 @@ use std::marker::PhantomData;
 #[cfg(feature = "lift-field-operations")]
 use crate::ir::lift::{LiftIRGuard, LiftingCfg};
 use crate::{
-    gates::DefaultGateCallbacks,
-    halo2::Circuit,
-    lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
-    synthesis::CircuitSynthesis,
-    CircuitCallbacks, GateCallbacks,
+    lookups::callbacks::LookupCallbacks,
+    synthesis::CircuitSynthesis, GateCallbacks,
 };
 use anyhow::Result;
 
@@ -20,12 +17,10 @@ pub mod picus;
 pub mod resolvers;
 
 use codegen::{
-    strats::{groups::GroupConstraintsStrat, inline::InlineConstraintsStrat},
+    strats::groups::GroupConstraintsStrat,
     Codegen, CodegenQueue, CodegenStrategy,
 };
 use events::BackendEventReceiver;
-use llzk::LlzkCodegen;
-use picus::PicusCodegen;
 use resolvers::{QueryResolver, SelectorResolver};
 
 //type DefaultStrat = InlineConstraintsStrat;

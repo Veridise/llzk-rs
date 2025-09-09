@@ -94,7 +94,7 @@ impl ConstantFolding for ConstExpr {
 }
 
 impl TextRepresentable for ConstExpr {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         self.0.to_repr()
     }
 
@@ -186,7 +186,7 @@ impl ConstantFolding for VarExpr {
 }
 
 impl TextRepresentable for VarExpr {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         self.0.to_repr()
     }
 
@@ -294,7 +294,7 @@ impl ConstantFolding for NegExpr {
 }
 
 impl TextRepresentable for NegExpr {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         owned_list!("-", &self.0)
     }
 

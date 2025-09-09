@@ -7,7 +7,7 @@ use crate::{
         func::FuncIO,
         lowering::{lowerable::LowerableStmt as _, Lowering},
         resolvers::{
-            QueryResolver, ResolvedQuery, ResolvedSelector, ResolversProvider, SelectorResolver,
+            QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
         },
     },
     expressions::ScopedExpression,
@@ -15,7 +15,7 @@ use crate::{
         AdviceQuery, Expression, FixedQuery, InstanceQuery, RegionIndex, RegionStart, Selector,
     },
     ir::stmt::IRStmt,
-    synthesis::regions::{RegionIndexToStart, FQN},
+    synthesis::regions::FQN,
 };
 
 pub trait RegionStartResolver {

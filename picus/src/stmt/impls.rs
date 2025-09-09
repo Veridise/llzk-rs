@@ -56,7 +56,7 @@ impl From<Vec<VarStr>> for Outputs {
 }
 
 impl TextRepresentable for Outputs {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         self.0.to_repr().with_punct(ListPunctuation::SquareBrackets)
     }
 
@@ -66,7 +66,7 @@ impl TextRepresentable for Outputs {
 }
 
 impl Inputs {
-    fn iter(&self) -> Iter<Expr> {
+    fn iter(&self) -> Iter<'_, Expr> {
         self.0.iter()
     }
 
@@ -96,7 +96,7 @@ impl From<Vec<Expr>> for Inputs {
 }
 
 impl TextRepresentable for Inputs {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         self.0.to_repr().with_punct(ListPunctuation::SquareBrackets)
     }
 
@@ -201,7 +201,7 @@ impl StmtConstantFolding for CallStmt {
 }
 
 impl TextRepresentable for CallStmt {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         owned_list!("call", &self.outputs, &self.callee, &self.inputs).break_line()
     }
 
@@ -272,7 +272,7 @@ impl StmtConstantFolding for ConstraintStmt {
 }
 
 impl TextRepresentable for ConstraintStmt {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         owned_list!("assert", &self.0).break_line()
     }
 
@@ -341,7 +341,7 @@ impl fmt::Display for CommentLine {
 }
 
 impl TextRepresentable for CommentLine {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         TextRepresentation::comment(self.0.as_str())
     }
 
@@ -412,7 +412,7 @@ impl StmtConstantFolding for AssumeDeterministicStmt {
 }
 
 impl TextRepresentable for AssumeDeterministicStmt {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         owned_list!("assume-deterministic", &self.0).break_line()
     }
 

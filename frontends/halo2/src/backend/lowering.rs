@@ -3,7 +3,7 @@ use std::ops::Range;
 use crate::{
     gates::AnyQuery,
     halo2::{AdviceQuery, Challenge, Expression, Field, FixedQuery, InstanceQuery, Selector},
-    ir::{stmt::IRStmt, CmpOp},
+    ir::CmpOp,
 };
 use anyhow::{bail, Result};
 

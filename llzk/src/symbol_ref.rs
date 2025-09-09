@@ -36,11 +36,11 @@ impl<'c> SymbolRefAttribute<'c> {
         }
     }
 
-    pub fn root(&self) -> StringRef {
+    pub fn root(&self) -> StringRef<'_> {
         unsafe { StringRef::from_raw(mlirSymbolRefAttrGetRootReference(self.to_raw())) }
     }
 
-    pub fn leaf(&self) -> StringRef {
+    pub fn leaf(&self) -> StringRef<'_> {
         unsafe { StringRef::from_raw(mlirSymbolRefAttrGetLeafReference(self.to_raw())) }
     }
 

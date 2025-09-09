@@ -1,4 +1,3 @@
-use std::ops::Add;
 
 use crate::halo2::{
     AdviceQuery, Challenge, Expression, Field, FixedQuery, InstanceQuery, Selector,

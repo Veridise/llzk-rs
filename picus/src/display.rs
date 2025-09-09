@@ -230,7 +230,7 @@ impl TRInner<'_> {
 }
 
 impl TextRepresentable for TRInner<'_> {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         self.clone().into()
     }
 
@@ -434,7 +434,7 @@ impl<'a> Sum for TextRepresentation<'a> {
 }
 
 pub trait TextRepresentable {
-    fn to_repr(&self) -> TextRepresentation;
+    fn to_repr(&self) -> TextRepresentation<'_>;
 
     fn width_hint(&self) -> usize;
 
@@ -447,7 +447,7 @@ pub trait TextRepresentable {
 }
 
 impl TextRepresentable for String {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         TextRepresentation::atom(self.as_str())
     }
 
@@ -457,7 +457,7 @@ impl TextRepresentable for String {
 }
 
 impl TextRepresentable for str {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         TextRepresentation::atom(self)
     }
 
@@ -467,7 +467,7 @@ impl TextRepresentable for str {
 }
 
 impl<T: TextRepresentable> TextRepresentable for Vec<T> {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         TextRepresentation::owned_list(
             &self
                 .iter()
@@ -490,7 +490,7 @@ impl<T: TextRepresentable> TextRepresentable for Vec<T> {
 }
 
 impl TextRepresentable for Vec<&dyn TextRepresentable> {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         TextRepresentation::list((self.as_slice()) as &[&dyn TextRepresentable])
     }
 
@@ -505,7 +505,7 @@ impl TextRepresentable for Vec<&dyn TextRepresentable> {
 }
 
 impl TextRepresentable for Vec<Rc<&dyn TextRepresentable>> {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         let vec = self
             .iter()
             .map(AsRef::as_ref)

@@ -1,14 +1,10 @@
 use std::{convert::identity, ops::BitOr};
 
 use crate::{
-    backend::resolvers::ResolversProvider,
     expressions::ScopedExpression,
     halo2::{Expression, Field, FixedQuery},
-    ir::stmt::{chain_lowerable_stmts, IRStmt},
-    lookups::{
-        callbacks::{LazyLookupTableGenerator, LookupCallbacks},
-        Lookup,
-    },
+    ir::stmt::IRStmt,
+    lookups::callbacks::{LazyLookupTableGenerator, LookupCallbacks},
     synthesis::{
         regions::{RegionRow, RegionRowLike},
         CircuitSynthesis,

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, marker::PhantomData, rc::Rc};
+use std::{marker::PhantomData, rc::Rc};
 
 use anyhow::{anyhow, Result};
 use llzk::dialect::r#struct::StructDefOp;
@@ -6,7 +6,7 @@ use llzk::{
     builder::OpBuilder,
     dialect::{
         constrain,
-        felt::{self, FeltConstAttribute, FeltType, Radix},
+        felt::{self, FeltConstAttribute, FeltType},
         function::{FuncDefOpLike as _, FuncDefOpRef},
         r#struct::{self, FieldDefOpLike as _, FieldDefOpRef, StructDefOpLike},
     },

@@ -3,10 +3,7 @@ use std::{
     ops::{AddAssign, Index},
 };
 
-use crate::{
-    halo2::{Assigned, Column, Field, Fixed, Value},
-    value::steal,
-};
+use crate::halo2::{Assigned, Column, Field, Fixed, Value};
 
 use super::BlanketFills;
 

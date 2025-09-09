@@ -4,32 +4,23 @@ use std::{borrow::Cow, collections::HashMap, marker::PhantomData};
 use crate::ir::lift::{LiftIRGuard, LiftLike};
 use crate::{
     backend::picus::PicusModule,
-    expressions::ScopedExpression,
-    halo2::{Expression, Field, RegionIndex, Selector},
+    halo2::{Expression, RegionIndex},
     ir::stmt::IRStmt,
-    synthesis::{
-        regions::{RegionIndexToStart, FQN},
-        CircuitSynthesis,
-    },
+    synthesis::CircuitSynthesis,
 };
 use crate::{
     backend::{
         func::FuncIO,
-        lowering::Lowering,
         picus::{felt::FeltWrap, params::PicusParams, Pipeline, PipelineBuilder},
-        resolvers::{
-            QueryResolver, ResolvedQuery, ResolvedSelector, ResolversProvider, SelectorResolver,
-        },
     },
     LoweringField,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 pub use super::lowering::PicusModuleLowering;
 use super::lowering::PicusModuleRef;
 use super::vars::{NamingConvention, VarKey, VarKeySeed, VarKeySeedInner};
-use midnight_halo2_proofs::plonk::{AdviceQuery, FixedQuery, InstanceQuery};
 use picus::{
     opt::passes::{ConsolidateVarNamesPass, EnsureMaxExprSizePass, FoldExprsPass},
     vars::VarStr,

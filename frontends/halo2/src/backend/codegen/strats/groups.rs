@@ -2,8 +2,7 @@ use crate::{
     backend::{
         codegen::{
             inter_region_constraints,
-            lookup::{codegen_lookup_invocations, codegen_lookup_modules},
-            lower_constraints, scoped_exprs_to_aexpr,
+            lookup::codegen_lookup_invocations, scoped_exprs_to_aexpr,
             strats::{load_patterns, lower_gates},
             Codegen, CodegenStrategy,
         },
@@ -14,16 +13,13 @@ use crate::{
         },
         resolvers::ResolversProvider,
     },
-    expressions::{utils::ExprDebug, ScopedExpression},
-    gates::{
-        find_selectors, GateRewritePattern, GateScope, RewriteError, RewriteOutput,
-        RewritePatternSet,
-    },
-    halo2::{groups::GroupKeyInstance, Expression, Field, RegionIndex},
+    expressions::ScopedExpression,
+    gates::RewritePatternSet,
+    halo2::{groups::GroupKeyInstance, Field, RegionIndex},
     ir::{
         equivalency::{EqvRelation, SymbolicEqv},
         expr::IRAexpr,
-        stmt::{chain_lowerable_stmts, IRStmt},
+        stmt::IRStmt,
         CmpOp,
     },
     lookups::callbacks::LookupCallbacks,
@@ -36,11 +32,7 @@ use crate::{
     utils, CircuitIO, GateCallbacks,
 };
 use anyhow::Result;
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    result::Result as StdResult,
-};
+use std::collections::{HashMap, HashSet};
 
 fn header_comments<F: Field, S: ToString>(s: S) -> Vec<IRStmt<(F,)>> {
     s.to_string().lines().map(IRStmt::comment).collect()

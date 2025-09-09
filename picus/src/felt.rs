@@ -53,7 +53,7 @@ impl Felt {
 }
 
 impl TextRepresentable for Felt {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         TextRepresentation::owned_atom(self.to_string())
     }
 

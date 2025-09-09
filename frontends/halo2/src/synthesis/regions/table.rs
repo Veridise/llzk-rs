@@ -1,12 +1,11 @@
 use crate::{gates::AnyQuery, halo2::Value, value::steal};
 use std::{
     cmp::Ordering,
-    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     convert::identity,
-    ops::RangeFrom,
 };
 
-use super::{fixed::FixedData, BlanketFills};
+use super::fixed::FixedData;
 
 /// Key used to represent filled rows in the column
 #[derive(Copy, Clone, Debug)]

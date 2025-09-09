@@ -148,7 +148,7 @@ impl<K: Clone + PartialEq> BinaryExpr<K> {
 }
 
 impl<K: OpLike> TextRepresentable for BinaryExpr<K> {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         owned_list!(self.op(), &self.1, &self.2)
     }
 

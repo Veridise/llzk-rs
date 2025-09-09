@@ -1,8 +1,5 @@
 #![feature(iter_intersperse)]
 
-use crate::halo2::PrimeField;
-use anyhow::Result;
-use backend::codegen::strats::inline::InlineConstraintsStrat;
 use lookups::callbacks::LookupCallbacks;
 
 mod arena;

@@ -43,7 +43,7 @@ impl fmt::Display for VarStr {
 }
 
 impl TextRepresentable for VarStr {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         self.0.to_repr()
     }
 

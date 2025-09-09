@@ -32,7 +32,7 @@ impl<F, K: VarKind> Program<F, K> {
         self.modules.iter().map(|m| m.name.as_str()).collect()
     }
 
-    pub fn display(&self) -> Display<F, K> {
+    pub fn display(&self) -> Display<'_, F, K> {
         Display::new(self)
     }
 
@@ -117,7 +117,7 @@ impl<F: IntoPrime, K: VarKind + Clone> From<Vec<ModuleRef<K>>> for Program<F, K>
 struct PrimeNumber(Felt);
 
 impl TextRepresentable for PrimeNumber {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         owned_list!("prime-number", &self.0).break_line()
     }
 
@@ -129,7 +129,7 @@ impl TextRepresentable for PrimeNumber {
 type TR<'a> = TextRepresentation<'a>;
 
 impl<F: IntoPrime, K: VarKind> TextRepresentable for Program<F, K> {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         self.modules
             .iter()
             .fold(owned_list!(&self.prime), |acc, m| {

@@ -1,7 +1,7 @@
 use crate::{backend::func::FuncIO, halo2::Field, ir::stmt::IRStmt};
 use anyhow::Result;
 
-use super::{tag, ExprLowering, Lowering};
+use super::{ExprLowering, Lowering};
 
 //pub enum LoweringOutput<L: Lowering + ?Sized> {
 //    Value(L::CellOutput),

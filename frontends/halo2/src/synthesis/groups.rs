@@ -1,4 +1,3 @@
-use std::ops::Deref;
 
 use crate::{
     halo2::{
@@ -10,7 +9,7 @@ use crate::{
     CircuitIO,
 };
 
-use super::regions::{RegionData, RegionRow, Regions, TableData};
+use super::regions::{RegionData, RegionRow, Regions};
 
 /// A group can either represent the circuit itself (the top level)
 /// or a group declared during synthesis, identified by its key.

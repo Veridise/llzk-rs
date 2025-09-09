@@ -5,7 +5,7 @@ use std::{
     ops::Range,
 };
 
-use super::{fixed::FixedData, BlanketFills, TableData};
+use super::TableData;
 
 #[derive(Debug, Default)]
 struct RegionDataInner {

@@ -7,7 +7,6 @@ use crate::{
     backend::codegen::lookup::query_from_table_expr,
     gates::{compute_gate_arity, AnyQuery},
     halo2::{ConstraintSystem, Expression, Field, FixedQuery, Selector},
-    synthesis::CircuitSynthesis,
 };
 use anyhow::{bail, Result};
 

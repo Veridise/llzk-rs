@@ -1,10 +1,4 @@
-use std::{
-    fmt,
-    marker::PhantomData,
-    mem::{self, forget},
-    ops::Deref,
-    ptr::null,
-};
+use std::ptr::null;
 
 use llzk_sys::{
     llzkFuncDefOpCreateWithAttrsAndArgAttrs, llzkFuncDefOpGetFullyQualifiedName,
@@ -20,13 +14,13 @@ use melior::{
         block::BlockArgument,
         operation::{OperationBuilder, OperationLike},
         r#type::FunctionType,
-        Attribute, AttributeLike, BlockLike as _, Identifier, Location, Operation, OperationRef,
+        Attribute, AttributeLike, BlockLike as _, Identifier, Location, Operation,
         RegionLike as _, Type, TypeLike, Value,
     },
     Context, StringRef,
 };
 use mlir_sys::{
-    mlirDictionaryAttrGet, mlirNamedAttributeGet, MlirAttribute, MlirNamedAttribute, MlirOperation,
+    mlirDictionaryAttrGet, mlirNamedAttributeGet, MlirAttribute, MlirNamedAttribute,
 };
 
 use crate::{

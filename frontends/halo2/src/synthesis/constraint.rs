@@ -1,9 +1,5 @@
 use crate::halo2::{Any, Column, Field, Fixed};
-use std::{
-    collections::{btree_set::Iter, BTreeMap, BTreeSet, HashSet},
-    hash::Hash,
-    ops::RangeFrom,
-};
+use std::collections::BTreeSet;
 
 //type Node = (Column<Any>, usize);
 

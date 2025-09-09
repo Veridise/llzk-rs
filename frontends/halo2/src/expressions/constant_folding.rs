@@ -1,5 +1,5 @@
 use midnight_halo2_proofs::plonk::{
-    AdviceQuery, Challenge, Expression, FixedQuery, InstanceQuery, Selector,
+    Expression, FixedQuery, Selector,
 };
 
 use crate::{

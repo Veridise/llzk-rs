@@ -63,7 +63,7 @@ impl DerefMut for ModuleHeader {
 }
 
 impl TextRepresentable for ModuleHeader {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         owned_list!("begin-module", &self.0).break_line()
     }
 
@@ -254,7 +254,7 @@ impl<K: VarKind + Default + Clone + fmt::Debug> ModuleWithVars<K> for Module<K> 
 }
 
 impl<K: VarKind> TextRepresentable for Module<K> {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         let summary = self.summarize();
         let mut sorted_inputs = self.vars.inputs().collect::<Vec<_>>();
         sorted_inputs.sort();

@@ -4,19 +4,18 @@ use std::rc::Rc;
 use super::events::{BackendMessages, BackendResponse, EventReceiver, Message};
 use super::lowering::lowerable::{LowerableExpr, LowerableStmt};
 use super::lowering::ExprLowering as _;
-use super::resolvers::{QueryResolver, SelectorResolver};
 use super::{func::FuncIO, lowering::Lowering, resolvers::ResolversProvider};
 use crate::ir::expr::IRAexpr;
 use crate::{
     expressions::{ExpressionFactory, ScopedExpression},
     gates::AnyQuery,
     halo2::{
-        Advice, Column, ColumnType, Expression, Field, Fixed, Gate, Instance, Rotation, Selector,
+        Advice, ColumnType, Expression, Field, Gate, Instance, Rotation, Selector,
     },
     ir::{stmt::IRStmt, CmpOp},
     lookups::callbacks::LookupCallbacks,
     synthesis::{
-        constraint::{EqConstraint, EqConstraintArg},
+        constraint::EqConstraint,
         regions::{RegionRow, Row},
         CircuitSynthesis,
     },

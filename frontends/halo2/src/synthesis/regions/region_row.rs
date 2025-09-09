@@ -1,4 +1,4 @@
-use super::{data::RegionKind, RegionData, Row, FQN};
+use super::{RegionData, Row, FQN};
 use crate::{
     backend::{
         func::FuncIO,

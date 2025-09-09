@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 
 pub use codegen::LlzkCodegen;
 use melior::ir::Module;

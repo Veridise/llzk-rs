@@ -80,7 +80,7 @@ impl<T: MaybeVarLike + ?Sized> MaybeVarLike for Wrap<T> {
 }
 
 impl<T: TextRepresentable + ?Sized> TextRepresentable for Wrap<T> {
-    fn to_repr(&self) -> crate::display::TextRepresentation {
+    fn to_repr(&self) -> crate::display::TextRepresentation<'_> {
         self.as_ref().to_repr()
     }
 

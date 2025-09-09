@@ -1,4 +1,3 @@
-use std::{fmt, ops::Deref};
 
 use llzk_sys::{
     llzkFieldDefOpGetHasPublicAttr, llzkFieldDefOpSetPublicAttr, llzkFieldReadOpBuild,

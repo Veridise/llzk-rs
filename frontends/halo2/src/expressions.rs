@@ -1,4 +1,4 @@
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 
 use crate::backend::lowering::lowerable::LowerableExpr;
 use crate::backend::lowering::ExprLowering;

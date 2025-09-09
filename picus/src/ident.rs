@@ -52,7 +52,7 @@ impl fmt::Display for Ident {
 }
 
 impl TextRepresentable for Ident {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         self.0.to_repr()
     }
 

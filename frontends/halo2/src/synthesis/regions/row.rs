@@ -9,7 +9,7 @@ use crate::{
     CircuitIO,
 };
 use anyhow::{bail, Result};
-use std::{borrow::Cow, marker::PhantomData};
+use std::borrow::Cow;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Row<'io> {

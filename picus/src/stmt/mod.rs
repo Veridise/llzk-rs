@@ -53,7 +53,7 @@ impl<S: StmtConstantFolding + ?Sized> StmtConstantFolding for Wrap<S> {
 }
 
 impl<S: TextRepresentable + ?Sized> TextRepresentable for Wrap<S> {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         unsafe { (*self.as_ptr()).to_repr() }
     }
 

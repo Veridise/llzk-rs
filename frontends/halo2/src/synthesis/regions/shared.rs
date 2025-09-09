@@ -1,7 +1,4 @@
-use crate::halo2::{Field, Value};
 
-use super::{fixed::FixedData, FQN};
-use std::{collections::HashMap, ops::AddAssign};
 //
 ///// Data shared across regions.
 //#[derive(Debug, Default, Clone)]

@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::hash::Hash;
-use std::ops::{Range, RangeInclusive};
+use std::ops::Range;
 
 use crate::expressions::ScopedExpression;
 use crate::ir::stmt::IRStmt;

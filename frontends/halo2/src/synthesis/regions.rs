@@ -2,7 +2,6 @@ use crate::halo2::*;
 use data::RegionDataImpl;
 use std::{
     collections::{HashMap, HashSet},
-    iter::Peekable,
     ops::RangeFrom,
 };
 

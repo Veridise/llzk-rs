@@ -2,33 +2,21 @@ use crate::{
     backend::{
         codegen::{
             inter_region_constraints,
-            lookup::{codegen_lookup_invocations, codegen_lookup_modules},
-            lower_constraints, scoped_exprs_to_aexpr,
+            lookup::{codegen_lookup_invocations, codegen_lookup_modules}, scoped_exprs_to_aexpr,
             strats::{load_patterns, lower_gates},
             Codegen, CodegenStrategy,
         },
         resolvers::ResolversProvider,
     },
-    expressions::{utils::ExprDebug, ScopedExpression},
-    gates::{
-        find_selectors, GateRewritePattern, GateScope, RewriteError, RewriteOutput,
-        RewritePatternSet,
-    },
-    halo2::{Expression, Field},
-    ir::{
-        expr::IRAexpr,
-        stmt::{chain_lowerable_stmts, IRStmt},
-        CmpOp,
-    },
+    ir::stmt::{chain_lowerable_stmts, IRStmt},
     lookups::callbacks::LookupCallbacks,
     synthesis::{
-        regions::{RegionRow, RegionRowLike as _, Row},
+        regions::{RegionRow, Row},
         CircuitSynthesis,
     },
     GateCallbacks,
 };
 use anyhow::Result;
-use std::{borrow::Cow, result::Result as StdResult};
 
 /// Code generation strategy that generates the all the code inside the main function.
 #[derive(Default)]

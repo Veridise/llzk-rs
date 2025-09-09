@@ -94,7 +94,7 @@ impl OpFolder for BinaryOp {
 }
 
 impl TextRepresentable for BinaryOp {
-    fn to_repr(&self) -> TextRepresentation {
+    fn to_repr(&self) -> TextRepresentation<'_> {
         TextRepresentation::atom(match self {
             BinaryOp::Add => "+",
             BinaryOp::Sub => "-",

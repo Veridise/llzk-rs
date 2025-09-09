@@ -5,7 +5,7 @@ use super::{
 use crate::{
     backend::{
         func::FuncIO,
-        lowering::{lowerable::LowerableExpr, ExprLowering, Lowering},
+        lowering::{lowerable::LowerableExpr, ExprLowering},
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     },
     expressions::ScopedExpression,
