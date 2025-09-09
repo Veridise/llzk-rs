@@ -5,8 +5,8 @@ use std::{
 
 use crate::{
     backend::codegen::lookup::query_from_table_expr,
-    gates::{compute_gate_arity, AnyQuery},
-    halo2::{ConstraintSystem, Expression, Field, FixedQuery, Selector},
+    gates::AnyQuery,
+    halo2::{ConstraintSystem, Expression, Field, FixedQuery},
 };
 use anyhow::{bail, Result};
 
@@ -29,28 +29,16 @@ impl<F: Field> std::fmt::Display for Lookup<'_, F> {
 
 /// A heavier representation of the lookup
 #[derive(Clone)]
-pub struct LookupData<'a, F: Field> {
-    lookup: Lookup<'a, F>,
-    selectors: Vec<&'a Selector>,
-    queries: Vec<AnyQuery>,
+pub struct LookupData {
     table_queries: Vec<AnyQuery>,
-    kind: LookupKind,
 }
 
-impl<'a, F: Field> TryFrom<Lookup<'a, F>> for LookupData<'a, F> {
+impl<'a, F: Field> TryFrom<Lookup<'a, F>> for LookupData {
     type Error = anyhow::Error;
 
     fn try_from(lookup: Lookup<'a, F>) -> std::result::Result<Self, Self::Error> {
-        let (selectors, queries) = compute_gate_arity(lookup.inputs);
         let table_queries = compute_table_cells(lookup.table.iter())?;
-        let kind = lookup.kind()?;
-        Ok(LookupData {
-            lookup,
-            selectors,
-            queries,
-            table_queries,
-            kind,
-        })
+        Ok(LookupData { table_queries })
     }
 }
 
@@ -93,10 +81,7 @@ impl<'a, F: Field> Lookup<'a, F> {
         }
     }
 
-    //pub fn callbacks(&self) -> &dyn LookupCallbacks<F> {
-    //    self.callbacks
-    //}
-
+    /// Name given to the lookup.
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -118,7 +103,9 @@ impl<'a, F: Field> Lookup<'a, F> {
     }
 
     pub fn kind(&self) -> Result<LookupKind> {
-        LookupKind::new(self.table, self.inputs)
+        LookupKind::new(
+            self.table, //, self.inputs
+        )
     }
 
     pub fn table_queries(&self) -> Result<Vec<AnyQuery>> {
@@ -135,7 +122,7 @@ impl<'a, F: Field> Lookup<'a, F> {
     }
 }
 
-impl<'a, F: Field> LookupData<'a, F> {
+impl LookupData {
     pub fn output_queries(&self) -> &[AnyQuery] {
         &self.table_queries
     }
@@ -145,12 +132,6 @@ impl<'a, F: Field> LookupData<'a, F> {
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct LookupKind {
     columns: Vec<usize>,
-    //io: (usize, usize),
-}
-
-#[inline]
-fn zip_res<L, R, E>(lhs: Result<L, E>, rhs: Result<R, E>) -> Result<(L, R), E> {
-    lhs.and_then(|lhs| rhs.map(|rhs| (lhs, rhs)))
 }
 
 impl LookupKind {
@@ -158,12 +139,12 @@ impl LookupKind {
     /// designated as inputs and which as outputs.
     pub fn new<F: Field>(
         tables: &[Expression<F>],
-        inputs: &[Expression<F>],
+        //inputs: &[Expression<F>],
         //lookups: &dyn LookupCallbacks<F>,
     ) -> anyhow::Result<Self> {
-        fn empty_io() -> anyhow::Result<(usize, usize)> {
-            Ok((0, 0))
-        }
+        //fn empty_io() -> anyhow::Result<(usize, usize)> {
+        //    Ok((0, 0))
+        //}
         let columns = tables
             .iter()
             .map(|e| match e {
@@ -171,40 +152,6 @@ impl LookupKind {
                 _ => bail!("Unsupported table column definition: {e:?}"),
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
-        //let io = inputs
-        //    .into_iter()
-        //    .zip(columns.iter().copied())
-        //    .fold(HashMap::<usize, Vec<_>>::default(), |mut map, (e, t)| {
-        //        map.entry(t).or_default().push(e);
-        //        map
-        //    })
-        //    .into_iter()
-        //    .map(|(t, exprs)| {
-        //        exprs
-        //            .into_iter()
-        //            .map(|e| lookups.assign_io_kind(e, t))
-        //            .map(Ok)
-        //            .reduce(|lhs, rhs| {
-        //                zip_res(lhs, rhs).and_then(|(lhs, rhs)| {
-        //                    if lhs == rhs {
-        //                        bail!("Column {t} assigned different IO types")
-        //                    }
-        //                    Ok(lhs)
-        //                })
-        //            })
-        //            .ok_or_else(|| anyhow!("No expressions for column {t}"))
-        //            .and_then(identity)
-        //    })
-        //    .try_fold((0, 0), |(i, o), io| -> anyhow::Result<(usize, usize)> {
-        //        Ok(match io? {
-        //            LookupIO::I => (i + 1, o),
-        //            LookupIO::O => (i, o + 1),
-        //        })
-        //    })?;
-        //
-        //if io.1 == 0 {
-        //    bail!("Lookup has to have at least one output!");
-        //}
         Ok(Self { columns })
     }
 
@@ -221,14 +168,6 @@ impl LookupKind {
     pub fn columns(&self) -> &[usize] {
         &self.columns
     }
-
-    //pub fn inputs(&self) -> usize {
-    //    self.io.0
-    //}
-    //
-    //pub fn outputs(&self) -> usize {
-    //    self.io.1
-    //}
 }
 
 /// Represents a row in the lookup table that can be indexed by the columns participating in the

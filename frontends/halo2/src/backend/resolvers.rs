@@ -89,6 +89,7 @@ impl From<bool> for ResolvedSelector {
     }
 }
 
+/// Resolver that returns the value or the variable that is representing the selector.
 pub trait SelectorResolver {
     fn resolve_selector(&self, selector: &Selector) -> Result<ResolvedSelector>;
 }
@@ -131,6 +132,12 @@ impl<F: Field> From<FuncIO> for ResolvedQuery<F> {
     }
 }
 
+/// Resolver trait that only supports fixed cell queries.
+pub trait FixedQueryResolver<F: Field> {
+    fn resolve_query(&self, query: &FixedQuery, row: usize) -> Result<F>;
+}
+
+/// Resolver trait that converts a query to a cell into a constant value or a variable.
 pub trait QueryResolver<F: Field> {
     fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>>;
 

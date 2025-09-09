@@ -4,6 +4,9 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::ops::Range;
 
+use crate::backend::resolvers::FixedQueryResolver;
+use crate::expressions::constant_folding::ConstantFolding;
+use crate::expressions::rewriter::rewrite_expr;
 use crate::expressions::ScopedExpression;
 use crate::ir::stmt::IRStmt;
 use crate::synthesis::regions::{RegionData, RegionRow};
@@ -15,7 +18,7 @@ pub enum RewriteError {
 }
 
 /// Scope in which a gate is being called
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct GateScope<'a, F>
 where
     F: Field,
@@ -26,15 +29,20 @@ where
     row_bounds: (usize, usize),
     advice_io: &'a CircuitIO<Advice>,
     instance_io: &'a CircuitIO<Instance>,
+    fqr: &'a dyn FixedQueryResolver<F>,
 }
 
 impl<'a, F: Field> GateScope<'a, F> {
+    /// Constructs a new gate scope.
+    ///
+    /// Since this class is passed to a callback its constructor is protected.
     pub(crate) fn new(
         gate: &'a Gate<F>,
         region: RegionData<'a>,
         row_bounds: (usize, usize),
         advice_io: &'a CircuitIO<Advice>,
         instance_io: &'a CircuitIO<Instance>,
+        fqr: &'a dyn FixedQueryResolver<F>,
     ) -> Self {
         Self {
             gate,
@@ -42,6 +50,7 @@ impl<'a, F: Field> GateScope<'a, F> {
             row_bounds,
             advice_io,
             instance_io,
+            fqr,
         }
     }
 
@@ -49,7 +58,7 @@ impl<'a, F: Field> GateScope<'a, F> {
         self.region
     }
 
-    pub(crate) fn region_row(&self, row: usize) -> anyhow::Result<RegionRow<'a, 'a>> {
+    pub(crate) fn region_row(&self, row: usize) -> anyhow::Result<RegionRow<'a, 'a, 'a, F>> {
         if !self.rows().contains(&row) {
             anyhow::bail!(
                 "Row {} is not within the rows of the scope [{}, {}]",
@@ -63,22 +72,34 @@ impl<'a, F: Field> GateScope<'a, F> {
             row,
             self.advice_io,
             self.instance_io,
+            self.fqr,
         ))
     }
 
-    pub(crate) fn region_rows(&self) -> impl Iterator<Item = RegionRow<'a, 'a>> {
-        self.rows()
-            .map(|row| RegionRow::new(self.region(), row, self.advice_io, self.instance_io))
+    pub(crate) fn region_rows(&self) -> impl Iterator<Item = RegionRow<'a, 'a, 'a, F>> {
+        self.rows().map(|row| {
+            RegionRow::new(
+                self.region(),
+                row,
+                self.advice_io,
+                self.instance_io,
+                self.fqr,
+            )
+        })
     }
 
+    /// Returns the name assigned to the gate.
     pub fn gate_name(&self) -> &str {
         self.gate.name()
     }
 
+    /// Returns the polynomials defined during circuit configuration.
     pub fn polynomials(&self) -> &'a [Expression<F>] {
         self.gate.polynomials()
     }
 
+    /// Returns the list of polynomials once per row. The polynomials per row are constant-folded
+    /// first.
     pub fn polynomials_per_row(
         &self,
     ) -> anyhow::Result<Vec<(&'a Expression<F>, Vec<(usize, Expression<F>)>)>> {
@@ -104,21 +125,31 @@ impl<'a, F: Field> GateScope<'a, F> {
     ) -> anyhow::Result<Expression<F>> {
         let region_row = self.region_row(row)?;
         let scoped = ScopedExpression::from_ref(e, region_row);
-        Ok(scoped.fold_constants())
+        Ok(rewrite_expr(
+            scoped.as_ref(),
+            &[&ConstantFolding::new(scoped.resolvers())],
+        ))
     }
 
+    /// Returns the name of the region where this gate was called.
     pub fn region_name(&self) -> &str {
         self.region.name()
     }
 
+    /// Returns the index of the region where this gate was called.
     pub fn region_index(&self) -> Option<RegionIndex> {
         self.region.index()
     }
 
+    /// Returns a string summary of the region.
+    ///
+    /// It's intended for debugging purposes and the
+    /// text representation should not be relied upon.
     pub fn region_header(&self) -> impl ToString {
         self.region.header()
     }
 
+    /// Returns the first row of the region.
     pub fn start_row(&self) -> usize {
         self.row_bounds.0
     }
@@ -132,6 +163,7 @@ impl<'a, F: Field> GateScope<'a, F> {
         end - 1
     }
 
+    /// Returns the rows in the region.
     pub fn rows(&self) -> Range<usize> {
         (self.row_bounds.0)..(self.row_bounds.1)
     }
@@ -141,14 +173,18 @@ impl<'a, F: Field> GateScope<'a, F> {
 /// the base offset on the queries.
 pub type RewriteOutput<'a, F> = IRStmt<(usize, Cow<'a, Expression<F>>)>;
 
+/// Implementations of this trait can selectively rewrite a gate when lowering the circuit.
+///
+/// The rewrites performed by these patterns should be semantics preserving.
 pub trait GateRewritePattern<F> {
+    #[allow(unused_variables)]
     fn match_gate<'a>(&self, gate: GateScope<'a, F>) -> Result<(), RewriteError>
     where
         F: Field,
     {
         panic!("Implement match_gate and rewrite_gate OR match_and_rewrite")
     }
-
+    #[allow(unused_variables)]
     fn rewrite_gate<'a>(
         &self,
         gate: GateScope<'a, F>,
@@ -171,6 +207,7 @@ pub trait GateRewritePattern<F> {
     }
 }
 
+/// User configuration for the lowering process of gates.
 pub trait GateCallbacks<F> {
     /// Asks wether a gate's polynomial whose selectors are all disabled for a given region should be emitted or
     /// not. Defaults to true.
@@ -184,6 +221,7 @@ pub trait GateCallbacks<F> {
         F: Field;
 }
 
+/// Default gate callbacks.
 pub(crate) struct DefaultGateCallbacks;
 
 impl<F> GateCallbacks<F> for DefaultGateCallbacks {
@@ -195,10 +233,12 @@ impl<F> GateCallbacks<F> for DefaultGateCallbacks {
     }
 }
 
+/// A set of rewrite patterns.
 #[derive(Default)]
 pub(crate) struct RewritePatternSet<F>(Vec<Box<dyn GateRewritePattern<F>>>);
 
 impl<F> RewritePatternSet<F> {
+    /// Adds a pattern to the set.
     pub fn add(&mut self, p: impl GateRewritePattern<F> + 'static) {
         self.0.push(Box::new(p))
     }
@@ -209,10 +249,6 @@ impl<F> Extend<Box<dyn GateRewritePattern<F>>> for RewritePatternSet<F> {
         self.0.extend(iter)
     }
 }
-
-pub(crate) struct RewritePatternSetIter<'a, F>(
-    std::slice::Iter<'a, Box<dyn GateRewritePattern<F>>>,
-);
 
 impl<F> GateRewritePattern<F> for RewritePatternSet<F> {
     fn match_and_rewrite<'a>(
@@ -419,44 +455,4 @@ impl From<FixedQuery> for AnyQuery {
     fn from(query: FixedQuery) -> Self {
         Self::Fixed(query)
     }
-}
-
-fn find_queries<F: Field>(poly: &Expression<F>) -> HashSet<AnyQuery> {
-    match poly {
-        Expression::Advice(query) => [query.into()].into(),
-        Expression::Instance(query) => [query.into()].into(),
-        Expression::Fixed(query) => [query.into()].into(),
-        Expression::Negated(expression) => find_queries(expression),
-        Expression::Sum(lhs, rhs) => find_in_binop(lhs, rhs, find_queries),
-        Expression::Product(lhs, rhs) => find_in_binop(lhs, rhs, find_queries),
-        Expression::Scaled(expression, _) => find_queries(expression),
-        _ => Default::default(),
-    }
-}
-
-pub type GateArity<'a> = (Vec<&'a Selector>, Vec<AnyQuery>);
-
-pub fn find_gate_selector_set<F: Field>(constraints: &[Expression<F>]) -> HashSet<&Selector> {
-    constraints.iter().flat_map(find_selectors).collect()
-}
-
-pub fn find_gate_query_selector_set<F: Field>(constraints: &[Expression<F>]) -> HashSet<AnyQuery> {
-    constraints.iter().flat_map(find_queries).collect()
-}
-
-pub fn find_gate_selectors<F: Field>(constraints: &[Expression<F>]) -> Vec<&Selector> {
-    let mut selectors: Vec<&Selector> = find_gate_selector_set(constraints)
-        .iter()
-        .copied()
-        .collect();
-    selectors.sort_by_key(|lhs| lhs.index());
-    selectors
-}
-
-pub fn compute_gate_arity<'a, F: Field>(constraints: &'a [Expression<F>]) -> GateArity<'a> {
-    let mut queries: Vec<AnyQuery> = find_gate_query_selector_set(constraints)
-        .into_iter()
-        .collect();
-    queries.sort();
-    (find_gate_selectors(constraints), queries)
 }

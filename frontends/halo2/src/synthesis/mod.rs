@@ -8,32 +8,26 @@ use std::{
 use anyhow::{anyhow, Result};
 use constraint::{EqConstraint, EqConstraintArg, EqConstraintGraph};
 use groups::{Group, GroupBuilder, GroupCell, Groups};
-use regions::{
-    FixedData, RegionIndexToStart, TableData,
-    FQN,
-};
+use regions::{FixedData, RegionIndexToStart, TableData, FQN};
 
 use crate::{
+    backend::resolvers::FixedQueryResolver,
     gates::AnyQuery,
     halo2::{
         groups::{GroupKey, RegionsGroup},
         Field, *,
     },
     io::IOCell,
-    lookups::{Lookup, LookupKind, LookupTableRow},
+    lookups::{Lookup, LookupTableRow},
     value::steal,
-    CircuitCallbacks, CircuitIO,
+    CircuitIO,
 };
 
 pub mod constraint;
 pub mod groups;
 pub mod regions;
 
-pub type AnyCell = (Column<Any>, usize);
-
 /// Result of synthesizing a circuit.
-///
-/// TODO: Cleanup this struct
 pub struct CircuitSynthesis<F: Field> {
     cs: ConstraintSystem<F>,
     eq_constraints: EqConstraintGraph<F>,
@@ -49,30 +43,17 @@ impl<F: Field> CircuitSynthesis<F> {
         self.cs.gates()
     }
 
+    /// Returns a reference to the constraint system.
     pub fn cs(&self) -> &ConstraintSystem<F> {
         &self.cs
     }
 
-    pub fn lookups<'a>(&'a self) -> impl Iterator<Item = Lookup<'a, F>> + 'a {
-        Lookup::load(&self.cs).into_iter()
+    /// Returns the lookups declared during synthesis.
+    pub fn lookups<'a>(&'a self) -> Vec<Lookup<'a, F>> {
+        Lookup::load(&self.cs)
     }
 
-    pub fn lookup_kinds<'a>(&'a self) -> Result<HashMap<LookupKind, Vec<Lookup<'a, F>>>> {
-        fn fold<'a, F: Field>(
-            mut map: HashMap<LookupKind, Vec<Lookup<'a, F>>>,
-            lookup: Result<(LookupKind, Lookup<'a, F>)>,
-        ) -> Result<HashMap<LookupKind, Vec<Lookup<'a, F>>>> {
-            lookup.map(|(k, l)| {
-                map.entry(k).or_default().push(l);
-                map
-            })
-        }
-
-        self.lookups()
-            .map(|l| Ok((l.kind()?, l)))
-            .try_fold(HashMap::default(), fold)
-    }
-
+    /// Finds the table that corresponds to the query set.
     fn find_table(&self, q: &[AnyQuery]) -> Result<Vec<Vec<F>>> {
         self.tables
             .iter()
@@ -110,6 +91,7 @@ impl<F: Field> CircuitSynthesis<F> {
                 )
             }
 
+            // The table needs to be transposed from [row,col] to [col,row].
             Ok(transpose(table)
                 .into_iter()
                 .map(|row| LookupTableRow::new(&columns, row))
@@ -117,6 +99,7 @@ impl<F: Field> CircuitSynthesis<F> {
         })
     }
 
+    /// Returns the advice IO for the top level group.
     pub fn advice_io(&self) -> &CircuitIO<Advice> {
         self.groups
             .top_level()
@@ -124,6 +107,7 @@ impl<F: Field> CircuitSynthesis<F> {
             .advice_io()
     }
 
+    /// Returns the instance IO for the top level group.
     pub fn instance_io(&self) -> &CircuitIO<Instance> {
         self.groups
             .top_level()
@@ -131,10 +115,12 @@ impl<F: Field> CircuitSynthesis<F> {
             .instance_io()
     }
 
+    /// Returns the groups in the circuit.
     pub fn groups(&self) -> &[Group] {
         self.groups.as_ref()
     }
 
+    /// Returns the equality constraints.
     pub fn constraints(&self) -> &EqConstraintGraph<F> {
         &self.eq_constraints
     }
@@ -156,64 +142,14 @@ impl<F: Field> CircuitSynthesis<F> {
         self.groups.top_level()
     }
 
-    /// Returns a sorted vector with copy constraints.
-    //pub fn sorted_constraints(&self) -> Vec<EqConstraint> {
-    //    let mut constraints = self.eq_constraints.iter().copied().collect::<Vec<_>>();
-    //    constraints.sort();
-    //    constraints
-    //}
+    /// Returns a reference to a resolver for fixed queries.
+    pub fn fixed_query_resolver(&self) -> &dyn FixedQueryResolver<F> {
+        &self.fixed
+    }
 
-    ///// Returns an iterator with equality constraints
-    //pub fn fixed_constraints(&self) -> impl Iterator<Item = Result<(Column<Fixed>, usize, F)>> {
-    //    let regions = self.regions();
-    //
-    //    self.fixed_cells_in_eq_constraints()
-    //        .flat_map(move |(col, row)| {
-    //            let values = regions
-    //                .iter()
-    //                .enumerate()
-    //                .inspect(|(idx, r)| {
-    //                    log::debug!(
-    //                        "Cell ({}, {row}) | Looking in region {} '{}' ({}, {})",
-    //                        col.index(),
-    //                        idx,
-    //                        r.name(),
-    //                        r.rows().start,
-    //                        r.rows().end
-    //                    )
-    //                })
-    //                .filter_map(|(_, r)| {
-    //                    // Try find a value assigned to the fixed column in this region
-    //                    r.find_fixed_col_assignment(col, row)
-    //                })
-    //                .inspect(|v| log::debug!("Cell ({}, {row}) | Found {v:?}", col.index()))
-    //                .collect::<Vec<_>>();
-    //            // The value can be missing but we don't support more than one assignment.
-    //            assert!(values.len() <= 1);
-    //            values.first().copied().map(|v| {
-    //                let f =
-    //                    steal(&v).ok_or_else(|| anyhow!("Unknown value assigned to fixed cell"))?;
-    //                Ok((col, row, f))
-    //            })
-    //        })
-    //}
-    //
-    //fn fixed_cells_in_eq_constraints(&self) -> impl Iterator<Item = (Column<Fixed>, usize)> {
-    //    self.eq_constraints
-    //        .iter()
-    //        .flat_map(|(l, r)| [l, r])
-    //        .inspect(|c| log::debug!("Cell used in eq constraint: {c:?}"))
-    //        .filter_map(|(c, r)| {
-    //            let fc: Result<Column<Fixed>, _> = (*c).try_into();
-    //            fc.ok().map(|fc| (fc, *r))
-    //        })
-    //        .inspect(|c| log::debug!("Fixed cell used in eq constraint: {c:?}"))
-    //        .collect::<HashSet<_>>()
-    //        .into_iter()
-    //}
-
-    pub fn seen_advice_cells(&self) -> impl Iterator<Item = (&(usize, usize), &FQN)> {
-        self.advice_names.iter()
+    /// Returns the FQNs of advice cells noted during synthesis.
+    pub fn seen_advice_cells(&self) -> &HashMap<(usize, usize), FQN> {
+        &self.advice_names
     }
 }
 
@@ -529,12 +465,11 @@ impl<F: Field> Assignment<F> for SynthesizerInner<'_, F> {
         AR: Into<String>,
         A: FnOnce() -> AR,
     {
-        todo!()
     }
 
     #[cfg(feature = "get-challenge")]
     fn get_challenge(&self, _: Challenge) -> Value<F> {
-        todo!()
+        Value::unknown()
     }
 
     fn enter_group<NR, N, K>(&mut self, name_fn: N, key: K)

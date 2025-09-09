@@ -1,13 +1,8 @@
-use std::{borrow::Cow, collections::HashMap, marker::PhantomData};
+use std::{borrow::Cow, marker::PhantomData};
 
 #[cfg(feature = "lift-field-operations")]
 use crate::ir::lift::{LiftIRGuard, LiftLike};
-use crate::{
-    backend::picus::PicusModule,
-    halo2::{Expression, RegionIndex},
-    ir::stmt::IRStmt,
-    synthesis::CircuitSynthesis,
-};
+use crate::{backend::picus::PicusModule, synthesis::CircuitSynthesis};
 use crate::{
     backend::{
         func::FuncIO,
@@ -31,7 +26,6 @@ pub struct PicusCodegenInner<L> {
     params: PicusParams,
     modules: Vec<PicusModuleRef>,
     current_scope: Option<PicusModuleLowering<L>>,
-    enqueued_stmts: HashMap<RegionIndex, Vec<IRStmt<Expression<L>>>>,
     _marker: PhantomData<L>,
 }
 
@@ -41,7 +35,6 @@ impl<F> PicusCodegenInner<F> {
             params,
             modules: Default::default(),
             current_scope: Default::default(),
-            enqueued_stmts: Default::default(),
             _marker: Default::default(),
         }
     }
@@ -88,7 +81,7 @@ impl<F: LoweringField> PicusCodegenInner<F> {
         if let Some(syn) = syn {
             module
                 .borrow_mut()
-                .add_vars(syn.seen_advice_cells().map(|((col, row), name)| {
+                .add_vars(syn.seen_advice_cells().iter().map(|((col, row), name)| {
                     VarKeySeed::new(
                         VarKeySeedInner::IO(
                             FuncIO::advice_abs(*col, *row),

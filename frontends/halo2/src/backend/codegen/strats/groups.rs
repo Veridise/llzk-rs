@@ -2,7 +2,8 @@ use crate::{
     backend::{
         codegen::{
             inter_region_constraints,
-            lookup::codegen_lookup_invocations, scoped_exprs_to_aexpr,
+            lookup::codegen_lookup_invocations,
+            scoped_exprs_to_aexpr,
             strats::{load_patterns, lower_gates},
             Codegen, CodegenStrategy,
         },
@@ -26,17 +27,13 @@ use crate::{
     synthesis::{
         constraint::EqConstraint,
         groups::{Group, GroupCell},
-        regions::{RegionData, RegionRow, RegionRowLike as _, Row},
+        regions::{RegionData, RegionRow, Row},
         CircuitSynthesis,
     },
     utils, CircuitIO, GateCallbacks,
 };
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
-
-fn header_comments<F: Field, S: ToString>(s: S) -> Vec<IRStmt<(F,)>> {
-    s.to_string().lines().map(IRStmt::comment).collect()
-}
 
 /// Code generation strategy that write the code of each group in a separate function.
 #[derive(Default)]
@@ -52,8 +49,8 @@ impl CodegenStrategy for GroupConstraintsStrat {
     ) -> Result<()>
     where
         C: Codegen<'c, 'st>,
-        Row<'s>: ResolversProvider<C::F> + 's,
-        RegionRow<'s, 's>: ResolversProvider<C::F> + 's,
+        Row<'s, 's, C::F>: ResolversProvider<C::F> + 's,
+        RegionRow<'s, 's, 's, C::F>: ResolversProvider<C::F> + 's,
     {
         let patterns = load_patterns(gate_cbs);
         let regions = syn
@@ -224,7 +221,6 @@ struct CallSite<F> {
     callee: GroupKeyInstance,
     /// The index in the original groups array to the called group.
     callee_id: usize,
-    call_no: usize,
     inputs: Vec<IRAexpr<F>>,
     output_vars: Vec<FuncIO>,
     outputs: Vec<IRAexpr<F>>,
@@ -252,10 +248,20 @@ fn cells_to_exprs<F: Field>(
             let expr = cell.to_expr::<F>();
             let row = cell.row();
             match region {
-                Some(region) => {
-                    ScopedExpression::new(expr, RegionRow::new(region, row, advice_io, instance_io))
-                }
-                None => ScopedExpression::new(expr, Row::new(row, advice_io, instance_io)),
+                Some(region) => ScopedExpression::new(
+                    expr,
+                    RegionRow::new(
+                        region,
+                        row,
+                        advice_io,
+                        instance_io,
+                        ctx.syn.fixed_query_resolver(),
+                    ),
+                ),
+                None => ScopedExpression::new(
+                    expr,
+                    Row::new(row, advice_io, instance_io, ctx.syn.fixed_query_resolver()),
+                ),
             }
             .try_into()
         })
@@ -301,18 +307,7 @@ impl<F: Field> CallSite<F> {
             output_vars,
             outputs,
             callee_id,
-            call_no,
         })
-    }
-
-    /// Returns true if the callsite are structurally equivalent and point to the same group key.
-    pub fn equivalent(&self, other: &Self) -> bool {
-        // Group key, callee id, and input/output arity must be equal.
-        if self.callee != other.callee || self.callee_id != other.callee_id {
-            return false;
-        }
-
-        true
     }
 }
 
@@ -358,7 +353,6 @@ impl<F: Field> GroupBody<F> {
         let advice_io = group.advice_io();
         let instance_io = group.instance_io();
 
-        let main = group.is_top_level();
         log::debug!("Lowering call-sites for group {:?}", group.name());
         let callsites = {
             group
@@ -378,6 +372,7 @@ impl<F: Field> GroupBody<F> {
             &ctx.patterns,
             &advice_io,
             &instance_io,
+            ctx.syn.fixed_query_resolver(),
         )
         .and_then(scoped_exprs_to_aexpr)?;
 
@@ -389,12 +384,16 @@ impl<F: Field> GroupBody<F> {
             select_equality_constraints(group, ctx),
             &advice_io,
             &instance_io,
+            ctx.syn.fixed_query_resolver(),
         ))?;
 
         log::debug!("Lowering lookups for group {:?}", group.name());
-        let lookups =
-            codegen_lookup_invocations(ctx.syn, group.region_rows().as_slice(), ctx.lookup_cb)
-                .and_then(scoped_exprs_to_aexpr)?;
+        let lookups = codegen_lookup_invocations(
+            ctx.syn,
+            group.region_rows(ctx.syn.fixed_query_resolver()).as_slice(),
+            ctx.lookup_cb,
+        )
+        .and_then(scoped_exprs_to_aexpr)?;
 
         Ok(Self {
             id,

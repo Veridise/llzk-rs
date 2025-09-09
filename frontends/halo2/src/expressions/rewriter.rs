@@ -1,4 +1,3 @@
-
 use crate::halo2::{
     AdviceQuery, Challenge, Expression, Field, FixedQuery, InstanceQuery, Selector,
 };
@@ -6,35 +5,45 @@ use crate::halo2::{
 use crate::expressions::utils::ExprDebug;
 
 pub trait ExpressionRewriter<F> {
+    #[allow(unused_variables)]
     fn on_constant(&self, f: &F) -> Option<Expression<F>> {
         None
     }
 
+    #[allow(unused_variables)]
     fn on_selector(&self, sel: &Selector) -> Option<Expression<F>> {
         None
     }
 
+    #[allow(unused_variables)]
     fn on_fixed(&self, fixed: &FixedQuery) -> Option<Expression<F>> {
         None
     }
+    #[allow(unused_variables)]
     fn on_advice(&self, advice: &AdviceQuery) -> Option<Expression<F>> {
         None
     }
+    #[allow(unused_variables)]
     fn on_instance(&self, instance: &InstanceQuery) -> Option<Expression<F>> {
         None
     }
+    #[allow(unused_variables)]
     fn on_challened(&self, challenge: &Challenge) -> Option<Expression<F>> {
         None
     }
+    #[allow(unused_variables)]
     fn on_negated(&self, e: &Expression<F>) -> Option<Expression<F>> {
         None
     }
+    #[allow(unused_variables)]
     fn on_sum(&self, lhs: &Expression<F>, rhs: &Expression<F>) -> Option<Expression<F>> {
         None
     }
+    #[allow(unused_variables)]
     fn on_product(&self, lhs: &Expression<F>, rhs: &Expression<F>) -> Option<Expression<F>> {
         None
     }
+    #[allow(unused_variables)]
     fn on_scaled(&self, lhs: &Expression<F>, rhs: &F) -> Option<Expression<F>> {
         None
     }
@@ -123,6 +132,7 @@ where
 
 /// Rewrites the expression and recurses on the newly generated expressions to try match more
 /// patterns.
+#[allow(dead_code)]
 pub fn rewrite_rec_expr<F>(
     r: &Expression<F>,
     patterns: &[&dyn ExpressionRewriter<F>],

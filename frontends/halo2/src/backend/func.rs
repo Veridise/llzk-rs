@@ -162,9 +162,3 @@ impl From<FieldId> for FuncIO {
         Self::Field(value)
     }
 }
-
-//impl From<(usize, usize)> for FuncIO {
-//    fn from(value: (usize, usize)) -> Self {
-//        Self::Advice(value.0, value.1)
-//    }
-//}

@@ -43,6 +43,7 @@ impl Ord for Fill {
     }
 }
 
+/// Sparse representation of a table.
 #[derive(Debug)]
 pub struct TableData<F: Copy> {
     values: HashMap<usize, BTreeMap<Fill, Value<F>>>,

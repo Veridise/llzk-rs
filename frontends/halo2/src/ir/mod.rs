@@ -106,6 +106,7 @@ impl<T> IRModule<T> {
 }
 
 impl<T: LowerableExpr> IRModule<T> {
+    #[allow(dead_code)]
     pub(crate) fn generate<'a: 's, 's>(
         self,
         codegen: &impl Codegen<'a, 's, F = T::F>,

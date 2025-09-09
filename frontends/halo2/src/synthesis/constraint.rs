@@ -1,8 +1,6 @@
 use crate::halo2::{Any, Column, Field, Fixed};
 use std::collections::BTreeSet;
 
-//type Node = (Column<Any>, usize);
-
 /// Possible nodes in the graph.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum EqConstraintArg<F: Field> {
@@ -121,9 +119,12 @@ impl<F: Field> From<(EqConstraintArg<F>, EqConstraintArg<F>)> for EqConstraint<F
     }
 }
 
+/// Graph of equality constraints between cells and finite field values.
 pub struct EqConstraintGraph<F> {
     edges: BTreeSet<(EqConstraintArgSto, EqConstraintArgSto)>,
     vertices: BTreeSet<EqConstraintArgSto>,
+    /// Finite field elements are stored here because they do not implement the required traits to
+    /// be used in BTreeSet.
     ff_storage: Vec<F>,
 }
 
@@ -165,7 +166,7 @@ impl<F: Field> EqConstraintGraph<F> {
         self.edges
             .iter()
             .copied()
-            .map(move |(f, t)| (t.from_sto(&self.ff_storage), t.from_sto(&self.ff_storage)).into())
+            .map(move |(f, t)| (f.from_sto(&self.ff_storage), t.from_sto(&self.ff_storage)).into())
             .collect()
     }
 

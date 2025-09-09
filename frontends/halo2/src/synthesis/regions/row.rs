@@ -2,7 +2,9 @@ use super::FQN;
 use crate::{
     backend::{
         func::{ArgNo, FieldId, FuncIO},
-        resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
+        resolvers::{
+            FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
+        },
     },
     halo2::*,
     io::IOCell,
@@ -11,20 +13,23 @@ use crate::{
 use anyhow::{bail, Result};
 use std::borrow::Cow;
 
-#[derive(Copy, Clone, Debug)]
-pub struct Row<'io> {
+#[derive(Copy, Clone)]
+pub struct Row<'io, 'fq, F: Field> {
     pub(super) row: usize,
     advice_io: &'io CircuitIO<Advice>,
     instance_io: &'io CircuitIO<Instance>,
+    pub(super) fqr: &'fq dyn FixedQueryResolver<F>,
 }
 
-impl<'io> Row<'io> {
+impl<'io, 'fq, F: Field> Row<'io, 'fq, F> {
     pub fn new(
         row: usize,
         advice_io: &'io CircuitIO<Advice>,
         instance_io: &'io CircuitIO<Instance>,
+        fqr: &'fq dyn FixedQueryResolver<F>,
     ) -> Self {
         Self {
+            fqr,
             row,
             advice_io,
             instance_io,
@@ -89,13 +94,10 @@ impl<'io> Row<'io> {
     }
 }
 
-impl<F: Field> QueryResolver<F> for Row<'_> {
+impl<F: Field> QueryResolver<F> for Row<'_, '_, F> {
     fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>> {
         let row = self.resolve_rotation(query.rotation())?;
-        Ok(ResolvedQuery::IO(FuncIO::fixed_abs(
-            query.column_index(),
-            row,
-        )))
+        self.fqr.resolve_query(query, row).map(ResolvedQuery::Lit)
     }
 
     fn resolve_advice_query<'a>(
@@ -115,7 +117,7 @@ impl<F: Field> QueryResolver<F> for Row<'_> {
     }
 }
 
-impl SelectorResolver for Row<'_> {
+impl<F: Field> SelectorResolver for Row<'_, '_, F> {
     fn resolve_selector(&self, _selector: &Selector) -> Result<ResolvedSelector> {
         unreachable!()
     }

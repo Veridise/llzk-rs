@@ -1,5 +1,5 @@
-
 use crate::{
+    backend::resolvers::FixedQueryResolver,
     halo2::{
         groups::{GroupKey, GroupKeyInstance},
         Advice, Any, Cell, ColumnType, Expression, Field, Gate, Instance, RegionIndex, Rotation,
@@ -117,22 +117,27 @@ impl Group {
     }
 
     /// Returns the regions' rows
-    pub fn region_rows<'a>(&'a self) -> Vec<RegionRow<'a, 'a>> {
+    pub fn region_rows<'a, 'fq, F: Field>(
+        &'a self,
+        fqr: &'fq dyn FixedQueryResolver<F>,
+    ) -> Vec<RegionRow<'a, 'a, 'fq, F>> {
         self.regions()
             .into_iter()
             .flat_map(move |r| {
-                r.rows()
-                    .map(move |row| RegionRow::new(r, row, self.advice_io(), self.instance_io()))
+                r.rows().map(move |row| {
+                    RegionRow::new(r, row, self.advice_io(), self.instance_io(), fqr)
+                })
             })
             .collect()
     }
 
     /// Returns the certesian product between the regions' rows and the lookups
-    pub fn lookups_per_region_row<'a, F: Field>(
+    pub fn lookups_per_region_row<'a, 'fq, F: Field>(
         &'a self,
         lookups: &[Lookup<'a, F>],
-    ) -> Vec<(RegionRow<'a, 'a>, Lookup<'a, F>)> {
-        self.region_rows()
+        fqr: &'fq dyn FixedQueryResolver<F>,
+    ) -> Vec<(RegionRow<'a, 'a, 'fq, F>, Lookup<'a, F>)> {
+        self.region_rows(fqr)
             .into_iter()
             .flat_map(|r| lookups.iter().copied().map(move |l| (r, l)))
             .collect()
@@ -222,11 +227,6 @@ impl Group {
         )
     }
 
-    ///// Returns the list of tables.
-    //pub fn tables(&self) -> &[TableData<F>] {
-    //    self.regions.tables()
-    //}
-
     /// Returns the cartesian product of the regions and the gates.
     pub fn region_gates<'a, F: Field>(
         &'a self,
@@ -236,60 +236,6 @@ impl Group {
             .into_iter()
             .flat_map(|r| gates.iter().map(move |g| (g, r)))
     }
-
-    ///// TODO: Move this somewhere else?
-    //pub fn gate_scopes<'a>(
-    //    &'a self,
-    //    gates: &'a [Gate<F>],
-    //) -> impl Iterator<Item = GateScope<'a, F>> + 'a {
-    //    self.region_gates(gates)
-    //        .map(|(g, r): (_, RegionData<'a, F>)| {
-    //            let rows = r.rows();
-    //
-    //            GateScope::new(
-    //                g,
-    //                r,
-    //                (rows.start, rows.end),
-    //                self.advice_io(),
-    //                self.instance_io(),
-    //            )
-    //        })
-    //}
-
-    ///// Do I really need this?
-    //pub fn regionrow_gates<'a>(
-    //    &'a self,
-    //    gates: &'a [Gate<F>],
-    //) -> impl Iterator<Item = (&'a Gate<F>, RegionRow<'a, 'a, F>)> + 'a {
-    //    self.regions()
-    //        .into_iter()
-    //        .map(|r| r.rows())
-    //        .reduce(|lhs, rhs| std::cmp::min(lhs.start, rhs.start)..std::cmp::max(lhs.end, rhs.end))
-    //        .unwrap_or(0..0)
-    //        .flat_map(move |row| {
-    //            self.regions().into_iter().filter_map(move |region| {
-    //                if region.rows().contains(&row) {
-    //                    Some(RegionRow::new(
-    //                        region,
-    //                        row,
-    //                        self.advice_io(),
-    //                        self.instance_io(),
-    //                    ))
-    //                } else {
-    //                    None
-    //                }
-    //            })
-    //        })
-    //        .flat_map(|r| {
-    //            gates.iter().filter_map(move |gate| {
-    //                let selectors = find_gate_selector_set(gate.polynomials());
-    //                if r.gate_is_disabled(&selectors) {
-    //                    return None;
-    //                }
-    //                Some((gate, r))
-    //            })
-    //        })
-    //}
 }
 
 /// A collection of groups.
@@ -314,6 +260,8 @@ impl AsRef<[Group]> for Groups {
 
 /// Represents a piece of the circuit's constraint system.
 ///
+/// Is meant to be used for constructing the call graph. For
+/// lowering use [`Groups`] instead.
 /// Has a set of regions of the circuit that represents what gates
 /// are enabled in it.
 ///
@@ -397,15 +345,6 @@ impl GroupBuilder {
         }
     }
 
-    /// Returns a reference to the group that is currently being built.
-    pub fn current(&self) -> &GroupTree {
-        if self.stack.is_empty() {
-            &self.root
-        } else {
-            self.stack.last().unwrap()
-        }
-    }
-
     /// Returns a mutable reference to the group that is currently being built.
     /// Private to ensure that only the builder can mutate the groups.
     #[inline]
@@ -415,11 +354,6 @@ impl GroupBuilder {
         } else {
             self.stack.last_mut().unwrap()
         }
-    }
-
-    /// Returns a reference to the root.
-    pub fn root(&self) -> &GroupTree {
-        &self.root
     }
 
     /// Returns the root and consumes the builder.
@@ -473,11 +407,6 @@ impl GroupBuilder {
         IOCell<C>: Into<GroupCell>,
     {
         self.current_mut().outputs.push(cell.into())
-    }
-
-    /// Returns a reference to the regions in the current group.
-    pub fn regions(&self) -> &Regions {
-        &self.current().regions
     }
 
     /// Returns a mutable reference to the regions in the current group.

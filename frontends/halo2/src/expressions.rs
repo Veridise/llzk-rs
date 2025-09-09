@@ -8,33 +8,17 @@ use crate::backend::resolvers::{
 
 use crate::halo2::{Expression, Field};
 use anyhow::Result;
-use constant_folding::ConstantFolding;
-use rewriter::rewrite_expr;
 
 pub mod constant_folding;
 pub mod rewriter;
 pub mod utils;
 
-pub trait ExpressionFactory<'r, F: Field> {
-    fn create<'a>(self, e: Expression<F>) -> ScopedExpression<'a, 'r, F>;
-
-    fn create_ref<'a>(self, e: &'a Expression<F>) -> ScopedExpression<'a, 'r, F>;
-}
-
-impl<'r, T, F> ExpressionFactory<'r, F> for T
-where
-    T: ResolversProvider<F> + 'r,
-    F: Field,
-{
-    fn create<'a>(self, e: Expression<F>) -> ScopedExpression<'a, 'r, F> {
-        ScopedExpression::new(e, self)
-    }
-
-    fn create_ref<'a>(self, e: &'a Expression<F>) -> ScopedExpression<'a, 'r, F> {
-        ScopedExpression::from_ref(e, self)
-    }
-}
-
+/// Represents an expression associated to an scoped.
+///
+/// The scope is represented by a [`ResolversProvider`] that returns
+/// the resolvers required for lowering the expression.
+///
+/// The expression can be both a reference or owned.
 pub struct ScopedExpression<'e, 'r, F>
 where
     F: Field,
@@ -47,6 +31,7 @@ impl<'e, 'r, F> ScopedExpression<'e, 'r, F>
 where
     F: Field,
 {
+    /// Creates a new scope owning the expression
     pub fn new<R>(expression: Expression<F>, resolvers: R) -> Self
     where
         R: ResolversProvider<F> + 'r,
@@ -57,6 +42,7 @@ where
         }
     }
 
+    /// Creates a new scope with a refernece to an expression.
     pub fn from_ref<R>(expression: &'e Expression<F>, resolvers: R) -> Self
     where
         R: ResolversProvider<F> + 'r,
@@ -77,6 +63,9 @@ where
         }
     }
 
+    /// Returns a factory method that creates scopes with always the same resolvers.
+    ///
+    /// Use it when you can't create the resolvers when you need to create this.
     pub fn make_ctor<R>(resolvers: R) -> impl Fn(Expression<F>) -> Self + 'r
     where
         R: Clone + ResolversProvider<F> + 'r,
@@ -84,11 +73,8 @@ where
         move |e| Self::new(e, resolvers.clone())
     }
 
-    pub fn fold_constants(&self) -> Expression<F> {
-        rewrite_expr(
-            self.expression.as_ref(),
-            &[&ConstantFolding::new(self.resolvers.as_ref())],
-        )
+    pub(crate) fn resolvers(&self) -> &dyn ResolversProvider<F> {
+        self.resolvers.as_ref()
     }
 
     pub(crate) fn selector_resolver(&self) -> &dyn SelectorResolver {

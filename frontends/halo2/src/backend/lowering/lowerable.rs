@@ -1,24 +1,7 @@
-use crate::{backend::func::FuncIO, halo2::Field, ir::stmt::IRStmt};
+use crate::{halo2::Field, ir::stmt::IRStmt};
 use anyhow::Result;
 
 use super::{ExprLowering, Lowering};
-
-//pub enum LoweringOutput<L: Lowering + ?Sized> {
-//    Value(L::CellOutput),
-//    Stmt,
-//}
-//
-//impl<L: Lowering + ?Sized> From<()> for LoweringOutput<L> {
-//    fn from(_: ()) -> Self {
-//        Self::Stmt
-//    }
-//}
-//
-//impl<O: tag::LoweringOutput, L: Lowering<CellOutput = O> + ?Sized> From<O> for LoweringOutput<L> {
-//    fn from(value: O) -> Self {
-//        Self::Value(value)
-//    }
-//}
 
 pub trait LowerableExpr {
     type F: Field;
@@ -100,51 +83,11 @@ impl<Lw: LowerableStmt> LowerableStmt for Box<Lw> {
 impl<F: Field> LowerableStmt for (F,) {
     type F = F;
 
-    fn lower<L>(self, l: &L) -> Result<()>
+    fn lower<L>(self, _: &L) -> Result<()>
     where
         L: Lowering<F = Self::F> + ?Sized,
     {
         Ok(())
-    }
-}
-
-pub enum LowerableOrIO<L> {
-    Lowerable(L),
-    IO(FuncIO),
-}
-
-impl<L> From<L> for LowerableOrIO<L>
-where
-    L: LowerableExpr,
-{
-    fn from(value: L) -> Self {
-        Self::Lowerable(value)
-    }
-}
-
-impl<L> From<FuncIO> for LowerableOrIO<L>
-where
-    L: LowerableExpr,
-{
-    fn from(value: FuncIO) -> Self {
-        Self::IO(value)
-    }
-}
-
-impl<LW> LowerableExpr for LowerableOrIO<LW>
-where
-    LW: LowerableExpr,
-{
-    type F = LW::F;
-
-    fn lower<L>(self, l: &L) -> Result<L::CellOutput>
-    where
-        L: ExprLowering<F = Self::F> + ?Sized,
-    {
-        match self {
-            LowerableOrIO::Lowerable(lowerable) => lowerable.lower(l),
-            LowerableOrIO::IO(func_io) => l.lower_funcio(func_io),
-        }
     }
 }
 

@@ -13,7 +13,6 @@ use crate::{
 pub struct Driver<'lc, 'gc, F: Field> {
     lookup_callbacks: Option<Box<dyn LookupCallbacks<F> + 'lc>>,
     gate_callbacks: Option<Box<dyn GateCallbacks<F> + 'gc>>,
-    picus_backend: Option<(PicusParams, PicusBackend<F>)>,
 }
 
 impl<'lc, 'gc, F: PrimeField> Driver<'lc, 'gc, F> {

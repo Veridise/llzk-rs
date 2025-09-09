@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cell::LazyCell, hash::Hasher as _};
+use std::{borrow::Cow, cell::LazyCell};
 
 use crate::{
     backend::codegen::lookup::contains_fixed,

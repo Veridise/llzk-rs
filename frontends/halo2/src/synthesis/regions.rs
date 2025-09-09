@@ -10,7 +10,6 @@ mod fixed;
 mod fqn;
 mod region_row;
 mod row;
-mod shared;
 mod table;
 
 pub use data::RegionData;
@@ -18,7 +17,6 @@ pub use fixed::FixedData;
 pub use fqn::FQN;
 pub use region_row::{RegionRow, RegionRowLike};
 pub use row::Row;
-//pub use shared::SharedRegionData;
 pub use table::TableData;
 
 type BlanketFills<F> = Vec<(RangeFrom<usize>, Value<F>)>;
@@ -28,7 +26,6 @@ pub type RegionIndexToStart = HashMap<RegionIndex, RegionStart>;
 /// A set of regions
 #[derive(Default, Debug)]
 pub struct Regions {
-    //shared: SharedRegionData<F>,
     regions: Vec<RegionDataImpl>,
     current: Option<RegionDataImpl>,
     // If we need to transform the previous region into a table we store the index here to
@@ -80,19 +77,6 @@ impl Regions {
         None
     }
 
-    //pub fn edit_current_or_last<FN, FR>(&mut self, f: FN) -> Option<FR>
-    //where
-    //    FN: FnOnce(&mut RegionDataImpl<F>) -> FR,
-    //{
-    //    if let Some(region) = self.current.as_mut() {
-    //        return Some(f(region));
-    //    }
-    //    if let Some(region) = self.regions.first_mut() {
-    //        return Some(f(region));
-    //    }
-    //    None
-    //}
-
     pub fn regions<'a>(&'a self) -> Vec<RegionData<'a>> {
         self.regions
             .iter()
@@ -124,8 +108,4 @@ impl Regions {
         self.recovered_index = table.take_index();
         tables.push(table.columns());
     }
-
-    //pub fn seen_advice_cells(&self) -> impl Iterator<Item = (&(usize, usize), &FQN)> {
-    //    self.shared.advice_names().iter()
-    //}
 }

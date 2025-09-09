@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cell::RefCell, collections::HashMap, rc::Rc};
+use std::{borrow::Cow, collections::HashMap};
 
 use anyhow::{anyhow, Result};
 
@@ -6,9 +6,7 @@ use crate::{
     backend::{
         func::FuncIO,
         lowering::{lowerable::LowerableStmt as _, Lowering},
-        resolvers::{
-            QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
-        },
+        resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     },
     expressions::ScopedExpression,
     halo2::{
@@ -22,23 +20,12 @@ pub trait RegionStartResolver {
     fn find(&self, idx: RegionIndex) -> Result<RegionStart>;
 }
 
-#[inline]
-pub fn create_queue_helper<F>() -> Rc<RefCell<CodegenQueueHelper<F>>> {
-    Rc::new(RefCell::new(CodegenQueueHelper::new()))
-}
-
 #[derive(Default)]
 pub struct CodegenQueueHelper<F> {
     enqueued_stmts: HashMap<RegionIndex, Vec<IRStmt<Expression<F>>>>,
 }
 
 impl<F> CodegenQueueHelper<F> {
-    pub fn new() -> Self {
-        Self {
-            enqueued_stmts: Default::default(),
-        }
-    }
-
     pub fn enqueue_stmts<'s, I>(&'s mut self, region: RegionIndex, stmts: I) -> Result<()>
     where
         I: IntoIterator<Item = IRStmt<Expression<F>>>,

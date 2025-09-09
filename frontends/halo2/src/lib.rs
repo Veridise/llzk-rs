@@ -2,6 +2,7 @@
 
 use lookups::callbacks::LookupCallbacks;
 
+#[cfg(feature = "lift-field-operations")]
 mod arena;
 pub(crate) mod backend;
 pub mod driver;

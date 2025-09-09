@@ -1,8 +1,7 @@
 use super::{RegionData, Row, FQN};
 use crate::{
-    backend::{
-        func::FuncIO,
-        resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
+    backend::resolvers::{
+        FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
     },
     halo2::*,
     CircuitIO,
@@ -34,13 +33,13 @@ pub trait RegionRowLike {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-pub struct RegionRow<'r, 'io> {
+#[derive(Copy, Clone)]
+pub struct RegionRow<'r, 'io, 'fq, F: Field> {
     region: RegionData<'r>,
-    row: Row<'io>,
+    row: Row<'io, 'fq, F>,
 }
 
-impl<'r, 'io> RegionRowLike for RegionRow<'r, 'io> {
+impl<'r, 'io, 'fq, F: Field> RegionRowLike for RegionRow<'r, 'io, 'fq, F> {
     fn region_index(&self) -> Option<usize> {
         self.region.index().map(|f| *f)
     }
@@ -54,16 +53,17 @@ impl<'r, 'io> RegionRowLike for RegionRow<'r, 'io> {
     }
 }
 
-impl<'r, 'io> RegionRow<'r, 'io> {
+impl<'r, 'io, 'fq, F: Field> RegionRow<'r, 'io, 'fq, F> {
     pub fn new(
         region: RegionData<'r>,
         row: usize,
         advice_io: &'io CircuitIO<Advice>,
         instance_io: &'io CircuitIO<Instance>,
+        fqr: &'fq dyn FixedQueryResolver<F>,
     ) -> Self {
         Self {
             region,
-            row: Row::new(row, advice_io, instance_io),
+            row: Row::new(row, advice_io, instance_io, fqr),
         }
     }
 
@@ -85,14 +85,13 @@ impl<'r, 'io> RegionRow<'r, 'io> {
     }
 }
 
-impl<F: Field> QueryResolver<F> for RegionRow<'_, '_> {
+impl<F: Field> QueryResolver<F> for RegionRow<'_, '_, '_, F> {
     fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>> {
         let row = self.row.resolve_rotation(query.rotation())?;
-
-        Ok(match self.region.resolve_fixed(query.column_index(), row) {
-            Some(v) => v.try_into()?,
-            None => ResolvedQuery::IO(FuncIO::fixed_abs(query.column_index(), row)),
-        })
+        self.row
+            .fqr
+            .resolve_query(query, row)
+            .map(ResolvedQuery::Lit)
     }
 
     fn resolve_advice_query<'a>(
@@ -103,18 +102,7 @@ impl<F: Field> QueryResolver<F> for RegionRow<'_, '_> {
 
         match r {
             l @ ResolvedQuery::Lit(_) => Ok((l, None)),
-            io @ ResolvedQuery::IO(func_io) => Ok((
-                io,
-                Some(match func_io {
-                    FuncIO::Advice(adv) => self.region.find_advice_name(adv.col(), adv.row()),
-                    _ => Cow::Owned(FQN::new(
-                        &self.region.name(),
-                        self.region.index(),
-                        &[],
-                        None,
-                    )),
-                }),
-            )),
+            io @ ResolvedQuery::IO(_func_io) => Ok((io, None)),
         }
     }
 
@@ -123,7 +111,7 @@ impl<F: Field> QueryResolver<F> for RegionRow<'_, '_> {
     }
 }
 
-impl SelectorResolver for RegionRow<'_, '_> {
+impl<F: Field> SelectorResolver for RegionRow<'_, '_, '_, F> {
     fn resolve_selector(&self, selector: &Selector) -> Result<ResolvedSelector> {
         let selected = self
             .region

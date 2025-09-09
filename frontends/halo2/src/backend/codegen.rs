@@ -2,16 +2,15 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use super::events::{BackendMessages, BackendResponse, EventReceiver, Message};
-use super::lowering::lowerable::{LowerableExpr, LowerableStmt};
+use super::lowering::lowerable::LowerableStmt;
 use super::lowering::ExprLowering as _;
+use super::resolvers::FixedQueryResolver;
 use super::{func::FuncIO, lowering::Lowering, resolvers::ResolversProvider};
 use crate::ir::expr::IRAexpr;
 use crate::{
-    expressions::{ExpressionFactory, ScopedExpression},
+    expressions::ScopedExpression,
     gates::AnyQuery,
-    halo2::{
-        Advice, ColumnType, Expression, Field, Gate, Instance, Rotation, Selector,
-    },
+    halo2::{Advice, Expression, Field, Instance, Rotation, Selector},
     ir::{stmt::IRStmt, CmpOp},
     lookups::callbacks::LookupCallbacks,
     synthesis::{
@@ -26,8 +25,6 @@ use anyhow::Result;
 pub mod lookup;
 pub mod queue;
 pub mod strats;
-
-pub type BodyResult<O> = Result<Vec<IRStmt<O>>>;
 
 pub trait Codegen<'c: 's, 's>: Sized + 's {
     type FuncOutput: Lowering<F = Self::F>;
@@ -95,14 +92,6 @@ pub trait Codegen<'c: 's, 's>: Sized + 's {
 
     fn define_main_function(&self, syn: &CircuitSynthesis<Self::F>) -> Result<Self::FuncOutput>;
 
-    //fn lower_stmts(
-    //    &self,
-    //    scope: &Self::FuncOutput,
-    //    stmts: impl Iterator<Item = Result<IRStmt<impl LowerableStmt<F = Self::F>>>>,
-    //) -> Result<()> {
-    //    lower_stmts(scope, stmts)
-    //}
-    //
     fn on_scope_end(&self, _: Self::FuncOutput) -> Result<()> {
         Ok(())
     }
@@ -136,8 +125,8 @@ pub trait CodegenStrategy: Default {
     ) -> Result<()>
     where
         C: Codegen<'c, 'st>,
-        Row<'s>: ResolversProvider<C::F> + 's,
-        RegionRow<'s, 's>: ResolversProvider<C::F> + 's;
+        Row<'s, 's, C::F>: ResolversProvider<C::F> + 's,
+        RegionRow<'s, 's, 's, C::F>: ResolversProvider<C::F> + 's;
 }
 
 pub struct CodegenEventReceiver<'c: 's, 's, C> {
@@ -187,6 +176,7 @@ pub fn inter_region_constraints<'s, F: Field>(
     constraints: impl IntoIterator<Item = EqConstraint<F>>,
     advice_io: &'s CircuitIO<Advice>,
     instance_io: &'s CircuitIO<Instance>,
+    fixed_query_resolver: &'s dyn FixedQueryResolver<F>,
 ) -> Vec<IRStmt<ScopedExpression<'s, 's, F>>> {
     constraints
         .into_iter()
@@ -194,68 +184,26 @@ pub fn inter_region_constraints<'s, F: Field>(
             EqConstraint::AnyToAny(from, from_row, to, to_row) => (
                 ScopedExpression::new(
                     from.query_cell(Rotation::cur()),
-                    Row::new(from_row, advice_io, instance_io),
+                    Row::new(from_row, advice_io, instance_io, fixed_query_resolver),
                 ),
                 ScopedExpression::new(
                     to.query_cell(Rotation::cur()),
-                    Row::new(to_row, advice_io, instance_io),
+                    Row::new(to_row, advice_io, instance_io, fixed_query_resolver),
                 ),
             ),
             EqConstraint::FixedToConst(column, row, f) => (
                 ScopedExpression::new(
                     column.query_cell(Rotation::cur()),
-                    Row::new(row, advice_io, instance_io),
+                    Row::new(row, advice_io, instance_io, fixed_query_resolver),
                 ),
                 ScopedExpression::new(
                     Expression::Constant(f),
-                    Row::new(row, advice_io, instance_io),
+                    Row::new(row, advice_io, instance_io, fixed_query_resolver),
                 ),
             ),
         })
         .map(|(lhs, rhs)| IRStmt::constraint(CmpOp::Eq, lhs, rhs))
         .collect()
-}
-
-pub fn lower_constraints<'g, F, R, S>(
-    gate: &'g Gate<F>,
-    resolvers: R,
-    region_header: S,
-    row: Option<usize>,
-) -> impl Iterator<Item = IRStmt<ScopedExpression<'g, 'g, F>>> + 'g
-where
-    R: ResolversProvider<F> + Clone + 'g,
-    S: ToString,
-    F: Field,
-{
-    // Prepend a comment if the row number is available
-    row.map(|row| {
-        IRStmt::comment(format!(
-            "gate '{}' @ {} @ row {}",
-            gate.name(),
-            region_header.to_string(),
-            row
-        ))
-    })
-    .into_iter()
-    .chain(gate.polynomials().iter().map(move |lhs| {
-        IRStmt::constraint(
-            CmpOp::Eq,
-            resolvers.clone().create_ref(lhs),
-            resolvers.clone().create(Expression::Constant(F::ZERO)),
-        )
-    }))
-}
-
-pub fn lower_stmts<Scope: Lowering>(
-    scope: &Scope,
-    mut stmts: impl Iterator<Item = Result<IRStmt<impl LowerableExpr<F = Scope::F>>>>,
-) -> Result<()> {
-    stmts.try_for_each(|stmt| stmt.and_then(|stmt| stmt.lower(scope)))
-}
-
-#[inline]
-fn lower_io<O>(count: usize, f: impl Fn(usize) -> O) -> Vec<O> {
-    (0..count).map(f).collect()
 }
 
 /// If the given statement is not empty prepends a comment
