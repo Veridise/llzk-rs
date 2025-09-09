@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::backend::lowering::{
-    lowerable::{Lowerable, LoweringOutput},
+    lowerable::{LowerableExpr, LowerableStmt},
     Lowering,
 };
 
@@ -32,14 +32,14 @@ impl<T> Seq<T> {
     }
 }
 
-impl<T: Lowerable> Lowerable for Seq<T> {
+impl<T: LowerableExpr> LowerableStmt for Seq<T> {
     type F = T::F;
 
-    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    fn lower<L>(self, l: &L) -> Result<()>
     where
         L: Lowering<F = Self::F> + ?Sized,
     {
-        self.0.into_iter().try_for_each(|s| l.lower_stmt(s))
+        self.0.into_iter().try_for_each(|s| s.lower(l))
     }
 }
 

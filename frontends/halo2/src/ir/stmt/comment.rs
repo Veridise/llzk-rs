@@ -2,7 +2,13 @@ use std::marker::PhantomData;
 
 use anyhow::Result;
 
-use crate::backend::lowering::{lowerable::Lowerable, lowerable::LoweringOutput, Lowering};
+use crate::{
+    backend::lowering::{
+        lowerable::{LowerableExpr, LowerableStmt},
+        Lowering,
+    },
+    ir::equivalency::EqvRelation,
+};
 
 pub struct Comment<T>(String, PhantomData<T>);
 
@@ -16,10 +22,10 @@ impl<T> Comment<T> {
     }
 }
 
-impl<T: Lowerable> Lowerable for Comment<T> {
+impl<T: LowerableExpr> LowerableStmt for Comment<T> {
     type F = T::F;
 
-    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    fn lower<L>(self, l: &L) -> Result<()>
     where
         L: Lowering<F = Self::F> + ?Sized,
     {
@@ -42,5 +48,15 @@ impl<T> PartialEq for Comment<T> {
 impl<T: std::fmt::Debug> std::fmt::Debug for Comment<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "comment '{}'", self.0)
+    }
+}
+
+impl<L, R, E> EqvRelation<Comment<L>, Comment<R>> for E
+where
+    E: EqvRelation<L, R>,
+{
+    /// Comments are always equivalent
+    fn equivalent(_lhs: &Comment<L>, _rhs: &Comment<R>) -> bool {
+        true
     }
 }

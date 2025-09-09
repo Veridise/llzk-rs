@@ -1,8 +1,11 @@
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 
-use crate::backend::resolvers::{boxed_resolver, ResolversProvider};
+use crate::backend::lowering::lowerable::LowerableExpr;
+use crate::backend::lowering::ExprLowering;
+use crate::backend::resolvers::{
+    boxed_resolver, QueryResolver, ResolversProvider, SelectorResolver,
+};
 
-use crate::backend::lowering::{lowerable::Lowerable, lowerable::LoweringOutput, Lowering};
 use crate::halo2::{Expression, Field};
 use anyhow::Result;
 use constant_folding::ConstantFolding;
@@ -87,17 +90,34 @@ where
             &[&ConstantFolding::new(self.resolvers.as_ref())],
         )
     }
+
+    pub(crate) fn selector_resolver(&self) -> &dyn SelectorResolver {
+        self.resolvers.selector_resolver()
+    }
+
+    pub(crate) fn query_resolver(&self) -> &dyn QueryResolver<F> {
+        self.resolvers.query_resolver()
+    }
 }
 
-impl<F> Lowerable for ScopedExpression<'_, '_, F>
+impl<F> AsRef<Expression<F>> for ScopedExpression<'_, '_, F>
+where
+    F: Field,
+{
+    fn as_ref(&self) -> &Expression<F> {
+        self.expression.as_ref()
+    }
+}
+
+impl<F> LowerableExpr for ScopedExpression<'_, '_, F>
 where
     F: Field,
 {
     type F = F;
 
-    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    fn lower<L>(self, l: &L) -> Result<L::CellOutput>
     where
-        L: Lowering<F = Self::F> + ?Sized,
+        L: ExprLowering<F = Self::F> + ?Sized,
     {
         l.lower_expr(self.expression.as_ref(), &*self.resolvers)
     }

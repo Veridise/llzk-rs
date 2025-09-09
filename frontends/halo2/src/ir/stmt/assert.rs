@@ -1,8 +1,11 @@
 use anyhow::Result;
 
 use crate::{
-    backend::lowering::{lowerable::Lowerable, lowerable::LoweringOutput, Lowering},
-    ir::expr::IRBexpr,
+    backend::lowering::{
+        lowerable::{LowerableExpr, LowerableStmt},
+        Lowering,
+    },
+    ir::{equivalency::EqvRelation, expr::IRBexpr},
 };
 
 pub struct Assert<T>(IRBexpr<T>);
@@ -20,14 +23,14 @@ impl<T> Assert<T> {
     }
 }
 
-impl<T: Lowerable> Lowerable for Assert<T> {
+impl<T: LowerableExpr> LowerableStmt for Assert<T> {
     type F = T::F;
 
-    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    fn lower<L>(self, l: &L) -> Result<()>
     where
         L: Lowering<F = Self::F> + ?Sized,
     {
-        l.lower_value(self.0).and_then(|v| l.generate_assert(&v))
+        l.generate_assert(&self.0.lower(l)?)
     }
 }
 
@@ -51,5 +54,14 @@ impl<T: std::fmt::Debug> std::fmt::Debug for Assert<T> {
         } else {
             write!(f, "{:?}", self.0)
         }
+    }
+}
+
+impl<L, R, E> EqvRelation<Assert<L>, Assert<R>> for E
+where
+    E: EqvRelation<L, R>,
+{
+    fn equivalent(lhs: &Assert<L>, rhs: &Assert<R>) -> bool {
+        <E as EqvRelation<IRBexpr<L>, IRBexpr<R>>>::equivalent(&lhs.0, &rhs.0)
     }
 }

@@ -1,44 +1,110 @@
 use crate::{backend::func::FuncIO, halo2::Field, ir::stmt::IRStmt};
 use anyhow::Result;
 
-use super::{tag, Lowering};
+use super::{tag, ExprLowering, Lowering};
 
-pub enum LoweringOutput<L: Lowering + ?Sized> {
-    Value(L::CellOutput),
-    Stmt,
-}
+//pub enum LoweringOutput<L: Lowering + ?Sized> {
+//    Value(L::CellOutput),
+//    Stmt,
+//}
+//
+//impl<L: Lowering + ?Sized> From<()> for LoweringOutput<L> {
+//    fn from(_: ()) -> Self {
+//        Self::Stmt
+//    }
+//}
+//
+//impl<O: tag::LoweringOutput, L: Lowering<CellOutput = O> + ?Sized> From<O> for LoweringOutput<L> {
+//    fn from(value: O) -> Self {
+//        Self::Value(value)
+//    }
+//}
 
-impl<L: Lowering + ?Sized> From<()> for LoweringOutput<L> {
-    fn from(_: ()) -> Self {
-        Self::Stmt
-    }
-}
-
-impl<O: tag::LoweringOutput, L: Lowering<CellOutput = O> + ?Sized> From<O> for LoweringOutput<L> {
-    fn from(value: O) -> Self {
-        Self::Value(value)
-    }
-}
-
-pub trait Lowerable {
+pub trait LowerableExpr {
     type F: Field;
 
-    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    fn lower<L>(self, l: &L) -> Result<L::CellOutput>
+    where
+        L: ExprLowering<F = Self::F> + ?Sized;
+}
+
+impl<T> LowerableExpr for Result<T>
+where
+    T: LowerableExpr,
+{
+    type F = T::F;
+
+    fn lower<L>(self, l: &L) -> Result<L::CellOutput>
+    where
+        L: ExprLowering<F = Self::F> + ?Sized,
+    {
+        self.and_then(|t| t.lower(l))
+    }
+}
+
+impl<Lw: LowerableExpr> LowerableExpr for Box<Lw> {
+    type F = Lw::F;
+
+    fn lower<L>(self, l: &L) -> Result<L::CellOutput>
+    where
+        L: ExprLowering<F = Self::F> + ?Sized,
+    {
+        (*self).lower(l)
+    }
+}
+
+impl<F: Field> LowerableExpr for (F,) {
+    type F = F;
+
+    fn lower<L>(self, l: &L) -> Result<L::CellOutput>
+    where
+        L: ExprLowering<F = Self::F> + ?Sized,
+    {
+        l.lower_constant(self.0)
+    }
+}
+
+pub trait LowerableStmt {
+    type F: Field;
+
+    fn lower<L>(self, l: &L) -> Result<()>
     where
         L: Lowering<F = Self::F> + ?Sized;
 }
 
-impl<T> Lowerable for Result<T>
+impl<T> LowerableStmt for Result<T>
 where
-    T: Lowerable,
+    T: LowerableStmt,
 {
     type F = T::F;
 
-    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    fn lower<L>(self, l: &L) -> Result<()>
     where
         L: Lowering<F = Self::F> + ?Sized,
     {
         self.and_then(|t| t.lower(l))
+    }
+}
+
+impl<Lw: LowerableStmt> LowerableStmt for Box<Lw> {
+    type F = Lw::F;
+
+    fn lower<L>(self, l: &L) -> Result<()>
+    where
+        L: Lowering<F = Self::F> + ?Sized,
+    {
+        (*self).lower(l)
+    }
+}
+
+impl<F: Field> LowerableStmt for (F,) {
+    type F = F;
+
+    fn lower<L>(self, l: &L) -> Result<()>
+    where
+        L: Lowering<F = Self::F> + ?Sized,
+    {
+        Ok(())
     }
 }
 
@@ -49,7 +115,7 @@ pub enum LowerableOrIO<L> {
 
 impl<L> From<L> for LowerableOrIO<L>
 where
-    L: Lowerable,
+    L: LowerableExpr,
 {
     fn from(value: L) -> Self {
         Self::Lowerable(value)
@@ -58,26 +124,26 @@ where
 
 impl<L> From<FuncIO> for LowerableOrIO<L>
 where
-    L: Lowerable,
+    L: LowerableExpr,
 {
     fn from(value: FuncIO) -> Self {
         Self::IO(value)
     }
 }
 
-impl<LW> Lowerable for LowerableOrIO<LW>
+impl<LW> LowerableExpr for LowerableOrIO<LW>
 where
-    LW: Lowerable,
+    LW: LowerableExpr,
 {
     type F = LW::F;
 
-    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    fn lower<L>(self, l: &L) -> Result<L::CellOutput>
     where
-        L: Lowering<F = Self::F> + ?Sized,
+        L: ExprLowering<F = Self::F> + ?Sized,
     {
         match self {
-            LowerableOrIO::Lowerable(lowerable) => lowerable.lower(l).map(Into::into),
-            LowerableOrIO::IO(func_io) => l.lower_funcio(func_io).map(LoweringOutput::Value),
+            LowerableOrIO::Lowerable(lowerable) => lowerable.lower(l),
+            LowerableOrIO::IO(func_io) => l.lower_funcio(func_io),
         }
     }
 }
@@ -148,42 +214,66 @@ where
     }
 }
 
-impl<Left, Right> Lowerable for EitherLowerable<Left, Right>
+impl<Left, Right> LowerableExpr for EitherLowerable<Left, Right>
 where
-    Left: Lowerable,
-    Right: Lowerable<F = Left::F>,
+    Left: LowerableExpr,
+    Right: LowerableExpr<F = Left::F>,
 {
     type F = Left::F;
 
-    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    fn lower<L>(self, l: &L) -> Result<L::CellOutput>
     where
-        L: Lowering<F = Self::F> + ?Sized,
+        L: ExprLowering<F = Self::F> + ?Sized,
     {
         match self {
-            EitherLowerable::Left(left) => left.lower(l).map(Into::into),
-            EitherLowerable::Right(right) => right.lower(l).map(Into::into),
+            EitherLowerable::Left(left) => left.lower(l),
+            EitherLowerable::Right(right) => right.lower(l),
         }
     }
 }
 
-impl<Lw: Lowerable> Lowerable for Box<Lw> {
-    type F = Lw::F;
+impl<Left, Right> LowerableStmt for EitherLowerable<Left, Right>
+where
+    Left: LowerableStmt,
+    Right: LowerableStmt<F = Left::F>,
+{
+    type F = Left::F;
 
-    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    fn lower<L>(self, l: &L) -> Result<()>
     where
         L: Lowering<F = Self::F> + ?Sized,
     {
-        (*self).lower(l)
+        match self {
+            EitherLowerable::Left(left) => left.lower(l),
+            EitherLowerable::Right(right) => right.lower(l),
+        }
     }
 }
 
-impl<F: Field> Lowerable for (F,) {
-    type F = F;
+impl<T: LowerableStmt, const N: usize> LowerableStmt for [T; N] {
+    type F = T::F;
 
-    fn lower<L>(self, _: &L) -> Result<impl Into<LoweringOutput<L>>>
+    fn lower<L>(self, l: &L) -> Result<()>
     where
         L: Lowering<F = Self::F> + ?Sized,
     {
+        for e in self {
+            e.lower(l)?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: LowerableStmt> LowerableStmt for Vec<T> {
+    type F = T::F;
+
+    fn lower<L>(self, l: &L) -> Result<()>
+    where
+        L: Lowering<F = Self::F> + ?Sized,
+    {
+        for e in self {
+            e.lower(l)?;
+        }
         Ok(())
     }
 }

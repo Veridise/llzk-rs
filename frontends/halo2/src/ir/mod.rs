@@ -4,7 +4,7 @@ use stmt::IRStmt;
 use crate::backend::{
     codegen::Codegen,
     func::{ArgNo, FieldId, FuncIO},
-    lowering::lowerable::Lowerable,
+    lowering::lowerable::LowerableExpr,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -37,6 +37,7 @@ impl std::fmt::Display for CmpOp {
 #[cfg(feature = "lift-field-operations")]
 pub mod lift;
 
+pub mod equivalency;
 pub mod expr;
 pub mod stmt;
 
@@ -104,13 +105,13 @@ impl<T> IRModule<T> {
     }
 }
 
-impl<T: Lowerable> IRModule<T> {
+impl<T: LowerableExpr> IRModule<T> {
     pub(crate) fn generate<'a: 's, 's>(
         self,
         codegen: &impl Codegen<'a, 's, F = T::F>,
     ) -> anyhow::Result<()> {
         codegen.define_function_with_body(self.name.as_str(), self.io.0, self.io.1, |_, _, _| {
-            Ok(vec![self.body])
+            Ok([self.body])
         })
     }
 }

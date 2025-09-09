@@ -12,14 +12,13 @@ use anyhow::{bail, Result};
 use std::{borrow::Cow, marker::PhantomData};
 
 #[derive(Copy, Clone, Debug)]
-pub struct Row<'io, F> {
+pub struct Row<'io> {
     pub(super) row: usize,
     advice_io: &'io CircuitIO<Advice>,
     instance_io: &'io CircuitIO<Instance>,
-    _marker: PhantomData<F>,
 }
 
-impl<'io, F> Row<'io, F> {
+impl<'io> Row<'io> {
     pub fn new(
         row: usize,
         advice_io: &'io CircuitIO<Advice>,
@@ -29,7 +28,6 @@ impl<'io, F> Row<'io, F> {
             row,
             advice_io,
             instance_io,
-            _marker: Default::default(),
         }
     }
 
@@ -73,7 +71,7 @@ impl<'io, F> Row<'io, F> {
         let as_output = self.resolve_as::<FieldId, C>(io.outputs(), col, rot)?;
 
         Ok(match (as_input, as_output) {
-            (None, None) => FuncIO::Advice(col, self.resolve_rotation(rot)?),
+            (None, None) => FuncIO::advice_abs(col, self.resolve_rotation(rot)?),
             (None, Some(r)) => r,
             (Some(r), None) => r,
             (Some(_), Some(_)) => bail!("Query is both an input and an output in main function"),
@@ -91,10 +89,13 @@ impl<'io, F> Row<'io, F> {
     }
 }
 
-impl<F: Field> QueryResolver<F> for Row<'_, F> {
+impl<F: Field> QueryResolver<F> for Row<'_> {
     fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>> {
         let row = self.resolve_rotation(query.rotation())?;
-        Ok(ResolvedQuery::IO(FuncIO::Fixed(query.column_index(), row)))
+        Ok(ResolvedQuery::IO(FuncIO::fixed_abs(
+            query.column_index(),
+            row,
+        )))
     }
 
     fn resolve_advice_query<'a>(
@@ -114,7 +115,7 @@ impl<F: Field> QueryResolver<F> for Row<'_, F> {
     }
 }
 
-impl<F> SelectorResolver for Row<'_, F> {
+impl SelectorResolver for Row<'_> {
     fn resolve_selector(&self, _selector: &Selector) -> Result<ResolvedSelector> {
         unreachable!()
     }

@@ -1,43 +1,44 @@
 use crate::{gates::AnyQuery, halo2::Value, value::steal};
 use std::{
     cmp::Ordering,
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     convert::identity,
     ops::RangeFrom,
 };
 
 use super::{fixed::FixedData, BlanketFills};
 
-#[derive(Clone, Debug)]
-pub enum Fill<F: Copy> {
-    Single(usize, Value<F>),
-    Many(RangeFrom<usize>, Value<F>),
+/// Key used to represent filled rows in the column
+#[derive(Copy, Clone, Debug)]
+pub enum Fill {
+    Single(usize),
+    Many(usize),
 }
 
-impl<F: Copy> Fill<F> {
+impl Fill {
     pub fn row(&self) -> usize {
         match self {
-            Fill::Single(row, _) => *row,
-            Fill::Many(range_from, _) => range_from.start,
+            Fill::Single(row) => *row,
+            Fill::Many(from) => *from,
         }
     }
 }
 
-impl<F: Copy> PartialEq for Fill<F> {
+impl PartialEq for Fill {
     fn eq(&self, other: &Self) -> bool {
         self.row() == other.row()
     }
 }
 
-impl<F: Copy> Eq for Fill<F> {}
+impl Eq for Fill {}
 
-impl<F: Copy> PartialOrd for Fill<F> {
+impl PartialOrd for Fill {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.row().partial_cmp(&other.row())
     }
 }
 
-impl<F: Copy> Ord for Fill<F> {
+impl Ord for Fill {
     fn cmp(&self, other: &Self) -> Ordering {
         self.row().cmp(&other.row())
     }
@@ -45,7 +46,7 @@ impl<F: Copy> Ord for Fill<F> {
 
 #[derive(Debug)]
 pub struct TableData<F: Copy> {
-    values: HashMap<usize, Vec<Fill<F>>>,
+    values: HashMap<usize, BTreeMap<Fill, Value<F>>>,
 }
 
 pub enum ColumnMatch {
@@ -58,16 +59,16 @@ impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
         let (fixed, blanket_fills) = fixed.take();
         let values = fixed
             .into_iter()
-            .map(|((col, row), v)| (col, Fill::Single(row, v)))
+            .map(|((col, row), v)| (col, (Fill::Single(row), v)))
             .chain(blanket_fills.into_iter().flat_map(|(col, blanket)| {
                 blanket
                     .into_iter()
-                    .map(move |(r, v)| (col, Fill::Many(r, v)))
+                    .map(move |(r, v)| (col, (Fill::Many(r.start), v)))
             }))
             .fold(
-                HashMap::<usize, Vec<Fill<F>>>::new(),
-                |mut map, (col, fill)| {
-                    map.entry(col).or_default().push(fill);
+                HashMap::<usize, BTreeMap<Fill, Value<F>>>::new(),
+                |mut map, (col, (fill, value))| {
+                    map.entry(col).or_default().insert(fill, value);
                     map
                 },
             );
@@ -100,63 +101,29 @@ impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
             })
     }
 
+    fn find_upper_limit(&self, tables: &[&BTreeMap<Fill, Value<F>>]) -> anyhow::Result<usize> {
+        tables
+            .iter()
+            .map(|table| {
+                table
+                    .keys()
+                    .rev()
+                    .find(|k| matches!(k, Fill::Single(_)))
+                    .or_else(|| table.keys().rev().find(|k| !matches!(k, Fill::Single(_))))
+            })
+            .collect::<Option<Vec<_>>>()
+            .and_then(|upper_limits| upper_limits.into_iter().max())
+            .map(|f| f.row())
+            .ok_or_else(|| anyhow::anyhow!("Could not get the largest row fill of table"))
+    }
+
     fn get_rows_impl(&self, cols: &[AnyQuery]) -> anyhow::Result<Vec<Vec<F>>> {
         let tables = cols
             .iter()
-            .map(|c| self.values[&c.column_index()].as_slice())
+            .map(|c| &self.values[&c.column_index()])
             .collect::<Vec<_>>();
 
-        let upper_limit = tables
-            .iter()
-            .map(|table| {
-                let (singles, blankets) = table
-                    .iter()
-                    .partition::<Vec<_>, _>(|f| matches!(f, Fill::Single(_, _)));
-                let largest_single: Option<&Fill<_>> = singles.into_iter().max();
-                let largest_blanket: Option<&Fill<_>> = blankets.into_iter().max();
-
-                match (largest_single, largest_blanket) {
-                    (None, None) => None,
-                    (Some(s), None) => Some(s),
-                    (_, Some(b)) => Some(b),
-                }
-            })
-            .try_fold(None, |acc: Option<Vec<&Fill<F>>>, f| {
-                Ok(match f {
-                    Some(f) => match acc {
-                        Some(mut accs) => {
-                            for acc in &accs {
-                                if match (acc, f) {
-                                    (Fill::Single(acc, _), Fill::Single(row, _)) => acc != row,
-
-                                    (Fill::Single(acc, _), Fill::Many(range_from, _)) => {
-                                        range_from.contains(acc)
-                                    }
-
-                                    (Fill::Many(acc, _), Fill::Single(row, _)) => acc.contains(row),
-                                    (Fill::Many(acc, _), Fill::Many(range_from, _)) => {
-                                        acc.contains(&range_from.start)
-                                            || range_from.contains(&acc.start)
-                                    }
-                                } {
-                                    anyhow::bail!("Wrong table size for columns")
-                                }
-                            }
-                            accs.push(f);
-                            Some(accs)
-                        }
-                        None => Some(vec![f]),
-                    },
-                    None => anyhow::bail!("Could not get the largest row fill of table"),
-                })
-            })
-            .and_then(|v| {
-                v.ok_or_else(|| anyhow::anyhow!("Could not get the largest row fill of table"))
-            })?
-            .into_iter()
-            .max()
-            .ok_or_else(|| anyhow::anyhow!("Could not get the largest row fill of table"))?
-            .row();
+        let upper_limit = self.find_upper_limit(&tables)?;
 
         tables
             .into_iter()
@@ -189,36 +156,28 @@ impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
 }
 
 fn fill_table<F: Default + Copy>(
-    table: &[Fill<F>],
+    table: &BTreeMap<Fill, Value<F>>,
     upper_limit: usize,
 ) -> anyhow::Result<Vec<Value<F>>> {
     let mut dense = vec![Default::default(); upper_limit + 1];
     let mut check = vec![false; upper_limit + 1];
 
-    let (singles, blankets) = table
+    let mut last = upper_limit + 1;
+    for (fill, value) in table
         .iter()
-        .partition::<Vec<_>, _>(|f| matches!(f, Fill::Single(_, _)));
-    for blanket in blankets {
-        match blanket {
-            Fill::Many(range, value) => {
-                for idx in range.start..=upper_limit {
-                    dense[idx] = *value;
-                    check[idx] = true;
-                }
-            }
-            _ => unreachable!(),
+        .rev()
+        .filter(|(f, _)| matches!(f, Fill::Many(_)))
+    {
+        for idx in fill.row()..last {
+            dense[idx] = *value;
+            check[idx] = true;
         }
+        last = fill.row();
     }
-
     // Singles last for overriding the blankets
-    for single in singles {
-        match single {
-            Fill::Single(row, value) => {
-                dense[*row] = *value;
-                check[*row] = true;
-            }
-            _ => unreachable!(),
-        }
+    for (fill, value) in table.iter().filter(|(f, _)| matches!(f, Fill::Single(_))) {
+        dense[fill.row()] = *value;
+        check[fill.row()] = true;
     }
 
     if !check.into_iter().all(identity) {

@@ -21,13 +21,21 @@ impl<C: ColumnType> CircuitIO<C> {
         }
     }
 
+    /// Creates a CircuitIO from a list of IOCells.
+    pub(crate) fn new_from_iocells(
+        inputs: impl IntoIterator<Item = IOCell<C>>,
+        outputs: impl IntoIterator<Item = IOCell<C>>,
+    ) -> Self {
+        Self {
+            inputs: Vec::from_iter(inputs),
+            outputs: Vec::from_iter(outputs),
+        }
+    }
+
     /// Creates a CircuitIO with the given columns and each row that is either an input or an
     /// output.
     pub fn new(inputs: &[(Column<C>, &[usize])], outputs: &[(Column<C>, &[usize])]) -> Self {
-        Self {
-            inputs: Self::map(inputs),
-            outputs: Self::map(outputs),
-        }
+        Self::new_from_iocells(Self::map(inputs), Self::map(outputs))
     }
 
     /// Creates a CircuitIO with only inputs.

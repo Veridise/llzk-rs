@@ -1,30 +1,49 @@
-use std::{collections::HashMap, ops::AddAssign};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::{AddAssign, Index},
+};
 
-use crate::halo2::{Assigned, Column, Field, Fixed, Value};
+use crate::{
+    halo2::{Assigned, Column, Field, Fixed, Value},
+    value::steal,
+};
 
 use super::BlanketFills;
 
 #[derive(Default, Debug, Clone)]
-pub struct FixedData<F: Copy + std::fmt::Debug> {
+pub struct FixedData<F: Copy + std::fmt::Debug + Default> {
     /// Constant values assigned to fixed columns in the region.
-    fixed: HashMap<(usize, usize), Value<F>>,
+    fixed: HashMap<usize, HashMap<usize, Value<F>>>,
+    /// Set of columns for which there is data.
+    columns: HashSet<Column<Fixed>>,
     /// Represents the circuit filling rows with a single value.
     /// Row start offsets are maintained in chronological order, so when
     /// querying a row the latest that matches is the correct value.
     blanket_fills: HashMap<usize, BlanketFills<F>>,
 }
 
-impl<F: Copy + std::fmt::Debug> FixedData<F> {
+impl<F: Copy + std::fmt::Debug + Default> FixedData<F> {
     pub fn take(
         self,
     ) -> (
         HashMap<(usize, usize), Value<F>>,
         HashMap<usize, BlanketFills<F>>,
     ) {
-        (self.fixed, self.blanket_fills)
+        (
+            self.fixed
+                .into_iter()
+                .flat_map(|(col, values)| {
+                    values
+                        .into_iter()
+                        .map(move |(row, value)| ((col, row), value))
+                })
+                .collect(),
+            self.blanket_fills,
+        )
     }
 
     pub fn blanket_fill(&mut self, column: Column<Fixed>, row: usize, value: Value<F>) {
+        self.columns.insert(column);
         self.blanket_fills
             .entry(column.index())
             .or_default()
@@ -41,8 +60,11 @@ impl<F: Copy + std::fmt::Debug> FixedData<F> {
             "Recording fixed assignment @ col = {}, row = {row}, value = {value:?}",
             fixed.index()
         );
+        self.columns.insert(fixed);
         self.fixed
-            .insert((fixed.index(), row), value.map(|vr| vr.evaluate()));
+            .entry(fixed.index())
+            .or_default()
+            .insert(row, value.map(|vr| vr.evaluate()));
     }
 
     fn resolve_from_blanket_fills(&self, column: usize, row: usize) -> Option<Value<F>>
@@ -53,23 +75,45 @@ impl<F: Copy + std::fmt::Debug> FixedData<F> {
             .get(&column)
             .and_then(|values| values.iter().rfind(|(range, _)| range.contains(&row)))
             .map(|(_, v)| *v)
-            // Default to zero if all else fails
-            .or(Some(Value::known(F::ZERO)))
     }
 
-    pub fn resolve_fixed(&self, column: usize, row: usize) -> Option<Value<F>>
+    pub fn resolve_fixed(&self, column: usize, row: usize) -> Value<F>
     where
         F: Field,
     {
         self.fixed
-            .get(&(column, row))
+            .get(&column)
+            .and_then(|cols| cols.get(&row))
             .inspect(|v| log::debug!(" For ({column}, {row}) we got value {v:?}",))
             .cloned()
             .or_else(|| self.resolve_from_blanket_fills(column, row))
+            // Default to zero if all else fails
+            .unwrap_or(Value::known(F::ZERO))
+    }
+
+    /// Returns a copy of itself by selecting only the given columns.
+    ///
+    /// If a column is not in the fixed data returns an error.
+    pub fn subset(&self, columns: HashSet<Column<Fixed>>) -> anyhow::Result<Self> {
+        let mut selected = Self::default();
+        if !self.columns.is_superset(&columns) {
+            anyhow::bail!("Fixed data does not have all the required columns.")
+        }
+        selected.columns = columns;
+        for col in &selected.columns {
+            if let Some(fill) = self.blanket_fills.get(&col.index()) {
+                selected.blanket_fills.insert(col.index(), fill.clone());
+            }
+            if let Some(values) = self.fixed.get(&col.index()) {
+                selected.fixed.insert(col.index(), values.clone());
+            }
+        }
+
+        Ok(selected)
     }
 }
 
-impl<F: Copy + std::fmt::Debug> AddAssign for FixedData<F> {
+impl<F: Copy + std::fmt::Debug + Default> AddAssign for FixedData<F> {
     fn add_assign(&mut self, rhs: Self) {
         self.fixed.extend(rhs.fixed);
         self.blanket_fills.extend(rhs.blanket_fills);

@@ -1,8 +1,11 @@
 use anyhow::Result;
 
 use crate::{
-    backend::lowering::{lowerable::Lowerable, lowerable::LoweringOutput, Lowering},
-    ir::CmpOp,
+    backend::lowering::{
+        lowerable::{LowerableExpr, LowerableStmt},
+        Lowering,
+    },
+    ir::{equivalency::EqvRelation, CmpOp},
 };
 
 pub struct Constraint<T> {
@@ -24,16 +27,14 @@ impl<T> Constraint<T> {
     }
 }
 
-impl<T: Lowerable> Lowerable for Constraint<T> {
+impl<T: LowerableExpr> LowerableStmt for Constraint<T> {
     type F = T::F;
 
-    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    fn lower<L>(self, l: &L) -> Result<()>
     where
         L: Lowering<F = Self::F> + ?Sized,
     {
-        let lhs = l.lower_value(self.lhs)?;
-        let rhs = l.lower_value(self.rhs)?;
-        l.generate_constraint(self.op, &lhs, &rhs)
+        l.checked_generate_constraint(self.op, &self.lhs.lower(l)?, &self.rhs.lower(l)?)
     }
 }
 
@@ -60,6 +61,19 @@ impl<T: std::fmt::Debug> std::fmt::Debug for Constraint<T> {
         } else {
             write!(f, "{:?} {} {:?}", self.lhs, self.op, self.rhs)
         }
+    }
+}
+
+impl<L, R, E> EqvRelation<Constraint<L>, Constraint<R>> for E
+where
+    E: EqvRelation<L, R>,
+{
+    /// Two constraint statements are equivalent if they have the same operator and each side is
+    /// equivalent to the other.
+    fn equivalent(lhs: &Constraint<L>, rhs: &Constraint<R>) -> bool {
+        lhs.op == rhs.op
+            && <E as EqvRelation<L, R>>::equivalent(&lhs.lhs, &rhs.lhs)
+            && <E as EqvRelation<L, R>>::equivalent(&lhs.rhs, &rhs.rhs)
     }
 }
 

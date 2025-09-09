@@ -1,6 +1,6 @@
 use std::{borrow::Cow, marker::PhantomData, rc::Rc};
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use llzk::dialect::r#struct::StructDefOp;
 use llzk::{
     builder::OpBuilder,
@@ -13,11 +13,11 @@ use llzk::{
 };
 use melior::ir::ValueLike;
 use melior::{
-    Context,
     ir::{
-        BlockLike as _, Location, Operation, OperationRef, RegionLike as _, Type, Value,
-        attribute::FlatSymbolRefAttribute, operation::OperationLike as _,
+        attribute::FlatSymbolRefAttribute, operation::OperationLike as _, BlockLike as _, Location,
+        Operation, OperationRef, RegionLike as _, Type, Value,
     },
+    Context,
 };
 use midnight_halo2_proofs::plonk::{AdviceQuery, Challenge, FixedQuery, InstanceQuery, Selector};
 use mlir_sys::MlirValue;
@@ -26,6 +26,7 @@ use num_bigint::BigUint;
 use crate::backend::codegen::queue::RegionStartResolver;
 use crate::backend::func::FieldId;
 use crate::backend::lowering::tag::LoweringOutput;
+use crate::backend::lowering::ExprLowering;
 use crate::halo2::{RegionIndex, RegionStart};
 use crate::ir::CmpOp;
 use crate::synthesis::regions::RegionIndexToStart;
@@ -83,7 +84,7 @@ impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
         &self,
         col: usize,
         row: usize,
-        fqn: Option<&Cow<FQN>>,
+        fqn: Option<&FQN>,
     ) -> Result<FieldDefOpRef<'c, '_>> {
         let name = format!("adv_{col}_{row}");
         Ok(self.struct_op.get_or_create_field_def(&name, || {
@@ -175,7 +176,7 @@ impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
     fn lower_resolved_query(
         &self,
         query: ResolvedQuery<F>,
-        fqn: Option<&Cow<FQN>>,
+        fqn: Option<&FQN>,
     ) -> Result<Value<'c, '_>> {
         match query {
             ResolvedQuery::Lit(f) => self.lower_constant_impl(f),
@@ -184,12 +185,13 @@ impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
                 let field = self.get_output(field)?;
                 self.read_field(field.field_name(), field.field_type())
             }
-            ResolvedQuery::IO(FuncIO::Advice(col, row)) => {
-                let field = self.get_temp_decl(col, row, fqn)?;
+            ResolvedQuery::IO(FuncIO::Advice(adv)) => {
+                let field = self.get_temp_decl(adv.col(), adv.row(), fqn)?;
                 self.read_field(field.field_name(), field.field_type())
             }
-            ResolvedQuery::IO(FuncIO::Fixed(_, _)) => todo!(),
+            ResolvedQuery::IO(FuncIO::Fixed(_)) => todo!(),
             ResolvedQuery::IO(FuncIO::TableLookup(_, _, _, _, _)) => todo!(),
+            ResolvedQuery::IO(FuncIO::CallOutput(_, _)) => todo!(),
         }
     }
 }
@@ -228,10 +230,6 @@ macro_rules! wrap {
 impl LoweringOutput for ValueWrap {}
 
 impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
-    type CellOutput = ValueWrap;
-
-    type F = F;
-
     fn generate_constraint(
         &self,
         op: CmpOp,
@@ -291,6 +289,21 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
         // 4. Read each output field from the struct into a ssa value
         unimplemented!()
     }
+
+    fn generate_assume_deterministic(&self, _func_io: FuncIO) -> Result<()> {
+        // If the final target is picus generate a 'picus.assume_deterministic' op. Otherwise do nothing.
+        todo!()
+    }
+
+    fn generate_assert(&self, _expr: &Self::CellOutput) -> Result<()> {
+        todo!()
+    }
+}
+
+impl<'c, F: PrimeField> ExprLowering for LlzkStructLowering<'c, F> {
+    type CellOutput = ValueWrap;
+
+    type F = F;
 
     fn lower_sum(
         &self,
@@ -358,7 +371,7 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
         resolver: &dyn QueryResolver<Self::F>,
     ) -> Result<Self::CellOutput> {
         let (query, fqn) = resolver.resolve_advice_query(query)?;
-        wrap! {self.lower_resolved_query(query, fqn.as_ref()) }
+        wrap! {self.lower_resolved_query(query, fqn.as_ref().map(|v| &**v)) }
     }
 
     fn lower_instance_query(
@@ -379,11 +392,6 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
 
     fn lower_constant(&self, f: Self::F) -> Result<Self::CellOutput> {
         wrap! {self.lower_constant_impl(f)}
-    }
-
-    fn generate_assume_deterministic(&self, _func_io: FuncIO) -> Result<()> {
-        // If the final target is picus generate a 'picus.assume_deterministic' op. Otherwise do nothing.
-        todo!()
     }
 
     fn lower_eq(
@@ -407,10 +415,6 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
         _lhs: &Self::CellOutput,
         _rhs: &Self::CellOutput,
     ) -> Result<Self::CellOutput> {
-        todo!()
-    }
-
-    fn generate_assert(&self, _expr: &Self::CellOutput) -> Result<()> {
         todo!()
     }
 

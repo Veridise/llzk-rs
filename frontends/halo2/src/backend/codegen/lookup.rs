@@ -9,11 +9,15 @@ use crate::{
         callbacks::{LazyLookupTableGenerator, LookupCallbacks},
         Lookup,
     },
-    synthesis::{regions::RegionRowLike, CircuitSynthesis},
+    synthesis::{
+        regions::{RegionRow, RegionRowLike},
+        CircuitSynthesis,
+    },
+    utils,
 };
 use anyhow::{anyhow, Result};
 
-use super::Codegen;
+use super::{prepend_comment, Codegen};
 
 //pub mod codegen;
 
@@ -92,30 +96,23 @@ where
     Ok(())
 }
 
-fn comment<'r, T, F: Field>(lookup: Lookup<'r, F>, r: T) -> IRStmt<ScopedExpression<'r, 'r, F>>
-where
-    T: ResolversProvider<F> + RegionRowLike + Copy + 'r,
-{
-    IRStmt::comment(format!("{lookup} @ {}", r.header()))
-}
-
 pub fn codegen_lookup_invocations<'s, F: Field>(
     syn: &'s CircuitSynthesis<F>,
-    lookups: &'s dyn LookupCallbacks<F>,
+    region_rows: &'s [RegionRow<'s, 's>],
+    lookup_cb: &'s dyn LookupCallbacks<F>,
 ) -> Result<Vec<IRStmt<ScopedExpression<'s, 's, F>>>> {
-    syn.lookups_per_region_row()
-        .map(|(r, l)| {
-            let g = LazyLookupTableGenerator::new(|| {
-                syn.tables_for_lookup(&l)
+    utils::product(syn.lookups(), region_rows)
+        .map(|(lookup, rr)| {
+            let table = LazyLookupTableGenerator::new(|| {
+                syn.tables_for_lookup(&lookup)
                     .map(|table| table.into_boxed_slice())
             });
-            lookups.on_lookup(l, &g).map(|stmts| {
+            lookup_cb.on_lookup(lookup, &table).map(|stmts| {
+                let comment = IRStmt::comment(format!("{lookup} @ {}", rr.header()));
                 let stmts = stmts
                     .into_iter()
-                    .map(|stmt| stmt.map(&|e| ScopedExpression::from_cow(e, r)));
-                chain_lowerable_stmts!([comment(l, r)], stmts)
-                    .collect::<IRStmt<_>>()
-                    .map(&|t| t.unwrap())
+                    .map(|stmt| stmt.map(&|e| ScopedExpression::from_cow(e, *rr)));
+                prepend_comment(stmts.collect(), || comment)
             })
         })
         .collect()

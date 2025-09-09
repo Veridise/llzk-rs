@@ -6,7 +6,6 @@ use crate::{
     ir::{stmt::IRStmt, CmpOp},
 };
 use anyhow::{bail, Result};
-use lowerable::{Lowerable, LoweringOutput};
 
 use super::{func::FuncIO, resolvers::ResolversProvider, QueryResolver, SelectorResolver};
 
@@ -16,24 +15,7 @@ pub mod tag {
     pub trait LoweringOutput {}
 }
 
-pub trait Lowering {
-    type CellOutput: tag::LoweringOutput;
-    type F: Field;
-
-    fn lower_value(&self, l: impl Lowerable<F = Self::F>) -> Result<Self::CellOutput> {
-        l.lower(self).and_then(|r| match r.into() {
-            LoweringOutput::Value(e) => Ok(e),
-            LoweringOutput::Stmt => anyhow::bail!("Expected value but got statement"),
-        })
-    }
-
-    fn lower_stmt(&self, l: impl Lowerable<F = Self::F>) -> Result<()> {
-        l.lower(self).and_then(|r| match r.into() {
-            LoweringOutput::Value(_) => anyhow::bail!("Expected statement but got value"),
-            LoweringOutput::Stmt => Ok(()),
-        })
-    }
-
+pub trait Lowering: ExprLowering {
     fn generate_constraint(
         &self,
         op: CmpOp,
@@ -68,6 +50,13 @@ pub trait Lowering {
         selectors: &[Self::CellOutput],
         outputs: &[FuncIO],
     ) -> Result<()>;
+
+    fn generate_assert(&self, expr: &Self::CellOutput) -> Result<()>;
+}
+
+pub trait ExprLowering {
+    type CellOutput: tag::LoweringOutput;
+    type F: Field;
 
     fn lower_sum(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput)
         -> Result<Self::CellOutput>;
@@ -224,8 +213,6 @@ pub trait Lowering {
         -> Result<Self::CellOutput>;
     fn lower_or(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput>;
     fn lower_not(&self, value: &Self::CellOutput) -> Result<Self::CellOutput>;
-
-    fn generate_assert(&self, expr: &Self::CellOutput) -> Result<()>;
 
     fn lower_function_input(&self, i: usize) -> FuncIO;
     fn lower_function_output(&self, o: usize) -> FuncIO;

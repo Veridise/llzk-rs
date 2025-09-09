@@ -1,8 +1,9 @@
-use super::{expr::IRBexpr, CmpOp};
+use super::{equivalency::EqvRelation, expr::IRBexpr, CmpOp};
 use crate::backend::{
     func::FuncIO,
     lowering::{
-        lowerable::EitherLowerable, lowerable::Lowerable, lowerable::LoweringOutput, Lowering,
+        lowerable::{EitherLowerable, LowerableExpr, LowerableStmt},
+        Lowering,
     },
 };
 use anyhow::Result;
@@ -141,6 +142,38 @@ impl<T> IRStmt<T> {
     }
 }
 
+/// IRStmt transilitively inherits any equivalence relation.
+impl<L, R, E> EqvRelation<IRStmt<L>, IRStmt<R>> for E
+where
+    E: EqvRelation<L, R> + EqvRelation<FuncIO, FuncIO>,
+{
+    /// Two statements are equivalent if they are structurally equal and their inner entities
+    /// are equivalent.
+    fn equivalent(lhs: &IRStmt<L>, rhs: &IRStmt<R>) -> bool {
+        std::iter::zip(lhs.iter(), rhs.iter()).all(|(lhs, rhs)| match (lhs, rhs) {
+            (IRStmt::ConstraintCall(lhs), IRStmt::ConstraintCall(rhs)) => {
+                <E as EqvRelation<Call<L>, Call<R>>>::equivalent(lhs, rhs)
+            }
+            (IRStmt::Constraint(lhs), IRStmt::Constraint(rhs)) => {
+                <E as EqvRelation<Constraint<L>, Constraint<R>>>::equivalent(lhs, rhs)
+            }
+            (IRStmt::Comment(lhs), IRStmt::Comment(rhs)) => {
+                <E as EqvRelation<Comment<L>, Comment<R>>>::equivalent(lhs, rhs)
+            }
+            (IRStmt::AssumeDeterministic(lhs), IRStmt::AssumeDeterministic(rhs)) => {
+                <E as EqvRelation<AssumeDeterministic<L>, AssumeDeterministic<R>>>::equivalent(
+                    lhs, rhs,
+                )
+            }
+            (IRStmt::Assert(lhs), IRStmt::Assert(rhs)) => {
+                <E as EqvRelation<Assert<L>, Assert<R>>>::equivalent(lhs, rhs)
+            }
+            (IRStmt::Seq(_), _) | (_, IRStmt::Seq(_)) => unreachable!(),
+            _ => false,
+        })
+    }
+}
+
 struct IRStmtRefIter<'a, T> {
     stack: Vec<&'a IRStmt<T>>,
 }
@@ -248,20 +281,20 @@ impl_from!(AssumeDeterministic);
 impl_from!(Assert);
 impl_from!(Seq);
 
-impl<T: Lowerable> Lowerable for IRStmt<T> {
+impl<T: LowerableExpr> LowerableStmt for IRStmt<T> {
     type F = T::F;
 
-    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    fn lower<L>(self, l: &L) -> Result<()>
     where
         L: Lowering<F = Self::F> + ?Sized,
     {
         match self {
-            Self::ConstraintCall(call) => call.lower(l).map(Into::into),
-            Self::Constraint(constraint) => constraint.lower(l).map(Into::into),
-            Self::Comment(comment) => comment.lower(l).map(Into::into),
-            Self::AssumeDeterministic(ad) => ad.lower(l).map(Into::into),
-            Self::Assert(assert) => assert.lower(l).map(Into::into),
-            Self::Seq(seq) => seq.lower(l).map(Into::into),
+            Self::ConstraintCall(call) => call.lower(l),
+            Self::Constraint(constraint) => constraint.lower(l),
+            Self::Comment(comment) => comment.lower(l),
+            Self::AssumeDeterministic(ad) => ad.lower(l),
+            Self::Assert(assert) => assert.lower(l),
+            Self::Seq(seq) => seq.lower(l),
         }
     }
 }

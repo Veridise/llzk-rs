@@ -6,7 +6,7 @@ use std::{
 use crate::{
     backend::codegen::lookup::query_from_table_expr,
     gates::{compute_gate_arity, AnyQuery},
-    halo2::{Expression, Field, FixedQuery, Selector},
+    halo2::{ConstraintSystem, Expression, Field, FixedQuery, Selector},
     synthesis::CircuitSynthesis,
 };
 use anyhow::{bail, Result};
@@ -65,9 +65,8 @@ fn compute_table_cells<'a, F: Field>(
 }
 
 impl<'a, F: Field> Lookup<'a, F> {
-    pub fn load(syn: &'a CircuitSynthesis<F>) -> Vec<Self> {
-        syn.cs()
-            .lookups()
+    pub fn load(cs: &'a ConstraintSystem<F>) -> Vec<Self> {
+        cs.lookups()
             .iter()
             .enumerate()
             .map(|(idx, a)| {

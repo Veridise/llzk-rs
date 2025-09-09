@@ -8,7 +8,7 @@ use crate::{
     backend::{
         codegen::queue::RegionStartResolver,
         func::{ArgNo, FieldId, FuncIO},
-        lowering::{tag::LoweringOutput, Lowering},
+        lowering::{tag::LoweringOutput, ExprLowering, Lowering},
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     },
     halo2::{
@@ -65,7 +65,7 @@ impl<L: LoweringField> PicusModuleLowering<L> {
         fqn: Option<Cow<FQN>>,
     ) -> Result<PicusExpr> {
         Ok(match query {
-            ResolvedQuery::Lit(f) => Lowering::lower_constant(self, f)?,
+            ResolvedQuery::Lit(f) => self.lower_constant(f)?,
             ResolvedQuery::IO(func_io) => self.lower_func_io(func_io, fqn),
         })
     }
@@ -150,10 +150,6 @@ impl<L: LiftLike> LiftLowering for PicusModuleLowering<L> {
 impl LoweringOutput for PicusExpr {}
 
 impl<L: LoweringField> Lowering for PicusModuleLowering<L> {
-    type CellOutput = PicusExpr;
-
-    type F = L;
-
     fn generate_constraint(
         &self,
         op: CmpOp,
@@ -199,6 +195,24 @@ impl<L: LoweringField> Lowering for PicusModuleLowering<L> {
         Ok(())
     }
 
+    fn generate_assume_deterministic(&self, func_io: FuncIO) -> Result<()> {
+        let stmt = stmt::assume_deterministic(self.lower_func_io(func_io, None))?;
+        self.module.borrow_mut().add_stmt(stmt);
+        Ok(())
+    }
+
+    fn generate_assert(&self, expr: &Self::CellOutput) -> Result<()> {
+        let stmt = stmt::constrain(expr.clone());
+        self.module.borrow_mut().add_stmt(stmt);
+        Ok(())
+    }
+}
+
+impl<L: LoweringField> ExprLowering for PicusModuleLowering<L> {
+    type CellOutput = PicusExpr;
+
+    type F = L;
+
     fn lower_sum(
         &self,
         lhs: &Self::CellOutput,
@@ -237,7 +251,7 @@ impl<L: LoweringField> Lowering for PicusModuleLowering<L> {
         resolver: &dyn SelectorResolver,
     ) -> Result<Self::CellOutput> {
         match resolver.resolve_selector(sel)? {
-            ResolvedSelector::Const(value) => Lowering::lower_constant(self, value.to_f()),
+            ResolvedSelector::Const(value) => self.lower_constant(value.to_f()),
             ResolvedSelector::Arg(arg_no) => Ok(self.lower_func_io(arg_no.into(), None)),
         }
     }
@@ -285,12 +299,6 @@ impl<L: LoweringField> Lowering for PicusModuleLowering<L> {
         Ok(expr)
     }
 
-    fn generate_assume_deterministic(&self, func_io: FuncIO) -> Result<()> {
-        let stmt = stmt::assume_deterministic(self.lower_func_io(func_io, None))?;
-        self.module.borrow_mut().add_stmt(stmt);
-        Ok(())
-    }
-
     fn lower_eq(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
         Ok(expr::eq(lhs, rhs))
     }
@@ -305,12 +313,6 @@ impl<L: LoweringField> Lowering for PicusModuleLowering<L> {
 
     fn lower_or(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
         Ok(expr::or(lhs, rhs))
-    }
-
-    fn generate_assert(&self, expr: &Self::CellOutput) -> Result<()> {
-        let stmt = stmt::constrain(expr.clone());
-        self.module.borrow_mut().add_stmt(stmt);
-        Ok(())
     }
 
     fn lower_function_input(&self, i: usize) -> FuncIO {

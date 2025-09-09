@@ -5,7 +5,7 @@ use anyhow::{anyhow, Result};
 use crate::{
     backend::{
         func::FuncIO,
-        lowering::Lowering,
+        lowering::{lowerable::LowerableStmt as _, Lowering},
         resolvers::{
             QueryResolver, ResolvedQuery, ResolvedSelector, ResolversProvider, SelectorResolver,
         },
@@ -81,7 +81,7 @@ where
                 query_resolver,
                 selector_resolver,
             )));
-            scope.lower_stmt(stmt)?;
+            stmt.lower(scope)?;
         }
 
         comment::end_comment(scope, region)?;
@@ -143,7 +143,7 @@ impl<L: Lowering + RegionStartResolver> QueryResolver<L::F> for OnlyAdviceQuerie
     ) -> Result<(ResolvedQuery<L::F>, Option<Cow<'_, FQN>>)> {
         let offset: usize = query.rotation().0.try_into()?;
         Ok((
-            ResolvedQuery::IO(FuncIO::Advice(query.column_index(), self.start + offset)),
+            ResolvedQuery::IO(FuncIO::advice_rel(query.column_index(), self.start, offset)),
             None,
         ))
     }
@@ -162,8 +162,8 @@ mod comment {
 
     use crate::{
         backend::lowering::{
-            lowerable::{Lowerable, LoweringOutput},
-            Lowering,
+            lowerable::{LowerableExpr, LowerableStmt},
+            ExprLowering, Lowering,
         },
         halo2::{Field, RegionIndex},
         ir::stmt::IRStmt,
@@ -173,16 +173,14 @@ mod comment {
 
     struct Dummy<F>(PhantomData<F>);
 
-    impl<F: Field> Lowerable for Dummy<F> {
+    impl<F: Field> LowerableExpr for Dummy<F> {
         type F = F;
 
-        fn lower<L>(self, _: &L) -> Result<impl Into<LoweringOutput<L>>>
+        fn lower<L>(self, _: &L) -> Result<L::CellOutput>
         where
-            L: Lowering<F = Self::F> + ?Sized,
+            L: ExprLowering<F = Self::F> + ?Sized,
         {
             unreachable!();
-            #[allow(unreachable_code)]
-            Ok(())
         }
     }
 
@@ -192,11 +190,8 @@ mod comment {
             where
                 L: Lowering + RegionStartResolver,
             {
-                scope.lower_stmt(IRStmt::<Dummy<L::F>>::comment(format!(
-                    $fmt,
-                    *region,
-                    *scope.find(region)?
-                )))
+                IRStmt::<Dummy<L::F>>::comment(format!($fmt, *region, *scope.find(region)?))
+                    .lower(scope)
             }
         };
     }

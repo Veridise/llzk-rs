@@ -7,6 +7,7 @@ use lookups::callbacks::LookupCallbacks;
 
 mod arena;
 pub(crate) mod backend;
+pub mod driver;
 mod error;
 mod expressions;
 mod gates;
@@ -17,6 +18,7 @@ pub mod lookups;
 mod synthesis;
 #[cfg(test)]
 mod test;
+mod utils;
 mod value;
 
 use crate::halo2::{Advice, Circuit, Field, Instance};

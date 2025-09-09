@@ -1,5 +1,4 @@
-mod constraint;
-pub mod regions;
+//! Defines types for handling the result of synthesizing a circuit.
 
 use std::{
     collections::{HashMap, HashSet},
@@ -7,68 +6,45 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use constraint::{EqConstraint, Graph};
-use regions::{RegionData, RegionIndexToStart, RegionRow, Regions, TableData, FQN};
+use constraint::{EqConstraint, EqConstraintArg, EqConstraintGraph};
+use groups::{Group, GroupBuilder, GroupCell, Groups};
+use regions::{
+    data::RegionDataImpl, FixedData, RegionData, RegionIndexToStart, RegionRow, Regions, TableData,
+    FQN,
+};
 
 use crate::{
     gates::{find_gate_selector_set, AnyQuery, GateScope},
-    halo2::{Field, *},
-    io::{AdviceIOValidator, InstanceIOValidator},
+    halo2::{
+        groups::{GroupKey, RegionsGroup},
+        Field, PrimeField, *,
+    },
+    io::{AdviceIOValidator, IOCell, InstanceIOValidator},
     lookups::{Lookup, LookupKind, LookupTableRow},
     value::steal,
     CircuitCallbacks, CircuitIO,
 };
 
-pub struct CircuitSynthesis<F: Field> {
-    cs: ConstraintSystem<F>,
-    regions: Regions<F>,
-    #[cfg(feature = "phase-tracking")]
-    current_phase: sealed::Phase,
-
-    eq_constraints: Graph<EqConstraint>,
-    materialized_fixed_cells: Vec<(usize, usize)>,
-    out_of_region_fixed_cells: HashMap<(Column<Fixed>, usize), Value<F>>,
-    advice_io: CircuitIO<Advice>,
-    instance_io: CircuitIO<Instance>,
-}
+pub mod constraint;
+pub mod groups;
+pub mod regions;
 
 pub type AnyCell = (Column<Any>, usize);
 
+/// Result of synthesizing a circuit.
+///
+/// TODO: Cleanup this struct
+pub struct CircuitSynthesis<F: Field> {
+    cs: ConstraintSystem<F>,
+    eq_constraints: EqConstraintGraph<F>,
+    fixed: FixedData<F>,
+    tables: Vec<TableData<F>>,
+    advice_names: HashMap<(usize, usize), FQN>,
+    groups: Groups,
+}
+
 impl<F: Field> CircuitSynthesis<F> {
-    fn init<C: Circuit<F>, CB: CircuitCallbacks<F, C>>() -> (Self, C::Config) {
-        let mut cs = ConstraintSystem::default();
-        let config = C::configure(&mut cs);
-
-        (
-            Self {
-                cs,
-                regions: Default::default(),
-                #[cfg(feature = "phase-tracking")]
-                current_phase: FirstPhase.to_sealed(),
-                advice_io: CB::advice_io(&config),
-                instance_io: CB::instance_io(&config),
-                eq_constraints: Default::default(),
-                materialized_fixed_cells: Default::default(),
-                out_of_region_fixed_cells: Default::default(),
-            },
-            config,
-        )
-    }
-
-    pub fn new<C: Circuit<F>, CB: CircuitCallbacks<F, C>>(circuit: &C) -> Result<Self> {
-        let (mut syn, config) = Self::init::<C, CB>();
-
-        log::debug!("Starting synthesis");
-        syn.synthesize(circuit, config)?;
-
-        log::debug!("Validating io hints");
-        syn.advice_io.validate(&AdviceIOValidator)?;
-        syn.instance_io
-            .validate(&InstanceIOValidator::new(&syn.cs))?;
-        log::debug!("Synthesis completed successfuly");
-        Ok(syn)
-    }
-
+    /// Returns the list of gates in the constraint system.
     pub fn gates(&self) -> &[Gate<F>] {
         self.cs.gates()
     }
@@ -77,19 +53,8 @@ impl<F: Field> CircuitSynthesis<F> {
         &self.cs
     }
 
-    pub fn regions<'a>(&'a self) -> Vec<RegionData<'a, F>> {
-        self.regions.regions()
-    }
-
-    pub fn region_rows<'a>(&'a self) -> impl Iterator<Item = RegionRow<'a, 'a, F>> + 'a {
-        self.regions().into_iter().flat_map(move |r| {
-            r.rows()
-                .map(move |row| RegionRow::new(r, row, self.advice_io(), self.instance_io()))
-        })
-    }
-
     pub fn lookups<'a>(&'a self) -> impl Iterator<Item = Lookup<'a, F>> + 'a {
-        Lookup::load(self).into_iter()
+        Lookup::load(&self.cs).into_iter()
     }
 
     pub fn lookup_kinds<'a>(&'a self) -> Result<HashMap<LookupKind, Vec<Lookup<'a, F>>>> {
@@ -108,198 +73,295 @@ impl<F: Field> CircuitSynthesis<F> {
             .try_fold(HashMap::default(), fold)
     }
 
-    pub fn lookups_per_region_row<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = (RegionRow<'a, 'a, F>, Lookup<'a, F>)> + 'a {
-        self.region_rows()
-            .flat_map(|r| self.lookups().map(move |l| (r, l)))
-    }
-
-    pub fn tables(&self) -> &[TableData<F>] {
-        self.regions.tables()
-    }
-
     fn find_table(&self, q: &[AnyQuery]) -> Result<Vec<Vec<F>>> {
-        self.tables()
+        self.tables
             .iter()
             .find_map(|table| table.get_rows(&q))
             .ok_or_else(|| anyhow!("Could not get values from table"))
             .and_then(identity)
     }
 
-    fn tables_for_queries(&self, q: &[AnyQuery]) -> Result<Vec<LookupTableRow<F>>> {
-        // For each table region look if they have the columns we are looking for and
-        // collect all the fixed values
-        let columns = q.iter().map(|q| q.column_index()).collect::<Vec<_>>();
-        let table = self.find_table(q)?;
-        if q.len() != table.len() {
-            anyhow::bail!(
-                "Inconsistency check failed: Lookup has {} columns but table yielded {}",
-                q.len(),
-                table.len()
-            )
+    /// Returns the list of tables the lookup refers to.
+    pub fn tables_for_lookup(&self, l: &Lookup<F>) -> Result<Vec<LookupTableRow<F>>> {
+        fn transpose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
+            assert!(!v.is_empty());
+            let len = v[0].len();
+            let mut iters: Vec<_> = v.into_iter().map(|n| n.into_iter()).collect();
+            (0..len)
+                .map(|_| {
+                    iters
+                        .iter_mut()
+                        .map(|n| n.next().unwrap())
+                        .collect::<Vec<T>>()
+                })
+                .collect()
         }
 
-        Ok(transpose(table)
-            .into_iter()
-            .map(|row| LookupTableRow::new(&columns, row))
-            .collect())
+        l.table_queries().and_then(|q| {
+            // For each table region look if they have the columns we are looking for and
+            // collect all the fixed values
+            let columns = q.iter().map(|q| q.column_index()).collect::<Vec<_>>();
+            let table = self.find_table(&q)?;
+            if q.len() != table.len() {
+                anyhow::bail!(
+                    "Inconsistency check failed: Lookup has {} columns but table yielded {}",
+                    q.len(),
+                    table.len()
+                )
+            }
+
+            Ok(transpose(table)
+                .into_iter()
+                .map(|row| LookupTableRow::new(&columns, row))
+                .collect())
+        })
     }
 
-    pub fn tables_for_lookup(&self, l: &Lookup<F>) -> Result<Vec<LookupTableRow<F>>> {
-        l.table_queries().and_then(|q| self.tables_for_queries(&q))
+    pub fn advice_io(&self) -> &CircuitIO<Advice> {
+        self.groups
+            .top_level()
+            .expect("top level is missing")
+            .advice_io()
     }
 
+    pub fn instance_io(&self) -> &CircuitIO<Instance> {
+        self.groups
+            .top_level()
+            .expect("top level is missing")
+            .instance_io()
+    }
+
+    pub fn groups(&self) -> &[Group] {
+        self.groups.as_ref()
+    }
+
+    pub fn constraints(&self) -> &EqConstraintGraph<F> {
+        &self.eq_constraints
+    }
+
+    /// Returns a mapping from the region index to region start
     pub fn regions_by_index(&self) -> RegionIndexToStart {
-        self.regions
-            .regions()
+        self.groups
+            .as_ref()
+            .iter()
+            .flat_map(|g| g.regions())
             .into_iter()
             .enumerate()
             .map(|(idx, region)| (idx.into(), region.rows().start.into()))
             .collect()
     }
 
-    pub fn advice_io(&self) -> &CircuitIO<Advice> {
-        &self.advice_io
+    /// Returns the top level group in the circuit.
+    pub fn top_level_group(&self) -> Option<&Group> {
+        self.groups.top_level()
     }
 
-    pub fn instance_io(&self) -> &CircuitIO<Instance> {
-        &self.instance_io
-    }
+    /// Returns a sorted vector with copy constraints.
+    //pub fn sorted_constraints(&self) -> Vec<EqConstraint> {
+    //    let mut constraints = self.eq_constraints.iter().copied().collect::<Vec<_>>();
+    //    constraints.sort();
+    //    constraints
+    //}
 
-    pub fn constraints(&self) -> impl Iterator<Item = (AnyCell, AnyCell)> {
-        self.eq_constraints.into_iter().copied()
-    }
-
-    pub fn sorted_constraints(&self) -> Vec<(AnyCell, AnyCell)> {
-        let mut constraints = self.eq_constraints.iter().copied().collect::<Vec<_>>();
-        constraints.sort();
-        constraints
-    }
-
-    /// Returns an iterator with equality constraints
-    pub fn fixed_constraints(&self) -> impl Iterator<Item = Result<(Column<Fixed>, usize, F)>> {
-        let regions = self.regions();
-
-        self.fixed_cells_in_eq_constraints()
-            .flat_map(move |(col, row)| {
-                let values = regions
-                    .iter()
-                    .enumerate()
-                    .inspect(|(idx, r)| {
-                        log::debug!(
-                            "Cell ({}, {row}) | Looking in region {} '{}' ({}, {})",
-                            col.index(),
-                            idx,
-                            r.name(),
-                            r.rows().start,
-                            r.rows().end
-                        )
-                    })
-                    .filter_map(|(_, r)| {
-                        // Try find a value assigned to the fixed column in this region
-                        r.find_fixed_col_assignment(col, row)
-                    })
-                    .inspect(|v| log::debug!("Cell ({}, {row}) | Found {v:?}", col.index()))
-                    .collect::<Vec<_>>();
-                // The value can be missing but we don't support more than one assignment.
-                assert!(values.len() <= 1);
-                values.first().copied().map(|v| {
-                    let f =
-                        steal(&v).ok_or_else(|| anyhow!("Unknown value assigned to fixed cell"))?;
-                    Ok((col, row, f))
-                })
-            })
-    }
-
-    fn fixed_cells_in_eq_constraints(&self) -> impl Iterator<Item = (Column<Fixed>, usize)> {
-        self.eq_constraints
-            .iter()
-            .flat_map(|(l, r)| [l, r])
-            .inspect(|c| log::debug!("Cell used in eq constraint: {c:?}"))
-            .filter_map(|(c, r)| {
-                let fc: Result<Column<Fixed>, _> = (*c).try_into();
-                fc.ok().map(|fc| (fc, *r))
-            })
-            .inspect(|c| log::debug!("Fixed cell used in eq constraint: {c:?}"))
-            .collect::<HashSet<_>>()
-            .into_iter()
-    }
-
-    pub fn regions_ref(&self) -> &Regions<F> {
-        &self.regions
-    }
-
-    pub fn region_gates<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = (&'a Gate<F>, RegionData<'a, F>)> + 'a {
-        self.regions()
-            .into_iter()
-            .flat_map(|r| self.gates().iter().map(move |g| (g, r)))
-    }
-
-    pub fn gate_scopes<'a>(&'a self) -> impl Iterator<Item = GateScope<'a, F>> + 'a {
-        self.region_gates().map(|(g, r): (_, RegionData<'a, F>)| {
-            let rows = r.rows();
-
-            GateScope::new(
-                g,
-                r,
-                (rows.start, rows.end),
-                self.advice_io(),
-                self.instance_io(),
-            )
-        })
-    }
-
-    pub fn regionrow_gates<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = (&'a Gate<F>, RegionRow<'a, 'a, F>)> + 'a {
-        self.regions()
-            .into_iter()
-            .map(|r| r.rows())
-            .reduce(|lhs, rhs| std::cmp::min(lhs.start, rhs.start)..std::cmp::max(lhs.end, rhs.end))
-            .unwrap_or(0..0)
-            .flat_map(move |row| {
-                self.regions().into_iter().filter_map(move |region| {
-                    if region.rows().contains(&row) {
-                        Some(RegionRow::new(
-                            region,
-                            row,
-                            self.advice_io(),
-                            self.instance_io(),
-                        ))
-                    } else {
-                        None
-                    }
-                })
-            })
-            .flat_map(|r| {
-                self.gates().iter().filter_map(move |gate| {
-                    let selectors = find_gate_selector_set(gate.polynomials());
-                    if r.gate_is_disabled(&selectors) {
-                        return None;
-                    }
-                    Some((gate, r))
-                })
-            })
-    }
+    ///// Returns an iterator with equality constraints
+    //pub fn fixed_constraints(&self) -> impl Iterator<Item = Result<(Column<Fixed>, usize, F)>> {
+    //    let regions = self.regions();
+    //
+    //    self.fixed_cells_in_eq_constraints()
+    //        .flat_map(move |(col, row)| {
+    //            let values = regions
+    //                .iter()
+    //                .enumerate()
+    //                .inspect(|(idx, r)| {
+    //                    log::debug!(
+    //                        "Cell ({}, {row}) | Looking in region {} '{}' ({}, {})",
+    //                        col.index(),
+    //                        idx,
+    //                        r.name(),
+    //                        r.rows().start,
+    //                        r.rows().end
+    //                    )
+    //                })
+    //                .filter_map(|(_, r)| {
+    //                    // Try find a value assigned to the fixed column in this region
+    //                    r.find_fixed_col_assignment(col, row)
+    //                })
+    //                .inspect(|v| log::debug!("Cell ({}, {row}) | Found {v:?}", col.index()))
+    //                .collect::<Vec<_>>();
+    //            // The value can be missing but we don't support more than one assignment.
+    //            assert!(values.len() <= 1);
+    //            values.first().copied().map(|v| {
+    //                let f =
+    //                    steal(&v).ok_or_else(|| anyhow!("Unknown value assigned to fixed cell"))?;
+    //                Ok((col, row, f))
+    //            })
+    //        })
+    //}
+    //
+    //fn fixed_cells_in_eq_constraints(&self) -> impl Iterator<Item = (Column<Fixed>, usize)> {
+    //    self.eq_constraints
+    //        .iter()
+    //        .flat_map(|(l, r)| [l, r])
+    //        .inspect(|c| log::debug!("Cell used in eq constraint: {c:?}"))
+    //        .filter_map(|(c, r)| {
+    //            let fc: Result<Column<Fixed>, _> = (*c).try_into();
+    //            fc.ok().map(|fc| (fc, *r))
+    //        })
+    //        .inspect(|c| log::debug!("Fixed cell used in eq constraint: {c:?}"))
+    //        .collect::<HashSet<_>>()
+    //        .into_iter()
+    //}
 
     pub fn seen_advice_cells(&self) -> impl Iterator<Item = (&(usize, usize), &FQN)> {
-        self.regions.seen_advice_cells()
-    }
-
-    fn maybe_materialize_fixed(&mut self, col: Column<Any>, row: usize) {
-        if *col.column_type() == Any::Fixed {
-            self.materialized_fixed_cells.push((col.index(), row));
-        }
+        self.advice_names.iter()
     }
 }
 
+/// Collects the information from the synthesis.
+#[derive(Default)]
+pub(crate) struct Synthesizer<F: Field> {
+    cs: ConstraintSystem<F>,
+}
+
+impl<F: Field> Synthesizer<F> {
+    pub fn new() -> Self {
+        Self {
+            cs: Default::default(),
+        }
+    }
+
+    pub fn cs(&self) -> &ConstraintSystem<F> {
+        &self.cs
+    }
+
+    pub fn cs_mut(&mut self) -> &mut ConstraintSystem<F> {
+        &mut self.cs
+    }
+
+    /// Synthetizes the given circuit and returns the collected information.
+    ///
+    /// This method consumes the synthetizer.
+    pub fn synthesize<C: Circuit<F>>(
+        self,
+        circuit: &C,
+        config: C::Config,
+        advice_io: CircuitIO<Advice>,
+        instance_io: CircuitIO<Instance>,
+    ) -> Result<CircuitSynthesis<F>> {
+        let mut eq_constraints = Default::default();
+        // A list of set of columns. Represents the regions that need to be converted into tables.
+        let mut tables: Vec<HashSet<Column<Fixed>>> = vec![];
+        let mut fixed = FixedData::default();
+        let mut advice_names = HashMap::<(usize, usize), FQN>::new();
+        let mut region_indices = (0..).map(RegionIndex::from);
+        let groups = {
+            let mut inner = SynthesizerInner {
+                eq_constraints: &mut eq_constraints,
+                tables: &mut tables,
+                fixed: &mut fixed,
+                advice_names: &mut advice_names,
+                next_index: &mut region_indices,
+                groups: GroupBuilder::new(),
+                #[cfg(feature = "phase-tracking")]
+                current_phase: FirstPhase.to_sealed(),
+            };
+            add_root_io(&mut inner.groups, &advice_io);
+            add_root_io(&mut inner.groups, &instance_io);
+
+            inner.synthesize_inner(circuit, config, &self.cs)?;
+
+            inner.groups.into_root().flatten()
+        };
+
+        let fixed = fixed;
+        add_fixed_to_const_constraints(&mut eq_constraints, &fixed)?;
+        let tables = fill_tables(tables, &fixed)?;
+
+        Ok(CircuitSynthesis {
+            cs: self.cs,
+            eq_constraints,
+            fixed,
+            advice_names,
+            tables,
+            groups,
+        })
+    }
+}
+
+/// Create TableData structures for lookup tables
+fn fill_tables<F: Field>(
+    tables: Vec<HashSet<Column<Fixed>>>,
+    fixed: &FixedData<F>,
+) -> Result<Vec<TableData<F>>> {
+    tables
+        .into_iter()
+        .map(|set| fixed.subset(set).map(TableData::new))
+        .collect()
+}
+
+/// Add edges in the graph from fixed cells to their assigned values.
+fn add_fixed_to_const_constraints<F: Field>(
+    constraints: &mut EqConstraintGraph<F>,
+    fixed: &FixedData<F>,
+) -> Result<()> {
+    let fixed_cells = {
+        constraints.vertices().into_iter().filter_map(|v| match v {
+            EqConstraintArg::Any(col, row) => {
+                let col: Option<Column<Fixed>> = col.try_into().ok();
+                col.map(|col| (col, row))
+            }
+            _ => None,
+        })
+    };
+
+    for (col, row) in fixed_cells {
+        let value = steal(&fixed.resolve_fixed(col.index(), row))
+            .ok_or_else(|| anyhow!("Fixed cell was assigned an unknown value!"))?;
+        constraints.add(EqConstraint::FixedToConst(col, row, value));
+    }
+
+    Ok(())
+}
+
+/// Adds to the list of input and output cells of the top-level block.
+fn add_root_io<C: ColumnType>(groups: &mut GroupBuilder, io: &CircuitIO<C>)
+where
+    IOCell<C>: Into<GroupCell>,
+{
+    for c in io.inputs() {
+        groups.add_root_input(*c);
+    }
+
+    for c in io.outputs() {
+        groups.add_root_output(*c);
+    }
+}
+
+/// Implementation of Assignment that records the information required to create the circuit
+/// synthesis.
+struct SynthesizerInner<'a, F: Field> {
+    eq_constraints: &'a mut EqConstraintGraph<F>,
+    tables: &'a mut Vec<HashSet<Column<Fixed>>>,
+    fixed: &'a mut FixedData<F>,
+    advice_names: &'a mut HashMap<(usize, usize), FQN>,
+    next_index: &'a mut dyn Iterator<Item = RegionIndex>,
+    groups: GroupBuilder,
+    #[cfg(feature = "phase-tracking")]
+    current_phase: sealed::Phase,
+}
+
 #[cfg(not(feature = "phase-tracking"))]
-impl<F: Field> CircuitSynthesis<F> {
-    fn synthesize<C: Circuit<F>>(&mut self, circuit: &C, config: C::Config) -> Result<()> {
-        let constants = self.cs.constants().clone();
+impl<F: Field> SynthesizerInner<'_, F> {
+    /// Inner method that calls the floor planner's synthesize method.
+    /// This method is separated from the rest of the synthetization
+    /// method because its logic depends on the phase-tracking feature being enabled or not.
+    fn synthesize_inner<C: Circuit<F>>(
+        &mut self,
+        circuit: &C,
+        config: C::Config,
+        cs: &ConstraintSystem<F>,
+    ) -> Result<()> {
+        let constants = cs.constants().clone();
         C::FloorPlanner::synthesize(self, circuit, config, constants)?;
 
         Ok(())
@@ -311,35 +373,42 @@ impl<F: Field> CircuitSynthesis<F> {
 }
 
 #[cfg(feature = "phase-tracking")]
-impl<F: Field> CircuitSynthesis<F> {
-    fn synthesize<C: Circuit<F>>(&mut self, circuit: &C, config: C::Config) -> Result<()> {
+impl<F: Field> SynthesizerInner<F> {
+    /// Inner method that calls the floor planner's synthesize method.
+    /// This method is separated from the rest of the synthetization
+    /// method because its logic depends on the phase-tracking feature being enabled or not.
+    fn synthesize_inner<C: Circuit<F>>(
+        &mut self,
+        circuit: &C,
+        config: C::Config,
+        cs: &ConstraintSystem<F>,
+    ) -> Result<()> {
         for current_phase in self.cs.phases() {
             self.current_phase = current_phase;
 
-            C::FloorPlanner::synthesize(self, circuit, config.clone(), self.cs.constants.clone())?;
+            C::FloorPlanner::synthesize(self, circuit, config.clone(), cs.constants.clone())?;
         }
-        Ok(())
     }
 
     fn in_phase<P: Phase>(&self, phase: P) -> bool {
-        self.current_phase == phase.to_sealed()
+        self.current_phase == phase
     }
 }
 
-impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
+impl<F: Field> Assignment<F> for SynthesizerInner<'_, F> {
     fn enter_region<NR, N>(&mut self, region_name: N)
     where
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
         if self.in_phase(FirstPhase) {
-            self.regions.push(region_name);
+            self.groups.regions_mut().push(region_name, self.next_index);
         }
     }
 
     fn exit_region(&mut self) {
         if self.in_phase(FirstPhase) {
-            self.regions.commit();
+            self.groups.regions_mut().commit();
         }
     }
 
@@ -348,7 +417,7 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         AR: Into<String>,
         A: FnOnce() -> AR,
     {
-        self.regions.edit(|region| {
+        self.groups.regions_mut().edit(|region| {
             region.enable_selector(*selector, row);
         });
         Ok(())
@@ -371,9 +440,20 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         V: FnOnce() -> Value<VR>,
         A: FnOnce() -> AR,
     {
-        self.regions.edit(|region| {
+        self.groups.regions_mut().edit(|region| {
             region.update_extent(advice.into(), row);
-            region.note_advice(advice, row, name().into());
+            let fqn = FQN::new(
+                region.name(),
+                region.index(),
+                //&self.inner.namespaces,
+                &[],
+                Some(name().into()),
+            );
+            log::debug!(
+                "Recording advice assignment @ col = {}, row = {row}, name = {fqn}",
+                advice.index()
+            );
+            self.advice_names.insert((advice.index(), row), fqn);
         });
         Ok(())
     }
@@ -393,10 +473,10 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
     {
         // Assignments to fixed cells can happen outside a region so we write those on the last
         // region if available
-        self.regions.edit_current_or_last(|region| {
+        self.groups.regions_mut().edit(|region| {
             region.update_extent(fixed.into(), row);
-            region.assign_fixed(fixed, row, value());
         });
+        self.fixed.assign_fixed(fixed, row, value());
         Ok(())
     }
 
@@ -407,9 +487,8 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         to: Column<Any>,
         to_row: usize,
     ) -> Result<(), Error> {
-        self.maybe_materialize_fixed(from, from_row);
-        self.maybe_materialize_fixed(to, to_row);
-        self.eq_constraints.add((from, from_row, to, to_row));
+        self.eq_constraints
+            .add(EqConstraint::AnyToAny(from, from_row, to, to_row));
         Ok(())
     }
 
@@ -420,9 +499,11 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         value: Value<Assigned<F>>,
     ) -> Result<(), Error> {
         log::debug!("fill_from_row{:?}", (column, row, value));
-        self.regions.mark_current_as_table();
-        self.regions
-            .edit(|region| region.blanket_fill(column, row, value.map(|f| f.evaluate())));
+        self.fixed
+            .blanket_fill(column, row, value.map(|f| f.evaluate()));
+        let r = self.groups.regions_mut();
+        r.edit(|region| region.update_extent(column.into(), row));
+        r.move_latest_to_tables(self.tables);
         Ok(())
     }
 
@@ -431,11 +512,15 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
-        self.regions.edit(|region| region.push_namespace(name));
+        self.groups
+            .regions_mut()
+            .edit(|region| region.push_namespace(name));
     }
 
     fn pop_namespace(&mut self, name: Option<String>) {
-        self.regions.edit(|region| region.pop_namespace(name));
+        self.groups
+            .regions_mut()
+            .edit(|region| region.pop_namespace(name));
     }
 
     #[cfg(feature = "annotate-column")]
@@ -451,18 +536,23 @@ impl<F: Field> Assignment<F> for CircuitSynthesis<F> {
     fn get_challenge(&self, _: Challenge) -> Value<F> {
         todo!()
     }
-}
 
-fn transpose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
-    assert!(!v.is_empty());
-    let len = v[0].len();
-    let mut iters: Vec<_> = v.into_iter().map(|n| n.into_iter()).collect();
-    (0..len)
-        .map(|_| {
-            iters
-                .iter_mut()
-                .map(|n| n.next().unwrap())
-                .collect::<Vec<T>>()
-        })
-        .collect()
+    fn enter_group<NR, N, K>(&mut self, name_fn: N, key: K)
+    where
+        NR: Into<String>,
+        N: FnOnce() -> NR,
+        K: GroupKey,
+    {
+        self.groups.push(name_fn, key)
+    }
+
+    fn exit_group(&mut self, meta: RegionsGroup) {
+        for input in meta.inputs() {
+            self.groups.add_input(input);
+        }
+        for output in meta.outputs() {
+            self.groups.add_output(output);
+        }
+        self.groups.pop();
+    }
 }

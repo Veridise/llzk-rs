@@ -1,8 +1,12 @@
 use crate::halo2::*;
 use data::RegionDataImpl;
-use std::{collections::HashMap, ops::RangeFrom};
+use std::{
+    collections::{HashMap, HashSet},
+    iter::Peekable,
+    ops::RangeFrom,
+};
 
-mod data;
+pub(super) mod data;
 mod fixed;
 mod fqn;
 mod region_row;
@@ -11,82 +15,65 @@ mod shared;
 mod table;
 
 pub use data::RegionData;
+pub use fixed::FixedData;
 pub use fqn::FQN;
 pub use region_row::{RegionRow, RegionRowLike};
 pub use row::Row;
-pub use shared::SharedRegionData;
+//pub use shared::SharedRegionData;
 pub use table::TableData;
 
 type BlanketFills<F> = Vec<(RangeFrom<usize>, Value<F>)>;
 
 pub type RegionIndexToStart = HashMap<RegionIndex, RegionStart>;
 
+/// A set of regions
 #[derive(Default, Debug)]
-pub struct Regions<F: Copy + std::fmt::Debug> {
-    shared: SharedRegionData<F>,
-    regions: Vec<RegionDataImpl<F>>,
-    tables: Vec<TableData<F>>,
-    current: Option<RegionDataImpl<F>>,
-    current_is_table: bool,
+pub struct Regions {
+    //shared: SharedRegionData<F>,
+    regions: Vec<RegionDataImpl>,
+    current: Option<RegionDataImpl>,
+    // If we need to transform the previous region into a table we store the index here to
+    // reuse it.
+    recovered_index: Option<RegionIndex>,
 }
 
-impl<F: Default + Clone + Copy + std::fmt::Debug> Regions<F> {
-    pub fn push<NR, N>(&mut self, region_name: N)
+impl Regions {
+    /// Adds a new region.
+    pub fn push<NR, N>(&mut self, region_name: N, next_index: &mut dyn Iterator<Item = RegionIndex>)
     where
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
-        // The last region turned out to be a table. Remove it from the regions list before adding
-        // the new one.
-        if self.current_is_table {
-            if let Some(mut table) = self.regions.pop() {
-                log::debug!(
-                    "Demoting region {} {:?} to table",
-                    table
-                        .index()
-                        .as_deref()
-                        .map(ToString::to_string)
-                        .unwrap_or_else(|| "<unk>".to_owned()),
-                    table.name()
-                );
-                table.mark_as_table();
-                self.tables.push(table.into());
-            }
-        }
-
         assert!(self.current.is_none());
         let name: String = region_name().into();
-        let index = self.regions.len();
-        log::debug!("Region {index} {name:?} is the current region");
-        self.current = Some(RegionDataImpl::new(name, index.into()));
-        self.current_is_table = false;
+        let index = self
+            // Reuse the previous index if available.
+            .recovered_index
+            .take()
+            // Otherwise request a new one.
+            .unwrap_or_else(|| {
+                next_index
+                    .next()
+                    .expect("Iterator of region indices should be infinite")
+            });
+        log::debug!("Region {} {name:?} is the current region", *index);
+        self.current = Some(RegionDataImpl::new(name, index));
     }
 
+    /// Commits the current region to the list of regions.
     pub fn commit(&mut self) {
-        let mut region = self.current.take().unwrap();
-
-        if self.current_is_table {
-            log::debug!(
-                "Region {} {:?} is a table",
-                *region.index().unwrap(),
-                region.name()
-            );
-            region.mark_as_table();
-            self.tables.push(region.into());
-        } else {
-            log::debug!(
-                "Region {} {:?} added to the regions list",
-                *region.index().unwrap(),
-                region.name()
-            );
-            self.shared += region.take_shared();
-            self.regions.push(region);
-        }
+        let region = self.current.take().unwrap();
+        log::debug!(
+            "Region {} {:?} added to the regions list",
+            *region.index().unwrap(),
+            region.name()
+        );
+        self.regions.push(region);
     }
 
     pub fn edit<FN, FR>(&mut self, f: FN) -> Option<FR>
     where
-        FN: FnOnce(&mut RegionDataImpl<F>) -> FR,
+        FN: FnOnce(&mut RegionDataImpl) -> FR,
     {
         if let Some(region) = self.current.as_mut() {
             return Some(f(region));
@@ -94,35 +81,52 @@ impl<F: Default + Clone + Copy + std::fmt::Debug> Regions<F> {
         None
     }
 
-    pub fn edit_current_or_last<FN, FR>(&mut self, f: FN) -> Option<FR>
-    where
-        FN: FnOnce(&mut RegionDataImpl<F>) -> FR,
-    {
-        if let Some(region) = self.current.as_mut() {
-            return Some(f(region));
-        }
-        if let Some(region) = self.regions.first_mut() {
-            return Some(f(region));
-        }
-        None
-    }
+    //pub fn edit_current_or_last<FN, FR>(&mut self, f: FN) -> Option<FR>
+    //where
+    //    FN: FnOnce(&mut RegionDataImpl<F>) -> FR,
+    //{
+    //    if let Some(region) = self.current.as_mut() {
+    //        return Some(f(region));
+    //    }
+    //    if let Some(region) = self.regions.first_mut() {
+    //        return Some(f(region));
+    //    }
+    //    None
+    //}
 
-    pub fn regions<'a>(&'a self) -> Vec<RegionData<'a, F>> {
+    pub fn regions<'a>(&'a self) -> Vec<RegionData<'a>> {
         self.regions
             .iter()
-            .map(|inner| RegionData::new(&self.shared, inner))
+            .map(|inner| RegionData::new(inner))
             .collect()
     }
 
-    pub fn tables(&self) -> &[TableData<F>] {
-        &self.tables
+    /// Moves the last commited region to the tables vector.
+    ///
+    /// Panics if there is a currently active region or there is already a recovered index.
+    pub fn move_latest_to_tables(&mut self, tables: &mut Vec<HashSet<Column<Fixed>>>) {
+        assert!(
+            self.current.is_none(),
+            "Cannot move the last region to tables list while we have another active region"
+        );
+        let mut table = self
+            .regions
+            .pop()
+            .expect("Cannot move to the tables list because list is empty");
+        log::debug!(
+            "Demoting region {} {:?} to table",
+            table.index_as_str(),
+            table.name()
+        );
+        assert!(
+            self.recovered_index.is_none(),
+            "There is already a recovered index"
+        );
+        self.recovered_index = table.take_index();
+        tables.push(table.columns());
     }
 
-    pub fn mark_current_as_table(&mut self) {
-        self.current_is_table = true;
-    }
-
-    pub fn seen_advice_cells(&self) -> impl Iterator<Item = (&(usize, usize), &FQN)> {
-        self.shared.advice_names().iter()
-    }
+    //pub fn seen_advice_cells(&self) -> impl Iterator<Item = (&(usize, usize), &FQN)> {
+    //    self.shared.advice_names().iter()
+    //}
 }

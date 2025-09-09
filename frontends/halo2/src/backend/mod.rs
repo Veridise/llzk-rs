@@ -3,8 +3,11 @@ use std::marker::PhantomData;
 #[cfg(feature = "lift-field-operations")]
 use crate::ir::lift::{LiftIRGuard, LiftingCfg};
 use crate::{
-    gates::DefaultGateCallbacks, halo2::Circuit, lookups::callbacks::DefaultLookupCallbacks,
-    synthesis::CircuitSynthesis, CircuitCallbacks,
+    gates::DefaultGateCallbacks,
+    halo2::Circuit,
+    lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
+    synthesis::CircuitSynthesis,
+    CircuitCallbacks, GateCallbacks,
 };
 use anyhow::Result;
 
@@ -16,12 +19,19 @@ pub mod lowering;
 pub mod picus;
 pub mod resolvers;
 
-use codegen::{strats::inline::InlineConstraintsStrat, Codegen, CodegenQueue, CodegenStrategy};
+use codegen::{
+    strats::{groups::GroupConstraintsStrat, inline::InlineConstraintsStrat},
+    Codegen, CodegenQueue, CodegenStrategy,
+};
 use events::BackendEventReceiver;
+use llzk::LlzkCodegen;
+use picus::PicusCodegen;
 use resolvers::{QueryResolver, SelectorResolver};
 
-type DefaultStrat = InlineConstraintsStrat;
+//type DefaultStrat = InlineConstraintsStrat;
+type DefaultStrat = GroupConstraintsStrat;
 
+/// Entrypoint for the backend.
 pub struct Backend<C, S> {
     state: S,
     #[cfg(feature = "lift-field-operations")]
@@ -69,31 +79,33 @@ where
     }
 
     /// Generate code using the default strategy.
-    pub fn codegen<CR, CB>(&'b self, circuit: &CR) -> Result<C::Output>
-    where
-        CR: Circuit<C::F>,
-        CB: CircuitCallbacks<C::F, CR>,
-    {
-        self.codegen_with_strat::<CR, CB, DefaultStrat>(circuit)
+    pub fn codegen(
+        &'b self,
+        syn: CircuitSynthesis<C::F>,
+        lookup_cbs: &dyn LookupCallbacks<C::F>,
+        gate_cbs: &dyn GateCallbacks<C::F>,
+    ) -> Result<C::Output> {
+        self.codegen_with_strat(syn, DefaultStrat::default(), lookup_cbs, gate_cbs)
     }
 
     /// Generate code using the given strategy.
-    pub(crate) fn codegen_with_strat<CR, CB, ST>(&'b self, circuit: &CR) -> Result<C::Output>
-    where
-        CR: Circuit<C::F>,
-        CB: CircuitCallbacks<C::F, CR>,
-        ST: CodegenStrategy,
-    {
-        let syn = CircuitSynthesis::new::<CR, CB>(circuit)?;
-        let lookup_cbs = CB::lookup_callbacks().unwrap_or(Box::new(DefaultLookupCallbacks));
-        let gate_cbs = CB::gate_callbacks().unwrap_or(Box::new(DefaultGateCallbacks));
-
+    pub(crate) fn codegen_with_strat(
+        &'b self,
+        syn: CircuitSynthesis<C::F>,
+        strat: impl CodegenStrategy,
+        lookup_cbs: &dyn LookupCallbacks<C::F>,
+        gate_cbs: &dyn GateCallbacks<C::F>,
+    ) -> Result<C::Output> {
         log::debug!("Initializing code generator");
         let codegen = self.create_codegen();
-        log::debug!("Starting codegen...");
-        ST::default().codegen(&codegen, &syn, &*lookup_cbs, &*gate_cbs)?;
+        log::debug!(
+            "Starting code generation with {} strategy...",
+            std::any::type_name_of_val(&strat)
+        );
 
-        log::debug!("Codegen completed");
+        strat.codegen(&codegen, &syn, lookup_cbs, gate_cbs)?;
+
+        log::debug!("Code generation completed");
         codegen.generate_output()
     }
 }

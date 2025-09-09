@@ -42,7 +42,7 @@ pub enum VarKey {
 impl VarKey {
     pub fn is_temp(&self) -> bool {
         match self {
-            VarKey::IO(func_io) => matches!(func_io, FuncIO::Advice(_, _)),
+            VarKey::IO(func_io) => matches!(func_io, FuncIO::Advice(_)),
             VarKey::Temp => true,
             VarKey::Lifted(_) => false,
         }
@@ -85,20 +85,22 @@ impl NamingConvention {
                 match func_io {
                     FuncIO::Arg(arg_no) => format!("Input_{arg_no}"),
                     FuncIO::Field(field_id) => format!("Output_{field_id}"),
-                    FuncIO::Advice(col, row) => format!("Advice_{col}_{row}"),
-                    FuncIO::Fixed(col, row) => format!("Fixed_{col}_{row}"),
+                    FuncIO::Advice(adv) => format!("Advice_{}_{}", adv.col(), adv.row()),
+                    FuncIO::Fixed(fix) => format!("Fixed_{}_{}", fix.col(), fix.row()),
                     FuncIO::TableLookup(id, col, row, idx, ridx) =>
                         format!("Lookup_{id}_{col}_{row}_{idx}_{ridx}"),
+                    FuncIO::CallOutput(module, out) => format!("CallOutput_{module}_{out}"),
                 }
             ),
             NamingConvention::Short => match func_io {
                 FuncIO::Arg(arg_no) => format!("in_{arg_no}"),
                 FuncIO::Field(field_id) => format!("out_{field_id}"),
-                FuncIO::Advice(col, row) => format!("adv_{col}_{row}"),
-                FuncIO::Fixed(col, row) => format!("fix_{col}_{row}"),
+                FuncIO::Advice(adv) => format!("adv_{}_{}", adv.col(), adv.row()),
+                FuncIO::Fixed(fix) => format!("fix_{}_{}", fix.col(), fix.row()),
                 FuncIO::TableLookup(id, col, row, idx, ridx) => {
                     format!("lkp{id}_{col}_{row}_{idx}_{ridx}")
                 }
+                FuncIO::CallOutput(module, out) => format!("cout_{module}_{out}"),
             },
         }
     }
@@ -184,7 +186,7 @@ impl VarKind for VarKey {
 
     fn is_temp(&self) -> bool {
         match self {
-            VarKey::IO(func_io) => matches!(func_io, FuncIO::Advice(_, _)),
+            VarKey::IO(func_io) => matches!(func_io, FuncIO::Advice(_)),
             VarKey::Temp => true,
             _ => false,
         }

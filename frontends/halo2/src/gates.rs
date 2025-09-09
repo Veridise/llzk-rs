@@ -21,7 +21,7 @@ where
     F: Field,
 {
     gate: &'a Gate<F>,
-    region: RegionData<'a, F>,
+    region: RegionData<'a>,
     /// The bounds are [start,end).
     row_bounds: (usize, usize),
     advice_io: &'a CircuitIO<Advice>,
@@ -31,7 +31,7 @@ where
 impl<'a, F: Field> GateScope<'a, F> {
     pub(crate) fn new(
         gate: &'a Gate<F>,
-        region: RegionData<'a, F>,
+        region: RegionData<'a>,
         row_bounds: (usize, usize),
         advice_io: &'a CircuitIO<Advice>,
         instance_io: &'a CircuitIO<Instance>,
@@ -45,11 +45,11 @@ impl<'a, F: Field> GateScope<'a, F> {
         }
     }
 
-    pub(crate) fn region(&self) -> RegionData<'a, F> {
+    pub(crate) fn region(&self) -> RegionData<'a> {
         self.region
     }
 
-    pub(crate) fn region_row(&self, row: usize) -> anyhow::Result<RegionRow<'a, 'a, F>> {
+    pub(crate) fn region_row(&self, row: usize) -> anyhow::Result<RegionRow<'a, 'a>> {
         if !self.rows().contains(&row) {
             anyhow::bail!(
                 "Row {} is not within the rows of the scope [{}, {}]",
@@ -66,7 +66,7 @@ impl<'a, F: Field> GateScope<'a, F> {
         ))
     }
 
-    pub(crate) fn region_rows(&self) -> impl Iterator<Item = RegionRow<'a, 'a, F>> {
+    pub(crate) fn region_rows(&self) -> impl Iterator<Item = RegionRow<'a, 'a>> {
         self.rows()
             .map(|row| RegionRow::new(self.region(), row, self.advice_io, self.instance_io))
     }

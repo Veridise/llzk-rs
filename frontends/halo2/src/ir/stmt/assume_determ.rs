@@ -2,9 +2,15 @@ use std::marker::PhantomData;
 
 use anyhow::Result;
 
-use crate::backend::{
-    func::FuncIO,
-    lowering::{lowerable::Lowerable, lowerable::LoweringOutput, Lowering},
+use crate::{
+    backend::{
+        func::FuncIO,
+        lowering::{
+            lowerable::{LowerableExpr, LowerableStmt},
+            Lowering,
+        },
+    },
+    ir::equivalency::EqvRelation,
 };
 
 pub struct AssumeDeterministic<T>(FuncIO, PhantomData<T>);
@@ -19,10 +25,10 @@ impl<T> AssumeDeterministic<T> {
     }
 }
 
-impl<T: Lowerable> Lowerable for AssumeDeterministic<T> {
+impl<T: LowerableExpr> LowerableStmt for AssumeDeterministic<T> {
     type F = T::F;
 
-    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    fn lower<L>(self, l: &L) -> Result<()>
     where
         L: Lowering<F = Self::F> + ?Sized,
     {
@@ -45,5 +51,14 @@ impl<T> PartialEq for AssumeDeterministic<T> {
 impl<T: std::fmt::Debug> std::fmt::Debug for AssumeDeterministic<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "assume-deterministic {:?}", self.0)
+    }
+}
+
+impl<L, R, E> EqvRelation<AssumeDeterministic<L>, AssumeDeterministic<R>> for E
+where
+    E: EqvRelation<FuncIO, FuncIO>,
+{
+    fn equivalent(lhs: &AssumeDeterministic<L>, rhs: &AssumeDeterministic<R>) -> bool {
+        E::equivalent(&lhs.0, &rhs.0)
     }
 }

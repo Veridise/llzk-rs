@@ -1,8 +1,14 @@
 use anyhow::Result;
 
-use crate::backend::{
-    func::FuncIO,
-    lowering::{lowerable::Lowerable, lowerable::LoweringOutput, Lowering},
+use crate::{
+    backend::{
+        func::FuncIO,
+        lowering::{
+            lowerable::{LowerableExpr, LowerableStmt},
+            Lowering,
+        },
+    },
+    ir::equivalency::EqvRelation,
 };
 
 pub struct Call<I> {
@@ -35,17 +41,17 @@ impl<T> Call<T> {
     }
 }
 
-impl<I: Lowerable> Lowerable for Call<I> {
+impl<I: LowerableExpr> LowerableStmt for Call<I> {
     type F = I::F;
 
-    fn lower<L>(self, l: &L) -> Result<impl Into<LoweringOutput<L>>>
+    fn lower<L>(self, l: &L) -> Result<()>
     where
         L: Lowering<F = Self::F> + ?Sized,
     {
         let inputs = self
             .inputs
             .into_iter()
-            .map(|i| l.lower_value(i))
+            .map(|i| i.lower(l))
             .collect::<Result<Vec<_>>>()?;
         l.generate_call(self.callee.as_str(), &inputs, &self.outputs)
     }
@@ -82,5 +88,18 @@ impl<T: std::fmt::Debug> std::fmt::Debug for Call<T> {
                 self.callee, self.inputs, self.outputs
             )
         }
+    }
+}
+
+impl<L, R, E> EqvRelation<Call<L>, Call<R>> for E
+where
+    E: EqvRelation<L, R> + EqvRelation<FuncIO, FuncIO>,
+{
+    /// A call statement is equivalent to another if their input and outputs are equivalent and
+    /// point to the same callee.
+    fn equivalent(lhs: &Call<L>, rhs: &Call<R>) -> bool {
+        lhs.callee == rhs.callee
+            && <E as EqvRelation<Vec<L>, Vec<R>>>::equivalent(&lhs.inputs, &rhs.inputs)
+            && <E as EqvRelation<Vec<FuncIO>, Vec<FuncIO>>>::equivalent(&lhs.outputs, &rhs.outputs)
     }
 }

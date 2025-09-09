@@ -114,6 +114,17 @@ impl From<(&CircuitIO<Advice>, &CircuitIO<Instance>)> for StructIO {
     }
 }
 
+impl From<(CircuitIO<Advice>, CircuitIO<Instance>)> for StructIO {
+    fn from(value: (CircuitIO<Advice>, CircuitIO<Instance>)) -> Self {
+        Self {
+            private_inputs: value.0.inputs().len(),
+            public_inputs: value.1.inputs().len(),
+            private_outputs: value.0.outputs().len(),
+            public_outputs: value.1.outputs().len(),
+        }
+    }
+}
+
 impl From<(usize, usize)> for StructIO {
     fn from(value: (usize, usize)) -> Self {
         Self {

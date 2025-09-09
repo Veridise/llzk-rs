@@ -1,0 +1,488 @@
+use std::ops::Deref;
+
+use crate::{
+    halo2::{
+        groups::{GroupKey, GroupKeyInstance},
+        Advice, Any, Cell, ColumnType, Expression, Field, Gate, Instance, RegionIndex, Rotation,
+    },
+    io::IOCell,
+    lookups::Lookup,
+    CircuitIO,
+};
+
+use super::regions::{RegionData, RegionRow, Regions, TableData};
+
+/// A group can either represent the circuit itself (the top level)
+/// or a group declared during synthesis, identified by its key.
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum GroupKind {
+    TopLevel,
+    Group(GroupKeyInstance),
+}
+
+/// A cell that could be either assigned during synthesis or declared as circuit IO.
+#[derive(Debug, Copy, Clone)]
+pub enum GroupCell {
+    /// A cell that comes from an assigned cell during synthesis.
+    Assigned(Cell),
+    /// An instance cell that was declared as part of the circuit's IO.
+    InstanceIO(IOCell<Instance>),
+    /// An advice cell that was declared as part of the circuit's IO.
+    AdviceIO(IOCell<Advice>),
+}
+
+impl GroupCell {
+    pub fn to_expr<F: Field>(&self) -> Expression<F> {
+        match self {
+            GroupCell::Assigned(cell) => cell.column.query_cell(Rotation::cur()),
+            GroupCell::InstanceIO(cell) => cell.0.query_cell(Rotation::cur()),
+            GroupCell::AdviceIO(cell) => cell.0.query_cell(Rotation::cur()),
+        }
+    }
+
+    pub fn row(&self) -> usize {
+        match self {
+            GroupCell::Assigned(cell) => cell.row_offset,
+            GroupCell::InstanceIO(cell) => cell.1,
+            GroupCell::AdviceIO(cell) => cell.1,
+        }
+    }
+
+    pub fn region_index(&self) -> Option<RegionIndex> {
+        match self {
+            GroupCell::Assigned(cell) => Some(cell.region_index),
+            _ => None,
+        }
+    }
+}
+
+impl From<Cell> for GroupCell {
+    fn from(value: Cell) -> Self {
+        Self::Assigned(value)
+    }
+}
+
+impl From<IOCell<Instance>> for GroupCell {
+    fn from(value: IOCell<Instance>) -> Self {
+        Self::InstanceIO(value)
+    }
+}
+
+impl From<IOCell<Advice>> for GroupCell {
+    fn from(value: IOCell<Advice>) -> Self {
+        Self::AdviceIO(value)
+    }
+}
+
+/// A flat read-only representation of a group.
+///
+/// The parent-children relation is represented by indices on a vector instead.
+#[derive(Debug)]
+pub struct Group {
+    kind: GroupKind,
+    name: Option<String>,
+    inputs: Vec<GroupCell>,
+    outputs: Vec<GroupCell>,
+    advice_io: CircuitIO<Advice>,
+    instance_io: CircuitIO<Instance>,
+    regions: Regions,
+    children: Vec<usize>,
+}
+
+impl Group {
+    fn new(
+        kind: GroupKind,
+        name: Option<String>,
+        inputs: Vec<GroupCell>,
+        outputs: Vec<GroupCell>,
+        regions: Regions,
+        children: Vec<usize>,
+    ) -> Self {
+        let advice_io = Self::mk_advice_io(&inputs, &outputs);
+        let instance_io = Self::mk_instance_io(&inputs, &outputs);
+        Self {
+            kind,
+            name,
+            inputs,
+            outputs,
+            advice_io,
+            instance_io,
+            regions,
+            children,
+        }
+    }
+
+    /// Returns a list of region data.
+    pub fn regions<'a>(&'a self) -> Vec<RegionData<'a>> {
+        self.regions.regions()
+    }
+
+    /// Returns the regions' rows
+    pub fn region_rows<'a>(&'a self) -> Vec<RegionRow<'a, 'a>> {
+        self.regions()
+            .into_iter()
+            .flat_map(move |r| {
+                r.rows()
+                    .map(move |row| RegionRow::new(r, row, self.advice_io(), self.instance_io()))
+            })
+            .collect()
+    }
+
+    /// Returns the certesian product between the regions' rows and the lookups
+    pub fn lookups_per_region_row<'a, F: Field>(
+        &'a self,
+        lookups: &[Lookup<'a, F>],
+    ) -> Vec<(RegionRow<'a, 'a>, Lookup<'a, F>)> {
+        self.region_rows()
+            .into_iter()
+            .flat_map(|r| lookups.iter().copied().map(move |l| (r, l)))
+            .collect()
+    }
+
+    pub fn is_top_level(&self) -> bool {
+        matches!(self.kind, GroupKind::TopLevel)
+    }
+
+    pub fn advice_io(&self) -> &CircuitIO<Advice> {
+        &self.advice_io
+    }
+
+    pub fn instance_io(&self) -> &CircuitIO<Instance> {
+        &self.instance_io
+    }
+
+    pub fn inputs(&self) -> &[GroupCell] {
+        &self.inputs
+    }
+
+    pub fn outputs(&self) -> &[GroupCell] {
+        &self.outputs
+    }
+
+    pub fn name(&self) -> &str {
+        if self.kind == GroupKind::TopLevel {
+            return "Main";
+        }
+        self.name
+            .as_ref()
+            .map(|s| s.as_str())
+            .map(|s| if s.is_empty() { "unnamed_group" } else { s })
+            .unwrap_or("unnamed_group")
+    }
+
+    /// Returns the group objects of the children
+    pub fn children<'a>(&'a self, groups: &'a [Group]) -> Vec<(usize, &'a Group)> {
+        self.children
+            .iter()
+            .copied()
+            .map(|idx| (idx, groups.get(idx).unwrap()))
+            .collect()
+    }
+
+    /// Returns the group key
+    pub fn key(&self) -> Option<GroupKeyInstance> {
+        match self.kind {
+            GroupKind::TopLevel => None,
+            GroupKind::Group(group_key_instance) => Some(group_key_instance),
+        }
+    }
+
+    /// Constructs a CircuitIO of advice cells.
+    fn mk_advice_io(inputs: &[GroupCell], outputs: &[GroupCell]) -> CircuitIO<Advice> {
+        fn filter_fn(input: &GroupCell) -> Option<IOCell<Advice>> {
+            match input {
+                GroupCell::Assigned(cell) => match cell.column.column_type() {
+                    Any::Advice(_) => Some((cell.column.try_into().unwrap(), cell.row_offset)),
+                    _ => None,
+                },
+                GroupCell::InstanceIO(_) => None,
+                GroupCell::AdviceIO(cell) => Some(*cell),
+            }
+        }
+        CircuitIO::new_from_iocells(
+            inputs.iter().filter_map(filter_fn),
+            outputs.iter().filter_map(filter_fn),
+        )
+    }
+
+    /// Constructs a CircuitIO of instance cells.
+    fn mk_instance_io(inputs: &[GroupCell], outputs: &[GroupCell]) -> CircuitIO<Instance> {
+        fn filter_fn(input: &GroupCell) -> Option<IOCell<Instance>> {
+            match input {
+                GroupCell::Assigned(cell) => match cell.column.column_type() {
+                    Any::Instance => Some((cell.column.try_into().unwrap(), cell.row_offset)),
+                    _ => None,
+                },
+                GroupCell::InstanceIO(cell) => Some(*cell),
+                GroupCell::AdviceIO(_) => None,
+            }
+        }
+        CircuitIO::new_from_iocells(
+            inputs.iter().filter_map(filter_fn),
+            outputs.iter().filter_map(filter_fn),
+        )
+    }
+
+    ///// Returns the list of tables.
+    //pub fn tables(&self) -> &[TableData<F>] {
+    //    self.regions.tables()
+    //}
+
+    /// Returns the cartesian product of the regions and the gates.
+    pub fn region_gates<'a, F: Field>(
+        &'a self,
+        gates: &'a [Gate<F>],
+    ) -> impl Iterator<Item = (&'a Gate<F>, RegionData<'a>)> + 'a {
+        self.regions()
+            .into_iter()
+            .flat_map(|r| gates.iter().map(move |g| (g, r)))
+    }
+
+    ///// TODO: Move this somewhere else?
+    //pub fn gate_scopes<'a>(
+    //    &'a self,
+    //    gates: &'a [Gate<F>],
+    //) -> impl Iterator<Item = GateScope<'a, F>> + 'a {
+    //    self.region_gates(gates)
+    //        .map(|(g, r): (_, RegionData<'a, F>)| {
+    //            let rows = r.rows();
+    //
+    //            GateScope::new(
+    //                g,
+    //                r,
+    //                (rows.start, rows.end),
+    //                self.advice_io(),
+    //                self.instance_io(),
+    //            )
+    //        })
+    //}
+
+    ///// Do I really need this?
+    //pub fn regionrow_gates<'a>(
+    //    &'a self,
+    //    gates: &'a [Gate<F>],
+    //) -> impl Iterator<Item = (&'a Gate<F>, RegionRow<'a, 'a, F>)> + 'a {
+    //    self.regions()
+    //        .into_iter()
+    //        .map(|r| r.rows())
+    //        .reduce(|lhs, rhs| std::cmp::min(lhs.start, rhs.start)..std::cmp::max(lhs.end, rhs.end))
+    //        .unwrap_or(0..0)
+    //        .flat_map(move |row| {
+    //            self.regions().into_iter().filter_map(move |region| {
+    //                if region.rows().contains(&row) {
+    //                    Some(RegionRow::new(
+    //                        region,
+    //                        row,
+    //                        self.advice_io(),
+    //                        self.instance_io(),
+    //                    ))
+    //                } else {
+    //                    None
+    //                }
+    //            })
+    //        })
+    //        .flat_map(|r| {
+    //            gates.iter().filter_map(move |gate| {
+    //                let selectors = find_gate_selector_set(gate.polynomials());
+    //                if r.gate_is_disabled(&selectors) {
+    //                    return None;
+    //                }
+    //                Some((gate, r))
+    //            })
+    //        })
+    //}
+}
+
+/// A collection of groups.
+///
+/// It is represented with a newtype to be able to add methods to this type.
+pub struct Groups(Vec<Group>);
+
+impl Groups {
+    pub fn top_level(&self) -> Option<&Group> {
+        // When constructing the flattened version the top level
+        // group will be the last one so we reverse the iterator to try find it
+        // faster.
+        self.0.iter().rev().find(|g| g.kind == GroupKind::TopLevel)
+    }
+}
+
+impl AsRef<[Group]> for Groups {
+    fn as_ref(&self) -> &[Group] {
+        self.0.as_ref()
+    }
+}
+
+/// Represents a piece of the circuit's constraint system.
+///
+/// Has a set of regions of the circuit that represents what gates
+/// are enabled in it.
+///
+/// Can have children blocks that represent subpieces of the logic.
+/// The boundary between parent and children is determined by the groups
+/// the circuit declares during synthesis.
+#[derive(Debug)]
+pub struct GroupTree {
+    kind: GroupKind,
+    name: Option<String>,
+    inputs: Vec<GroupCell>,
+    outputs: Vec<GroupCell>,
+    regions: Regions,
+    children: Vec<GroupTree>,
+}
+
+impl GroupTree {
+    /// Constructs an empty top-level group.
+    fn top_level() -> Self {
+        Self {
+            kind: GroupKind::TopLevel,
+            name: None,
+            inputs: Default::default(),
+            outputs: Default::default(),
+            regions: Default::default(),
+            children: Default::default(),
+        }
+    }
+
+    /// Constructs an empty group
+    fn new(name: String, key: impl GroupKey) -> Self {
+        Self {
+            kind: GroupKind::Group(key.into()),
+            name: Some(name),
+            inputs: Default::default(),
+            outputs: Default::default(),
+            regions: Default::default(),
+            children: Default::default(),
+        }
+    }
+
+    /// Transforms the tree into a read-only flat representation.
+    pub fn flatten(self) -> Groups {
+        let mut child_indices = vec![];
+        let mut groups = vec![];
+        for child in self.children {
+            let flat_child = child.flatten().0;
+            groups.extend(flat_child);
+            child_indices.push(groups.len() - 1);
+        }
+        groups.push(Group::new(
+            self.kind,
+            self.name,
+            self.inputs,
+            self.outputs,
+            self.regions,
+            child_indices,
+        ));
+        Groups(groups)
+    }
+}
+
+/// Manages the creation of groups during synthesis.
+///
+/// Starts with a top level group and automatically handles parent-children relations during
+/// construction. New children are pushed into a stack until they are completely built.
+/// Once completed they get added to the list of children of the next group in the stack.
+///
+/// The root group owned by the builder is always a top-level block.
+pub struct GroupBuilder {
+    root: GroupTree,
+    stack: Vec<GroupTree>,
+}
+
+impl GroupBuilder {
+    /// Creates a builder with a top-level group as the root block.
+    pub fn new() -> Self {
+        Self {
+            root: GroupTree::top_level(),
+            stack: vec![],
+        }
+    }
+
+    /// Returns a reference to the group that is currently being built.
+    pub fn current(&self) -> &GroupTree {
+        if self.stack.is_empty() {
+            &self.root
+        } else {
+            self.stack.last().unwrap()
+        }
+    }
+
+    /// Returns a mutable reference to the group that is currently being built.
+    /// Private to ensure that only the builder can mutate the groups.
+    #[inline]
+    fn current_mut(&mut self) -> &mut GroupTree {
+        if self.stack.is_empty() {
+            &mut self.root
+        } else {
+            self.stack.last_mut().unwrap()
+        }
+    }
+
+    /// Returns a reference to the root.
+    pub fn root(&self) -> &GroupTree {
+        &self.root
+    }
+
+    /// Returns the root and consumes the builder.
+    ///
+    /// Panics if there are pending groups on the stack.
+    pub fn into_root(self) -> GroupTree {
+        assert!(self.stack.is_empty(), "Builder has pending groups");
+        self.root
+    }
+
+    /// Pushes a new group group into the stack.
+    pub fn push<N, NR, K>(&mut self, name: N, key: K)
+    where
+        NR: Into<String>,
+        N: FnOnce() -> NR,
+        K: GroupKey,
+    {
+        self.stack.push(GroupTree::new(name().into(), key))
+    }
+
+    /// Pops the top of the stack and moves it to the list of children of the parent element.
+    ///
+    /// Panics if the stack is empty.
+    pub fn pop(&mut self) {
+        assert!(!self.stack.is_empty(), "No pending groups");
+        let g = self.stack.pop().unwrap();
+        self.current_mut().children.push(g);
+    }
+
+    /// Adds a cell to the current group's list of inputs.
+    pub fn add_input(&mut self, cell: impl Into<GroupCell>) {
+        self.current_mut().inputs.push(cell.into())
+    }
+
+    /// Adds a cell to the current group's list of outputs.
+    pub fn add_output(&mut self, cell: impl Into<GroupCell>) {
+        self.current_mut().outputs.push(cell.into())
+    }
+
+    /// Adds a cell to the root group's list of inputs.
+    pub fn add_root_input<C: ColumnType>(&mut self, cell: IOCell<C>)
+    where
+        IOCell<C>: Into<GroupCell>,
+    {
+        self.current_mut().inputs.push(cell.into())
+    }
+
+    /// Adds a cell to the root group's list of outputs.
+    pub fn add_root_output<C: ColumnType>(&mut self, cell: IOCell<C>)
+    where
+        IOCell<C>: Into<GroupCell>,
+    {
+        self.current_mut().outputs.push(cell.into())
+    }
+
+    /// Returns a reference to the regions in the current group.
+    pub fn regions(&self) -> &Regions {
+        &self.current().regions
+    }
+
+    /// Returns a mutable reference to the regions in the current group.
+    pub fn regions_mut(&mut self) -> &mut Regions {
+        &mut self.current_mut().regions
+    }
+}

@@ -15,10 +15,7 @@ use crate::{
 use crate::{
     backend::{
         func::FuncIO,
-        lowering::{
-            lowerable::{Lowerable, LoweringOutput},
-            Lowering,
-        },
+        lowering::Lowering,
         picus::{felt::FeltWrap, params::PicusParams, Pipeline, PipelineBuilder},
         resolvers::{
             QueryResolver, ResolvedQuery, ResolvedSelector, ResolversProvider, SelectorResolver,
@@ -102,7 +99,10 @@ impl<F: LoweringField> PicusCodegenInner<F> {
                 .borrow_mut()
                 .add_vars(syn.seen_advice_cells().map(|((col, row), name)| {
                     VarKeySeed::new(
-                        VarKeySeedInner::IO(FuncIO::Advice(*col, *row), Some(Cow::Borrowed(name))),
+                        VarKeySeedInner::IO(
+                            FuncIO::advice_abs(*col, *row),
+                            Some(Cow::Borrowed(name)),
+                        ),
                         self.params.naming_convention(),
                     )
                 }));
