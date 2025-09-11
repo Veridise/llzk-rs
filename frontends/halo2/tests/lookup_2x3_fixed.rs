@@ -1,18 +1,48 @@
-use crate::halo2::groups;
 use group::ff::Field;
+use halo2curves_070::bn256::Fr;
 use midnight_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
-use midnight_halo2_proofs::default_group_key;
 use midnight_halo2_proofs::plonk::{
-    Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector,
+    Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector, TableColumn,
 };
 use midnight_halo2_proofs::poly::Rotation;
+use std::iter;
 use std::marker::PhantomData;
 
-use crate::{CircuitCallbacks, CircuitIO};
+use halo2_llzk_frontend::{
+    lookups::callbacks::LookupCallbacks, CircuitCallbacks, CircuitIO, PicusParamsBuilder,
+};
+
+mod common;
+
+const EXPECTED_PICUS: &'static str = r"
+(prime-number 21888242871839275222246405745257275088548364400416034343698204186575808495617)
+(begin-module Main)
+(input in_0)
+(output out_0)
+(assert (= adv_0_0 in_0))
+(assert (= adv_3_0 out_0))
+(end-module)
+";
+
+#[test]
+fn lookup_2x3_fixed_circuit_picus() {
+    common::setup();
+    common::picus_test(
+        Lookup2x3Circuit::<Fr>::default(),
+        PicusParamsBuilder::new()
+            .short_names()
+            .no_optimize()
+            .build(),
+        EXPECTED_PICUS,
+    );
+}
 
 #[derive(Debug, Clone)]
-pub struct MulConfig {
+pub struct Lookup2x3Config {
+    #[allow(dead_code)]
     pub col_fixed: Column<Fixed>,
+    pub lookup_column: [TableColumn; 2],
+    pub col_f: Column<Advice>,
     pub col_a: Column<Advice>,
     pub col_b: Column<Advice>,
     pub col_c: Column<Advice>,
@@ -21,56 +51,87 @@ pub struct MulConfig {
 }
 
 #[derive(Debug, Clone)]
-struct MulChip<F: Field> {
-    config: MulConfig,
+struct Lookup2x3Chip<F: Field> {
+    config: Lookup2x3Config,
     _marker: PhantomData<F>,
 }
 
-impl<F: Field> MulChip<F> {
-    pub fn construct(config: MulConfig) -> Self {
+impl<F: Field> Lookup2x3Chip<F> {
+    pub fn construct(config: Lookup2x3Config) -> Self {
         Self {
             config,
             _marker: PhantomData,
         }
     }
 
-    pub fn configure(meta: &mut ConstraintSystem<F>) -> MulConfig {
+    pub fn configure(meta: &mut ConstraintSystem<F>) -> Lookup2x3Config {
         let col_fixed = meta.fixed_column();
         let col_a = meta.advice_column();
+        let col_f = meta.advice_column();
         let col_b = meta.advice_column();
         let col_c = meta.advice_column();
-        let selector = meta.selector();
+        let selector = meta.complex_selector();
         let instance = meta.instance_column();
 
         meta.enable_constant(col_fixed);
         meta.enable_equality(col_a);
+        meta.enable_equality(col_f);
         meta.enable_equality(col_b);
         meta.enable_equality(col_c);
         meta.enable_equality(instance);
 
-        // computes c = -a^2
-        meta.create_gate("mul", |meta| {
-            //
-            // col_fixed | col_a | col_b | col_c | selector
-            //      f       a      b        c       s
-            //
+        let lookup_column = [meta.lookup_table_column(), meta.lookup_table_column()];
+
+        meta.lookup("lookup test", |meta| {
             let s = meta.query_selector(selector);
             let f = meta.query_fixed(col_fixed, Rotation::cur());
             let a = meta.query_advice(col_a, Rotation::cur());
-            let b = meta.query_advice(col_b, Rotation::cur());
-            let c = meta.query_advice(col_c, Rotation::cur());
 
-            vec![s.clone() * (f * a.clone() - b.clone()), s * (a * b - c)]
+            vec![(s.clone() * f, lookup_column[0]), (s * a, lookup_column[1])]
         });
 
-        MulConfig {
+        Lookup2x3Config {
             col_fixed,
+            lookup_column,
             col_a,
+            col_f,
             col_b,
             col_c,
             selector,
             instance,
         }
+    }
+
+    // Utility function for creating a field element from a native value. Complexity is O(n) where
+    // n is the value of the number so don't use very large numbers with this.
+    fn f(&self, n: usize) -> Value<F> {
+        Value::known(iter::repeat(F::ONE).take(n).sum())
+    }
+
+    #[allow(clippy::type_complexity)]
+    pub fn assign_table(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
+        layouter.assign_table(
+            || "table",
+            |mut table| {
+                let fst = [10, 20, 30];
+                let snd = [7, 11, 13];
+
+                fst.into_iter()
+                    .zip(snd.into_iter())
+                    .enumerate()
+                    .flat_map(|(offset, (x, y))| [(offset, x), (offset, y)])
+                    .map(|(offset, n)| (offset, self.f(n)))
+                    .zip(self.config.lookup_column.iter().cycle())
+                    .try_for_each(|((offset, v), t)| {
+                        table.assign_cell(
+                            || format!("lookup col {}", t.inner().index()),
+                            *t,
+                            offset,
+                            || -> Value<F> { v },
+                        )
+                    })
+            },
+        )
     }
 
     #[allow(clippy::type_complexity)]
@@ -128,10 +189,10 @@ impl<F: Field> MulChip<F> {
 }
 
 #[derive(Default)]
-pub struct MulCircuit<F>(pub PhantomData<F>);
+pub struct Lookup2x3Circuit<F>(pub PhantomData<F>);
 
-impl<F: Field> Circuit<F> for MulCircuit<F> {
-    type Config = MulConfig;
+impl<F: Field> Circuit<F> for Lookup2x3Circuit<F> {
+    type Config = Lookup2x3Config;
     type FloorPlanner = SimpleFloorPlanner;
     type Params = ();
 
@@ -140,7 +201,7 @@ impl<F: Field> Circuit<F> for MulCircuit<F> {
     }
 
     fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
-        MulChip::configure(meta)
+        Lookup2x3Chip::configure(meta)
     }
 
     fn synthesize(
@@ -148,28 +209,24 @@ impl<F: Field> Circuit<F> for MulCircuit<F> {
         config: Self::Config,
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
-        let chip = MulChip::construct(config);
-        let prev_c = layouter.group(
-            || "test group",
-            crate::halo2::default_group_key!(),
-            |layouter, group| {
-                let prev_c = chip.assign_first_row(layouter.namespace(|| "first row"))?;
-                group.annotate_output(prev_c.cell());
-                Ok(prev_c)
-            },
-        )?;
-        chip.expose_public(layouter.namespace(|| "out"), &prev_c, 1)?;
+        let chip = Lookup2x3Chip::construct(config);
+        chip.assign_table(layouter.namespace(|| "table"))?;
+        let prev_c = chip.assign_first_row(layouter.namespace(|| "first row"))?;
 
+        chip.expose_public(layouter.namespace(|| "out"), &prev_c, 1)?;
         Ok(())
     }
 }
 
-impl<F: Field> CircuitCallbacks<F, Self> for MulCircuit<F> {
+impl<F: Field> CircuitCallbacks<F, Self> for Lookup2x3Circuit<F> {
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }
 
     fn instance_io(config: &<Self as Circuit<F>>::Config) -> CircuitIO<Instance> {
         CircuitIO::new(&[(config.instance, &[0])], &[(config.instance, &[1])])
+    }
+    fn lookup_callbacks() -> Option<Box<dyn LookupCallbacks<F>>> {
+        Some(Box::new(common::LookupCallbackHandler))
     }
 }

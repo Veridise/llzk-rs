@@ -295,6 +295,9 @@ mod tests {
         if let None = base.checked_add(offset) {
             return true;
         }
+        if let None = (base + offset).checked_add(1) {
+            return true;
+        }
         CellRef::absolute(col, base + offset) != CellRef::relative(col, base + 1, offset)
     }
 
@@ -305,6 +308,9 @@ mod tests {
         let _ = TestLogger::init(LevelFilter::Debug, Config::default());
         // Ignore tests where there's overflow
         if let None = base.checked_add(offset) {
+            return true;
+        }
+        if let None = (base + offset).checked_add(1) {
             return true;
         }
         CellRef::absolute(col, base + offset) != CellRef::relative(col, base, offset + 1)
@@ -361,6 +367,12 @@ mod tests {
         if let None = base.checked_add(offset) {
             return true;
         }
+        if let None = base.checked_add(1) {
+            return true;
+        }
+        if let None = base.checked_add(1).and_then(|base| base.checked_add(offset)) {
+            return true;
+        }
         hash(CellRef::absolute(col, base + offset))
             != hash(CellRef::relative(col, base + 1, offset))
     }
@@ -376,6 +388,12 @@ mod tests {
         let _ = TestLogger::init(LevelFilter::Debug, Config::default());
         // Ignore tests where there's overflow
         if let None = base.checked_add(offset) {
+            return true;
+        }
+        if let None = base.checked_add(offset).and_then(|base| base.checked_add(1)) {
+            return true;
+        }
+        if let None = offset.checked_add(1) {
             return true;
         }
         hash(CellRef::absolute(col, base + offset))

@@ -1,4 +1,5 @@
 use group::ff::Field;
+use halo2curves_070::bn256::Fr;
 use midnight_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
 use midnight_halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector, TableColumn,
@@ -7,11 +8,37 @@ use midnight_halo2_proofs::poly::Rotation;
 use std::iter;
 use std::marker::PhantomData;
 
-use crate::lookups::callbacks::LookupCallbacks;
-use crate::{CircuitCallbacks, CircuitIO};
+use halo2_llzk_frontend::{
+    lookups::callbacks::LookupCallbacks, CircuitCallbacks, CircuitIO, PicusParamsBuilder,
+};
+
+mod common;
+
+const EXPECTED_PICUS: &'static str = r"
+(prime-number 21888242871839275222246405745257275088548364400416034343698204186575808495617)
+(begin-module Main)
+(input in_0)
+(output out_0)
+(assert (= adv_0_0 in_0))
+(assert (= adv_3_0 out_0))
+(end-module)
+";
+
+#[test]
+fn lookup_2x3_zerosel_circuit_picus() {
+    common::setup();
+    common::picus_test(
+        Lookup2x3ZeroSelCircuit::<Fr>::default(),
+        PicusParamsBuilder::new()
+            .short_names()
+            .no_optimize()
+            .build(),
+        EXPECTED_PICUS,
+    );
+}
 
 #[derive(Debug, Clone)]
-pub struct Lookup2x3Config {
+pub struct Lookup2x3ZeroSelConfig {
     #[allow(dead_code)]
     pub col_fixed: Column<Fixed>,
     pub lookup_column: [TableColumn; 2],
@@ -24,20 +51,20 @@ pub struct Lookup2x3Config {
 }
 
 #[derive(Debug, Clone)]
-struct Lookup2x3Chip<F: Field> {
-    config: Lookup2x3Config,
+struct Lookup2x3ZeroSelChip<F: Field> {
+    config: Lookup2x3ZeroSelConfig,
     _marker: PhantomData<F>,
 }
 
-impl<F: Field> Lookup2x3Chip<F> {
-    pub fn construct(config: Lookup2x3Config) -> Self {
+impl<F: Field> Lookup2x3ZeroSelChip<F> {
+    pub fn construct(config: Lookup2x3ZeroSelConfig) -> Self {
         Self {
             config,
             _marker: PhantomData,
         }
     }
 
-    pub fn configure(meta: &mut ConstraintSystem<F>) -> Lookup2x3Config {
+    pub fn configure(meta: &mut ConstraintSystem<F>) -> Lookup2x3ZeroSelConfig {
         let col_fixed = meta.fixed_column();
         let col_a = meta.advice_column();
         let col_f = meta.advice_column();
@@ -63,7 +90,7 @@ impl<F: Field> Lookup2x3Chip<F> {
             vec![(s.clone() * f, lookup_column[0]), (s * a, lookup_column[1])]
         });
 
-        Lookup2x3Config {
+        Lookup2x3ZeroSelConfig {
             col_fixed,
             lookup_column,
             col_a,
@@ -86,8 +113,8 @@ impl<F: Field> Lookup2x3Chip<F> {
         layouter.assign_table(
             || "table",
             |mut table| {
-                let fst = [10, 20, 30];
-                let snd = [7, 11, 13];
+                let fst = [0, 20, 30];
+                let snd = [0, 11, 13];
 
                 fst.into_iter()
                     .zip(snd.into_iter())
@@ -115,7 +142,7 @@ impl<F: Field> Lookup2x3Chip<F> {
         layouter.assign_region(
             || "first row",
             |mut region| {
-                self.config.selector.enable(&mut region, 0)?;
+                //self.config.selector.enable(&mut region, 0)?;
 
                 let fixed_cell = region.assign_advice(
                     || "-1",
@@ -162,10 +189,10 @@ impl<F: Field> Lookup2x3Chip<F> {
 }
 
 #[derive(Default)]
-pub struct Lookup2x3Circuit<F>(pub PhantomData<F>);
+pub struct Lookup2x3ZeroSelCircuit<F>(pub PhantomData<F>);
 
-impl<F: Field> Circuit<F> for Lookup2x3Circuit<F> {
-    type Config = Lookup2x3Config;
+impl<F: Field> Circuit<F> for Lookup2x3ZeroSelCircuit<F> {
+    type Config = Lookup2x3ZeroSelConfig;
     type FloorPlanner = SimpleFloorPlanner;
     type Params = ();
 
@@ -174,7 +201,7 @@ impl<F: Field> Circuit<F> for Lookup2x3Circuit<F> {
     }
 
     fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
-        Lookup2x3Chip::configure(meta)
+        Lookup2x3ZeroSelChip::configure(meta)
     }
 
     fn synthesize(
@@ -182,7 +209,7 @@ impl<F: Field> Circuit<F> for Lookup2x3Circuit<F> {
         config: Self::Config,
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
-        let chip = Lookup2x3Chip::construct(config);
+        let chip = Lookup2x3ZeroSelChip::construct(config);
         chip.assign_table(layouter.namespace(|| "table"))?;
         let prev_c = chip.assign_first_row(layouter.namespace(|| "first row"))?;
 
@@ -191,7 +218,7 @@ impl<F: Field> Circuit<F> for Lookup2x3Circuit<F> {
     }
 }
 
-impl<F: Field> CircuitCallbacks<F, Self> for Lookup2x3Circuit<F> {
+impl<F: Field> CircuitCallbacks<F, Self> for Lookup2x3ZeroSelCircuit<F> {
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }
@@ -200,6 +227,6 @@ impl<F: Field> CircuitCallbacks<F, Self> for Lookup2x3Circuit<F> {
         CircuitIO::new(&[(config.instance, &[0])], &[(config.instance, &[1])])
     }
     fn lookup_callbacks() -> Option<Box<dyn LookupCallbacks<F>>> {
-        Some(Box::new(super::LookupCallbackHandler))
+        Some(Box::new(common::LookupCallbackHandler))
     }
 }

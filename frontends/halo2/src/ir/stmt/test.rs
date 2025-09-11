@@ -20,14 +20,6 @@ fn iterator_nested_seqs() {
     assert_eq!(expected, output);
 }
 
-fn eq<T>(lhs: T, rhs: T) -> IRStmt<T> {
-    IRStmt::constraint(CmpOp::Eq, lhs, rhs)
-}
-
-fn lt<T>(lhs: T, rhs: T) -> IRStmt<T> {
-    IRStmt::constraint(CmpOp::Lt, lhs, rhs)
-}
-
 pub struct TestHelper<T, O> {
     factory: Box<dyn ConstraintFactory<Inner = T, Out = O>>,
 }

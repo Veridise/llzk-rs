@@ -1,44 +1,84 @@
+//! This test checks that calling the same group multiple types creates only one module and two
+//! calls.
+
 use group::ff::Field;
+use halo2curves_070::bn256::Fr;
 use midnight_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
+use midnight_halo2_proofs::default_group_key;
 use midnight_halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector,
 };
 use midnight_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
-use crate::{CircuitCallbacks, CircuitIO};
+use halo2_llzk_frontend::{CircuitCallbacks, CircuitIO, PicusParamsBuilder};
 
+mod common;
+
+const EXPECTED_PICUS: &'static str = r"
+(prime-number 21888242871839275222246405745257275088548364400416034343698204186575808495617)
+(begin-module test_group)
+(input in_0)
+(output out_0)
+(assert (= (* 1 (+ (* 21888242871839275222246405745257275088548364400416034343698204186575808495616 adv_0_1) (- adv_1_1))) 0))
+(assert (= (* 1 (+ (* adv_0_1 adv_1_1) (- out_0))) 0))
+(assert (= in_0 adv_0_1))
+(end-module)
+(begin-module Main)
+(input in_0)
+(output out_0)
+(call [cout_0_0] test_group [adv_0_0])
+(assert (= adv_2_1 cout_0_0))
+(call [cout_1_0] test_group [adv_2_1])
+(assert (= adv_2_2 cout_1_0))
+(assert (= adv_0_0 in_0))
+(assert (= adv_0_0 adv_0_1))
+(assert (= adv_2_2 adv_2_3))
+(assert (= adv_2_3 out_0))
+(end-module)
+";
+
+#[test]
+fn groped_mul3_circuit_picus() {
+    common::setup();
+    common::picus_test(
+        MulCircuit::<Fr>::default(),
+        PicusParamsBuilder::new()
+            .short_names()
+            .no_optimize()
+            .build(),
+        EXPECTED_PICUS,
+    );
+}
 #[derive(Debug, Clone)]
-pub struct MulWithFixedConstraintConfig {
+pub struct MulConfig {
     pub col_fixed: Column<Fixed>,
     pub col_a: Column<Advice>,
     pub col_b: Column<Advice>,
     pub col_c: Column<Advice>,
-    pub col_d: Column<Advice>,
     pub selector: Selector,
     pub instance: Column<Instance>,
 }
 
 #[derive(Debug, Clone)]
 struct MulChip<F: Field> {
-    config: MulWithFixedConstraintConfig,
+    config: MulConfig,
     _marker: PhantomData<F>,
 }
 
 impl<F: Field> MulChip<F> {
-    pub fn construct(config: MulWithFixedConstraintConfig) -> Self {
+    pub fn construct(config: MulConfig) -> Self {
         Self {
             config,
             _marker: PhantomData,
         }
     }
 
-    pub fn configure(meta: &mut ConstraintSystem<F>) -> MulWithFixedConstraintConfig {
+    pub fn configure(meta: &mut ConstraintSystem<F>) -> MulConfig {
         let col_fixed = meta.fixed_column();
         let col_a = meta.advice_column();
         let col_b = meta.advice_column();
         let col_c = meta.advice_column();
-        let col_d = meta.advice_column();
         let selector = meta.selector();
         let instance = meta.instance_column();
 
@@ -46,7 +86,6 @@ impl<F: Field> MulChip<F> {
         meta.enable_equality(col_a);
         meta.enable_equality(col_b);
         meta.enable_equality(col_c);
-        meta.enable_equality(col_d);
         meta.enable_equality(instance);
 
         // computes c = -a^2
@@ -64,20 +103,11 @@ impl<F: Field> MulChip<F> {
             vec![s.clone() * (f * a.clone() - b.clone()), s * (a * b - c)]
         });
 
-        meta.create_gate("equal -1", |meta| {
-            let s = meta.query_selector(selector);
-            let f = meta.query_fixed(col_fixed, Rotation::cur());
-            let f2 = meta.query_fixed(col_fixed, Rotation::next());
-
-            vec![s * (f - f2)]
-        });
-
-        MulWithFixedConstraintConfig {
+        MulConfig {
             col_fixed,
             col_a,
             col_b,
             col_c,
-            col_d,
             selector,
             instance,
         }
@@ -86,7 +116,8 @@ impl<F: Field> MulChip<F> {
     #[allow(clippy::type_complexity)]
     pub fn assign_first_row(
         &self,
-        mut layouter: impl Layouter<F>,
+        layouter: &mut impl Layouter<F>,
+        input: &AssignedCell<F, F>,
     ) -> Result<AssignedCell<F, F>, Error> {
         layouter.assign_region(
             || "first row",
@@ -100,13 +131,13 @@ impl<F: Field> MulChip<F> {
                     || -> Value<F> { Value::known(-F::ONE) },
                 )?;
 
-                let a_cell = region.assign_advice_from_instance(
+                let a_cell = region.assign_advice(
                     || "a",
-                    self.config.instance,
-                    0,
                     self.config.col_a,
                     0,
+                    || input.value().copied(),
                 )?;
+                region.constrain_equal(input.cell(), a_cell.cell())?;
 
                 let b_cell = region.assign_advice(
                     || "-1 * a",
@@ -122,33 +153,75 @@ impl<F: Field> MulChip<F> {
                     || a_cell.value().copied() * b_cell.value(),
                 )?;
 
-                region.assign_advice_from_constant(
-                    || "const",
-                    self.config.col_d,
-                    0,
-                    F::ONE + F::ONE,
-                )?;
-
                 Ok(c_cell)
+            },
+        )
+    }
+
+    pub fn assign_a(&self, layouter: &mut impl Layouter<F>) -> Result<AssignedCell<F, F>, Error> {
+        layouter.assign_region(
+            || "set a",
+            |mut region| {
+                region.assign_advice_from_instance(
+                    || "a",
+                    self.config.instance,
+                    0,
+                    self.config.col_a,
+                    0,
+                )
+            },
+        )
+    }
+
+    pub fn assign_c(
+        &self,
+        layouter: &mut impl Layouter<F>,
+        cell: &AssignedCell<F, F>,
+    ) -> Result<AssignedCell<F, F>, Error> {
+        layouter.assign_region(
+            || "set c",
+            |mut region| {
+                let c =
+                    region.assign_advice(|| "c", self.config.col_c, 0, || cell.value().copied())?;
+                region.constrain_equal(cell.cell(), c.cell())?;
+                Ok(c)
             },
         )
     }
 
     pub fn expose_public(
         &self,
-        mut layouter: impl Layouter<F>,
+        layouter: &mut impl Layouter<F>,
         cell: &AssignedCell<F, F>,
         row: usize,
     ) -> Result<(), Error> {
         layouter.constrain_instance(cell.cell(), self.config.instance, row)
     }
+
+    pub fn call_group(
+        &self,
+        layouter: &mut impl Layouter<F>,
+        input: &AssignedCell<F, F>,
+    ) -> Result<AssignedCell<F, F>, Error> {
+        layouter.group(
+            || "test group",
+            // Defined here to get always the same key.
+            default_group_key!(),
+            |layouter, group| {
+                group.annotate_input(input.cell());
+                let prev_c = self.assign_first_row(layouter, input)?;
+                group.annotate_output(prev_c.cell());
+                Ok(prev_c)
+            },
+        )
+    }
 }
 
 #[derive(Default)]
-pub struct MulWithFixedConstraintCircuit<F>(pub PhantomData<F>);
+pub struct MulCircuit<F>(pub PhantomData<F>);
 
-impl<F: Field> Circuit<F> for MulWithFixedConstraintCircuit<F> {
-    type Config = MulWithFixedConstraintConfig;
+impl<F: Field> Circuit<F> for MulCircuit<F> {
+    type Config = MulConfig;
     type FloorPlanner = SimpleFloorPlanner;
     type Params = ();
 
@@ -166,15 +239,17 @@ impl<F: Field> Circuit<F> for MulWithFixedConstraintCircuit<F> {
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
         let chip = MulChip::construct(config);
+        let a = chip.assign_a(&mut layouter)?;
+        let c = chip.call_group(&mut layouter, &a)?;
+        let c = chip.call_group(&mut layouter, &c)?;
+        let pub_c = chip.assign_c(&mut layouter, &c)?;
+        chip.expose_public(&mut layouter, &pub_c, 1)?;
 
-        let prev_c = chip.assign_first_row(layouter.namespace(|| "first row"))?;
-
-        chip.expose_public(layouter.namespace(|| "out"), &prev_c, 1)?;
         Ok(())
     }
 }
 
-impl<F: Field> CircuitCallbacks<F, Self> for MulWithFixedConstraintCircuit<F> {
+impl<F: Field> CircuitCallbacks<F, Self> for MulCircuit<F> {
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }

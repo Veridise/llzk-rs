@@ -78,22 +78,6 @@ impl<'lc, 'gc, F: PrimeField> Driver<'lc, 'gc, F> {
         )
     }
 
-    /// Runs the Picus backend with the given strategy.
-    #[cfg(test)]
-    pub(crate) fn test_picus(
-        &self,
-        syn: CircuitSynthesis<F>,
-        params: PicusParams,
-        strat: impl crate::backend::codegen::CodegenStrategy,
-    ) -> anyhow::Result<PicusOutput<F>> {
-        PicusBackend::<F>::initialize(params).codegen_with_strat(
-            syn,
-            strat,
-            self.lookup_callbacks(),
-            self.gate_callbacks(),
-        )
-    }
-
     /// Sets the lookup callbacks.
     pub fn set_lookup_callbacks(&mut self, cb: impl LookupCallbacks<F> + 'lc) {
         self.lookup_callbacks = Some(Box::new(cb));

@@ -270,7 +270,7 @@ pub fn select_equality_constraints<F: Field>(
         .filter(|c| {
             log::debug!("Checking if eq constraint should go: {c:?}");
             match bounds.check_eq_constraint(c) {
-                EqConstraintCheck::AnyToAny(left, _, right, _) => match (left, right) {
+                EqConstraintCheck::AnyToAny(left, l, right, r) => match (left, right) {
                     (Bound::Within, Bound::Within) => true,
                     (Bound::Within, Bound::ForeignIO) => true,
                     (Bound::ForeignIO, Bound::Within) => true,
@@ -285,12 +285,22 @@ pub fn select_equality_constraints<F: Field>(
                     (Bound::Outside, Bound::Outside) => false,
                     (Bound::IO, Bound::Outside) => false,
                     (Bound::Outside, Bound::IO) => false,
-                    (Bound::Within, Bound::Outside) => unreachable!(),
-                    (Bound::Outside, Bound::Within) => unreachable!(),
+                    (Bound::Within, Bound::Outside) => match r.0.column_type() {
+                        crate::halo2::Any::Fixed => true,
+                        _ => unreachable!("Within {l:?} | Outside {r:?}"),
+                    } 
+
+                    
+                    (Bound::Outside, Bound::Within) => match l.0.column_type() {
+                        crate::halo2::Any::Fixed => true,
+                        _ => unreachable!("Outside {l:?} | Within {r:?}"),
+                    } 
+  
+                    
                 },
                 EqConstraintCheck::FixedToConst(bound) => match bound {
-                    Bound::Within => true,
-                    Bound::Outside => false,
+                    Bound::Within | 
+                    Bound::Outside => true,
                     _ => unreachable!(),
                 },
             }

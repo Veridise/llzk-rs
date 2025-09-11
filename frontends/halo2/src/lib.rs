@@ -14,8 +14,6 @@ mod io;
 pub mod ir;
 pub mod lookups;
 mod synthesis;
-#[cfg(test)]
-mod test;
 mod utils;
 mod value;
 
