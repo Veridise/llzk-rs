@@ -6,6 +6,9 @@ edition = "2024"
 [dev-dependencies]
 simplelog = {version = "0.12", features = ["test"] }
 similar-asserts = "1.7"
+quickcheck = "1"
+quickcheck_macros = "1"
+rstest = "0.26"
 
 [dependencies]
 melior = { workspace = true }
@@ -38,7 +41,7 @@ git = "https://github.com/Veridise/halo2-midnight.git"
 package = "halo2_proofs"
 optional = true 
 # rev = "92d9356"
-rev = "08679930"
+rev = "7f1ae47b"
 default-features = false
 features = [
     "bits",

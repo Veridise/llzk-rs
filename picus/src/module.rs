@@ -114,6 +114,7 @@ pub trait ModuleLike<K> {
     fn fold_stmts(&mut self, prime: &Felt);
 
     fn add_constraint(&mut self, constraint: Expr) {
+        log::debug!("Adding constraint {constraint:?}");
         self.add_stmt(stmt::constrain(constraint))
     }
 

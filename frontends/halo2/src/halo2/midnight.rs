@@ -12,4 +12,7 @@ pub use midnight_halo2_proofs::{
 };
 
 #[allow(unused_imports)]
+pub use midnight_halo2_proofs::default_group_key;
+
+#[allow(unused_imports)]
 pub use midnight_halo2_proofs::halo2curves::bn256::Fr;

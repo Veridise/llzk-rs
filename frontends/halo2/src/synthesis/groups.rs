@@ -1,8 +1,11 @@
+use std::collections::HashMap;
+
 use crate::{
     backend::resolvers::FixedQueryResolver,
     halo2::{
         groups::{GroupKey, GroupKeyInstance},
-        Advice, Any, Cell, ColumnType, Expression, Field, Gate, Instance, RegionIndex, Rotation,
+        Advice, Any, Cell, Column, ColumnType, Expression, Field, Gate, Instance, RegionIndex,
+        Rotation,
     },
     io::IOCell,
     lookups::Lookup,
@@ -53,6 +56,29 @@ impl GroupCell {
             _ => None,
         }
     }
+
+    pub fn col(&self) -> Column<Any> {
+        match self {
+            GroupCell::Assigned(cell) => cell.column,
+            GroupCell::InstanceIO((col, _)) => (*col).into(),
+            GroupCell::AdviceIO((col, _)) => (*col).into(),
+        }
+    }
+
+    /// Tries to construct a a cell from a tuple of column and row.
+    ///
+    /// If the column is Fixed returns None.
+    pub fn from_tuple((col, row): (Column<Any>, usize)) -> Option<Self> {
+        match Column::<Instance>::try_from(col) {
+            Ok(col) => {
+                return Some(Self::InstanceIO((col, row)));
+            }
+            _ => {}
+        }
+        Column::<Advice>::try_from(col)
+            .ok()
+            .map(|col| Self::AdviceIO((col, row)))
+    }
 }
 
 impl From<Cell> for GroupCell {
@@ -96,9 +122,21 @@ impl Group {
         outputs: Vec<GroupCell>,
         regions: Regions,
         children: Vec<usize>,
+        region_starts: &HashMap<RegionIndex, usize>,
     ) -> Self {
-        let advice_io = Self::mk_advice_io(&inputs, &outputs);
-        let instance_io = Self::mk_instance_io(&inputs, &outputs);
+        let advice_io = Self::mk_advice_io(&inputs, &outputs, &region_starts);
+        let instance_io = Self::mk_instance_io(&inputs, &outputs, &region_starts);
+        // Sanity check; if group is top level there cannot be any assigned cells.
+        if kind == GroupKind::TopLevel {
+            assert!(
+                inputs.iter().all(|i| !matches!(i, GroupCell::Assigned(_))),
+                "Cannot assign input cells in the top level"
+            );
+            assert!(
+                outputs.iter().all(|i| !matches!(i, GroupCell::Assigned(_))),
+                "Cannot assign output cells in the top level"
+            );
+        }
         Self {
             kind,
             name,
@@ -163,6 +201,12 @@ impl Group {
         &self.outputs
     }
 
+    /// If the group has a children with that index return Some with the position in the children
+    /// array where it is. Otherwise returns None
+    pub fn has_child(&self, n: usize) -> Option<usize> {
+        self.children.iter().position(|c| *c == n)
+    }
+
     pub fn name(&self) -> &str {
         if self.kind == GroupKind::TopLevel {
             return "Main";
@@ -171,6 +215,10 @@ impl Group {
             .as_deref()
             .map(|s| if s.is_empty() { "unnamed_group" } else { s })
             .unwrap_or("unnamed_group")
+    }
+
+    pub fn children_count(&self) -> usize {
+        self.children.len()
     }
 
     /// Returns the group objects of the children
@@ -191,17 +239,24 @@ impl Group {
     }
 
     /// Constructs a CircuitIO of advice cells.
-    fn mk_advice_io(inputs: &[GroupCell], outputs: &[GroupCell]) -> CircuitIO<Advice> {
-        fn filter_fn(input: &GroupCell) -> Option<IOCell<Advice>> {
+    fn mk_advice_io(
+        inputs: &[GroupCell],
+        outputs: &[GroupCell],
+        regions: &HashMap<RegionIndex, usize>,
+    ) -> CircuitIO<Advice> {
+        let filter_fn = |input: &GroupCell| -> Option<IOCell<Advice>> {
             match input {
                 GroupCell::Assigned(cell) => match cell.column.column_type() {
-                    Any::Advice(_) => Some((cell.column.try_into().unwrap(), cell.row_offset)),
+                    Any::Advice(_) => {
+                        let row = cell.row_offset + regions[&cell.region_index];
+                        Some((cell.column.try_into().unwrap(), row))
+                    }
                     _ => None,
                 },
                 GroupCell::InstanceIO(_) => None,
                 GroupCell::AdviceIO(cell) => Some(*cell),
             }
-        }
+        };
         CircuitIO::new_from_iocells(
             inputs.iter().filter_map(filter_fn),
             outputs.iter().filter_map(filter_fn),
@@ -209,17 +264,24 @@ impl Group {
     }
 
     /// Constructs a CircuitIO of instance cells.
-    fn mk_instance_io(inputs: &[GroupCell], outputs: &[GroupCell]) -> CircuitIO<Instance> {
-        fn filter_fn(input: &GroupCell) -> Option<IOCell<Instance>> {
+    fn mk_instance_io(
+        inputs: &[GroupCell],
+        outputs: &[GroupCell],
+        regions: &HashMap<RegionIndex, usize>,
+    ) -> CircuitIO<Instance> {
+        let filter_fn = |input: &GroupCell| -> Option<IOCell<Instance>> {
             match input {
                 GroupCell::Assigned(cell) => match cell.column.column_type() {
-                    Any::Instance => Some((cell.column.try_into().unwrap(), cell.row_offset)),
+                    Any::Instance => {
+                        let row = cell.row_offset + regions[&cell.region_index];
+                        Some((cell.column.try_into().unwrap(), row))
+                    }
                     _ => None,
                 },
                 GroupCell::InstanceIO(cell) => Some(*cell),
                 GroupCell::AdviceIO(_) => None,
             }
-        }
+        };
         CircuitIO::new_from_iocells(
             inputs.iter().filter_map(filter_fn),
             outputs.iter().filter_map(filter_fn),
@@ -302,12 +364,31 @@ impl GroupTree {
         }
     }
 
-    /// Transforms the tree into a read-only flat representation.
-    pub fn flatten(self) -> Groups {
+    fn all_regions<'a>(&'a self) -> Vec<RegionData<'a>> {
+        self.regions
+            .regions()
+            .into_iter()
+            .chain(self.children.iter().flat_map(|c| c.all_regions()))
+            .collect()
+    }
+
+    fn region_starts(&self) -> HashMap<RegionIndex, usize> {
+        assert_eq!(self.kind, GroupKind::TopLevel);
+        self.all_regions()
+            .into_iter()
+            .map(|r| {
+                r.index()
+                    .and_then(|i| Some((i, r.start()?)))
+                    .unwrap_or_else(|| panic!("Region {r:?} does not have an index or a start"))
+            })
+            .collect()
+    }
+
+    fn flatten_rec(self, region_starts: &HashMap<RegionIndex, usize>) -> Groups {
         let mut child_indices = vec![];
         let mut groups = vec![];
         for child in self.children {
-            let flat_child = child.flatten().0;
+            let flat_child = child.flatten_rec(region_starts).0;
             groups.extend(flat_child);
             child_indices.push(groups.len() - 1);
         }
@@ -318,8 +399,16 @@ impl GroupTree {
             self.outputs,
             self.regions,
             child_indices,
+            region_starts,
         ));
         Groups(groups)
+    }
+
+    /// Transforms the tree into a read-only flat representation.
+    pub fn flatten(self) -> Groups {
+        assert_eq!(self.kind, GroupKind::TopLevel);
+        let region_starts = self.region_starts();
+        self.flatten_rec(&region_starts)
     }
 }
 

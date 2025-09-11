@@ -133,8 +133,10 @@ fn lower_gates<'a, F: Field>(
     instance_io: &'a CircuitIO<Instance>,
     fqr: &'a dyn FixedQueryResolver<F>,
 ) -> Result<Vec<IRStmt<ScopedExpression<'a, 'a, F>>>> {
+    log::debug!("Got {} gates and {} regions", gates.len(), regions.len());
     utils::product(regions, gates)
         .map(|(r, g)| {
+            log::debug!("Lowering gate {} in region {}", g.name(), r.name());
             let rows = r.rows();
             let scope = GateScope::new(g, *r, (rows.start, rows.end), advice_io, instance_io, fqr);
 

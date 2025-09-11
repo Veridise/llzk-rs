@@ -6,7 +6,7 @@ use std::hash::Hash;
 pub type IOCell<C> = (Column<C>, usize);
 
 /// Records what cells of the given column type are inputs and what cells are outputs.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CircuitIO<C: ColumnType> {
     inputs: Vec<IOCell<C>>,
     outputs: Vec<IOCell<C>>,
@@ -30,6 +30,10 @@ impl<C: ColumnType> CircuitIO<C> {
             inputs: Vec::from_iter(inputs),
             outputs: Vec::from_iter(outputs),
         }
+    }
+
+    pub(crate) fn add_input(&mut self, cell: IOCell<C>) {
+        self.inputs.push(cell)
     }
 
     /// Creates a CircuitIO with the given columns and each row that is either an input or an

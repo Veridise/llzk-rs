@@ -337,7 +337,9 @@ impl<F: Field> Assignment<F> for SynthesizerInner<'_, F> {
         N: FnOnce() -> NR,
     {
         if self.in_phase(FirstPhase) {
-            self.groups.regions_mut().push(region_name, self.next_index);
+            self.groups
+                .regions_mut()
+                .push(region_name, self.next_index, self.tables);
         }
     }
 
@@ -438,7 +440,7 @@ impl<F: Field> Assignment<F> for SynthesizerInner<'_, F> {
             .blanket_fill(column, row, value.map(|f| f.evaluate()));
         let r = self.groups.regions_mut();
         r.edit(|region| region.update_extent(column.into(), row));
-        r.move_latest_to_tables(self.tables);
+        r.mark_region();
         Ok(())
     }
 

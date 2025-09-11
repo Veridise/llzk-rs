@@ -163,6 +163,22 @@ impl<'a> RegionData<'a> {
         self.inner.enabled_selectors()
     }
 
+    pub fn columns(&self) -> &'a HashSet<Column<Any>> {
+        &self.inner.columns
+    }
+
+    /// Returns true if the region contains the given advice cell.
+    pub fn contains_advice_cell(&self, col: usize, row: usize) -> bool {
+        let in_col_set = self
+            .inner
+            .columns
+            .iter()
+            .filter(|c| matches!(c.column_type(), Any::Advice(_)))
+            .any(|c| c.index() == col);
+        let in_row_range = self.inner.rows().contains(&row);
+        in_col_set && in_row_range
+    }
+
     #[inline]
     pub fn header(&self) -> String {
         match (&self.kind(), &self.index()) {
@@ -172,6 +188,16 @@ impl<'a> RegionData<'a> {
             }
             (RegionKind::Table, None) => format!("table {:?}", self.name()),
             _ => unreachable!(),
+        }
+    }
+
+    /// Returns the offset from the start of the region, only if the row is within bounds.  
+    pub fn relativize(&self, row: usize) -> Option<usize> {
+        let rows = self.inner.rows();
+        if rows.contains(&row) {
+            Some(row - rows.start)
+        } else {
+            None
         }
     }
 }

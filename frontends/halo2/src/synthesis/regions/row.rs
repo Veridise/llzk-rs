@@ -49,9 +49,9 @@ impl<'io, 'fq, F: Field> Row<'io, 'fq, F> {
         &self,
         io: &[IOCell<C>],
         col: usize,
-        rot: Rotation,
+        rot: usize,
     ) -> Result<Option<FuncIO>> {
-        let target_cell = (col, self.resolve_rotation(rot)?);
+        let target_cell = (col, rot);
         Ok(io
             .iter()
             .map(|(col, row)| (col.index(), *row))
@@ -66,20 +66,27 @@ impl<'io, 'fq, F: Field> Row<'io, 'fq, F> {
             .map(Into::into))
     }
 
+    /// Resolves the query of the given column type.
+    ///
+    /// If the cell was detected as part of the IO returns [`FuncIO::Arg`] or [`FuncIO::Field`].
+    /// Otherwise returns the fallback value if given. Otherwise fails.
     fn resolve<C: ColumnType>(
         &self,
         io: &CircuitIO<C>,
         col: usize,
-        rot: Rotation,
+        rot: usize,
+        fallback: Option<FuncIO>,
     ) -> Result<FuncIO> {
         let as_input = self.resolve_as::<ArgNo, C>(io.inputs(), col, rot)?;
         let as_output = self.resolve_as::<FieldId, C>(io.outputs(), col, rot)?;
 
         Ok(match (as_input, as_output) {
-            (None, None) => FuncIO::advice_abs(col, self.resolve_rotation(rot)?),
+            (None, None) => {
+                fallback.ok_or_else(|| anyhow::anyhow!("Failed to resolve {} cell ({}, {}): Fallback value was required but was not present.", std::any::type_name::<C>(), col, rot))?
+            }
             (None, Some(r)) => r,
             (Some(r), None) => r,
-            (Some(_), Some(_)) => bail!("Query is both an input and an output in main function"),
+            (Some(_), Some(_)) => bail!("Failed to resolve {} cell ({}, {}): Query is both an input and an output in main function", std::any::type_name::<C>(), col, rot),
         })
     }
 
@@ -91,6 +98,36 @@ impl<'io, 'fq, F: Field> Row<'io, 'fq, F> {
             }
             io => io,
         }
+    }
+
+    /// General method for resolving advice queries.
+    ///
+    /// Takes the query and a callback that returns a fallback value.
+    /// This fallback value is used when the the advice cell was not found in
+    /// the CircuitIO.
+    ///
+    /// The two users of this function, Row and RegionRow, create different kind of
+    /// advice cells. Former creates absolute cells and later creates relative cells.
+    /// The function takes a callback instead of the fallback value directly is because
+    /// the final row is computed here but that data is required for creating the fallback value.
+    /// Additionally, the callers may have more information that is required for creating the kind
+    /// of advice cell is required.
+    ///
+    /// Is pub(super) because is used by RegionRow as well.
+    pub(super) fn resolve_advice_query_impl(
+        &self,
+        query: &AdviceQuery,
+        fallback: impl FnOnce(usize, usize) -> FuncIO,
+    ) -> Result<FuncIO> {
+        let rot = self.resolve_rotation(query.rotation())?;
+        let col = query.column_index();
+        log::debug!("row: {}, rot: {rot}", self.row);
+        let fb = fallback(col, rot);
+        assert!(matches!(fb, FuncIO::Advice(_)));
+        let r = self.resolve(self.advice_io, col, rot, Some(fb))?;
+        // Advice cells go second so we need to step the value by the number of instance cells
+        // that are of the same type (input or output)
+        Ok(self.step_advice_io(r))
     }
 }
 
@@ -104,15 +141,15 @@ impl<F: Field> QueryResolver<F> for Row<'_, '_, F> {
         &'a self,
         query: &AdviceQuery,
     ) -> Result<(ResolvedQuery<F>, Option<Cow<'a, FQN>>)> {
-        let r = self.resolve(self.advice_io, query.column_index(), query.rotation())?;
-        // Advice cells go second so we need to step the value by the number of instance cells
-        // that are of the same type (input or output)
-        let r = self.step_advice_io(r);
+        let r = self.resolve_advice_query_impl(query, FuncIO::advice_abs)?;
+
         Ok((r.into(), None))
     }
 
     fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>> {
-        let r = self.resolve(self.instance_io, query.column_index(), query.rotation())?;
+        let rot = self.resolve_rotation(query.rotation())?;
+        let col = query.column_index();
+        let r = self.resolve(self.instance_io, col, rot, None)?;
         Ok(r.into())
     }
 }

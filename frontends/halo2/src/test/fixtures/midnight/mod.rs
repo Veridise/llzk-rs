@@ -12,6 +12,9 @@ use crate::{
 };
 
 pub mod fibonacci;
+pub mod grouped_muls;
+pub mod grouped_muls2;
+pub mod grouped_muls3;
 pub mod lookup;
 pub mod lookup_2x3;
 pub mod lookup_2x3_fixed;

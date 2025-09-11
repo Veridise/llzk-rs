@@ -13,6 +13,7 @@ mod row;
 mod table;
 
 pub use data::RegionData;
+
 pub use fixed::FixedData;
 pub use fqn::FQN;
 pub use region_row::{RegionRow, RegionRowLike};
@@ -31,16 +32,22 @@ pub struct Regions {
     // If we need to transform the previous region into a table we store the index here to
     // reuse it.
     recovered_index: Option<RegionIndex>,
+    last_is_table: bool,
 }
 
 impl Regions {
     /// Adds a new region.
-    pub fn push<NR, N>(&mut self, region_name: N, next_index: &mut dyn Iterator<Item = RegionIndex>)
-    where
+    pub fn push<NR, N>(
+        &mut self,
+        region_name: N,
+        next_index: &mut dyn Iterator<Item = RegionIndex>,
+        tables: &mut Vec<HashSet<Column<Fixed>>>,
+    ) where
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
         assert!(self.current.is_none());
+        self.move_latest_to_tables(tables);
         let name: String = region_name().into();
         let index = self
             // Reuse the previous index if available.
@@ -81,18 +88,30 @@ impl Regions {
         self.regions.iter().map(RegionData::new).collect()
     }
 
-    /// Moves the last commited region to the tables vector.
+    /// Marks the last region as a table.
     ///
     /// Panics if there is a currently active region or there is already a recovered index.
-    pub fn move_latest_to_tables(&mut self, tables: &mut Vec<HashSet<Column<Fixed>>>) {
+    pub fn mark_region(&mut self) {
         assert!(
             self.current.is_none(),
             "Cannot move the last region to tables list while we have another active region"
         );
-        let mut table = self
-            .regions
-            .pop()
-            .expect("Cannot move to the tables list because list is empty");
+        self.last_is_table = true;
+    }
+
+    /// Moves the last commited region to the tables vector.
+    fn move_latest_to_tables(&mut self, tables: &mut Vec<HashSet<Column<Fixed>>>) {
+        if !self.last_is_table {
+            return;
+        }
+        self.last_is_table = false;
+        log::debug!("Regions: {:?}", self.regions);
+        let table = self.regions.pop();
+        if table.is_none() {
+            log::debug!("Region list was empty");
+            return;
+        }
+        let mut table = table.unwrap();
         log::debug!(
             "Demoting region {} {:?} to table",
             table.index_as_str(),

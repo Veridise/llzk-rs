@@ -156,7 +156,10 @@ impl<K: VarKind, S: Into<K> + Into<VarStr> + Clone> Extend<S> for Vars<K> {
     fn extend<T: IntoIterator<Item = S>>(&mut self, iter: T) {
         self.0.extend(
             iter.into_iter()
-                .map(|seed| (seed.clone().into(), seed.into())),
+                .map(|seed| (seed.clone().into(), seed.into()))
+                .inspect(|(key, var)| {
+                    log::debug!("Priming vars db with key {key:?} and var {var:?}")
+                }),
         )
     }
 }
@@ -177,12 +180,12 @@ impl<K: VarKind + Clone + fmt::Debug> Vars<K> {
     /// preexisting value.
     pub fn insert<S: Into<K> + Into<VarStr> + Clone>(&mut self, seed: S) -> VarStr {
         let key = seed.clone().into();
-
+        log::debug!("[{self:p}] Inserting var key {key:?}");
         if self.0.contains_key(&key) {
             let prev_name = self.0[&key].clone();
             let new_name: VarStr = seed.into();
             log::debug!(
-                "Key {key:?} was already inserted. Cached name is {prev_name:?} and the generated name is {new_name:?}"
+                "[{self:p}]  Key {key:?} was already inserted. Cached name is {prev_name:?} and the generated name is {new_name:?}"
             );
             return prev_name;
         }
@@ -191,6 +194,7 @@ impl<K: VarKind + Clone + fmt::Debug> Vars<K> {
             .values()
             .map(|v| v.0.as_str())
             .collect::<HashSet<_>>();
+        log::debug!("[{self:p}]  Unique names: {unique_names:?}");
         let v = [seed.into()]
             .into_iter()
             .cycle()
@@ -199,17 +203,17 @@ impl<K: VarKind + Clone + fmt::Debug> Vars<K> {
                 if c == 0 {
                     v
                 } else {
-                    format!("{}{}", v, c + 1)
+                    format!("{}__{}", v, c)
                         .try_into()
                         .expect("valid identifier")
                 }
             })
-            .inspect(|v| log::debug!("Testing if {v:?} is a fresh name"))
+            .inspect(|v| log::debug!("[{self:p}]  Testing if {v:?} is a fresh name"))
             .find(|v| !unique_names.contains(v.0.as_str()))
             .unwrap();
 
         self.0.insert(key.clone(), v.clone());
-        log::debug!("Returning {v:?} as the variable name for key {key:?}");
+        log::debug!("[{self:p}]  Returning {v:?} as the variable name for key {key:?}");
         v
     }
 }
