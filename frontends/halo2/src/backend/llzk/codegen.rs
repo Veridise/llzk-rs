@@ -6,10 +6,8 @@ use super::lowering::LlzkStructLowering;
 use super::state::LlzkCodegenState;
 use super::{counter::Counter, LlzkOutput};
 use anyhow::Result;
-use llzk::dialect::{
-    module::llzk_module,
-    r#struct::{StructDefOp, StructDefOpRef},
-};
+
+use llzk::prelude::*;
 use melior::ir::{BlockLike as _, Location, Module};
 use melior::Context;
 use midnight_halo2_proofs::plonk::Selector;

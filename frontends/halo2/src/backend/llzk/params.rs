@@ -1,4 +1,4 @@
-use llzk::LlzkContext;
+use llzk::prelude::*;
 use melior::Context;
 
 #[derive(Clone)]

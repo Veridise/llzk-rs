@@ -14,19 +14,15 @@ use melior::{
         block::BlockArgument,
         operation::{OperationBuilder, OperationLike},
         r#type::FunctionType,
-        Attribute, AttributeLike, BlockLike as _, Identifier, Location, Operation,
-        RegionLike as _, Type, TypeLike, Value,
+        Attribute, AttributeLike, BlockLike as _, Identifier, Location, Operation, RegionLike as _,
+        Type, TypeLike, Value,
     },
     Context, StringRef,
 };
-use mlir_sys::{
-    mlirDictionaryAttrGet, mlirNamedAttributeGet, MlirAttribute, MlirNamedAttribute,
-};
+use mlir_sys::{mlirDictionaryAttrGet, mlirNamedAttributeGet, MlirAttribute, MlirNamedAttribute};
 
 use crate::{
-    dialect::r#struct::StructType,
-    error::Error,
-    macros::{concrete_op_ref_type, concrete_op_type},
+    dialect::r#struct::StructType, error::Error, macros::llzk_op_type,
     symbol_ref::SymbolRefAttribute,
 };
 
@@ -126,20 +122,16 @@ pub trait FuncDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
 }
 
 //===----------------------------------------------------------------------===//
-// FuncDefOp
+// FuncDefOp, FuncDefOpRef, and FuncDefOpRefMut
 //===----------------------------------------------------------------------===//
 
-concrete_op_type!(FuncDefOp, llzkOperationIsAFuncDefOp, "function.def");
+llzk_op_type!(FuncDefOp, llzkOperationIsAFuncDefOp, "function.def");
 
 impl<'a, 'c: 'a> FuncDefOpLike<'c, 'a> for FuncDefOp<'c> {}
 
-//===----------------------------------------------------------------------===//
-// FuncDefOpRef
-//===----------------------------------------------------------------------===//
-
-concrete_op_ref_type!(FuncDefOpRef, llzkOperationIsAFuncDefOp, "function.def");
-
 impl<'a, 'c: 'a> FuncDefOpLike<'c, 'a> for FuncDefOpRef<'c, 'a> {}
+
+impl<'a, 'c: 'a> FuncDefOpLike<'c, 'a> for FuncDefOpRefMut<'c, 'a> {}
 
 //===----------------------------------------------------------------------===//
 // CallOpLike
@@ -149,20 +141,16 @@ impl<'a, 'c: 'a> FuncDefOpLike<'c, 'a> for FuncDefOpRef<'c, 'a> {}
 pub trait CallOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {}
 
 //===----------------------------------------------------------------------===//
-// CallOp
+// CallOp, CallOpRef, CallOpRefMut
 //===----------------------------------------------------------------------===//
 
-concrete_op_type!(CallOp, llzkOperationIsACallOp, "function.call");
+llzk_op_type!(CallOp, llzkOperationIsACallOp, "function.call");
 
 impl<'a, 'c: 'a> CallOpLike<'c, 'a> for CallOp<'c> {}
 
-//===----------------------------------------------------------------------===//
-// CallOpRef
-//===----------------------------------------------------------------------===//
-
-concrete_op_ref_type!(CallOpRef, llzkOperationIsACallOp, "function.call");
-
 impl<'a, 'c: 'a> CallOpLike<'c, 'a> for CallOpRef<'c, 'a> {}
+
+impl<'a, 'c: 'a> CallOpLike<'c, 'a> for CallOpRefMut<'c, 'a> {}
 
 //===----------------------------------------------------------------------===//
 // operation factories

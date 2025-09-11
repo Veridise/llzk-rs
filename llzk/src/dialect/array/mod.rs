@@ -11,3 +11,8 @@ pub use r#type::ArrayType;
 pub fn handle() -> DialectHandle {
     unsafe { DialectHandle::from_raw(mlirGetDialectHandle__llzk__array__()) }
 }
+
+/// Exports the common types of the array dialect.
+pub mod prelude {
+    pub use super::r#type::ArrayType;
+}

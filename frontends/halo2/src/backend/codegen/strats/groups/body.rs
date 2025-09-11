@@ -13,7 +13,7 @@ use crate::{
                 },
                 lower_gates,
             },
-        }, func::{try_relativize_advice_cell, CellRef, FuncIO}, lowering::{lowerable::LowerableStmt, Lowering}
+        }, func::{try_relativize_advice_cell, FuncIO}, lowering::{lowerable::LowerableStmt, Lowering}
     },
     halo2::{groups::GroupKeyInstance, Advice, Field, Instance},
     ir::{

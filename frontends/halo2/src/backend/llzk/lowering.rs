@@ -1,16 +1,8 @@
 use std::{marker::PhantomData, rc::Rc};
 
 use anyhow::{anyhow, Result};
-use llzk::dialect::r#struct::StructDefOp;
-use llzk::{
-    builder::OpBuilder,
-    dialect::{
-        constrain,
-        felt::{self, FeltConstAttribute, FeltType},
-        function::{FuncDefOpLike as _, FuncDefOpRef},
-        r#struct::{self, FieldDefOpLike as _, FieldDefOpRef, StructDefOpLike},
-    },
-};
+use llzk::builder::OpBuilder;
+use llzk::prelude::*;
 use melior::ir::ValueLike;
 use melior::{
     ir::{

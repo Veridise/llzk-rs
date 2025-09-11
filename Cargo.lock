@@ -1020,6 +1020,7 @@ dependencies = [
  "log",
  "melior",
  "mlir-sys",
+ "paste",
  "rstest 0.25.0",
 ]
 

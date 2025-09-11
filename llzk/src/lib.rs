@@ -1,9 +1,8 @@
-use std::{borrow::Borrow, ops::Deref};
-
 use llzk_sys::llzkRegisterAllDialects;
-use melior::{dialect::DialectRegistry, Context};
+use melior::dialect::DialectRegistry;
 
 pub mod builder;
+pub mod context;
 pub mod dialect;
 pub mod error;
 mod macros;
@@ -13,65 +12,43 @@ mod test;
 pub mod utils;
 pub mod value_range;
 
-/// A batteries-included MLIR context that automatically loads all the LLZK dialects.
-pub struct LlzkContext {
-    ctx: Context,
-    _registry: DialectRegistry,
-}
-
-impl LlzkContext {
-    pub fn new() -> Self {
-        let ctx = Context::new();
-        let registry = DialectRegistry::new();
-
-        register_all_llzk_dialects(&registry);
-        ctx.append_dialect_registry(&registry);
-        ctx.load_all_available_dialects();
-        Self {
-            ctx,
-            _registry: registry,
-        }
-    }
-}
-
-impl Default for LlzkContext {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Deref for LlzkContext {
-    type Target = Context;
-
-    fn deref(&self) -> &Self::Target {
-        &self.ctx
-    }
-}
-
-impl Borrow<Context> for LlzkContext {
-    fn borrow(&self) -> &Context {
-        &self.ctx
-    }
-}
-
-impl AsRef<Context> for LlzkContext {
-    fn as_ref(&self) -> &Context {
-        &self.ctx
-    }
-}
-
-impl std::fmt::Debug for LlzkContext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LlzkContext")
-            .field("registered dialects", &self.registered_dialect_count())
-            .field("loaded dialects", &self.loaded_dialect_count())
-            .field("ctx", &self.ctx)
-            .field("registry", &self._registry)
-            .finish()
-    }
-}
-
 /// Adds all LLZK dialects into the given registry.
 pub fn register_all_llzk_dialects(registry: &DialectRegistry) {
     unsafe { llzkRegisterAllDialects(registry.to_raw()) }
+}
+
+/// Exports the most common types and function in llzk.
+pub mod prelude {
+    pub use crate::context::LlzkContext;
+    pub use crate::dialect::array::prelude::*;
+    pub use crate::dialect::felt::prelude::*;
+    pub use crate::dialect::function::prelude::*;
+    pub use crate::dialect::module::llzk_module;
+    pub use crate::dialect::r#struct::prelude::*;
+    pub use crate::error::Error as LlzkError;
+
+    /// Exports functions that create operations
+    pub mod array {
+        pub use crate::dialect::array::{extract, insert, new, read, write};
+    }
+    /// Exports functions that create operations
+    pub mod constrain {
+        pub use crate::dialect::constrain::{eq, r#in};
+    }
+    /// Exports functions that create operations
+    pub mod felt {
+        pub use crate::dialect::felt::{add, constant, mul, neg, sub};
+    }
+    /// Exports functions that create operations
+    pub mod function {
+        pub use crate::dialect::function::{call, def, r#return};
+    }
+    /// Exports functions that create operations
+    pub mod global {
+        pub use crate::dialect::global::{def, read, write};
+    }
+    /// Exports functions that create operations
+    pub mod r#struct {
+        pub use crate::dialect::r#struct::{def, field, new, readf, readf_with_offset, writef};
+    }
 }

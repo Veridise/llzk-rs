@@ -69,11 +69,8 @@ impl GroupCell {
     ///
     /// If the column is Fixed returns None.
     pub fn from_tuple((col, row): (Column<Any>, usize)) -> Option<Self> {
-        match Column::<Instance>::try_from(col) {
-            Ok(col) => {
-                return Some(Self::InstanceIO((col, row)));
-            }
-            _ => {}
+        if let Ok(col) = Column::<Instance>::try_from(col) {
+            return Some(Self::InstanceIO((col, row)));
         }
         Column::<Advice>::try_from(col)
             .ok()
@@ -124,8 +121,8 @@ impl Group {
         children: Vec<usize>,
         region_starts: &HashMap<RegionIndex, usize>,
     ) -> Self {
-        let advice_io = Self::mk_advice_io(&inputs, &outputs, &region_starts);
-        let instance_io = Self::mk_instance_io(&inputs, &outputs, &region_starts);
+        let advice_io = Self::mk_advice_io(&inputs, &outputs, region_starts);
+        let instance_io = Self::mk_instance_io(&inputs, &outputs, region_starts);
         // Sanity check; if group is top level there cannot be any assigned cells.
         if kind == GroupKind::TopLevel {
             assert!(

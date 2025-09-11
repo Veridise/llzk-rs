@@ -85,7 +85,7 @@ impl CellRef {
         Self {
             col,
             base: Some(base),
-            offset: offset,
+            offset,
         }
     }
 

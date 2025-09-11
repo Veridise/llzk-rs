@@ -1,13 +1,7 @@
 use std::{borrow::Cow, iter};
 
-use llzk::{
-    dialect::{
-        felt::FeltType,
-        function::{self, FuncDefOpLike as _},
-        r#struct::{self, FieldDefOp, StructDefOp, StructType},
-    },
-    error::Error,
-};
+use llzk::prelude::*;
+
 use melior::{
     ir::{attribute::FlatSymbolRefAttribute, r#type::FunctionType, Location, Operation, Type},
     Context,
@@ -27,7 +21,7 @@ fn create_field<'c>(
     header: &str,
     name: &str,
     public: bool,
-) -> Result<FieldDefOp<'c>, Error> {
+) -> Result<FieldDefOp<'c>, LlzkError> {
     let field_name = FlatSymbolRefAttribute::new(context, name);
     let filename = format!("struct {} | field {}", header, name);
     let loc = Location::new(context, &filename, 0, 0);
@@ -141,7 +135,7 @@ pub fn create_struct<'c>(
     struct_name: &str,
     idx: usize,
     io: impl Into<StructIO>,
-) -> Result<StructDefOp<'c>, Error> {
+) -> Result<StructDefOp<'c>, LlzkError> {
     log::debug!("context = {context:?}");
     let io = io.into();
     let loc = struct_def_op_location(context, struct_name, idx);
@@ -149,7 +143,7 @@ pub fn create_struct<'c>(
     let fields = io
         .fields()
         .into_iter()
-        .map(|field| -> Result<Operation<'c>, Error> {
+        .map(|field| -> Result<Operation<'c>, LlzkError> {
             create_field(context, struct_name, field.name(), field.is_public()).map(Into::into)
         });
 

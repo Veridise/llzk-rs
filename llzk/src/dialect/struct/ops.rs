@@ -1,4 +1,3 @@
-
 use llzk_sys::{
     llzkFieldDefOpGetHasPublicAttr, llzkFieldDefOpSetPublicAttr, llzkFieldReadOpBuild,
     llzkOperationIsAFieldDefOp, llzkOperationIsAStructDefOp, llzkStructDefOpGetComputeFuncOp,
@@ -23,7 +22,7 @@ use crate::{
     dialect::function::FuncDefOpRef,
     error::Error,
     ident,
-    macros::{concrete_op_ref_type, concrete_op_type},
+    macros::llzk_op_type,
 };
 
 use super::StructType;
@@ -160,20 +159,16 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
 }
 
 //===----------------------------------------------------------------------===//
-// StructDefOp
+// StructDefOp, StructDefOpRef, and StructDefOpRefMut
 //===----------------------------------------------------------------------===//
 
-concrete_op_type!(StructDefOp, llzkOperationIsAStructDefOp, "struct.def");
+llzk_op_type!(StructDefOp, llzkOperationIsAStructDefOp, "struct.def");
 
 impl<'a, 'c: 'a> StructDefOpLike<'c, 'a> for StructDefOp<'c> {}
 
-//===----------------------------------------------------------------------===//
-// StructDefOpRef
-//===----------------------------------------------------------------------===//
-
-concrete_op_ref_type!(StructDefOpRef, llzkOperationIsAStructDefOp, "struct.def");
-
 impl<'a, 'c: 'a> StructDefOpLike<'c, 'a> for StructDefOpRef<'c, 'a> {}
+
+impl<'a, 'c: 'a> StructDefOpLike<'c, 'a> for StructDefOpRefMut<'c, 'a> {}
 
 //===----------------------------------------------------------------------===//
 // FieldDefOpLike
@@ -207,20 +202,16 @@ pub trait FieldDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
 }
 
 //===----------------------------------------------------------------------===//
-// FieldDefOp
+// FieldDefOp, FieldDefOpRef, FieldDefOpRefMut
 //===----------------------------------------------------------------------===//
 
-concrete_op_type!(FieldDefOp, llzkOperationIsAFieldDefOp, "struct.field");
+llzk_op_type!(FieldDefOp, llzkOperationIsAFieldDefOp, "struct.field");
 
 impl<'a, 'c: 'a> FieldDefOpLike<'c, 'a> for FieldDefOp<'c> {}
 
-//===----------------------------------------------------------------------===//
-// FieldDefOpRef
-//===----------------------------------------------------------------------===//
-
-concrete_op_ref_type!(FieldDefOpRef, llzkOperationIsAFieldDefOp, "struct.field");
-
 impl<'a, 'c: 'a> FieldDefOpLike<'c, 'a> for FieldDefOpRef<'c, 'a> {}
+
+impl<'a, 'c: 'a> FieldDefOpLike<'c, 'a> for FieldDefOpRefMut<'c, 'a> {}
 
 //===----------------------------------------------------------------------===//
 // operation factories
