@@ -27,7 +27,13 @@ where
     driver.set_callbacks::<C>();
     let syn = driver.synthesize(&circuit).unwrap();
 
-    let output = clean_string(&driver.picus(syn, params).unwrap().display().to_string());
+    let output = clean_string(
+        &driver
+            .picus(syn, params, None)
+            .unwrap()
+            .display()
+            .to_string(),
+    );
     let expected = clean_string(expected.as_ref());
     similar_asserts::assert_eq!(output, expected);
 }
