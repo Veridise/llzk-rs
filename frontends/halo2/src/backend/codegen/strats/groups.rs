@@ -39,6 +39,7 @@ impl CodegenStrategy for GroupConstraintsStrat {
         syn: &'s CircuitSynthesis<C::F>,
         lookup_cb: &dyn LookupCallbacks<C::F>,
         gate_cbs: &dyn GateCallbacks<C::F>,
+        injector: &mut dyn crate::IRInjectCallback<C::F>,
     ) -> Result<()>
     where
         C: Codegen<'c, 'st>,
@@ -64,7 +65,7 @@ impl CodegenStrategy for GroupConstraintsStrat {
             .groups
             .iter()
             .enumerate()
-            .map(|(id, g)| GroupBody::new(g, id, ctx, &free_cells[id]))
+            .map(|(id, g)| GroupBody::new(g, id, ctx, &free_cells[id], injector))
             .collect::<Result<Vec<_>, _>>()?;
 
         // Sanity check, only one group should be considered main.

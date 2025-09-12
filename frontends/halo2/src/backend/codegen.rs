@@ -122,6 +122,7 @@ pub trait CodegenStrategy: Default {
         syn: &'s CircuitSynthesis<C::F>,
         lookups: &dyn LookupCallbacks<C::F>,
         gate_cbs: &dyn GateCallbacks<C::F>,
+        injector: &mut dyn crate::IRInjectCallback<C::F>,
     ) -> Result<()>
     where
         C: Codegen<'c, 'st>,
@@ -166,6 +167,22 @@ where
                 .map(BackendResponse::EmitStmts),
         }
     }
+}
+
+pub fn lower_injected_ir<'s, F: Field>(
+    ir: IRStmt<(usize, Expression<F>)>,
+    region: crate::synthesis::regions::RegionData<'s>,
+    advice_io: &'s CircuitIO<Advice>,
+    instance_io: &'s CircuitIO<Instance>,
+    fqr: &'s dyn FixedQueryResolver<F>,
+) -> Result<IRStmt<IRAexpr<F>>> {
+    ir.map(&|(row, expr)| {
+        ScopedExpression::new(
+            expr,
+            RegionRow::new(region, row, advice_io, instance_io, fqr),
+        )
+    })
+    .try_map(&IRAexpr::try_from)
 }
 
 /// Generates constraint expressions for the equality constraints.

@@ -75,8 +75,9 @@ where
         syn: CircuitSynthesis<C::F>,
         lookup_cbs: &dyn LookupCallbacks<C::F>,
         gate_cbs: &dyn GateCallbacks<C::F>,
+        injector: &mut dyn crate::IRInjectCallback<C::F>,
     ) -> Result<C::Output> {
-        self.codegen_with_strat(syn, DefaultStrat::default(), lookup_cbs, gate_cbs)
+        self.codegen_with_strat(syn, DefaultStrat::default(), lookup_cbs, gate_cbs, injector)
     }
 
     /// Generate code using the given strategy.
@@ -86,6 +87,7 @@ where
         strat: impl CodegenStrategy,
         lookup_cbs: &dyn LookupCallbacks<C::F>,
         gate_cbs: &dyn GateCallbacks<C::F>,
+        injector: &mut dyn crate::IRInjectCallback<C::F>,
     ) -> Result<C::Output> {
         log::debug!("Initializing code generator");
         let codegen = self.create_codegen();
@@ -94,7 +96,7 @@ where
             std::any::type_name_of_val(&strat)
         );
 
-        strat.codegen(&codegen, &syn, lookup_cbs, gate_cbs)?;
+        strat.codegen(&codegen, &syn, lookup_cbs, gate_cbs, injector)?;
 
         log::debug!("Code generation completed");
         codegen.generate_output()

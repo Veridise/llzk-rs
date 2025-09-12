@@ -9,7 +9,7 @@ use crate::{
         },
         resolvers::ResolversProvider,
     },
-    ir::stmt::{chain_lowerable_stmts, IRStmt},
+    ir::stmt::IRStmt,
     lookups::callbacks::LookupCallbacks,
     synthesis::{
         regions::{RegionRow, Row},
@@ -31,6 +31,7 @@ impl CodegenStrategy for InlineConstraintsStrat {
         syn: &'s CircuitSynthesis<C::F>,
         lookups: &dyn LookupCallbacks<C::F>,
         gate_cbs: &dyn GateCallbacks<C::F>,
+        injector: &mut dyn crate::IRInjectCallback<C::F>,
     ) -> Result<()>
     where
         C: Codegen<'c, 'st>,
@@ -56,41 +57,53 @@ impl CodegenStrategy for InlineConstraintsStrat {
                 // Do the region stmts first since backends may have more information about names for
                 // cells there and some backends do not update the name and always use the first
                 // one given.
-                stmts.push(
-                    chain_lowerable_stmts!(
-                        {
-                            log::debug!("Lowering gates");
-                            lower_gates(
-                                syn.gates(),
-                                &group.regions(),
-                                &patterns,
-                                advice_io,
-                                instance_io,
-                                syn.fixed_query_resolver(),
-                            )
-                            .and_then(scoped_exprs_to_aexpr)?
-                        },
-                        {
-                            log::debug!("Lowering lookups");
-                            codegen_lookup_invocations(
-                                syn,
-                                group.region_rows(syn.fixed_query_resolver()).as_slice(),
-                                lookups,
-                            )
-                            .and_then(scoped_exprs_to_aexpr)?
-                        },
-                        {
-                            log::debug!("Lowering inter region equality constraints");
-                            scoped_exprs_to_aexpr(inter_region_constraints(
-                                syn.constraints().edges(),
-                                advice_io,
-                                instance_io,
-                                syn.fixed_query_resolver(),
-                            ))
-                        }
+
+                log::debug!("Lowering gates");
+                stmts.extend(
+                    lower_gates(
+                        syn.gates(),
+                        &group.regions(),
+                        &patterns,
+                        advice_io,
+                        instance_io,
+                        syn.fixed_query_resolver(),
                     )
-                    .collect(),
+                    .and_then(scoped_exprs_to_aexpr)?,
                 );
+                log::debug!("Lowering lookups");
+                stmts.extend(
+                    codegen_lookup_invocations(
+                        syn,
+                        group.region_rows(syn.fixed_query_resolver()).as_slice(),
+                        lookups,
+                    )
+                    .and_then(scoped_exprs_to_aexpr)?,
+                );
+                log::debug!("Lowering inter region equality constraints");
+                stmts.extend(scoped_exprs_to_aexpr(inter_region_constraints(
+                    syn.constraints().edges(),
+                    advice_io,
+                    instance_io,
+                    syn.fixed_query_resolver(),
+                )));
+
+                for region in group.regions() {
+                    let index = region
+                        .index()
+                        .ok_or_else(|| anyhow::anyhow!("Region does not have an index"))?;
+                    let start = region
+                        .start()
+                        .ok_or_else(|| anyhow::anyhow!("Region does not have a start row"))?;
+                    if let Some(ir) = injector.inject(index, start) {
+                        stmts.push(crate::backend::codegen::lower_injected_ir(
+                            ir,
+                            region,
+                            advice_io,
+                            instance_io,
+                            syn.fixed_query_resolver(),
+                        )?);
+                    }
+                }
             }
             Ok(stmts)
         })

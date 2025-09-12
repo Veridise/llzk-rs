@@ -61,6 +61,7 @@ pub struct GroupBody<F> {
     eq_constraints: IRStmt<IRAexpr<F>>,
     callsites: Vec<CallSite<F>>,
     lookups: IRStmt<IRAexpr<F>>,
+    injected: Vec<IRStmt<IRAexpr<F>>>
 }
 
 /// If the group has free cells that need to be bounded and is not the top level group
@@ -96,6 +97,7 @@ impl<F: Field> GroupBody<F> {
         id: usize,
         ctx: GroupIRCtx<'_, '_, F>,
         free_cells: &FreeCells,
+    injector: & mut dyn crate::IRInjectCallback<F>,
     ) -> anyhow::Result<Self> {
         let (advice_io, instance_io) = updated_io(group, free_cells);
                log::debug!("Lowering call-sites for group {:?}", group.name());
@@ -165,6 +167,26 @@ impl<F: Field> GroupBody<F> {
         )
         .and_then(scoped_exprs_to_aexpr)?;
 
+        log::debug!("Adding injected IR for group {:?}", group.name());
+        let mut injected = vec![];
+for region in group.regions() {
+                    let index = region
+                        .index()
+                        .ok_or_else(|| anyhow::anyhow!("Region does not have an index"))?;
+                    let start = region
+                        .start()
+                        .ok_or_else(|| anyhow::anyhow!("Region does not have a start row"))?;
+                    if let Some(ir) = injector.inject(index, start) {
+                        injected.push(crate::backend::codegen::lower_injected_ir(
+                            ir,
+                            region,
+                            &advice_io,
+                            &instance_io,
+                            ctx.syn.fixed_query_resolver(),
+                        )?);
+                    }
+                }
+
         let n_inputs = instance_io.inputs().len() + advice_io.inputs().len();
         let n_outputs = instance_io.outputs().len() + advice_io.outputs().len();
 
@@ -177,6 +199,7 @@ impl<F: Field> GroupBody<F> {
             gates,
             eq_constraints,
             lookups,
+            injected
         })
     }
 
@@ -251,7 +274,13 @@ impl<F: Field> LowerableStmt for GroupBody<F> {
         l.generate_comment("Equality constraints".to_owned())?;
         self.eq_constraints.lower(l)?;
         l.generate_comment("Lookups".to_owned())?;
-        self.lookups.lower(l)
+        self.lookups.lower(l)?;
+        l.generate_comment("Injected".to_owned())?;
+        for stmt in self.injected {
+        stmt.lower(l)?;
+        }
+
+        Ok(())
     }
 }
 

@@ -244,19 +244,6 @@ impl<T> IRStmt<EitherLowerable<T, T>> {
     }
 }
 
-macro_rules! chain_lowerable_stmts {
-    ($head:expr) => {
-        $head.into_iter()
-    };
-    ($head:expr, $($tail:expr),* $(,)?) => {
-{
-        $head.into_iter().map(|stmt| stmt.map(&crate::backend::lowering::lowerable::EitherLowerable::Left)).chain(chain_lowerable_stmts!($( $tail ),*).map(|stmt| stmt.map(&crate::backend::lowering::lowerable::EitherLowerable::Right)))
-
-        }
-    };
-}
-pub(crate) use chain_lowerable_stmts;
-
 macro_rules! impl_from {
     ($inner:ident, $ctor:ident) => {
         impl<T> From<$inner<T>> for IRStmt<T> {

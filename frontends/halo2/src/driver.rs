@@ -57,11 +57,13 @@ impl<'lc, 'gc, F: PrimeField> Driver<'lc, 'gc, F> {
         &self,
         syn: CircuitSynthesis<F>,
         params: PicusParams,
+        mut injector: Option<&mut dyn crate::IRInjectCallback<F>>,
     ) -> anyhow::Result<PicusOutput<F>> {
         PicusBackend::<F>::initialize(params).codegen(
             syn,
             self.lookup_callbacks(),
             self.gate_callbacks(),
+            &mut injector,
         )
     }
 
@@ -70,11 +72,13 @@ impl<'lc, 'gc, F: PrimeField> Driver<'lc, 'gc, F> {
         &self,
         syn: CircuitSynthesis<F>,
         params: LlzkParams<'c>,
+        mut injector: Option<&mut dyn crate::IRInjectCallback<F>>,
     ) -> anyhow::Result<LlzkOutput<'c>> {
         LlzkBackend::<F>::initialize(params).codegen(
             syn,
             self.lookup_callbacks(),
             self.gate_callbacks(),
+            &mut injector,
         )
     }
 
