@@ -374,9 +374,11 @@ impl GroupTree {
         self.all_regions()
             .into_iter()
             .map(|r| {
-                r.index()
-                    .and_then(|i| Some((i, r.start()?)))
-                    .unwrap_or_else(|| panic!("Region {r:?} does not have an index or a start"))
+                let idx = r
+                    .index()
+                    .unwrap_or_else(|| panic!("Region {r:?} does not have an index"));
+
+                (idx, r.start().unwrap_or_default())
             })
             .collect()
     }

@@ -91,9 +91,7 @@ impl CodegenStrategy for InlineConstraintsStrat {
                     let index = region
                         .index()
                         .ok_or_else(|| anyhow::anyhow!("Region does not have an index"))?;
-                    let start = region
-                        .start()
-                        .ok_or_else(|| anyhow::anyhow!("Region does not have a start row"))?;
+                    let start = region.start().unwrap_or_default();
                     if let Some(ir) = injector.inject(index, start) {
                         stmts.push(crate::backend::codegen::lower_injected_ir(
                             ir,

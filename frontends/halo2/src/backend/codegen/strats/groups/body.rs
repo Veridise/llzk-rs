@@ -174,8 +174,7 @@ for region in group.regions() {
                         .index()
                         .ok_or_else(|| anyhow::anyhow!("Region does not have an index"))?;
                     let start = region
-                        .start()
-                        .ok_or_else(|| anyhow::anyhow!("Region does not have a start row"))?;
+                        .start().unwrap_or_default();
                     if let Some(ir) = injector.inject(index, start) {
                         injected.push(crate::backend::codegen::lower_injected_ir(
                             ir,
