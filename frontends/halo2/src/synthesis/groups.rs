@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{borrow::Borrow, collections::HashMap, ops::Deref};
 
 use crate::{
     backend::resolvers::FixedQueryResolver,
@@ -105,8 +105,8 @@ pub struct Group {
     name: Option<String>,
     inputs: Vec<GroupCell>,
     outputs: Vec<GroupCell>,
-    advice_io: CircuitIO<Advice>,
-    instance_io: CircuitIO<Instance>,
+    //advice_io: CircuitIO<Advice>,
+    //instance_io: CircuitIO<Instance>,
     regions: Regions,
     children: Vec<usize>,
 }
@@ -119,10 +119,10 @@ impl Group {
         outputs: Vec<GroupCell>,
         regions: Regions,
         children: Vec<usize>,
-        region_starts: &HashMap<RegionIndex, usize>,
+        //region_starts: &HashMap<RegionIndex, usize>,
     ) -> Self {
-        let advice_io = Self::mk_advice_io(&inputs, &outputs, region_starts);
-        let instance_io = Self::mk_instance_io(&inputs, &outputs, region_starts);
+        //let advice_io = Self::mk_advice_io(&inputs, &outputs, region_starts);
+        //let instance_io = Self::mk_instance_io(&inputs, &outputs, region_starts);
         // Sanity check; if group is top level there cannot be any assigned cells.
         if kind == GroupKind::TopLevel {
             assert!(
@@ -139,8 +139,8 @@ impl Group {
             name,
             inputs,
             outputs,
-            advice_io,
-            instance_io,
+            //advice_io,
+            //instance_io,
             regions,
             children,
         }
@@ -152,27 +152,30 @@ impl Group {
     }
 
     /// Returns the regions' rows
-    pub fn region_rows<'a, 'fq, F: Field>(
+    pub fn region_rows<'a, 'io, 'fq, F: Field>(
         &'a self,
+        advice_io: &'io CircuitIO<Advice>,
+        instance_io: &'io CircuitIO<Instance>,
         fqr: &'fq dyn FixedQueryResolver<F>,
-    ) -> Vec<RegionRow<'a, 'a, 'fq, F>> {
+    ) -> Vec<RegionRow<'a, 'io, 'fq, F>> {
         self.regions()
             .into_iter()
             .flat_map(move |r| {
-                r.rows().map(move |row| {
-                    RegionRow::new(r, row, self.advice_io(), self.instance_io(), fqr)
-                })
+                r.rows()
+                    .map(move |row| RegionRow::new(r, row, advice_io, instance_io, fqr))
             })
             .collect()
     }
 
     /// Returns the certesian product between the regions' rows and the lookups
-    pub fn lookups_per_region_row<'a, 'fq, F: Field>(
+    pub fn lookups_per_region_row<'a, 'io, 'fq, F: Field>(
         &'a self,
         lookups: &[Lookup<'a, F>],
+        advice_io: &'io CircuitIO<Advice>,
+        instance_io: &'io CircuitIO<Instance>,
         fqr: &'fq dyn FixedQueryResolver<F>,
-    ) -> Vec<(RegionRow<'a, 'a, 'fq, F>, Lookup<'a, F>)> {
-        self.region_rows(fqr)
+    ) -> Vec<(RegionRow<'a, 'io, 'fq, F>, Lookup<'a, F>)> {
+        self.region_rows(advice_io, instance_io, fqr)
             .into_iter()
             .flat_map(|r| lookups.iter().copied().map(move |l| (r, l)))
             .collect()
@@ -182,13 +185,13 @@ impl Group {
         matches!(self.kind, GroupKind::TopLevel)
     }
 
-    pub fn advice_io(&self) -> &CircuitIO<Advice> {
-        &self.advice_io
-    }
-
-    pub fn instance_io(&self) -> &CircuitIO<Instance> {
-        &self.instance_io
-    }
+    //pub fn advice_io(&self) -> &CircuitIO<Advice> {
+    //    &self.advice_io
+    //}
+    //
+    //pub fn instance_io(&self) -> &CircuitIO<Instance> {
+    //    &self.instance_io
+    //}
 
     pub fn inputs(&self) -> &[GroupCell] {
         &self.inputs
@@ -235,56 +238,6 @@ impl Group {
         }
     }
 
-    /// Constructs a CircuitIO of advice cells.
-    fn mk_advice_io(
-        inputs: &[GroupCell],
-        outputs: &[GroupCell],
-        regions: &HashMap<RegionIndex, usize>,
-    ) -> CircuitIO<Advice> {
-        let filter_fn = |input: &GroupCell| -> Option<IOCell<Advice>> {
-            match input {
-                GroupCell::Assigned(cell) => match cell.column.column_type() {
-                    Any::Advice(_) => {
-                        let row = cell.row_offset + regions[&cell.region_index];
-                        Some((cell.column.try_into().unwrap(), row))
-                    }
-                    _ => None,
-                },
-                GroupCell::InstanceIO(_) => None,
-                GroupCell::AdviceIO(cell) => Some(*cell),
-            }
-        };
-        CircuitIO::new_from_iocells(
-            inputs.iter().filter_map(filter_fn),
-            outputs.iter().filter_map(filter_fn),
-        )
-    }
-
-    /// Constructs a CircuitIO of instance cells.
-    fn mk_instance_io(
-        inputs: &[GroupCell],
-        outputs: &[GroupCell],
-        regions: &HashMap<RegionIndex, usize>,
-    ) -> CircuitIO<Instance> {
-        let filter_fn = |input: &GroupCell| -> Option<IOCell<Instance>> {
-            match input {
-                GroupCell::Assigned(cell) => match cell.column.column_type() {
-                    Any::Instance => {
-                        let row = cell.row_offset + regions[&cell.region_index];
-                        Some((cell.column.try_into().unwrap(), row))
-                    }
-                    _ => None,
-                },
-                GroupCell::InstanceIO(cell) => Some(*cell),
-                GroupCell::AdviceIO(_) => None,
-            }
-        };
-        CircuitIO::new_from_iocells(
-            inputs.iter().filter_map(filter_fn),
-            outputs.iter().filter_map(filter_fn),
-        )
-    }
-
     /// Returns the cartesian product of the regions and the gates.
     pub fn region_gates<'a, F: Field>(
         &'a self,
@@ -308,11 +261,39 @@ impl Groups {
         // faster.
         self.0.iter().rev().find(|g| g.kind == GroupKind::TopLevel)
     }
+
+    pub fn region_starts(&self) -> HashMap<RegionIndex, usize> {
+        self.0
+            .iter()
+            .flat_map(|g| g.regions())
+            .map(|r| {
+                let idx = r
+                    .index()
+                    .unwrap_or_else(|| panic!("Region {r:?} does not have an index"));
+
+                (idx, r.start().unwrap_or_default())
+            })
+            .collect()
+    }
 }
 
 impl AsRef<[Group]> for Groups {
     fn as_ref(&self) -> &[Group] {
         self.0.as_ref()
+    }
+}
+
+impl Borrow<[Group]> for Groups {
+    fn borrow(&self) -> &[Group] {
+        self.as_ref()
+    }
+}
+
+impl Deref for Groups {
+    type Target = Vec<Group>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -361,33 +342,14 @@ impl GroupTree {
         }
     }
 
-    fn all_regions<'a>(&'a self) -> Vec<RegionData<'a>> {
-        self.regions
-            .regions()
-            .into_iter()
-            .chain(self.children.iter().flat_map(|c| c.all_regions()))
-            .collect()
-    }
+    //fn flatten_rec(self, region_starts: &HashMap<RegionIndex, usize>) -> Groups {}
 
-    fn region_starts(&self) -> HashMap<RegionIndex, usize> {
-        assert_eq!(self.kind, GroupKind::TopLevel);
-        self.all_regions()
-            .into_iter()
-            .map(|r| {
-                let idx = r
-                    .index()
-                    .unwrap_or_else(|| panic!("Region {r:?} does not have an index"));
-
-                (idx, r.start().unwrap_or_default())
-            })
-            .collect()
-    }
-
-    fn flatten_rec(self, region_starts: &HashMap<RegionIndex, usize>) -> Groups {
+    /// Transforms the tree into a read-only flat representation.
+    pub fn flatten(self) -> Groups {
         let mut child_indices = vec![];
         let mut groups = vec![];
         for child in self.children {
-            let flat_child = child.flatten_rec(region_starts).0;
+            let flat_child = child.flatten().0;
             groups.extend(flat_child);
             child_indices.push(groups.len() - 1);
         }
@@ -398,16 +360,11 @@ impl GroupTree {
             self.outputs,
             self.regions,
             child_indices,
-            region_starts,
+            //region_starts,
         ));
         Groups(groups)
-    }
-
-    /// Transforms the tree into a read-only flat representation.
-    pub fn flatten(self) -> Groups {
-        assert_eq!(self.kind, GroupKind::TopLevel);
-        let region_starts = self.region_starts();
-        self.flatten_rec(&region_starts)
+        //let region_starts = self.region_starts();
+        //self.flatten_rec(&region_starts)
     }
 }
 

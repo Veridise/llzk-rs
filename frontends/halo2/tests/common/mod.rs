@@ -27,9 +27,13 @@ where
     driver.set_callbacks::<C>();
     let syn = driver.synthesize(&circuit).unwrap();
 
+    let ir_ctx = driver.create_ir_ctx(&syn).unwrap();
+    let unresolved = driver.generate_ir(&syn, &ir_ctx).unwrap();
+    let resolved = unresolved.resolve(&ir_ctx).unwrap();
+
     let output = clean_string(
         &driver
-            .picus(syn, params, None)
+            .picus(&resolved, &ir_ctx, params)
             .unwrap()
             .display()
             .to_string(),

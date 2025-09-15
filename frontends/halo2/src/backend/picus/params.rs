@@ -1,3 +1,5 @@
+use crate::ir::expr::Felt;
+
 use super::vars::NamingConvention;
 
 #[derive(Clone)]
@@ -8,13 +10,10 @@ pub struct PicusParams {
     lift_fixed: bool,
     naming_convention: NamingConvention,
     optimize: bool,
+    prime: picus::felt::Felt,
 }
 
 impl PicusParams {
-    pub fn builder() -> PicusParamsBuilder {
-        PicusParamsBuilder(Default::default())
-    }
-
     pub fn naming_convention(&self) -> NamingConvention {
         self.naming_convention
     }
@@ -35,6 +34,22 @@ impl PicusParams {
     pub fn lift_fixed(&self) -> bool {
         self.lift_fixed
     }
+
+    pub fn prime(&self) -> &picus::felt::Felt {
+        &self.prime
+    }
+
+    fn new<F: crate::halo2::PrimeField>() -> Self {
+        Self {
+            prime: Felt::prime::<F>().into(),
+            expr_cutoff: None,
+            entrypoint: "Main".to_owned(),
+            #[cfg(feature = "lift-field-operations")]
+            lift_fixed: false,
+            naming_convention: NamingConvention::Default,
+            optimize: true,
+        }
+    }
 }
 
 #[cfg(feature = "lift-field-operations")]
@@ -44,12 +59,11 @@ impl crate::ir::lift::LiftingCfg for PicusParams {
     }
 }
 
-#[derive(Default)]
 pub struct PicusParamsBuilder(PicusParams);
 
 impl PicusParamsBuilder {
-    pub fn new() -> Self {
-        Self(Default::default())
+    pub fn new<F: crate::halo2::PrimeField>() -> Self {
+        Self(PicusParams::new::<F>())
     }
 
     pub fn expr_cutoff(self, expr_cutoff: usize) -> Self {
@@ -107,18 +121,5 @@ impl PicusParamsBuilder {
 impl From<PicusParamsBuilder> for PicusParams {
     fn from(builder: PicusParamsBuilder) -> PicusParams {
         builder.0
-    }
-}
-
-impl Default for PicusParams {
-    fn default() -> Self {
-        Self {
-            expr_cutoff: None,
-            entrypoint: "Main".to_owned(),
-            #[cfg(feature = "lift-field-operations")]
-            lift_fixed: false,
-            naming_convention: NamingConvention::Default,
-            optimize: true,
-        }
     }
 }

@@ -29,7 +29,7 @@ fn lookup_2x3_zerosel_circuit_picus() {
     common::setup();
     common::picus_test(
         Lookup2x3ZeroSelCircuit::<Fr>::default(),
-        PicusParamsBuilder::new()
+        PicusParamsBuilder::new::<Fr>()
             .short_names()
             .no_optimize()
             .build(),

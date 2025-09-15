@@ -5,7 +5,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::{felt::IntoPrime, vars::VarKind, Program};
+use crate::{vars::VarKind, Program};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum ListPunctuation {
@@ -525,17 +525,17 @@ impl TextRepresentable for Vec<Rc<&dyn TextRepresentable>> {
     }
 }
 
-pub struct Display<'a, F, K: VarKind> {
-    program: &'a Program<F, K>,
+pub struct Display<'a, K: VarKind> {
+    program: &'a Program<K>,
 }
 
-impl<'a, F, K: VarKind> Display<'a, F, K> {
-    pub(crate) fn new(program: &'a Program<F, K>) -> Self {
+impl<'a, K: VarKind> Display<'a, K> {
+    pub(crate) fn new(program: &'a Program<K>) -> Self {
         Self { program }
     }
 }
 
-impl<F: IntoPrime, K: VarKind> fmt::Display for Display<'_, F, K> {
+impl<K: VarKind> fmt::Display for Display<'_, K> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut displayer = Displayer::new(f);
         displayer.fmt(self.program)

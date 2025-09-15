@@ -2,7 +2,12 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "lift-field-operations")]
 use crate::ir::lift::{LiftIRGuard, LiftingCfg};
-use crate::{lookups::callbacks::LookupCallbacks, synthesis::CircuitSynthesis, GateCallbacks};
+use crate::{
+    ir::{expr::IRAexpr, IRCircuit, IRCtx},
+    lookups::callbacks::LookupCallbacks,
+    synthesis::CircuitSynthesis,
+    GateCallbacks,
+};
 use anyhow::Result;
 
 pub mod codegen;
@@ -13,7 +18,7 @@ pub mod lowering;
 pub mod picus;
 pub mod resolvers;
 
-use codegen::{strats::groups::GroupConstraintsStrat, Codegen, CodegenQueue, CodegenStrategy};
+use codegen::{strats::groups::GroupConstraintsStrat, Codegen, CodegenStrategy};
 use events::BackendEventReceiver;
 use resolvers::{QueryResolver, SelectorResolver};
 
@@ -62,32 +67,24 @@ where
         C::initialize(&self.state)
     }
 
-    pub fn event_receiver(&'b self) -> BackendEventReceiver<'b, C::F>
-    where
-        C: CodegenQueue<'s, 'b>,
-    {
-        BackendEventReceiver::new(C::event_receiver(&self.state))
-    }
+    //pub fn event_receiver(&'b self) -> BackendEventReceiver<'b, C::F>
+    //where
+    //    C: CodegenQueue<'s, 'b>,
+    //{
+    //    BackendEventReceiver::new(C::event_receiver(&self.state))
+    //}
 
     /// Generate code using the default strategy.
-    pub fn codegen(
-        &'b self,
-        syn: CircuitSynthesis<C::F>,
-        lookup_cbs: &dyn LookupCallbacks<C::F>,
-        gate_cbs: &dyn GateCallbacks<C::F>,
-        injector: &mut dyn crate::IRInjectCallback<C::F>,
-    ) -> Result<C::Output> {
-        self.codegen_with_strat(syn, DefaultStrat::default(), lookup_cbs, gate_cbs, injector)
+    pub fn codegen(&'b self, ir: &IRCircuit<IRAexpr>, ctx: &IRCtx) -> Result<C::Output> {
+        self.codegen_with_strat(ir, ctx, DefaultStrat::default())
     }
 
     /// Generate code using the given strategy.
     pub(crate) fn codegen_with_strat(
         &'b self,
-        syn: CircuitSynthesis<C::F>,
+        ir: &IRCircuit<IRAexpr>,
+        ctx: &IRCtx,
         strat: impl CodegenStrategy,
-        lookup_cbs: &dyn LookupCallbacks<C::F>,
-        gate_cbs: &dyn GateCallbacks<C::F>,
-        injector: &mut dyn crate::IRInjectCallback<C::F>,
     ) -> Result<C::Output> {
         log::debug!("Initializing code generator");
         let codegen = self.create_codegen();
@@ -96,7 +93,7 @@ where
             std::any::type_name_of_val(&strat)
         );
 
-        strat.codegen(&codegen, &syn, lookup_cbs, gate_cbs, injector)?;
+        strat.codegen(&codegen, ctx, ir)?;
 
         log::debug!("Code generation completed");
         codegen.generate_output()

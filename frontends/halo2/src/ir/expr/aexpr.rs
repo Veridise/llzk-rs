@@ -5,48 +5,76 @@ use crate::{
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     },
     expressions::ScopedExpression,
-    halo2::{Challenge, Expression, Field},
+    halo2::{Challenge, Expression, Field, PrimeField},
     ir::equivalency::{EqvRelation, SymbolicEqv},
 };
 use anyhow::Result;
+use internment::Intern;
+use num_bigint::BigUint;
 
-/// Represents an arithmetic expression.
-pub enum IRAexpr<F> {
-    Constant(F),
-    IO(FuncIO),
-    Challenge(Challenge),
-    Negated(Box<IRAexpr<F>>),
-    Sum(Box<IRAexpr<F>>, Box<IRAexpr<F>>),
-    Product(Box<IRAexpr<F>>, Box<IRAexpr<F>>),
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Felt(Intern<BigUint>);
+
+impl Felt {
+    pub fn new<F: PrimeField>(f: F) -> Self {
+        Self(Intern::new(BigUint::from_bytes_le(f.to_repr().as_ref())))
+    }
+
+    pub fn prime<F: PrimeField>() -> Self {
+        let f = -F::ONE;
+        Self(Intern::new(
+            BigUint::from_bytes_le(f.to_repr().as_ref()) + 1usize,
+        ))
+    }
 }
 
-impl<F> IRAexpr<F> {
-    fn new(
+impl From<Felt> for picus::felt::Felt {
+    fn from(value: Felt) -> Self {
+        Self::new(value.0.as_ref().clone())
+    }
+}
+
+impl AsRef<BigUint> for Felt {
+    fn as_ref(&self) -> &BigUint {
+        self.0.as_ref()
+    }
+}
+
+/// Represents an arithmetic expression.
+#[derive(PartialEq, Eq, Clone)]
+pub enum IRAexpr {
+    Constant(Felt),
+    IO(FuncIO),
+    Challenge(Challenge),
+    Negated(Box<IRAexpr>),
+    Sum(Box<IRAexpr>, Box<IRAexpr>),
+    Product(Box<IRAexpr>, Box<IRAexpr>),
+}
+
+impl IRAexpr {
+    fn new<F: PrimeField>(
         expr: &Expression<F>,
         sr: &dyn SelectorResolver,
         qr: &dyn QueryResolver<F>,
-    ) -> Result<Self>
-    where
-        F: Field,
-    {
+    ) -> Result<Self> {
         Ok(match expr {
-            Expression::Constant(f) => Self::Constant(*f),
+            Expression::Constant(f) => Self::Constant(Felt::new(*f)),
             Expression::Selector(selector) => match sr.resolve_selector(selector)? {
-                ResolvedSelector::Const(bool) => Self::Constant(bool.to_f()),
+                ResolvedSelector::Const(bool) => Self::Constant(Felt::new::<F>(bool.to_f())),
                 ResolvedSelector::Arg(arg) => Self::IO(arg.into()),
             },
             Expression::Fixed(fixed_query) => match qr.resolve_fixed_query(fixed_query)? {
                 ResolvedQuery::IO(io) => Self::IO(io),
-                ResolvedQuery::Lit(f) => Self::Constant(f),
+                ResolvedQuery::Lit(f) => Self::Constant(Felt::new(f)),
             },
             Expression::Advice(advice_query) => match qr.resolve_advice_query(advice_query)?.0 {
                 ResolvedQuery::IO(io) => Self::IO(io),
-                ResolvedQuery::Lit(f) => Self::Constant(f),
+                ResolvedQuery::Lit(f) => Self::Constant(Felt::new(f)),
             },
             Expression::Instance(instance_query) => {
                 match qr.resolve_instance_query(instance_query)? {
                     ResolvedQuery::IO(io) => Self::IO(io),
-                    ResolvedQuery::Lit(f) => Self::Constant(f),
+                    ResolvedQuery::Lit(f) => Self::Constant(Felt::new(f)),
                 }
             }
             Expression::Challenge(challenge) => Self::Challenge(*challenge),
@@ -61,57 +89,30 @@ impl<F> IRAexpr<F> {
             ),
             Expression::Scaled(lhs, rhs) => Self::Product(
                 Box::new(Self::new(lhs, sr, qr)?),
-                Box::new(Self::Constant(*rhs)),
+                Box::new(Self::Constant(Felt::new(*rhs))),
             ),
         })
     }
 
-    pub fn map<O>(self, f: &impl Fn(F) -> O) -> IRAexpr<O> {
+    /// Similar to [`AExpr::try_map`] but maps the IO instead and edits in-place.
+    pub fn try_map_io(&mut self, f: &impl Fn(&mut FuncIO) -> Result<()>) -> Result<()> {
         match self {
-            IRAexpr::Constant(felt) => IRAexpr::Constant(f(felt)),
-            IRAexpr::IO(func_io) => IRAexpr::IO(func_io),
-            IRAexpr::Challenge(challenge) => IRAexpr::Challenge(challenge),
-            IRAexpr::Negated(expr) => IRAexpr::Negated(Box::new(expr.map(f))),
-            IRAexpr::Sum(lhs, rhs) => IRAexpr::Sum(Box::new(lhs.map(f)), Box::new(rhs.map(f))),
-            IRAexpr::Product(lhs, rhs) => {
-                IRAexpr::Product(Box::new(lhs.map(f)), Box::new(rhs.map(f)))
+            IRAexpr::IO(func_io) => f(func_io),
+            IRAexpr::Negated(expr) => expr.try_map_io(f),
+            IRAexpr::Sum(lhs, rhs) => {
+                lhs.try_map_io(f)?;
+                rhs.try_map_io(f)
             }
+            IRAexpr::Product(lhs, rhs) => {
+                lhs.try_map_io(f)?;
+                rhs.try_map_io(f)
+            }
+            _ => Ok(()),
         }
-    }
-
-    pub fn try_map<O>(self, f: &impl Fn(F) -> Result<O>) -> Result<IRAexpr<O>> {
-        Ok(match self {
-            IRAexpr::Constant(felt) => IRAexpr::Constant(f(felt)?),
-            IRAexpr::IO(func_io) => IRAexpr::IO(func_io),
-            IRAexpr::Challenge(challenge) => IRAexpr::Challenge(challenge),
-            IRAexpr::Negated(expr) => IRAexpr::Negated(Box::new(expr.try_map(f)?)),
-            IRAexpr::Sum(lhs, rhs) => {
-                IRAexpr::Sum(Box::new(lhs.try_map(f)?), Box::new(rhs.try_map(f)?))
-            }
-            IRAexpr::Product(lhs, rhs) => {
-                IRAexpr::Product(Box::new(lhs.try_map(f)?), Box::new(rhs.try_map(f)?))
-            }
-        })
-    }
-
-    /// Similar to [`AExpr::try_map`] but maps the IO instead.
-    pub fn try_map_io(self, f: &impl Fn(FuncIO) -> Result<FuncIO>) -> Result<Self> {
-        Ok(match self {
-            IRAexpr::Constant(felt) => IRAexpr::Constant(felt),
-            IRAexpr::IO(func_io) => IRAexpr::IO(f(func_io)?),
-            IRAexpr::Challenge(challenge) => IRAexpr::Challenge(challenge),
-            IRAexpr::Negated(expr) => IRAexpr::Negated(Box::new(expr.try_map_io(f)?)),
-            IRAexpr::Sum(lhs, rhs) => {
-                IRAexpr::Sum(Box::new(lhs.try_map_io(f)?), Box::new(rhs.try_map_io(f)?))
-            }
-            IRAexpr::Product(lhs, rhs) => {
-                IRAexpr::Product(Box::new(lhs.try_map_io(f)?), Box::new(rhs.try_map_io(f)?))
-            }
-        })
     }
 }
 
-impl<F: std::fmt::Debug> std::fmt::Debug for IRAexpr<F> {
+impl std::fmt::Debug for IRAexpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Constant(arg0) => write!(f, "(const {arg0:?})"),
@@ -124,10 +125,10 @@ impl<F: std::fmt::Debug> std::fmt::Debug for IRAexpr<F> {
     }
 }
 
-impl<F: PartialEq> EqvRelation<IRAexpr<F>> for SymbolicEqv {
+impl EqvRelation<IRAexpr> for SymbolicEqv {
     /// Two arithmetic expressions are equivalent if they are structurally equal, constant values
     /// equal and variables are equivalent.
-    fn equivalent(lhs: &IRAexpr<F>, rhs: &IRAexpr<F>) -> bool {
+    fn equivalent(lhs: &IRAexpr, rhs: &IRAexpr) -> bool {
         match (lhs, rhs) {
             (IRAexpr::Constant(lhs), IRAexpr::Constant(rhs)) => lhs == rhs,
             (IRAexpr::IO(lhs), IRAexpr::IO(rhs)) => Self::equivalent(lhs, rhs),
@@ -144,9 +145,9 @@ impl<F: PartialEq> EqvRelation<IRAexpr<F>> for SymbolicEqv {
     }
 }
 
-impl<F> TryFrom<ScopedExpression<'_, '_, F>> for IRAexpr<F>
+impl<F> TryFrom<ScopedExpression<'_, '_, F>> for IRAexpr
 where
-    F: Field,
+    F: PrimeField,
 {
     type Error = anyhow::Error;
 
@@ -159,31 +160,10 @@ where
     }
 }
 
-impl<F: PartialEq> PartialEq for IRAexpr<F> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (IRAexpr::Constant(lhs), IRAexpr::Constant(rhs)) => lhs == rhs,
-            (IRAexpr::IO(lhs), IRAexpr::IO(rhs)) => lhs == rhs,
-            (IRAexpr::Challenge(lhs), IRAexpr::Challenge(rhs)) => lhs == rhs,
-            (IRAexpr::Negated(lhs), IRAexpr::Negated(rhs)) => lhs == rhs,
-            (IRAexpr::Sum(lhs0, lhs1), IRAexpr::Sum(rhs0, rhs1)) => lhs0 == rhs0 && lhs1 == rhs1,
-            (IRAexpr::Product(lhs0, lhs1), IRAexpr::Product(rhs0, rhs1)) => {
-                lhs0 == rhs0 && lhs1 == rhs1
-            }
-            _ => false,
-        }
-    }
-}
-
-impl<F> LowerableExpr for IRAexpr<F>
-where
-    F: Field,
-{
-    type F = F;
-
+impl LowerableExpr for IRAexpr {
     fn lower<L>(self, l: &L) -> Result<L::CellOutput>
     where
-        L: ExprLowering<F = Self::F> + ?Sized,
+        L: ExprLowering + ?Sized,
     {
         match self {
             IRAexpr::Constant(f) => l.lower_constant(f),
@@ -267,7 +247,7 @@ mod tests {
     fn lower_exprs(
         poly: &Expression<F>,
         region: RegionData,
-    ) -> anyhow::Result<Vec<super::IRAexpr<F>>> {
+    ) -> anyhow::Result<Vec<super::IRAexpr>> {
         let advice_io = CircuitIO::<Advice>::empty();
         let instance_io = CircuitIO::<Instance>::empty();
         let zero = ZeroResolver {};

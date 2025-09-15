@@ -26,8 +26,8 @@ use seq::Seq;
 pub enum IRStmt<T> {
     ConstraintCall(Call<T>),
     Constraint(Constraint<T>),
-    Comment(Comment<T>),
-    AssumeDeterministic(AssumeDeterministic<T>),
+    Comment(Comment),
+    AssumeDeterministic(AssumeDeterministic),
     Assert(Assert<T>),
     Seq(Seq<T>),
 }
@@ -121,6 +121,17 @@ impl<T> IRStmt<T> {
         }
     }
 
+    pub fn map_into<O>(&self, f: &impl Fn(&T) -> O) -> IRStmt<O> {
+        match self {
+            IRStmt::ConstraintCall(call) => call.map_into(f).into(),
+            IRStmt::Constraint(constraint) => constraint.map_into(f).into(),
+            IRStmt::Comment(comment) => Comment::new(comment.value()).into(),
+            IRStmt::AssumeDeterministic(ad) => AssumeDeterministic::new(ad.value()).into(),
+            IRStmt::Assert(assert) => assert.map_into(f).into(),
+            IRStmt::Seq(seq) => Seq::new(seq.iter().map(|s| s.map_into(f))).into(),
+        }
+    }
+
     pub fn try_map<O>(self, f: &impl Fn(T) -> Result<O>) -> Result<IRStmt<O>> {
         Ok(match self {
             IRStmt::ConstraintCall(call) => call.try_map(f)?.into(),
@@ -135,6 +146,28 @@ impl<T> IRStmt<T> {
             )
             .into(),
         })
+    }
+
+    pub fn try_map_inplace(&mut self, f: &impl Fn(&mut T) -> Result<()>) -> Result<()> {
+        match self {
+            IRStmt::ConstraintCall(call) => call.try_map_inplace(f),
+            IRStmt::Constraint(constraint) => constraint.try_map_inplace(f),
+            IRStmt::Comment(comment) => Ok(()),
+            IRStmt::AssumeDeterministic(ad) => Ok(()),
+            IRStmt::Assert(assert) => assert.try_map_inplace(f),
+            IRStmt::Seq(seq) => {
+                for stmt in seq.iter_mut() {
+                    stmt.try_map_inplace(f)?;
+                }
+                Ok(())
+            } //
+              //Seq::new(
+              //    seq.into_iter()
+              //        .map(|s| s.try_map(f))
+              //        .collect::<Result<Vec<_>>>()?,
+              //)
+              //.into(),
+        }
     }
 
     fn iter<'a>(&'a self) -> IRStmtRefIter<'a, T> {
@@ -157,13 +190,9 @@ where
             (IRStmt::Constraint(lhs), IRStmt::Constraint(rhs)) => {
                 <E as EqvRelation<Constraint<L>, Constraint<R>>>::equivalent(lhs, rhs)
             }
-            (IRStmt::Comment(lhs), IRStmt::Comment(rhs)) => {
-                <E as EqvRelation<Comment<L>, Comment<R>>>::equivalent(lhs, rhs)
-            }
+            (IRStmt::Comment(lhs), IRStmt::Comment(rhs)) => true,
             (IRStmt::AssumeDeterministic(lhs), IRStmt::AssumeDeterministic(rhs)) => {
-                <E as EqvRelation<AssumeDeterministic<L>, AssumeDeterministic<R>>>::equivalent(
-                    lhs, rhs,
-                )
+                <E as EqvRelation<AssumeDeterministic, AssumeDeterministic>>::equivalent(lhs, rhs)
             }
             (IRStmt::Assert(lhs), IRStmt::Assert(rhs)) => {
                 <E as EqvRelation<Assert<L>, Assert<R>>>::equivalent(lhs, rhs)
@@ -244,36 +273,41 @@ impl<T> IRStmt<EitherLowerable<T, T>> {
     }
 }
 
-macro_rules! impl_from {
-    ($inner:ident, $ctor:ident) => {
-        impl<T> From<$inner<T>> for IRStmt<T> {
-            fn from(value: $inner<T>) -> Self {
-                Self::$ctor(value)
-            }
-        }
-    };
-    ($name:ident) => {
-        impl<T> From<$name<T>> for IRStmt<T> {
-            fn from(value: $name<T>) -> Self {
-                Self::$name(value)
-            }
-        }
-    };
+impl<T> From<Call<T>> for IRStmt<T> {
+    fn from(value: Call<T>) -> Self {
+        Self::ConstraintCall(value)
+    }
+}
+impl<T> From<Constraint<T>> for IRStmt<T> {
+    fn from(value: Constraint<T>) -> Self {
+        Self::Constraint(value)
+    }
+}
+impl<T> From<Comment> for IRStmt<T> {
+    fn from(value: Comment) -> Self {
+        Self::Comment(value)
+    }
+}
+impl<T> From<AssumeDeterministic> for IRStmt<T> {
+    fn from(value: AssumeDeterministic) -> Self {
+        Self::AssumeDeterministic(value)
+    }
+}
+impl<T> From<Assert<T>> for IRStmt<T> {
+    fn from(value: Assert<T>) -> Self {
+        Self::Assert(value)
+    }
+}
+impl<T> From<Seq<T>> for IRStmt<T> {
+    fn from(value: Seq<T>) -> Self {
+        Self::Seq(value)
+    }
 }
 
-impl_from!(Call, ConstraintCall);
-impl_from!(Constraint);
-impl_from!(Comment);
-impl_from!(AssumeDeterministic);
-impl_from!(Assert);
-impl_from!(Seq);
-
 impl<T: LowerableExpr> LowerableStmt for IRStmt<T> {
-    type F = T::F;
-
     fn lower<L>(self, l: &L) -> Result<()>
     where
-        L: Lowering<F = Self::F> + ?Sized,
+        L: Lowering + ?Sized,
     {
         match self {
             Self::ConstraintCall(call) => call.lower(l),

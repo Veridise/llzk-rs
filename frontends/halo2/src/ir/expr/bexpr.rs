@@ -24,6 +24,15 @@ impl<T> IRBexpr<T> {
         }
     }
 
+    pub fn map_into<O>(&self, f: &impl Fn(&T) -> O) -> IRBexpr<O> {
+        match self {
+            IRBexpr::Cmp(cmp_op, lhs, rhs) => IRBexpr::Cmp(*cmp_op, f(lhs), f(rhs)),
+            IRBexpr::And(exprs) => IRBexpr::And(exprs.iter().map(|e| e.map_into(f)).collect()),
+            IRBexpr::Or(exprs) => IRBexpr::Or(exprs.iter().map(|e| e.map_into(f)).collect()),
+            IRBexpr::Not(expr) => IRBexpr::Not(Box::new(expr.map_into(f))),
+        }
+    }
+
     pub fn try_map<O>(self, f: &impl Fn(T) -> Result<O>) -> Result<IRBexpr<O>> {
         Ok(match self {
             IRBexpr::Cmp(cmp_op, lhs, rhs) => IRBexpr::Cmp(cmp_op, f(lhs)?, f(rhs)?),
@@ -41,6 +50,28 @@ impl<T> IRBexpr<T> {
             ),
             IRBexpr::Not(expr) => IRBexpr::Not(Box::new(expr.try_map(f)?)),
         })
+    }
+
+    pub fn try_map_inplace(&mut self, f: &impl Fn(&mut T) -> Result<()>) -> Result<()> {
+        match self {
+            IRBexpr::Cmp(_, lhs, rhs) => {
+                f(lhs)?;
+                f(rhs)
+            }
+            IRBexpr::And(exprs) => {
+                for expr in exprs {
+                    expr.try_map_inplace(f)?;
+                }
+                Ok(())
+            }
+            IRBexpr::Or(exprs) => {
+                for expr in exprs {
+                    expr.try_map_inplace(f)?;
+                }
+                Ok(())
+            }
+            IRBexpr::Not(expr) => expr.try_map_inplace(f),
+        }
     }
 }
 
@@ -154,7 +185,7 @@ fn reduce_bool_expr<A, L>(
     cb: impl Fn(&L, &L::CellOutput, &L::CellOutput) -> Result<L::CellOutput>,
 ) -> Result<L::CellOutput>
 where
-    A: LowerableExpr<F = L::F>,
+    A: LowerableExpr,
     L: ExprLowering + ?Sized,
 {
     exprs
@@ -168,11 +199,9 @@ where
 impl<F> IRBexpr<F> {}
 
 impl<A: LowerableExpr> LowerableExpr for IRBexpr<A> {
-    type F = A::F;
-
     fn lower<L>(self, l: &L) -> Result<L::CellOutput>
     where
-        L: ExprLowering<F = Self::F> + ?Sized,
+        L: ExprLowering + ?Sized,
     {
         match self {
             IRBexpr::Cmp(cmp_op, lhs, rhs) => {

@@ -30,14 +30,16 @@ impl<T> Seq<T> {
     pub fn iter<'a>(&'a self) -> std::slice::Iter<'a, IRStmt<T>> {
         self.0.iter()
     }
+
+    pub fn iter_mut<'a>(&'a mut self) -> std::slice::IterMut<'a, IRStmt<T>> {
+        self.0.iter_mut()
+    }
 }
 
 impl<T: LowerableExpr> LowerableStmt for Seq<T> {
-    type F = T::F;
-
     fn lower<L>(self, l: &L) -> Result<()>
     where
-        L: Lowering<F = Self::F> + ?Sized,
+        L: Lowering + ?Sized,
     {
         self.0.into_iter().try_for_each(|s| s.lower(l))
     }

@@ -4,7 +4,6 @@ use anyhow::Result;
 
 use crate::{
     expr::{traits::ExprLike, Expr},
-    felt::IntoPrime,
     stmt::traits::StmtLike,
     vars::VarKind,
     Module, Program,
@@ -20,16 +19,16 @@ pub trait MutOptimizer<T: ?Sized> {
     fn optimize(&mut self, t: &mut T) -> Result<()>;
 }
 
-pub struct OptimizerPipelineBuilder<F: IntoPrime, K: VarKind>(OptimizerPipeline<F, K>);
+pub struct OptimizerPipelineBuilder<K: VarKind>(OptimizerPipeline<K>);
 
-impl<F: IntoPrime, K: VarKind + 'static> OptimizerPipelineBuilder<F, K> {
+impl<K: VarKind + 'static> OptimizerPipelineBuilder<K> {
     pub fn new() -> Self {
         Self(OptimizerPipeline {
             passes: Default::default(),
         })
     }
 
-    pub fn add_pass_with_params<P: ProgramOptimizer<F, K> + 'static>(
+    pub fn add_pass_with_params<P: ProgramOptimizer<K> + 'static>(
         self,
         params: impl Into<P>,
     ) -> Self {
@@ -38,7 +37,7 @@ impl<F: IntoPrime, K: VarKind + 'static> OptimizerPipelineBuilder<F, K> {
         b
     }
 
-    pub fn add_pass<P: ProgramOptimizer<F, K> + Default + 'static>(self) -> Self {
+    pub fn add_pass<P: ProgramOptimizer<K> + Default + 'static>(self) -> Self {
         let mut b = self;
         b.0.passes.push(P::create(P::default()));
         b
@@ -53,7 +52,7 @@ impl<F: IntoPrime, K: VarKind + 'static> OptimizerPipelineBuilder<F, K> {
     }
 }
 
-impl<F: IntoPrime, K: VarKind + 'static> Default for OptimizerPipelineBuilder<F, K> {
+impl<K: VarKind + 'static> Default for OptimizerPipelineBuilder<K> {
     fn default() -> Self {
         Self::new()
     }
@@ -92,18 +91,18 @@ where
     }
 }
 
-pub struct OptimizerPipeline<F: IntoPrime, K: VarKind> {
-    passes: Vec<Box<dyn MutOptimizer<Program<F, K>>>>,
+pub struct OptimizerPipeline<K: VarKind> {
+    passes: Vec<Box<dyn MutOptimizer<Program<K>>>>,
 }
 
-impl<F: IntoPrime, K: VarKind> From<OptimizerPipelineBuilder<F, K>> for OptimizerPipeline<F, K> {
-    fn from(value: OptimizerPipelineBuilder<F, K>) -> Self {
+impl<K: VarKind> From<OptimizerPipelineBuilder<K>> for OptimizerPipeline<K> {
+    fn from(value: OptimizerPipelineBuilder<K>) -> Self {
         value.0
     }
 }
 
-impl<F: IntoPrime, K: VarKind> MutOptimizer<Program<F, K>> for OptimizerPipeline<F, K> {
-    fn optimize(&mut self, program: &mut Program<F, K>) -> Result<()> {
+impl<K: VarKind> MutOptimizer<Program<K>> for OptimizerPipeline<K> {
+    fn optimize(&mut self, program: &mut Program<K>) -> Result<()> {
         self.passes.as_mut_slice().optimize(program)
     }
 }
@@ -128,7 +127,7 @@ pub trait StmtOptimizer: MutOptimizer<dyn StmtLike> {
     }
 }
 
-pub trait ModuleOptimizer<F, K: VarKind>: MutOptimizer<Module<K>> {
+pub trait ModuleOptimizer<K: VarKind>: MutOptimizer<Module<K>> {
     fn create<I>(i: I) -> Box<dyn MutOptimizer<Module<K>>>
     where
         I: Into<Self>,
@@ -138,8 +137,8 @@ pub trait ModuleOptimizer<F, K: VarKind>: MutOptimizer<Module<K>> {
     }
 }
 
-pub trait ProgramOptimizer<F: IntoPrime, K: VarKind>: MutOptimizer<Program<F, K>> {
-    fn create<I>(i: I) -> Box<dyn MutOptimizer<Program<F, K>>>
+pub trait ProgramOptimizer<K: VarKind>: MutOptimizer<Program<K>> {
+    fn create<I>(i: I) -> Box<dyn MutOptimizer<Program<K>>>
     where
         I: Into<Self>,
         Self: Sized + 'static,
@@ -187,19 +186,18 @@ where
         Ok(())
     }
 }
-impl<T, F, K> ModuleOptimizer<F, K> for T
+impl<T, K> ModuleOptimizer<K> for T
 where
     T: MutOptimizer<Module<K>>,
     K: VarKind,
-    F: IntoPrime,
 {
 }
 
-impl<T, F: IntoPrime, K: VarKind> MutOptimizer<Program<F, K>> for T
+impl<T, K: VarKind> MutOptimizer<Program<K>> for T
 where
     T: MutOptimizer<Module<K>>,
 {
-    fn optimize(&mut self, program: &mut Program<F, K>) -> Result<()> {
+    fn optimize(&mut self, program: &mut Program<K>) -> Result<()> {
         for module in program.modules_mut() {
             self.optimize(module)?;
         }
@@ -207,11 +205,10 @@ where
     }
 }
 
-impl<T, F, K> ProgramOptimizer<F, K> for T
+impl<T, K> ProgramOptimizer<K> for T
 where
-    T: MutOptimizer<Program<F, K>>,
+    T: MutOptimizer<Program<K>>,
     K: VarKind,
-    F: IntoPrime,
 {
 }
 

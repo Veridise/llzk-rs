@@ -18,21 +18,29 @@ impl<T> Constraint<T> {
     pub fn new(op: CmpOp, lhs: T, rhs: T) -> Self {
         Self { op, lhs, rhs }
     }
+
     pub fn map<O>(self, f: &impl Fn(T) -> O) -> Constraint<O> {
         Constraint::new(self.op, f(self.lhs), f(self.rhs))
+    }
+
+    pub fn map_into<O>(&self, f: &impl Fn(&T) -> O) -> Constraint<O> {
+        Constraint::new(self.op, f(&self.lhs), f(&self.rhs))
     }
 
     pub fn try_map<O>(self, f: &impl Fn(T) -> Result<O>) -> Result<Constraint<O>> {
         Ok(Constraint::new(self.op, f(self.lhs)?, f(self.rhs)?))
     }
+
+    pub fn try_map_inplace(&mut self, f: &impl Fn(&mut T) -> Result<()>) -> Result<()> {
+        f(&mut self.lhs)?;
+        f(&mut self.rhs)
+    }
 }
 
 impl<T: LowerableExpr> LowerableStmt for Constraint<T> {
-    type F = T::F;
-
     fn lower<L>(self, l: &L) -> Result<()>
     where
-        L: Lowering<F = Self::F> + ?Sized,
+        L: Lowering + ?Sized,
     {
         l.checked_generate_constraint(self.op, &self.lhs.lower(l)?, &self.rhs.lower(l)?)
     }

@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use num_bigint::BigUint;
-use picus::felt::{Felt, IntoPrime};
+use picus::felt::Felt;
 
 use crate::halo2::PrimeField;
 #[cfg(feature = "lift-field-operations")]
@@ -37,10 +37,10 @@ impl<F: PrimeField> From<FeltWrap<F>> for Felt {
     }
 }
 
-impl<F: PrimeField> IntoPrime for FeltWrap<F> {
-    fn prime() -> Felt {
-        let mut f = FeltWrap(-F::ONE).into();
-        f += 1;
-        f
-    }
-}
+//impl<F: PrimeField> IntoPrime for FeltWrap<F> {
+//    fn prime() -> Felt {
+//        let mut f = FeltWrap(-F::ONE).into();
+//        f += 1;
+//        f
+//    }
+//}

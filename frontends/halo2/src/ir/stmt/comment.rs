@@ -10,11 +10,11 @@ use crate::{
     ir::equivalency::EqvRelation,
 };
 
-pub struct Comment<T>(String, PhantomData<T>);
+pub struct Comment(String);
 
-impl<T> Comment<T> {
+impl Comment {
     pub fn new(s: impl AsRef<str>) -> Self {
-        Self(s.as_ref().to_owned(), Default::default())
+        Self(s.as_ref().to_owned())
     }
 
     pub fn value(&self) -> &str {
@@ -22,41 +22,29 @@ impl<T> Comment<T> {
     }
 }
 
-impl<T: LowerableExpr> LowerableStmt for Comment<T> {
-    type F = T::F;
-
+impl LowerableStmt for Comment {
     fn lower<L>(self, l: &L) -> Result<()>
     where
-        L: Lowering<F = Self::F> + ?Sized,
+        L: Lowering + ?Sized,
     {
         l.generate_comment(self.0)
     }
 }
 
-impl<T: Clone> Clone for Comment<T> {
+impl Clone for Comment {
     fn clone(&self) -> Self {
-        Self(self.0.clone(), Default::default())
+        Self(self.0.clone())
     }
 }
 
-impl<T> PartialEq for Comment<T> {
+impl PartialEq for Comment {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
 
-impl<T: std::fmt::Debug> std::fmt::Debug for Comment<T> {
+impl std::fmt::Debug for Comment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "comment '{}'", self.0)
-    }
-}
-
-impl<L, R, E> EqvRelation<Comment<L>, Comment<R>> for E
-where
-    E: EqvRelation<L, R>,
-{
-    /// Comments are always equivalent
-    fn equivalent(_lhs: &Comment<L>, _rhs: &Comment<R>) -> bool {
-        true
     }
 }

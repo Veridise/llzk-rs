@@ -1,8 +1,12 @@
+use crate::halo2::groups::GroupKeyInstance;
+use crate::io::AllCircuitIO;
+use crate::ir::groups::GroupBody;
+use crate::ir::IRCtx;
 use crate::{
     backend::{
         codegen::{
             strats::{
-                groups::body::{organize_groups_by_key, GroupBody},
+                //groups::body::{organize_groups_by_key, GroupBody},
                 load_patterns,
             },
             Codegen, CodegenStrategy,
@@ -11,7 +15,11 @@ use crate::{
     },
     gates::RewritePatternSet,
     halo2::{Field, RegionIndex},
-    ir::equivalency::{EqvRelation, SymbolicEqv},
+    ir::{
+        equivalency::{EqvRelation, SymbolicEqv},
+        expr::IRAexpr,
+        IRCircuit,
+    },
     lookups::callbacks::LookupCallbacks,
     synthesis::{
         groups::Group,
@@ -21,12 +29,12 @@ use crate::{
     utils, GateCallbacks,
 };
 use anyhow::Result;
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
-mod body;
-mod bounds;
-mod callsite;
-mod free_cells;
+//mod body;
+//mod bounds;
+//mod callsite;
 
 /// Code generation strategy that write the code of each group in a separate function.
 #[derive(Default)]
@@ -36,44 +44,47 @@ impl CodegenStrategy for GroupConstraintsStrat {
     fn codegen<'c: 'st, 's, 'st, C>(
         &self,
         codegen: &C,
-        syn: &'s CircuitSynthesis<C::F>,
-        lookup_cb: &dyn LookupCallbacks<C::F>,
-        gate_cbs: &dyn GateCallbacks<C::F>,
-        injector: &mut dyn crate::IRInjectCallback<C::F>,
+        ctx: &IRCtx,
+        ir: &IRCircuit<IRAexpr>,
+        //lookups: &dyn LookupCallbacks<C::F>,
+        //gate_cbs: &dyn GateCallbacks<C::F>,
+        //injector: &mut dyn crate::IRInjectCallback<C::F>,
     ) -> Result<()>
     where
         C: Codegen<'c, 'st>,
-        Row<'s, 's, C::F>: ResolversProvider<C::F> + 's,
-        RegionRow<'s, 's, 's, C::F>: ResolversProvider<C::F> + 's,
+        //Row<'s, 's, C::F>: ResolversProvider<C::F> + 's,
+        //RegionRow<'s, 's, 's, C::F>: ResolversProvider<C::F> + 's,
     {
-        log::debug!("Circuit synthesis has {} gates", syn.gates().len());
-        let patterns = load_patterns(gate_cbs);
-        let regions = region_data(syn)?;
-        let ctx = GroupIRCtx {
-            groups: syn.groups(),
-            regions_by_index: &regions,
-            syn,
-            patterns: &patterns,
-            lookup_cb,
-        };
+        //log::debug!("Circuit synthesis has {} gates", syn.gates().len());
+        //let patterns = load_patterns(gate_cbs);
+        //let regions = region_data(syn)?;
+        //let ctx = GroupIRCtx {
+        //    groups: syn.groups(),
+        //    regions_by_index: &regions,
+        //    syn,
+        //    patterns: &patterns,
+        //    lookup_cb,
+        //};
+        //
+        //log::debug!("Generating step 1 IR of region groups");
+        //
+        //let free_cells = free_cells::lift_free_cells_to_inputs(syn.groups(), ctx)?;
+        //
+        //let mut groups_ir = ctx
+        //    .groups
+        //    .iter()
+        //    .enumerate()
+        //    .map(|(id, g)| GroupBody::new(g, id, ctx, &free_cells[id], injector))
+        //    .collect::<Result<Vec<_>, _>>()?;
+        //
+        //// Sanity check, only one group should be considered main.
+        //assert_eq!(
+        //    groups_ir.iter().filter(|g| g.is_main()).count(),
+        //    1,
+        //    "Only one main group is allowed"
+        //);
 
-        log::debug!("Generating step 1 IR of region groups");
-
-        let free_cells = free_cells::lift_free_cells_to_inputs(syn.groups(), ctx)?;
-
-        let mut groups_ir = ctx
-            .groups
-            .iter()
-            .enumerate()
-            .map(|(id, g)| GroupBody::new(g, id, ctx, &free_cells[id], injector))
-            .collect::<Result<Vec<_>, _>>()?;
-
-        // Sanity check, only one group should be considered main.
-        assert_eq!(
-            groups_ir.iter().filter(|g| g.is_main()).count(),
-            1,
-            "Only one main group is allowed"
-        );
+        let mut groups_ir = ir.groups().to_vec();
         // Select leaders and generate the final names.
         // If the group was renamed its index will contain Some(_).
         let (leaders, updated_calldata) = select_leaders(&groups_ir);
@@ -93,22 +104,46 @@ impl CodegenStrategy for GroupConstraintsStrat {
         // Create a function per group.
         for group in groups_ir {
             log::debug!("Group {group:#?}");
+            let io = AllCircuitIO {
+                advice: Cow::Borrowed(ctx.advice_io_of_group(group.id())),
+                instance: Cow::Borrowed(ctx.instance_io_of_group(group.id())),
+            };
             if group.is_main() {
                 log::debug!("Generating main body");
-                codegen.within_main(syn, move |_| Ok([group]))?;
+                codegen.define_main_function_with_body(io, [group])?;
             } else {
                 log::debug!("Generating body of function {}", group.name());
                 let name = group.name().to_owned();
+
                 codegen.define_function_with_body(
                     &name,
-                    group.io().0,
-                    group.io().1,
+                    io.input_count(),
+                    io.output_count(),
                     |_, _, _| Ok([group]),
                 )?;
             }
         }
         Ok(())
     }
+}
+
+/// Organizes the groups by their key. Each group contains a list with the index to the group.
+pub fn organize_groups_by_key(
+    groups: &[GroupBody<IRAexpr>],
+) -> HashMap<GroupKeyInstance, Vec<usize>> {
+    let mut groups_by_key: HashMap<_, Vec<_>> = HashMap::new();
+    for group in groups {
+        if group.is_main() {
+            log::debug!("Group {} is main. Skipping...", group.id());
+            continue;
+        }
+        groups_by_key
+            .entry(group.key().expect("Non main group needs a key"))
+            .or_default()
+            .push(group.id());
+        log::debug!("Inserting group {} with key {:?}", group.id(), group.key());
+    }
+    groups_by_key
 }
 
 /// Creates a map from region index to its data
@@ -127,7 +162,7 @@ fn region_data<'s, F: Field>(
 }
 
 /// Find the leaders of each equivalence class in the groups and annotate the required renames
-fn select_leaders<F: Field>(groups_ir: &[GroupBody<F>]) -> (Vec<usize>, Vec<Option<String>>) {
+fn select_leaders(groups_ir: &[GroupBody<IRAexpr>]) -> (Vec<usize>, Vec<Option<String>>) {
     // Separate the groups by their key.
     let groups_by_key = organize_groups_by_key(groups_ir);
     log::debug!("Groups: {groups_by_key:?}");
@@ -181,7 +216,7 @@ fn select_leaders<F: Field>(groups_ir: &[GroupBody<F>]) -> (Vec<usize>, Vec<Opti
 }
 
 /// Updates the name of the group and the names of the functions each callsite references.
-fn update_names<F: Field>(group: &mut GroupBody<F>, updated_calldata: &[Option<String>]) {
+fn update_names(group: &mut GroupBody<IRAexpr>, updated_calldata: &[Option<String>]) {
     if let Some(name) = &updated_calldata[group.id()] {
         *group.name_mut() = name.clone();
     }

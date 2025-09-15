@@ -4,92 +4,80 @@ use anyhow::Result;
 use super::{ExprLowering, Lowering};
 
 pub trait LowerableExpr {
-    type F: Field;
-
     fn lower<L>(self, l: &L) -> Result<L::CellOutput>
     where
-        L: ExprLowering<F = Self::F> + ?Sized;
+        L: ExprLowering + ?Sized;
 }
 
 impl<T> LowerableExpr for Result<T>
 where
     T: LowerableExpr,
 {
-    type F = T::F;
-
     fn lower<L>(self, l: &L) -> Result<L::CellOutput>
     where
-        L: ExprLowering<F = Self::F> + ?Sized,
+        L: ExprLowering + ?Sized,
     {
         self.and_then(|t| t.lower(l))
     }
 }
 
 impl<Lw: LowerableExpr> LowerableExpr for Box<Lw> {
-    type F = Lw::F;
-
     fn lower<L>(self, l: &L) -> Result<L::CellOutput>
     where
-        L: ExprLowering<F = Self::F> + ?Sized,
+        L: ExprLowering + ?Sized,
     {
         (*self).lower(l)
     }
 }
 
-impl<F: Field> LowerableExpr for (F,) {
-    type F = F;
-
-    fn lower<L>(self, l: &L) -> Result<L::CellOutput>
-    where
-        L: ExprLowering<F = Self::F> + ?Sized,
-    {
-        l.lower_constant(self.0)
-    }
-}
+//impl<F: Field> LowerableExpr for (F,) {
+//    type F = F;
+//
+//    fn lower<L>(self, l: &L) -> Result<L::CellOutput>
+//    where
+//        L: ExprLowering<F = Self::F> + ?Sized,
+//    {
+//        l.lower_constant(self.0)
+//    }
+//}
 
 pub trait LowerableStmt {
-    type F: Field;
-
     fn lower<L>(self, l: &L) -> Result<()>
     where
-        L: Lowering<F = Self::F> + ?Sized;
+        L: Lowering + ?Sized;
 }
 
 impl<T> LowerableStmt for Result<T>
 where
     T: LowerableStmt,
 {
-    type F = T::F;
-
     fn lower<L>(self, l: &L) -> Result<()>
     where
-        L: Lowering<F = Self::F> + ?Sized,
+        L: Lowering + ?Sized,
     {
         self.and_then(|t| t.lower(l))
     }
 }
 
 impl<Lw: LowerableStmt> LowerableStmt for Box<Lw> {
-    type F = Lw::F;
-
     fn lower<L>(self, l: &L) -> Result<()>
     where
-        L: Lowering<F = Self::F> + ?Sized,
+        L: Lowering + ?Sized,
     {
         (*self).lower(l)
     }
 }
 
-impl<F: Field> LowerableStmt for (F,) {
-    type F = F;
-
-    fn lower<L>(self, _: &L) -> Result<()>
-    where
-        L: Lowering<F = Self::F> + ?Sized,
-    {
-        Ok(())
-    }
-}
+//impl<F: Field> LowerableStmt for (F,) {
+//    type F = F;
+//
+//    fn lower<L>(self, _: &L) -> Result<()>
+//    where
+//        L: Lowering<F = Self::F> + ?Sized,
+//    {
+//        Ok(())
+//    }
+//}
 
 pub enum EitherLowerable<L, R> {
     Left(L),
@@ -160,13 +148,11 @@ where
 impl<Left, Right> LowerableExpr for EitherLowerable<Left, Right>
 where
     Left: LowerableExpr,
-    Right: LowerableExpr<F = Left::F>,
+    Right: LowerableExpr,
 {
-    type F = Left::F;
-
     fn lower<L>(self, l: &L) -> Result<L::CellOutput>
     where
-        L: ExprLowering<F = Self::F> + ?Sized,
+        L: ExprLowering + ?Sized,
     {
         match self {
             EitherLowerable::Left(left) => left.lower(l),
@@ -178,13 +164,11 @@ where
 impl<Left, Right> LowerableStmt for EitherLowerable<Left, Right>
 where
     Left: LowerableStmt,
-    Right: LowerableStmt<F = Left::F>,
+    Right: LowerableStmt,
 {
-    type F = Left::F;
-
     fn lower<L>(self, l: &L) -> Result<()>
     where
-        L: Lowering<F = Self::F> + ?Sized,
+        L: Lowering + ?Sized,
     {
         match self {
             EitherLowerable::Left(left) => left.lower(l),
@@ -194,11 +178,9 @@ where
 }
 
 impl<T: LowerableStmt, const N: usize> LowerableStmt for [T; N] {
-    type F = T::F;
-
     fn lower<L>(self, l: &L) -> Result<()>
     where
-        L: Lowering<F = Self::F> + ?Sized,
+        L: Lowering + ?Sized,
     {
         for e in self {
             e.lower(l)?;
@@ -208,11 +190,9 @@ impl<T: LowerableStmt, const N: usize> LowerableStmt for [T; N] {
 }
 
 impl<T: LowerableStmt> LowerableStmt for Vec<T> {
-    type F = T::F;
-
     fn lower<L>(self, l: &L) -> Result<()>
     where
-        L: Lowering<F = Self::F> + ?Sized,
+        L: Lowering + ?Sized,
     {
         for e in self {
             e.lower(l)?;

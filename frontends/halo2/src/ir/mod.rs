@@ -1,12 +1,28 @@
+use std::borrow::Cow;
+use std::cell::RefCell;
+use std::collections::HashMap;
+
 use anyhow::Result;
 use stmt::IRStmt;
 
-use crate::backend::{
-    codegen::Codegen,
-    func::{ArgNo, FieldId, FuncIO},
-    lowering::lowerable::LowerableExpr,
-};
+use crate::halo2::{Advice, Any, Instance};
+use crate::io::IOCell;
+use crate::ir::expr::IRAexpr;
+use crate::ir::generate::free_cells::{lift_free_cells_to_inputs, FreeCells};
+use crate::ir::generate::{region_data, RegionByIndex};
+use crate::synthesis::groups::{Group, GroupCell, Groups};
+use crate::synthesis::CircuitSynthesis;
 use crate::CircuitIO;
+use crate::{
+    backend::{
+        codegen::Codegen,
+        func::{ArgNo, FieldId, FuncIO},
+        lowering::lowerable::LowerableExpr,
+    },
+    expressions::{ExpressionInRow, ScopedExpression},
+    halo2::{Field, RegionIndex},
+    ir::groups::GroupBody,
+};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum CmpOp {
@@ -38,35 +54,108 @@ impl std::fmt::Display for CmpOp {
 #[cfg(feature = "lift-field-operations")]
 pub mod lift;
 
+mod ctx;
 pub mod equivalency;
 pub mod expr;
 pub mod generate;
+pub mod groups;
 pub mod stmt;
+
+pub use ctx::IRCtx;
 
 // These structs are a WIP.
 
-#[allow(dead_code)]
+pub type UnresolvedIRCircuit<'s, F> = IRCircuit<ScopedExpression<'s, 's, F>>;
+
 pub struct IRCircuit<T> {
-    main: IRMainFunction<T>,
-    functions: Vec<IRFunction<T>>,
+    groups: Vec<GroupBody<T>>,
+    regions_to_groups: Vec<usize>,
+}
+
+impl<'s, F: crate::halo2::PrimeField> UnresolvedIRCircuit<'s, F> {
+    fn new(
+        groups: Vec<GroupBody<ScopedExpression<'s, 's, F>>>,
+        regions_to_groups: Vec<usize>,
+    ) -> Self {
+        Self {
+            groups,
+            regions_to_groups,
+        }
+    }
+
+    /// Injects the IR into the specific regions
+    pub fn inject_ir(
+        &mut self,
+        ir: &[(RegionIndex, IRStmt<ExpressionInRow<'s, F>>)],
+        syn: &'s CircuitSynthesis<F>,
+        ctx: &'s IRCtx,
+    ) -> anyhow::Result<()> {
+        let regions = region_data(syn)?;
+        for (index, stmt) in ir {
+            let region = regions[index];
+            let group_idx = self.regions_to_groups[**index];
+            self.groups[group_idx].inject_ir(
+                region,
+                stmt,
+                ctx.advice_io_of_group(group_idx),
+                ctx.instance_io_of_group(group_idx),
+                syn.fixed_query_resolver(),
+            );
+        }
+        Ok(())
+    }
+
+    /// Resolves the IR.
+    pub fn resolve(self, ctx: &IRCtx) -> anyhow::Result<IRCircuit<IRAexpr>> {
+        let mut groups = self
+            .groups
+            .into_iter()
+            .map(|g| g.try_map(&IRAexpr::try_from))
+            .collect::<Result<Vec<_>, _>>()?;
+        for group in &mut groups {
+            group.relativize_eq_constraints(ctx)?;
+        }
+        Ok(IRCircuit {
+            groups,
+            regions_to_groups: self.regions_to_groups,
+        })
+    }
+}
+
+impl<T> IRCircuit<T> {
+    pub fn groups(&self) -> &[GroupBody<T>] {
+        &self.groups
+    }
+
+    /// Returns the main group.
+    ///
+    /// Panics if there isn't a main group.
+    pub fn main(&self) -> &GroupBody<T> {
+        // Reverse the iterator because the main group is likely to be the last one.
+        self.groups
+            .iter()
+            .rev()
+            .find(|g| g.is_main())
+            .expect("A main group is required")
+    }
 }
 
 #[allow(dead_code)]
 pub struct IRMainFunction<T> {
-    advice_io: CircuitIO<crate::halo2::Advice>,
-    instance_io: CircuitIO<crate::halo2::Instance>,
+    advice_io: CircuitIO<Advice>,
+    instance_io: CircuitIO<Instance>,
     body: IRStmt<T>,
     /// Set of regions the main function encompases
-    regions: std::collections::HashSet<crate::halo2::RegionIndex>,
+    regions: std::collections::HashSet<RegionIndex>,
 }
 
 impl<T> IRMainFunction<T> {
     #[allow(dead_code)]
     fn new(
-        advice_io: CircuitIO<crate::halo2::Advice>,
-        instance_io: CircuitIO<crate::halo2::Instance>,
+        advice_io: CircuitIO<Advice>,
+        instance_io: CircuitIO<Instance>,
         body: IRStmt<T>,
-        regions: std::collections::HashSet<crate::halo2::RegionIndex>,
+        regions: std::collections::HashSet<RegionIndex>,
     ) -> Self {
         Self {
             advice_io,
@@ -85,7 +174,7 @@ pub struct IRFunction<T> {
     io: (usize, usize),
     body: IRStmt<T>,
     /// Set of regions the function encompases
-    regions: std::collections::HashSet<crate::halo2::RegionIndex>,
+    regions: std::collections::HashSet<RegionIndex>,
 }
 
 impl<T> IRFunction<T> {
@@ -145,18 +234,6 @@ impl<T> IRFunction<T> {
             io: self.io,
             body,
             regions: self.regions,
-        })
-    }
-}
-
-impl<T: LowerableExpr> IRFunction<T> {
-    #[allow(dead_code)]
-    pub(crate) fn generate<'a: 's, 's>(
-        self,
-        codegen: &impl Codegen<'a, 's, F = T::F>,
-    ) -> anyhow::Result<()> {
-        codegen.define_function_with_body(self.name.as_str(), self.io.0, self.io.1, |_, _, _| {
-            Ok([self.body])
         })
     }
 }

@@ -99,25 +99,25 @@ impl<F: Field> CircuitSynthesis<F> {
         })
     }
 
-    /// Returns the advice IO for the top level group.
-    pub fn advice_io(&self) -> &CircuitIO<Advice> {
-        self.groups
-            .top_level()
-            .expect("top level is missing")
-            .advice_io()
-    }
-
-    /// Returns the instance IO for the top level group.
-    pub fn instance_io(&self) -> &CircuitIO<Instance> {
-        self.groups
-            .top_level()
-            .expect("top level is missing")
-            .instance_io()
-    }
+    ///// Returns the advice IO for the top level group.
+    //pub fn advice_io(&self) -> &CircuitIO<Advice> {
+    //    self.groups
+    //        .top_level()
+    //        .expect("top level is missing")
+    //        .advice_io()
+    //}
+    //
+    ///// Returns the instance IO for the top level group.
+    //pub fn instance_io(&self) -> &CircuitIO<Instance> {
+    //    self.groups
+    //        .top_level()
+    //        .expect("top level is missing")
+    //        .instance_io()
+    //}
 
     /// Returns the groups in the circuit.
-    pub fn groups(&self) -> &[Group] {
-        self.groups.as_ref()
+    pub fn groups(&self) -> &Groups {
+        &self.groups
     }
 
     /// Returns the equality constraints.

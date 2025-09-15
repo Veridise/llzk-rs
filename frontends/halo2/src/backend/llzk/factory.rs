@@ -95,36 +95,21 @@ impl StructIO {
     pub fn public_inputs<'c>(&self, ctx: &'c Context) -> impl IntoIterator<Item = Type<'c>> {
         iter::repeat_with(|| FeltType::new(ctx).into()).take(self.public_inputs)
     }
-}
 
-impl From<(&CircuitIO<Advice>, &CircuitIO<Instance>)> for StructIO {
-    fn from(value: (&CircuitIO<Advice>, &CircuitIO<Instance>)) -> Self {
+    pub fn new_from_io(advice: &CircuitIO<Advice>, instance: &CircuitIO<Instance>) -> Self {
         Self {
-            private_inputs: value.0.inputs().len(),
-            public_inputs: value.1.inputs().len(),
-            private_outputs: value.0.outputs().len(),
-            public_outputs: value.1.outputs().len(),
+            private_inputs: advice.inputs().len(),
+            public_inputs: instance.inputs().len(),
+            private_outputs: advice.outputs().len(),
+            public_outputs: instance.outputs().len(),
         }
     }
-}
 
-impl From<(CircuitIO<Advice>, CircuitIO<Instance>)> for StructIO {
-    fn from(value: (CircuitIO<Advice>, CircuitIO<Instance>)) -> Self {
-        Self {
-            private_inputs: value.0.inputs().len(),
-            public_inputs: value.1.inputs().len(),
-            private_outputs: value.0.outputs().len(),
-            public_outputs: value.1.outputs().len(),
-        }
-    }
-}
-
-impl From<(usize, usize)> for StructIO {
-    fn from(value: (usize, usize)) -> Self {
+    pub fn new_from_io_count(inputs: usize, outputs: usize) -> Self {
         Self {
             private_inputs: 0,
-            public_inputs: value.0,
-            private_outputs: value.0,
+            public_inputs: inputs,
+            private_outputs: outputs,
             public_outputs: 0,
         }
     }
@@ -134,10 +119,9 @@ pub fn create_struct<'c>(
     context: &'c Context,
     struct_name: &str,
     idx: usize,
-    io: impl Into<StructIO>,
+    io: StructIO,
 ) -> Result<StructDefOp<'c>, LlzkError> {
     log::debug!("context = {context:?}");
-    let io = io.into();
     let loc = struct_def_op_location(context, struct_name, idx);
     log::debug!("Struct location: {loc:?}");
     let fields = io

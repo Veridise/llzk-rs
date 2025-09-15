@@ -4,17 +4,14 @@ use std::{
     rc::Rc,
 };
 
-use super::{
-    codegen::queue::CodegenQueueHelper,
-    func::FuncIO,
-    Backend, Codegen, CodegenQueue,
-};
+use super::{func::FuncIO, Backend, Codegen};
 #[cfg(feature = "lift-field-operations")]
 use crate::ir::lift::{LiftIRGuard, LiftLike};
 use crate::{
     gates::AnyQuery,
     halo2::{Expression, RegionIndex, Selector},
-    ir::stmt::IRStmt,
+    io::AllCircuitIO,
+    ir::{expr::Felt, stmt::IRStmt},
     synthesis::CircuitSynthesis,
     LoweringField,
 };
@@ -36,31 +33,30 @@ mod params;
 mod utils;
 mod vars;
 
-pub type PicusBackend<F> = Backend<PicusCodegen<F>, InnerState<F>>;
-type InnerState<F> = Rc<RefCell<PicusCodegenInner<F>>>;
+pub type PicusBackend = Backend<PicusCodegen, InnerState>;
+type InnerState = Rc<RefCell<PicusCodegenInner>>;
 pub type PicusModule = picus::Module<VarKey>;
-pub type PicusOutput<F> = picus::Program<FeltWrap<F>, VarKey>;
-type PipelineBuilder<F> = picus::opt::OptimizerPipelineBuilder<FeltWrap<F>, VarKey>;
-type Pipeline<F> = picus::opt::OptimizerPipeline<FeltWrap<F>, VarKey>;
+pub type PicusOutput = picus::Program<VarKey>;
+type PipelineBuilder = picus::opt::OptimizerPipelineBuilder<VarKey>;
+type Pipeline = picus::opt::OptimizerPipeline<VarKey>;
 
-impl<F> From<PicusParams> for InnerState<F> {
+impl From<PicusParams> for InnerState {
     fn from(value: PicusParams) -> Self {
         Rc::new(RefCell::new(PicusCodegenInner::new(value)))
     }
 }
 
 #[derive(Clone)]
-pub struct PicusCodegen<F> {
-    inner: InnerState<F>,
-    queue: Rc<RefCell<CodegenQueueHelper<F>>>,
+pub struct PicusCodegen {
+    inner: InnerState,
 }
 
-impl<L: LoweringField> PicusCodegen<L> {
+impl PicusCodegen {
     fn naming_convention(&self) -> NamingConvention {
         self.inner.borrow().naming_convention()
     }
 
-    fn var_consistency_check(&self, output: &PicusOutput<L>) -> Result<()> {
+    fn var_consistency_check(&self, output: &PicusOutput) -> Result<()> {
         // Var consistency check
         for module in output.modules() {
             let vars = module.vars();
@@ -109,48 +105,45 @@ impl<L: LoweringField> PicusCodegen<L> {
         Ok(())
     }
 
-    fn optimization_pipeline(&self) -> Option<Pipeline<L>> {
+    fn optimization_pipeline(&self) -> Option<Pipeline> {
         self.inner.borrow().optimization_pipeline()
     }
 }
 
-impl<'c: 's, 's, L: LoweringField> Codegen<'c, 's> for PicusCodegen<L> {
-    type FuncOutput = PicusModuleLowering<L>;
-    type F = L;
-    type Output = PicusOutput<L>;
-    type State = InnerState<L>;
+impl<'c: 's, 's> Codegen<'c, 's> for PicusCodegen {
+    type FuncOutput = PicusModuleLowering;
+    type Output = PicusOutput;
+    type State = InnerState;
 
     fn initialize(state: &'s Self::State) -> Self {
         Self {
             inner: state.clone(),
-            queue: Default::default(),
+            //queue: Default::default(),
         }
     }
 
-    fn define_gate_function(
-        &self,
-        name: &str,
-        selectors: &[&Selector],
-        input_queries: &[AnyQuery],
-        output_queries: &[AnyQuery],
-        syn: &CircuitSynthesis<L>,
-    ) -> Result<Self::FuncOutput> {
-        log::debug!("[Picus codegen::define_gate_function] selectors = {selectors:?}");
-        log::debug!("[Picus codegen::define_gate_function] input_queries = {input_queries:?}");
-        log::debug!("[Picus codegen::define_gate_function] output_queries = {output_queries:?}");
-        let nc = self.naming_convention();
-        self.inner.borrow_mut().add_module(
-            name.to_owned(),
-            mk_io(selectors.len() + input_queries.len(), VarKeySeed::arg, nc),
-            mk_io(output_queries.len(), VarKeySeed::field, nc),
-            Some(syn),
-        )
-    }
+    //fn define_gate_function(
+    //    &self,
+    //    name: &str,
+    //    selectors: &[&Selector],
+    //    input_queries: &[AnyQuery],
+    //    output_queries: &[AnyQuery],
+    //) -> Result<Self::FuncOutput> {
+    //    log::debug!("[Picus codegen::define_gate_function] selectors = {selectors:?}");
+    //    log::debug!("[Picus codegen::define_gate_function] input_queries = {input_queries:?}");
+    //    log::debug!("[Picus codegen::define_gate_function] output_queries = {output_queries:?}");
+    //    let nc = self.naming_convention();
+    //    self.inner.borrow_mut().add_module(
+    //        name.to_owned(),
+    //        mk_io(selectors.len() + input_queries.len(), VarKeySeed::arg, nc),
+    //        mk_io(output_queries.len(), VarKeySeed::field, nc),
+    //    )
+    //}
 
-    fn define_main_function(&self, syn: &CircuitSynthesis<L>) -> Result<Self::FuncOutput> {
+    fn define_main_function(&self, io: AllCircuitIO) -> Result<Self::FuncOutput> {
         let ep = self.inner.borrow().entrypoint();
-        let instance_io = syn.instance_io();
-        let advice_io = syn.advice_io();
+        let instance_io = io.instance;
+        let advice_io = io.advice;
         let nc = self.naming_convention();
         self.inner.borrow_mut().add_module(
             ep,
@@ -164,17 +157,19 @@ impl<'c: 's, 's, L: LoweringField> Codegen<'c, 's> for PicusCodegen<L> {
                 VarKeySeed::field,
                 nc,
             ),
-            Some(syn),
         )
     }
 
-    fn on_scope_end(&self, scope: Self::FuncOutput) -> Result<()> {
+    fn on_scope_end(&self, _scope: Self::FuncOutput) -> Result<()> {
         log::debug!("Closing scope");
-        self.queue.borrow_mut().dequeue_stmts(&scope)
+        Ok(())
     }
 
     fn generate_output(self) -> Result<Self::Output> {
-        let mut output = PicusOutput::from(self.inner.borrow().modules().to_vec());
+        let mut output = PicusOutput::new(
+            self.inner.borrow().prime().clone(),
+            self.inner.borrow().modules().to_vec(),
+        );
         self.var_consistency_check(&output)?;
         if let Some(mut opt) = self.optimization_pipeline() {
             opt.optimize(&mut output)?;
@@ -187,24 +182,12 @@ impl<'c: 's, 's, L: LoweringField> Codegen<'c, 's> for PicusCodegen<L> {
         name: &str,
         inputs: usize,
         outputs: usize,
-        syn: Option<&CircuitSynthesis<Self::F>>,
     ) -> Result<Self::FuncOutput> {
         let nc = self.naming_convention();
         self.inner.borrow_mut().add_module(
             name.to_owned(),
             mk_io(inputs, VarKeySeed::arg, nc),
             mk_io(outputs, VarKeySeed::field, nc),
-            syn,
         )
-    }
-}
-
-impl<'c: 's, 's, F: LoweringField> CodegenQueue<'c, 's> for PicusCodegen<F> {
-    fn enqueue_stmts(
-        &self,
-        region: RegionIndex,
-        stmts: Vec<IRStmt<Expression<Self::F>>>,
-    ) -> Result<()> {
-        self.queue.borrow_mut().enqueue_stmts(region, stmts)
     }
 }

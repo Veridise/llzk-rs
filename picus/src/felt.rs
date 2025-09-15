@@ -8,9 +8,9 @@ use num_bigint::BigUint;
 
 use crate::display::{TextRepresentable, TextRepresentation};
 
-pub trait IntoPrime: Into<Felt> {
-    fn prime() -> Felt;
-}
+//pub trait IntoPrime: Into<Felt> {
+//    fn prime() -> Felt;
+//}
 #[cfg(feature = "bigint-felt")]
 pub type FeltRepr = BigUint;
 #[cfg(not(feature = "bigint-felt"))]
@@ -39,9 +39,9 @@ impl From<FeltRepr> for Felt {
 }
 
 impl Felt {
-    pub fn prime<I: IntoPrime>() -> Felt {
-        I::prime()
-    }
+    //pub fn prime<I: IntoPrime>() -> Felt {
+    //    I::prime()
+    //}
 
     pub fn is_one(&self) -> bool {
         self.0 == 1usize.into()
@@ -95,70 +95,5 @@ impl<R: Into<FeltRepr>> Sub<R> for Felt {
 
     fn sub(self, rhs: R) -> Self::Output {
         Self(self.0 - rhs.into())
-    }
-}
-
-#[cfg(not(feature = "bigint-felt"))]
-#[cfg(test)]
-pub mod tests {
-    use super::{Felt, IntoPrime};
-
-    pub struct Seven(u8);
-
-    impl Into<Felt> for Seven {
-        fn into(self) -> Felt {
-            Felt(self.0.into())
-        }
-    }
-
-    impl IntoPrime for Seven {
-        fn prime() -> Felt {
-            Felt(7)
-        }
-    }
-
-    const ZERO: Felt = Felt(0);
-    const ONE: Felt = Felt(1);
-
-    #[test]
-    fn is_zero() {
-        assert!(!ONE.is_zero());
-        assert!(ZERO.is_zero());
-    }
-
-    #[test]
-    fn is_one() {
-        assert!(ONE.is_one());
-        assert!(!ZERO.is_one());
-    }
-
-    #[test]
-    fn prime() {
-        assert_eq!(Felt::prime::<Seven>(), Felt(7))
-    }
-}
-
-#[cfg(feature = "bigint-felt")]
-#[cfg(test)]
-pub mod tests {
-    use super::{Felt, IntoPrime};
-
-    pub struct Seven(u8);
-
-    impl Into<Felt> for Seven {
-        fn into(self) -> Felt {
-            Felt(self.0.into())
-        }
-    }
-
-    impl IntoPrime for Seven {
-        fn prime() -> Felt {
-            Felt(7usize.into())
-        }
-    }
-
-    #[test]
-    fn prime() {
-        assert_eq!(Felt::prime::<Seven>(), Felt(7usize.into()))
     }
 }

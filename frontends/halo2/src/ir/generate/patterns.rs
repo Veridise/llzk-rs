@@ -14,11 +14,6 @@ use crate::{
 use anyhow::Result;
 use std::{borrow::Cow, result::Result as StdResult};
 
-use super::prepend_comment;
-
-pub mod groups;
-pub mod inline;
-
 /// Default gate pattern that transforms each polynomial in a gate into an equality statement for
 /// each row in the region.
 struct FallbackGateRewriter {
@@ -89,7 +84,7 @@ impl<F> GateRewritePattern<F> for FallbackGateRewriter {
 
 /// Configures a rewrite pattern set from patterns potentially provided by the user and
 /// the fallback pattern for gates that don't require special handling.
-fn load_patterns<F: Field>(gate_cbs: &dyn GateCallbacks<F>) -> RewritePatternSet<F> {
+pub fn load_patterns<F: Field>(gate_cbs: &dyn GateCallbacks<F>) -> RewritePatternSet<F> {
     let mut patterns = RewritePatternSet::default();
     let user_patterns = gate_cbs.patterns();
     log::debug!("Loading {} user patterns", user_patterns.len());
@@ -100,26 +95,4 @@ fn load_patterns<F: Field>(gate_cbs: &dyn GateCallbacks<F>) -> RewritePatternSet
     );
     patterns.add(FallbackGateRewriter::new(gate_cbs.ignore_disabled_gates()));
     patterns
-}
-
-/// If the rewrite error is [`RewriteError::NoMatch`] returns an error
-/// that the gate in scope did not match any pattern. If it is [`RewriteError::Err`]
-/// forwards the inner error.
-fn make_error<F>(e: RewriteError, scope: GateScope<F>) -> anyhow::Error
-where
-    F: Field,
-{
-    match e {
-        RewriteError::NoMatch => anyhow::anyhow!(
-            "Gate '{}' on region {} '{}' did not match any pattern",
-            scope.gate_name(),
-            scope
-                .region_index()
-                .as_deref()
-                .map(ToString::to_string)
-                .unwrap_or("unk".to_string()),
-            scope.region_name()
-        ),
-        RewriteError::Err(error) => anyhow::anyhow!(error),
-    }
 }

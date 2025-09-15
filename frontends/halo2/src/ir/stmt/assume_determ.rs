@@ -13,11 +13,11 @@ use crate::{
     ir::equivalency::EqvRelation,
 };
 
-pub struct AssumeDeterministic<T>(FuncIO, PhantomData<T>);
+pub struct AssumeDeterministic(FuncIO);
 
-impl<T> AssumeDeterministic<T> {
+impl AssumeDeterministic {
     pub fn new(f: FuncIO) -> Self {
-        Self(f, Default::default())
+        Self(f)
     }
 
     pub fn value(&self) -> FuncIO {
@@ -25,40 +25,38 @@ impl<T> AssumeDeterministic<T> {
     }
 }
 
-impl<T: LowerableExpr> LowerableStmt for AssumeDeterministic<T> {
-    type F = T::F;
-
+impl LowerableStmt for AssumeDeterministic {
     fn lower<L>(self, l: &L) -> Result<()>
     where
-        L: Lowering<F = Self::F> + ?Sized,
+        L: Lowering + ?Sized,
     {
         l.generate_assume_deterministic(self.0)
     }
 }
 
-impl<T: Clone> Clone for AssumeDeterministic<T> {
+impl Clone for AssumeDeterministic {
     fn clone(&self) -> Self {
-        Self(self.0, Default::default())
+        Self(self.0)
     }
 }
 
-impl<T> PartialEq for AssumeDeterministic<T> {
+impl PartialEq for AssumeDeterministic {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
 
-impl<T: std::fmt::Debug> std::fmt::Debug for AssumeDeterministic<T> {
+impl std::fmt::Debug for AssumeDeterministic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "assume-deterministic {:?}", self.0)
     }
 }
 
-impl<L, R, E> EqvRelation<AssumeDeterministic<L>, AssumeDeterministic<R>> for E
+impl<E> EqvRelation<AssumeDeterministic, AssumeDeterministic> for E
 where
     E: EqvRelation<FuncIO, FuncIO>,
 {
-    fn equivalent(lhs: &AssumeDeterministic<L>, rhs: &AssumeDeterministic<R>) -> bool {
+    fn equivalent(lhs: &AssumeDeterministic, rhs: &AssumeDeterministic) -> bool {
         E::equivalent(&lhs.0, &rhs.0)
     }
 }

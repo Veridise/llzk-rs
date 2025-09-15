@@ -7,19 +7,18 @@ use std::{
 use crate::{
     Module, ModuleRef,
     display::{Display, TextRepresentable, TextRepresentation},
-    felt::{Felt, IntoPrime},
+    felt::Felt,
     stmt::traits::{CallLike as _, MaybeCallLike as _},
     vars::VarKind,
 };
 use anyhow::{Result, anyhow};
 
-pub struct Program<F, K: VarKind> {
+pub struct Program<K: VarKind> {
     prime: PrimeNumber,
     modules: Vec<Module<K>>,
-    _marker: PhantomData<F>,
 }
 
-impl<F, K: VarKind> Program<F, K> {
+impl<K: VarKind> Program<K> {
     pub fn modules(&self) -> &[Module<K>] {
         &self.modules
     }
@@ -32,11 +31,15 @@ impl<F, K: VarKind> Program<F, K> {
         self.modules.iter().map(|m| m.name.as_str()).collect()
     }
 
-    pub fn display(&self) -> Display<'_, F, K> {
+    pub fn display(&self) -> Display<'_, K> {
         Display::new(self)
     }
 
-    pub fn merge(&mut self, other: Program<F, K>) -> Result<()> {
+    pub fn prime(&self) -> &Felt {
+        self.prime.as_ref()
+    }
+
+    pub fn merge(&mut self, other: Program<K>) -> Result<()> {
         let collisions: HashSet<String> = self
             .module_names()
             .intersection(&other.module_names())
@@ -93,10 +96,20 @@ impl<F, K: VarKind> Program<F, K> {
 
         Ok(())
     }
+
+    pub fn new(prime: impl Into<Felt>, modules: Vec<ModuleRef<K>>) -> Self
+    where
+        K: VarKind + Clone,
+    {
+        Self {
+            prime: PrimeNumber(prime.into()),
+            modules: modules.into_iter().map(Into::into).collect(),
+        }
+    }
 }
 
-impl<F, K: VarKind> Add for Program<F, K> {
-    type Output = Result<Program<F, K>>;
+impl<K: VarKind> Add for Program<K> {
+    type Output = Result<Program<K>>;
 
     fn add(self, rhs: Self) -> Self::Output {
         let mut lhs = self;
@@ -105,15 +118,14 @@ impl<F, K: VarKind> Add for Program<F, K> {
     }
 }
 
-impl<F: IntoPrime, K: VarKind + Clone> From<Vec<ModuleRef<K>>> for Program<F, K> {
-    fn from(modules: Vec<ModuleRef<K>>) -> Self {
-        Self {
-            prime: PrimeNumber(Felt::prime::<F>()),
-            modules: modules.into_iter().map(Into::into).collect(),
-            _marker: Default::default(),
-        }
-    }
-}
+//impl<F: IntoPrime, K: VarKind + Clone> From<Vec<ModuleRef<K>>> for Program<F, K> {
+//    fn from(modules: Vec<ModuleRef<K>>) -> Self {
+//        Self {
+//            prime: PrimeNumber(Felt::prime::<F>()),
+//            modules: modules.into_iter().map(Into::into).collect(),
+//        }
+//    }
+//}
 
 struct PrimeNumber(Felt);
 
@@ -127,9 +139,15 @@ impl TextRepresentable for PrimeNumber {
     }
 }
 
+impl AsRef<Felt> for PrimeNumber {
+    fn as_ref(&self) -> &Felt {
+        &self.0
+    }
+}
+
 type TR<'a> = TextRepresentation<'a>;
 
-impl<F: IntoPrime, K: VarKind> TextRepresentable for Program<F, K> {
+impl<K: VarKind> TextRepresentable for Program<K> {
     fn to_repr(&self) -> TextRepresentation<'_> {
         self.modules
             .iter()

@@ -3,8 +3,11 @@ use std::borrow::Cow;
 use crate::backend::lowering::lowerable::LowerableExpr;
 use crate::backend::lowering::ExprLowering;
 use crate::backend::resolvers::{
-    boxed_resolver, QueryResolver, ResolversProvider, SelectorResolver,
+    boxed_resolver, FixedQueryResolver, QueryResolver, ResolversProvider, SelectorResolver,
 };
+use crate::halo2::{Advice, Instance};
+use crate::io::CircuitIO;
+use crate::synthesis::regions::{RegionData, RegionRow, Row};
 
 use crate::halo2::{Expression, Field};
 use anyhow::Result;
@@ -12,6 +15,50 @@ use anyhow::Result;
 pub mod constant_folding;
 pub mod rewriter;
 pub mod utils;
+
+/// Indicates to the driver that the expression should be scoped in that row of the circuit.
+///
+/// The expression is internally handled by a [`std::borrow::Cow`] and can be a reference or owned.
+pub struct ExpressionInRow<'e, F: Clone> {
+    expr: Cow<'e, Expression<F>>,
+    row: usize,
+}
+
+impl<'e, F: Clone> ExpressionInRow<'e, F> {
+    /// Creates a new struct owning the expression.
+    pub fn new(expr: Expression<F>, row: usize) -> Self {
+        Self {
+            expr: Cow::Owned(expr),
+            row,
+        }
+    }
+
+    /// Creates a new struct from a reference to an expression.
+    pub fn from_ref(expr: &'e Expression<F>, row: usize) -> Self {
+        Self {
+            expr: Cow::Borrowed(expr),
+            row,
+        }
+    }
+
+    /// Creates a [`ScopedExpression`] scoped by a
+    /// [`crate::synthesis::regions::RegionRow`].
+    pub(crate) fn scoped_in_region_row<'r>(
+        &self,
+        region: RegionData<'r>,
+        advice_io: &'r CircuitIO<Advice>,
+        instance_io: &'r CircuitIO<Instance>,
+        fqr: &'r dyn FixedQueryResolver<F>,
+    ) -> ScopedExpression<'e, 'r, F>
+    where
+        F: Field,
+    {
+        ScopedExpression::from_cow(
+            self.expr.clone(),
+            RegionRow::new(region, self.row, advice_io, instance_io, fqr),
+        )
+    }
+}
 
 /// Represents an expression associated to an scoped.
 ///
@@ -86,25 +133,19 @@ where
     }
 }
 
+impl<F: Field> std::fmt::Debug for ScopedExpression<'_, '_, F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ScopedExpression")
+            .field("expression", &self.expression)
+            .finish()
+    }
+}
+
 impl<F> AsRef<Expression<F>> for ScopedExpression<'_, '_, F>
 where
     F: Field,
 {
     fn as_ref(&self) -> &Expression<F> {
         self.expression.as_ref()
-    }
-}
-
-impl<F> LowerableExpr for ScopedExpression<'_, '_, F>
-where
-    F: Field,
-{
-    type F = F;
-
-    fn lower<L>(self, l: &L) -> Result<L::CellOutput>
-    where
-        L: ExprLowering<F = Self::F> + ?Sized,
-    {
-        l.lower_expr(self.expression.as_ref(), &*self.resolvers)
     }
 }

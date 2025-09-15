@@ -30,7 +30,7 @@ fn lookup_circuit_picus() {
     common::setup();
     common::picus_test(
         LookupCircuit::<Fr>::default(),
-        PicusParamsBuilder::new()
+        PicusParamsBuilder::new::<Fr>()
             .short_names()
             .no_optimize()
             .build(),

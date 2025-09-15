@@ -1,5 +1,6 @@
 use std::{borrow::Cow, marker::PhantomData};
 
+use crate::ir::expr::Felt;
 #[cfg(feature = "lift-field-operations")]
 use crate::ir::lift::{LiftIRGuard, LiftLike};
 use crate::{backend::picus::PicusModule, synthesis::CircuitSynthesis};
@@ -22,25 +23,23 @@ use picus::{
     ModuleWithVars as _,
 };
 
-pub struct PicusCodegenInner<L> {
+pub struct PicusCodegenInner {
     params: PicusParams,
     modules: Vec<PicusModuleRef>,
-    current_scope: Option<PicusModuleLowering<L>>,
-    _marker: PhantomData<L>,
+    current_scope: Option<PicusModuleLowering>,
 }
 
-impl<F> PicusCodegenInner<F> {
+impl PicusCodegenInner {
     pub fn new(params: PicusParams) -> Self {
         Self {
             params,
             modules: Default::default(),
             current_scope: Default::default(),
-            _marker: Default::default(),
         }
     }
 }
 
-impl<F: LoweringField> PicusCodegenInner<F> {
+impl PicusCodegenInner {
     pub fn naming_convention(&self) -> NamingConvention {
         self.params.naming_convention()
     }
@@ -49,12 +48,16 @@ impl<F: LoweringField> PicusCodegenInner<F> {
         &self.modules
     }
 
-    pub fn optimization_pipeline(&self) -> Option<Pipeline<F>> {
+    pub fn prime(&self) -> &picus::felt::Felt {
+        &self.params.prime()
+    }
+
+    pub fn optimization_pipeline(&self) -> Option<Pipeline> {
         if !self.params.optimize() {
             return None;
         }
-        let mut pipeline = PipelineBuilder::<F>::new()
-            .add_pass::<FoldExprsPass<FeltWrap<F>>>()
+        let mut pipeline = PipelineBuilder::new()
+            .add_pass::<FoldExprsPass>()
             .add_pass::<ConsolidateVarNamesPass>();
         if let Some(expr_cutoff) = self.params.expr_cutoff() {
             pipeline = pipeline.add_pass_with_params::<EnsureMaxExprSizePass<NamingConvention>>((
@@ -70,33 +73,17 @@ impl<F: LoweringField> PicusCodegenInner<F> {
         name: String,
         inputs: impl Iterator<Item = O>,
         outputs: impl Iterator<Item = O>,
-        syn: Option<&CircuitSynthesis<F>>,
-    ) -> Result<PicusModuleLowering<F>>
+    ) -> Result<PicusModuleLowering>
     where
         O: Into<VarKey> + Into<VarStr> + Clone,
     {
-        let regions = syn.map(|syn| syn.regions_by_index());
-        log::debug!("Region data: {regions:?}");
         let module = PicusModule::shared(name.clone(), inputs, outputs);
-        if let Some(syn) = syn {
-            module
-                .borrow_mut()
-                .add_vars(syn.seen_advice_cells().iter().map(|((col, row), name)| {
-                    VarKeySeed::new(
-                        VarKeySeedInner::IO(
-                            FuncIO::advice_abs(*col, *row),
-                            Some(Cow::Borrowed(name)),
-                        ),
-                        self.params.naming_convention(),
-                    )
-                }));
-        }
+
         self.modules.push(module.clone());
         let scope = PicusModuleLowering::new(
             module,
             #[cfg(feature = "lift-field-operations")]
             self.params.lift_fixed(),
-            regions,
             self.params.naming_convention(),
         );
         log::debug!("Setting the scope to {name}");

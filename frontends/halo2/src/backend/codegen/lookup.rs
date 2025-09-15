@@ -14,8 +14,8 @@ use super::prepend_comment;
 
 pub fn codegen_lookup_invocations<'s, F: Field>(
     syn: &'s CircuitSynthesis<F>,
-    region_rows: &'s [RegionRow<'s, 's, 's, F>],
-    lookup_cb: &'s dyn LookupCallbacks<F>,
+    region_rows: &[RegionRow<'s, 's, 's, F>],
+    lookup_cb: &dyn LookupCallbacks<F>,
 ) -> Result<Vec<IRStmt<ScopedExpression<'s, 's, F>>>> {
     utils::product(syn.lookups(), region_rows)
         .map(|(lookup, rr)| {

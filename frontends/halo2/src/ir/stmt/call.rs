@@ -29,9 +29,19 @@ impl<T> Call<T> {
             outputs: outputs.into_iter().collect(),
         }
     }
+
     pub fn map<O>(self, f: &impl Fn(T) -> O) -> Call<O> {
         Call::new(self.callee, self.inputs.into_iter().map(f), self.outputs)
     }
+
+    pub fn map_into<O>(&self, f: &impl Fn(&T) -> O) -> Call<O> {
+        Call::new(
+            self.callee.clone(),
+            self.inputs.iter().map(f),
+            self.outputs.clone(),
+        )
+    }
+
     pub fn try_map<O>(self, f: &impl Fn(T) -> Result<O>) -> Result<Call<O>> {
         Ok(Call::new(
             self.callee,
@@ -39,14 +49,19 @@ impl<T> Call<T> {
             self.outputs,
         ))
     }
+
+    pub fn try_map_inplace(&mut self, f: &impl Fn(&mut T) -> Result<()>) -> Result<()> {
+        for i in &mut self.inputs {
+            f(i)?;
+        }
+        Ok(())
+    }
 }
 
 impl<I: LowerableExpr> LowerableStmt for Call<I> {
-    type F = I::F;
-
     fn lower<L>(self, l: &L) -> Result<()>
     where
-        L: Lowering<F = Self::F> + ?Sized,
+        L: Lowering + ?Sized,
     {
         let inputs = self
             .inputs

@@ -1,9 +1,26 @@
 use crate::halo2::{Advice, Column, ColumnType, ConstraintSystem, Field, Instance};
 use anyhow::{bail, Result};
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::hash::Hash;
 
 pub type IOCell<C> = (Column<C>, usize);
+
+#[derive(Debug, Clone)]
+pub(crate) struct AllCircuitIO<'io> {
+    pub advice: Cow<'io, CircuitIO<Advice>>,
+    pub instance: Cow<'io, CircuitIO<Instance>>,
+}
+
+impl AllCircuitIO<'_> {
+    pub fn input_count(&self) -> usize {
+        self.instance.inputs().len() + self.advice.inputs().len()
+    }
+
+    pub fn output_count(&self) -> usize {
+        self.instance.outputs().len() + self.advice.outputs().len()
+    }
+}
 
 /// Records what cells of the given column type are inputs and what cells are outputs.
 #[derive(Debug, Clone)]

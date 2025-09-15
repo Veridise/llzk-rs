@@ -2,6 +2,7 @@ use crate::{
     gates::DefaultGateCallbacks,
     halo2::{Circuit, Field, PrimeField},
     io::{AdviceIOValidator, InstanceIOValidator},
+    ir::{expr::IRAexpr, generate::generate_ir, IRCircuit, IRCtx, UnresolvedIRCircuit},
     lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
     synthesis::{CircuitSynthesis, Synthesizer},
     CircuitCallbacks, GateCallbacks, LlzkBackend, LlzkOutput, LlzkParams, PicusBackend,
@@ -52,34 +53,38 @@ impl<'lc, 'gc, F: PrimeField> Driver<'lc, 'gc, F> {
         Ok(synthesis)
     }
 
+    pub fn generate_ir<'s>(
+        &self,
+        syn: &'s CircuitSynthesis<F>,
+        ctx: &'s IRCtx,
+    ) -> anyhow::Result<UnresolvedIRCircuit<'s, F>> {
+        generate_ir(syn, self.lookup_callbacks(), self.gate_callbacks(), ctx)
+    }
+
+    pub fn create_ir_ctx<'s>(&self, syn: &'s CircuitSynthesis<F>) -> anyhow::Result<IRCtx<'s>> {
+        let mut ctx = IRCtx::new(syn)?;
+
+        Ok(ctx)
+    }
+
     /// Creates a picus program from the circuit synthesis.
     pub fn picus(
         &self,
-        syn: CircuitSynthesis<F>,
+        ir: &IRCircuit<IRAexpr>,
+        ctx: &IRCtx,
         params: PicusParams,
-        mut injector: Option<&mut dyn crate::IRInjectCallback<F>>,
-    ) -> anyhow::Result<PicusOutput<F>> {
-        PicusBackend::<F>::initialize(params).codegen(
-            syn,
-            self.lookup_callbacks(),
-            self.gate_callbacks(),
-            &mut injector,
-        )
+    ) -> anyhow::Result<PicusOutput> {
+        PicusBackend::initialize(params).codegen(ir, ctx)
     }
 
     /// Creates a llzk module from the circuit synthesis.
     pub fn llzk<'c>(
         &self,
-        syn: CircuitSynthesis<F>,
+        ir: &IRCircuit<IRAexpr>,
+        ctx: &IRCtx,
         params: LlzkParams<'c>,
-        mut injector: Option<&mut dyn crate::IRInjectCallback<F>>,
     ) -> anyhow::Result<LlzkOutput<'c>> {
-        LlzkBackend::<F>::initialize(params).codegen(
-            syn,
-            self.lookup_callbacks(),
-            self.gate_callbacks(),
-            &mut injector,
-        )
+        LlzkBackend::initialize(params).codegen(ir, ctx)
     }
 
     /// Sets the lookup callbacks.

@@ -1,4 +1,3 @@
-
 pub use codegen::LlzkCodegen;
 use melior::ir::Module;
 pub use state::LlzkCodegenState;
@@ -14,7 +13,7 @@ mod lowering;
 mod params;
 mod state;
 
-pub type LlzkBackend<'c, 's, F> = Backend<LlzkCodegen<'c, 's, F>, LlzkCodegenState<'c, F>>;
+pub type LlzkBackend<'c, 's> = Backend<LlzkCodegen<'c, 's>, LlzkCodegenState<'c>>;
 
 pub struct LlzkOutput<'c> {
     module: Module<'c>,

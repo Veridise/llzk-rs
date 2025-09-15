@@ -4,13 +4,12 @@ use melior::Context;
 
 use super::LlzkParams;
 
-pub struct LlzkCodegenState<'c, F> {
+pub struct LlzkCodegenState<'c> {
     context: &'c Context,
     params: LlzkParams<'c>,
-    _marker: PhantomData<F>,
 }
 
-impl<'c, F> LlzkCodegenState<'c, F> {
+impl<'c> LlzkCodegenState<'c> {
     pub fn context(&self) -> &'c Context {
         self.context
     }
@@ -20,12 +19,11 @@ impl<'c, F> LlzkCodegenState<'c, F> {
     }
 }
 
-impl<'c, F> From<LlzkParams<'c>> for LlzkCodegenState<'c, F> {
+impl<'c> From<LlzkParams<'c>> for LlzkCodegenState<'c> {
     fn from(params: LlzkParams<'c>) -> Self {
         Self {
             context: params.context(),
             params,
-            _marker: PhantomData,
         }
     }
 }

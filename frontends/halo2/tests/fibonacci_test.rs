@@ -50,7 +50,7 @@ fn fibonacci_circuit_picus() {
     common::setup();
     common::picus_test(
         FibonacciCircuit::<Fr>::default(),
-        PicusParamsBuilder::new()
+        PicusParamsBuilder::new::<Fr>()
             .short_names()
             .no_optimize()
             .build(),

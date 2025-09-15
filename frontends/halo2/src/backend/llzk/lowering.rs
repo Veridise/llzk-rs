@@ -15,11 +15,12 @@ use midnight_halo2_proofs::plonk::{AdviceQuery, Challenge, FixedQuery, InstanceQ
 use mlir_sys::MlirValue;
 use num_bigint::BigUint;
 
-use crate::backend::codegen::queue::RegionStartResolver;
+//use crate::backend::codegen::queue::RegionStartResolver;
 use crate::backend::func::FieldId;
 use crate::backend::lowering::tag::LoweringOutput;
 use crate::backend::lowering::ExprLowering;
 use crate::halo2::{RegionIndex, RegionStart};
+use crate::ir::expr::Felt;
 use crate::ir::CmpOp;
 use crate::synthesis::regions::RegionIndexToStart;
 use crate::{
@@ -35,26 +36,18 @@ use crate::{
 use super::counter::Counter;
 use super::extras::{block_list, operations_list};
 
-pub struct LlzkStructLowering<'c, F> {
+pub struct LlzkStructLowering<'c> {
     context: &'c Context,
     struct_op: StructDefOp<'c>,
     constraints_counter: Rc<Counter>,
-    regions: Option<RegionIndexToStart>,
-    _marker: PhantomData<F>,
 }
 
-impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
-    pub fn new(
-        context: &'c Context,
-        struct_op: StructDefOp<'c>,
-        regions: Option<RegionIndexToStart>,
-    ) -> Self {
+impl<'c> LlzkStructLowering<'c> {
+    pub fn new(context: &'c Context, struct_op: StructDefOp<'c>) -> Self {
         Self {
             context,
             struct_op,
-            regions,
             constraints_counter: Rc::new(Default::default()),
-            _marker: Default::default(),
         }
     }
 
@@ -155,8 +148,8 @@ impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
         )?)
     }
 
-    fn lower_constant_impl(&self, f: F) -> Result<Value<'c, '_>> {
-        let repr = BigUint::from_bytes_le(f.to_repr().as_ref());
+    fn lower_constant_impl(&self, f: Felt) -> Result<Value<'c, '_>> {
+        let repr = f.as_ref();
         log::debug!("f as repr: {repr}");
         let const_attr = FeltConstAttribute::parse(self.context(), repr.to_string().as_str());
         self.append_expr(felt::constant(
@@ -165,37 +158,37 @@ impl<'c, F: PrimeField> LlzkStructLowering<'c, F> {
         )?)
     }
 
-    fn lower_resolved_query(
-        &self,
-        query: ResolvedQuery<F>,
-        fqn: Option<&FQN>,
-    ) -> Result<Value<'c, '_>> {
-        match query {
-            ResolvedQuery::Lit(f) => self.lower_constant_impl(f),
-            ResolvedQuery::IO(FuncIO::Arg(arg)) => self.get_arg(arg),
-            ResolvedQuery::IO(FuncIO::Field(field)) => {
-                let field = self.get_output(field)?;
-                self.read_field(field.field_name(), field.field_type())
-            }
-            ResolvedQuery::IO(FuncIO::Advice(adv)) => {
-                let field = self.get_temp_decl(adv.col(), adv.row(), fqn)?;
-                self.read_field(field.field_name(), field.field_type())
-            }
-            ResolvedQuery::IO(FuncIO::Fixed(_)) => todo!(),
-            ResolvedQuery::IO(FuncIO::TableLookup(_, _, _, _, _)) => todo!(),
-            ResolvedQuery::IO(FuncIO::CallOutput(_, _)) => todo!(),
-        }
-    }
+    //fn lower_resolved_query(
+    //    &self,
+    //    query: ResolvedQuery<F>,
+    //    fqn: Option<&FQN>,
+    //) -> Result<Value<'c, '_>> {
+    //    match query {
+    //        ResolvedQuery::Lit(f) => self.lower_constant_impl(f),
+    //        ResolvedQuery::IO(FuncIO::Arg(arg)) => self.get_arg(arg),
+    //        ResolvedQuery::IO(FuncIO::Field(field)) => {
+    //            let field = self.get_output(field)?;
+    //            self.read_field(field.field_name(), field.field_type())
+    //        }
+    //        ResolvedQuery::IO(FuncIO::Advice(adv)) => {
+    //            let field = self.get_temp_decl(adv.col(), adv.row(), fqn)?;
+    //            self.read_field(field.field_name(), field.field_type())
+    //        }
+    //        ResolvedQuery::IO(FuncIO::Fixed(_)) => todo!(),
+    //        ResolvedQuery::IO(FuncIO::TableLookup(_, _, _, _, _)) => todo!(),
+    //        ResolvedQuery::IO(FuncIO::CallOutput(_, _)) => todo!(),
+    //    }
+    //}
 }
 
-impl<L> RegionStartResolver for LlzkStructLowering<'_, L> {
-    fn find(&self, idx: RegionIndex) -> Result<RegionStart> {
-        self.regions
-            .as_ref()
-            .and_then(|regions| regions.get(&idx).copied())
-            .ok_or_else(|| anyhow::anyhow!("Failed to get start row for region {}", *idx))
-    }
-}
+//impl RegionStartResolver for LlzkStructLowering<'_> {
+//    fn find(&self, idx: RegionIndex) -> Result<RegionStart> {
+//        self.regions
+//            .as_ref()
+//            .and_then(|regions| regions.get(&idx).copied())
+//            .ok_or_else(|| anyhow::anyhow!("Failed to get start row for region {}", *idx))
+//    }
+//}
 
 /// Value wrapper used as lowering output for circumventing lifetime restrictions.
 #[derive(Copy, Clone)]
@@ -221,7 +214,7 @@ macro_rules! wrap {
 
 impl LoweringOutput for ValueWrap {}
 
-impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
+impl<'c> Lowering for LlzkStructLowering<'c> {
     fn generate_constraint(
         &self,
         op: CmpOp,
@@ -292,10 +285,8 @@ impl<'c, F: PrimeField> Lowering for LlzkStructLowering<'c, F> {
     }
 }
 
-impl<'c, F: PrimeField> ExprLowering for LlzkStructLowering<'c, F> {
+impl<'c> ExprLowering for LlzkStructLowering<'c> {
     type CellOutput = ValueWrap;
-
-    type F = F;
 
     fn lower_sum(
         &self,
@@ -346,43 +337,43 @@ impl<'c, F: PrimeField> ExprLowering for LlzkStructLowering<'c, F> {
         unimplemented!()
     }
 
-    fn lower_selector(
-        &self,
-        sel: &Selector,
-        resolver: &dyn SelectorResolver,
-    ) -> Result<Self::CellOutput> {
-        match resolver.resolve_selector(sel)? {
-            ResolvedSelector::Const(b) => self.lower_constant(b.to_f()),
-            ResolvedSelector::Arg(arg_no) => wrap! {self.get_arg(arg_no) },
-        }
-    }
+    //fn lower_selector(
+    //    &self,
+    //    sel: &Selector,
+    //    resolver: &dyn SelectorResolver,
+    //) -> Result<Self::CellOutput> {
+    //    match resolver.resolve_selector(sel)? {
+    //        ResolvedSelector::Const(b) => self.lower_constant(b.to_f()),
+    //        ResolvedSelector::Arg(arg_no) => wrap! {self.get_arg(arg_no) },
+    //    }
+    //}
+    //
+    //fn lower_advice_query(
+    //    &self,
+    //    query: &AdviceQuery,
+    //    resolver: &dyn QueryResolver<Self::F>,
+    //) -> Result<Self::CellOutput> {
+    //    let (query, fqn) = resolver.resolve_advice_query(query)?;
+    //    wrap! {self.lower_resolved_query(query, fqn.as_deref()) }
+    //}
+    //
+    //fn lower_instance_query(
+    //    &self,
+    //    query: &InstanceQuery,
+    //    resolver: &dyn QueryResolver<Self::F>,
+    //) -> Result<Self::CellOutput> {
+    //    wrap! {self.lower_resolved_query(resolver.resolve_instance_query(query)?, None)}
+    //}
+    //
+    //fn lower_fixed_query(
+    //    &self,
+    //    query: &FixedQuery,
+    //    resolver: &dyn QueryResolver<Self::F>,
+    //) -> Result<Self::CellOutput> {
+    //    wrap! {self.lower_resolved_query(resolver.resolve_fixed_query(query)?, None)}
+    //}
 
-    fn lower_advice_query(
-        &self,
-        query: &AdviceQuery,
-        resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Self::CellOutput> {
-        let (query, fqn) = resolver.resolve_advice_query(query)?;
-        wrap! {self.lower_resolved_query(query, fqn.as_deref()) }
-    }
-
-    fn lower_instance_query(
-        &self,
-        query: &InstanceQuery,
-        resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Self::CellOutput> {
-        wrap! {self.lower_resolved_query(resolver.resolve_instance_query(query)?, None)}
-    }
-
-    fn lower_fixed_query(
-        &self,
-        query: &FixedQuery,
-        resolver: &dyn QueryResolver<Self::F>,
-    ) -> Result<Self::CellOutput> {
-        wrap! {self.lower_resolved_query(resolver.resolve_fixed_query(query)?, None)}
-    }
-
-    fn lower_constant(&self, f: Self::F) -> Result<Self::CellOutput> {
+    fn lower_constant(&self, f: Felt) -> Result<Self::CellOutput> {
         wrap! {self.lower_constant_impl(f)}
     }
 

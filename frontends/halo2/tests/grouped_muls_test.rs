@@ -34,7 +34,7 @@ fn grouped_muls_circuit_picus() {
     common::setup();
     common::picus_test(
         MulCircuit::<Fr>::default(),
-        PicusParamsBuilder::new()
+        PicusParamsBuilder::new::<Fr>()
             .short_names()
             .no_optimize()
             .build(),

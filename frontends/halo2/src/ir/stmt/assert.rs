@@ -18,17 +18,24 @@ impl<T> Assert<T> {
     pub fn map<O>(self, f: &impl Fn(T) -> O) -> Assert<O> {
         Assert::new(self.0.map(f))
     }
+
+    pub fn map_into<O>(&self, f: &impl Fn(&T) -> O) -> Assert<O> {
+        Assert::new(self.0.map_into(f))
+    }
+
     pub fn try_map<O>(self, f: &impl Fn(T) -> Result<O>) -> Result<Assert<O>> {
         self.0.try_map(f).map(Assert::new)
+    }
+
+    pub fn try_map_inplace(&mut self, f: &impl Fn(&mut T) -> Result<()>) -> Result<()> {
+        self.0.try_map_inplace(f)
     }
 }
 
 impl<T: LowerableExpr> LowerableStmt for Assert<T> {
-    type F = T::F;
-
     fn lower<L>(self, l: &L) -> Result<()>
     where
-        L: Lowering<F = Self::F> + ?Sized,
+        L: Lowering + ?Sized,
     {
         l.generate_assert(&self.0.lower(l)?)
     }
