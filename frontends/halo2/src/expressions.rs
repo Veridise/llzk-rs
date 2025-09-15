@@ -1,16 +1,13 @@
 use std::borrow::Cow;
 
-use crate::backend::lowering::lowerable::LowerableExpr;
-use crate::backend::lowering::ExprLowering;
 use crate::backend::resolvers::{
     boxed_resolver, FixedQueryResolver, QueryResolver, ResolversProvider, SelectorResolver,
 };
 use crate::halo2::{Advice, Instance};
 use crate::io::CircuitIO;
-use crate::synthesis::regions::{RegionData, RegionRow, Row};
+use crate::synthesis::regions::{RegionData, RegionRow};
 
 use crate::halo2::{Expression, Field};
-use anyhow::Result;
 
 pub mod constant_folding;
 pub mod rewriter;

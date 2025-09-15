@@ -5,7 +5,7 @@ use crate::{
         resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     },
     expressions::ScopedExpression,
-    halo2::{Challenge, Expression, Field, PrimeField},
+    halo2::{Challenge, Expression, PrimeField},
     ir::equivalency::{EqvRelation, SymbolicEqv},
 };
 use anyhow::Result;

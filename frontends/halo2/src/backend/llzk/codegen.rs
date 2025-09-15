@@ -1,7 +1,3 @@
-use std::cell::RefCell;
-use std::marker::PhantomData;
-use std::rc::Rc;
-
 use super::lowering::LlzkStructLowering;
 use super::state::LlzkCodegenState;
 use super::{counter::Counter, LlzkOutput};
@@ -10,15 +6,10 @@ use anyhow::Result;
 use llzk::prelude::*;
 use melior::ir::{BlockLike as _, Location, Module};
 use melior::Context;
-use midnight_halo2_proofs::plonk::Selector;
 
 //use crate::backend::codegen::queue::CodegenQueueHelper;
 use crate::backend::llzk::factory::StructIO;
-use crate::halo2::{Expression, RegionIndex};
 use crate::io::AllCircuitIO;
-use crate::ir::stmt::IRStmt;
-use crate::LoweringField;
-use crate::{gates::AnyQuery, synthesis::CircuitSynthesis};
 
 use crate::backend::codegen::Codegen;
 

@@ -1,26 +1,15 @@
-use std::borrow::Cow;
-use std::cell::RefCell;
-use std::collections::HashMap;
-
 use anyhow::Result;
 use stmt::IRStmt;
 
-use crate::halo2::{Advice, Any, Instance};
-use crate::io::IOCell;
+use crate::halo2::{Advice, Instance};
 use crate::ir::expr::IRAexpr;
-use crate::ir::generate::free_cells::{lift_free_cells_to_inputs, FreeCells};
 use crate::ir::generate::{region_data, RegionByIndex};
-use crate::synthesis::groups::{Group, GroupCell, Groups};
 use crate::synthesis::CircuitSynthesis;
 use crate::CircuitIO;
 use crate::{
-    backend::{
-        codegen::Codegen,
-        func::{ArgNo, FieldId, FuncIO},
-        lowering::lowerable::LowerableExpr,
-    },
+    backend::func::{ArgNo, FieldId, FuncIO},
     expressions::{ExpressionInRow, ScopedExpression},
-    halo2::{Field, RegionIndex},
+    halo2::RegionIndex,
     ir::groups::GroupBody,
 };
 

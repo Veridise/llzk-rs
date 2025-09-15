@@ -1,31 +1,13 @@
 use crate::{
     backend::{
-        codegen::{
-            lookup::codegen_lookup_invocations,
-            //scoped_exprs_to_aexpr,
-            //strats::{
-            //    groups::{
-            //        bounds::{Bound, EqConstraintCheck, GroupBounds},
-            //        callsite::CallSite,
-            //        free_cells::FreeCells,
-            //        GroupIRCtx,
-            //    },
-            //    lower_gates,
-            //},
-        },
+        codegen::lookup::codegen_lookup_invocations,
         func::{try_relativize_advice_cell, FuncIO},
-        lowering::{
-            lowerable::{LowerableExpr, LowerableStmt},
-            Lowering,
-        },
+        lowering::{lowerable::LowerableStmt, Lowering},
         resolvers::FixedQueryResolver,
     },
     expressions::{ExpressionInRow, ScopedExpression},
     gates::RewritePatternSet,
-    halo2::{
-        groups::GroupKeyInstance, Advice, Expression, Field, Gate, Instance, RegionIndex, Rotation,
-    },
-    io::AllCircuitIO,
+    halo2::{groups::GroupKeyInstance, Advice, Expression, Field, Gate, Instance, Rotation},
     ir::{
         equivalency::{EqvRelation, SymbolicEqv},
         expr::IRAexpr,
@@ -45,7 +27,6 @@ use crate::{
     utils, CircuitIO, GateRewritePattern as _, GateScope, RewriteError,
 };
 use anyhow::Result;
-use std::{borrow::Cow, collections::HashMap};
 
 pub mod bounds;
 pub mod callsite;
@@ -340,7 +321,7 @@ impl<E: Clone> Clone for GroupBody<E> {
 }
 
 /// Select the equality constraints that concern this group.
-pub fn select_equality_constraints<F: Field>(
+fn select_equality_constraints<F: Field>(
     group: &Group,
     ctx: &GroupIRCtx<'_, '_, F>,
     free_inputs: &[GroupCell],

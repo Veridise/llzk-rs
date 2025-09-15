@@ -1,27 +1,10 @@
-use std::marker::PhantomData;
-use std::rc::Rc;
-
-use super::events::{BackendMessages, BackendResponse, EventReceiver, Message};
 use super::lowering::lowerable::LowerableStmt;
 use super::lowering::ExprLowering as _;
-use super::resolvers::FixedQueryResolver;
-use super::{func::FuncIO, lowering::Lowering, resolvers::ResolversProvider};
+use super::{func::FuncIO, lowering::Lowering};
 use crate::io::AllCircuitIO;
 use crate::ir::expr::IRAexpr;
 use crate::ir::{IRCircuit, IRCtx};
-use crate::{
-    expressions::ScopedExpression,
-    gates::AnyQuery,
-    halo2::{Advice, Expression, Field, Instance, Rotation, Selector},
-    ir::{stmt::IRStmt, CmpOp},
-    lookups::callbacks::LookupCallbacks,
-    synthesis::{
-        constraint::EqConstraint,
-        regions::{RegionRow, Row},
-        CircuitSynthesis,
-    },
-    CircuitIO, GateCallbacks,
-};
+use crate::{expressions::ScopedExpression, halo2::Field, ir::stmt::IRStmt};
 use anyhow::Result;
 
 pub mod lookup;
@@ -35,28 +18,6 @@ pub trait Codegen<'c: 's, 's>: Sized + 's {
     type State: 'c;
 
     fn initialize(state: &'s Self::State) -> Self;
-
-    fn within_main<FN, L, I>(
-        &self,
-        io: AllCircuitIO,
-        //syn: &CircuitSynthesis<Self::F>,
-        f: FN,
-    ) -> Result<()>
-    where
-        FN: FnOnce(&Self::FuncOutput) -> Result<I>,
-        I: IntoIterator<Item = L>,
-        L: LowerableStmt,
-    {
-        let main = self.define_main_function(io)?;
-        log::debug!("Defined main function");
-        let stmts = f(&main)?;
-        log::debug!("Collected function body");
-        for stmt in stmts {
-            stmt.lower(&main)?;
-        }
-        log::debug!("Lowered function body");
-        self.on_scope_end(main)
-    }
 
     fn define_function(
         &self,
@@ -148,28 +109,28 @@ pub trait CodegenStrategy: Default {
     //RegionRow<'s, 's, 's, C::F>: ResolversProvider<C::F> + 's;
 }
 
-pub struct CodegenEventReceiver<'c: 's, 's, C> {
-    codegen: Rc<C>,
-    _marker: PhantomData<(&'s (), &'c ())>,
-}
+//pub struct CodegenEventReceiver<'c: 's, 's, C> {
+//    codegen: Rc<C>,
+//    _marker: PhantomData<(&'s (), &'c ())>,
+//}
 
-impl<C> Clone for CodegenEventReceiver<'_, '_, C> {
-    fn clone(&self) -> Self {
-        Self {
-            codegen: self.codegen.clone(),
-            _marker: Default::default(),
-        }
-    }
-}
-
-impl<C> CodegenEventReceiver<'_, '_, C> {
-    pub fn new(codegen: C) -> Self {
-        Self {
-            codegen: Rc::new(codegen),
-            _marker: Default::default(),
-        }
-    }
-}
+//impl<C> Clone for CodegenEventReceiver<'_, '_, C> {
+//    fn clone(&self) -> Self {
+//        Self {
+//            codegen: self.codegen.clone(),
+//            _marker: Default::default(),
+//        }
+//    }
+//}
+//
+//impl<C> CodegenEventReceiver<'_, '_, C> {
+//    pub fn new(codegen: C) -> Self {
+//        Self {
+//            codegen: Rc::new(codegen),
+//            _marker: Default::default(),
+//        }
+//    }
+//}
 
 //impl<'c: 's, 's, C> EventReceiver for CodegenEventReceiver<'c, 's, C>
 //where

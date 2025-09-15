@@ -152,21 +152,15 @@ impl<T> IRStmt<T> {
         match self {
             IRStmt::ConstraintCall(call) => call.try_map_inplace(f),
             IRStmt::Constraint(constraint) => constraint.try_map_inplace(f),
-            IRStmt::Comment(comment) => Ok(()),
-            IRStmt::AssumeDeterministic(ad) => Ok(()),
+            IRStmt::Comment(_) => Ok(()),
+            IRStmt::AssumeDeterministic(_) => Ok(()),
             IRStmt::Assert(assert) => assert.try_map_inplace(f),
             IRStmt::Seq(seq) => {
                 for stmt in seq.iter_mut() {
                     stmt.try_map_inplace(f)?;
                 }
                 Ok(())
-            } //
-              //Seq::new(
-              //    seq.into_iter()
-              //        .map(|s| s.try_map(f))
-              //        .collect::<Result<Vec<_>>>()?,
-              //)
-              //.into(),
+            }
         }
     }
 
@@ -190,7 +184,7 @@ where
             (IRStmt::Constraint(lhs), IRStmt::Constraint(rhs)) => {
                 <E as EqvRelation<Constraint<L>, Constraint<R>>>::equivalent(lhs, rhs)
             }
-            (IRStmt::Comment(lhs), IRStmt::Comment(rhs)) => true,
+            (IRStmt::Comment(_), IRStmt::Comment(_)) => true,
             (IRStmt::AssumeDeterministic(lhs), IRStmt::AssumeDeterministic(rhs)) => {
                 <E as EqvRelation<AssumeDeterministic, AssumeDeterministic>>::equivalent(lhs, rhs)
             }

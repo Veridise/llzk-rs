@@ -1,17 +1,12 @@
-use crate::backend::resolvers::FixedQueryResolver;
 use crate::expressions::utils::ExprDebug;
-use crate::expressions::ScopedExpression;
 use crate::gates::{find_selectors, RewritePatternSet};
+use crate::halo2::Expression;
 use crate::halo2::Field;
-use crate::halo2::{Advice, Expression, Gate, Instance};
 use crate::ir::stmt::IRStmt;
 use crate::ir::CmpOp;
-use crate::synthesis::regions::RegionData;
 use crate::{
-    utils, CircuitIO, GateCallbacks, GateRewritePattern, GateScope, RegionRowLike as _,
-    RewriteError, RewriteOutput,
+    GateCallbacks, GateRewritePattern, GateScope, RegionRowLike as _, RewriteError, RewriteOutput,
 };
-use anyhow::Result;
 use std::{borrow::Cow, result::Result as StdResult};
 
 /// Default gate pattern that transforms each polynomial in a gate into an equality statement for

@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use melior::Context;
 
 use super::LlzkParams;

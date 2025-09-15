@@ -1,4 +1,4 @@
-use crate::{halo2::Field, ir::stmt::IRStmt};
+use crate::ir::stmt::IRStmt;
 use anyhow::Result;
 
 use super::{ExprLowering, Lowering};

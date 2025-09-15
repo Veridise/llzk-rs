@@ -3,14 +3,14 @@ use melior::ir::Module;
 pub use state::LlzkCodegenState;
 
 use super::Backend;
-pub use params::{LlzkParams, LlzkParamsBuilder};
+pub use params::LlzkParams;
 
 mod codegen;
 mod counter;
 mod extras;
 mod factory;
 mod lowering;
-mod params;
+pub(crate) mod params;
 mod state;
 
 pub type LlzkBackend<'c, 's> = Backend<LlzkCodegen<'c, 's>, LlzkCodegenState<'c>>;

@@ -2,16 +2,11 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "lift-field-operations")]
 use crate::ir::lift::{LiftIRGuard, LiftingCfg};
-use crate::{
-    ir::{expr::IRAexpr, IRCircuit, IRCtx},
-    lookups::callbacks::LookupCallbacks,
-    synthesis::CircuitSynthesis,
-    GateCallbacks,
-};
+use crate::ir::{expr::IRAexpr, IRCircuit, IRCtx};
 use anyhow::Result;
 
 pub mod codegen;
-pub mod events;
+//pub mod events;
 pub mod func;
 pub mod llzk;
 pub mod lowering;
@@ -19,8 +14,6 @@ pub mod picus;
 pub mod resolvers;
 
 use codegen::{strats::groups::GroupConstraintsStrat, Codegen, CodegenStrategy};
-use events::BackendEventReceiver;
-use resolvers::{QueryResolver, SelectorResolver};
 
 //type DefaultStrat = InlineConstraintsStrat;
 type DefaultStrat = GroupConstraintsStrat;

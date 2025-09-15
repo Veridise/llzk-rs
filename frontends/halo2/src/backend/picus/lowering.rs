@@ -1,7 +1,4 @@
-use super::{
-    vars::{NamingConvention, VarKey, VarKeySeed},
-    FeltWrap,
-};
+use super::vars::{NamingConvention, VarKey, VarKeySeed};
 #[cfg(not(feature = "lift-field-operations"))]
 use crate::ir::expr::Felt;
 #[cfg(feature = "lift-field-operations")]
@@ -10,18 +7,14 @@ use crate::{
     backend::{
         func::{ArgNo, FieldId, FuncIO},
         lowering::{tag::LoweringOutput, ExprLowering, Lowering},
-        resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     },
-    halo2::{
-        AdviceQuery, Challenge, FixedQuery, InstanceQuery, RegionIndex, RegionStart, Selector,
-    },
+    halo2::Challenge,
     ir::CmpOp,
-    synthesis::regions::{RegionIndexToStart, FQN},
-    LoweringField,
+    synthesis::regions::FQN,
 };
 use anyhow::Result;
 use picus::{expr, stmt, ModuleLike as _};
-use std::{borrow::Cow, collections::HashMap, marker::PhantomData};
+use std::borrow::Cow;
 
 pub type PicusModuleRef = picus::ModuleRef<VarKey>;
 pub(super) type PicusExpr = picus::expr::Expr;
@@ -216,14 +209,6 @@ impl ExprLowering for PicusModuleLowering {
 
     fn lower_neg(&self, expr: &Self::CellOutput) -> Result<Self::CellOutput> {
         Ok(expr::neg(expr))
-    }
-
-    fn lower_scaled(
-        &self,
-        expr: &Self::CellOutput,
-        scale: &Self::CellOutput,
-    ) -> Result<Self::CellOutput> {
-        Ok(expr::mul(expr, scale))
     }
 
     fn lower_challenge(&self, _challenge: &Challenge) -> Result<Self::CellOutput> {

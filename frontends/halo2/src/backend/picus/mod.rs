@@ -5,23 +5,15 @@ use std::{
 };
 
 use super::{func::FuncIO, Backend, Codegen};
+use crate::io::AllCircuitIO;
 #[cfg(feature = "lift-field-operations")]
 use crate::ir::lift::{LiftIRGuard, LiftLike};
-use crate::{
-    gates::AnyQuery,
-    halo2::{Expression, RegionIndex, Selector},
-    io::AllCircuitIO,
-    ir::{expr::Felt, stmt::IRStmt},
-    synthesis::CircuitSynthesis,
-    LoweringField,
-};
 
 use anyhow::Result;
 
-use felt::FeltWrap;
 use inner::PicusCodegenInner;
 pub use lowering::PicusModuleLowering;
-pub use params::{PicusParams, PicusParamsBuilder};
+pub use params::PicusParams;
 use picus::{opt::MutOptimizer as _, vars::VarStr};
 use utils::mk_io;
 use vars::{NamingConvention, VarKey, VarKeySeed};
@@ -29,7 +21,7 @@ use vars::{NamingConvention, VarKey, VarKeySeed};
 mod felt;
 mod inner;
 mod lowering;
-mod params;
+pub(crate) mod params;
 mod utils;
 mod vars;
 

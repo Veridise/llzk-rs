@@ -1,5 +1,6 @@
-use std::{marker::PhantomData, rc::Rc};
+use std::rc::Rc;
 
+use crate::halo2::Challenge;
 use anyhow::{anyhow, Result};
 use llzk::builder::OpBuilder;
 use llzk::prelude::*;
@@ -11,25 +12,19 @@ use melior::{
     },
     Context,
 };
-use midnight_halo2_proofs::plonk::{AdviceQuery, Challenge, FixedQuery, InstanceQuery, Selector};
 use mlir_sys::MlirValue;
-use num_bigint::BigUint;
 
 //use crate::backend::codegen::queue::RegionStartResolver;
 use crate::backend::func::FieldId;
 use crate::backend::lowering::tag::LoweringOutput;
 use crate::backend::lowering::ExprLowering;
-use crate::halo2::{RegionIndex, RegionStart};
 use crate::ir::expr::Felt;
 use crate::ir::CmpOp;
-use crate::synthesis::regions::RegionIndexToStart;
 use crate::{
     backend::{
         func::{ArgNo, FuncIO},
         lowering::Lowering,
-        resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     },
-    halo2::PrimeField,
     synthesis::regions::FQN,
 };
 
@@ -65,6 +60,7 @@ impl<'c> LlzkStructLowering<'c> {
 
     /// Tries to fetch an advice cell field, if it doesn't exist creates a field that represents
     /// it.
+    #[allow(dead_code)]
     fn get_temp_decl(
         &self,
         col: usize,
@@ -85,6 +81,7 @@ impl<'c> LlzkStructLowering<'c> {
         })?)
     }
 
+    #[allow(dead_code)]
     fn get_output(&self, field: FieldId) -> Result<FieldDefOpRef<'c, '_>> {
         self.struct_op
             .get_field_def(format!("out_{field}").as_str())
@@ -119,6 +116,7 @@ impl<'c> LlzkStructLowering<'c> {
         Ok(self.append_op(op)?.result(0)?.into())
     }
 
+    #[allow(dead_code)]
     fn get_arg_impl(&self, idx: usize) -> Result<Value<'c, '_>> {
         self.get_constrain_func()?
             .argument(idx)
@@ -128,14 +126,17 @@ impl<'c> LlzkStructLowering<'c> {
 
     /// Returns the (n+1)-th argument of the constrain function. The index is offset by one because
     /// in the constrain function the first argument is always an instance of the struct.
+    #[allow(dead_code)]
     fn get_arg(&self, arg_no: ArgNo) -> Result<Value<'c, '_>> {
         self.get_arg_impl(*arg_no + 1)
     }
 
+    #[allow(dead_code)]
     fn get_component(&self) -> Result<Value<'c, '_>> {
         self.get_arg_impl(0)
     }
 
+    #[allow(dead_code)]
     fn read_field(&self, name: &str, result_type: Type<'c>) -> Result<Value<'c, '_>> {
         let builder = OpBuilder::new(self.context());
 
@@ -318,19 +319,6 @@ impl<'c> ExprLowering for LlzkStructLowering<'c> {
 
     fn lower_neg(&self, expr: &Self::CellOutput) -> Result<Self::CellOutput> {
         wrap! { self.append_expr(felt::neg(Location::unknown(self.context()), expr.into())?) }
-    }
-
-    fn lower_scaled(
-        &self,
-        expr: &Self::CellOutput,
-        scale: &Self::CellOutput,
-    ) -> Result<Self::CellOutput> {
-        wrap! {
-        self.append_expr(felt::mul(
-            Location::unknown(self.context()),
-            expr.into(), scale.into()
-        )?)
-        }
     }
 
     fn lower_challenge(&self, _challenge: &Challenge) -> Result<Self::CellOutput> {

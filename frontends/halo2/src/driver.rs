@@ -1,12 +1,15 @@
 use crate::{
+    backend::{
+        llzk::{LlzkBackend, LlzkOutput, LlzkParams},
+        picus::{PicusBackend, PicusOutput, PicusParams},
+    },
     gates::DefaultGateCallbacks,
     halo2::{Circuit, Field, PrimeField},
     io::{AdviceIOValidator, InstanceIOValidator},
     ir::{expr::IRAexpr, generate::generate_ir, IRCircuit, IRCtx, UnresolvedIRCircuit},
     lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
     synthesis::{CircuitSynthesis, Synthesizer},
-    CircuitCallbacks, GateCallbacks, LlzkBackend, LlzkOutput, LlzkParams, PicusBackend,
-    PicusOutput, PicusParams,
+    CircuitCallbacks, GateCallbacks,
 };
 
 /// Controls the different lowering stages of circuits.
@@ -62,9 +65,7 @@ impl<'lc, 'gc, F: PrimeField> Driver<'lc, 'gc, F> {
     }
 
     pub fn create_ir_ctx<'s>(&self, syn: &'s CircuitSynthesis<F>) -> anyhow::Result<IRCtx<'s>> {
-        let mut ctx = IRCtx::new(syn)?;
-
-        Ok(ctx)
+        IRCtx::new(syn)
     }
 
     /// Creates a picus program from the circuit synthesis.

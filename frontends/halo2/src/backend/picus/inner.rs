@@ -1,26 +1,16 @@
-use std::{borrow::Cow, marker::PhantomData};
-
-use crate::ir::expr::Felt;
+use crate::backend::picus::PicusModule;
+use crate::backend::picus::{params::PicusParams, Pipeline, PipelineBuilder};
 #[cfg(feature = "lift-field-operations")]
 use crate::ir::lift::{LiftIRGuard, LiftLike};
-use crate::{backend::picus::PicusModule, synthesis::CircuitSynthesis};
-use crate::{
-    backend::{
-        func::FuncIO,
-        picus::{felt::FeltWrap, params::PicusParams, Pipeline, PipelineBuilder},
-    },
-    LoweringField,
-};
 
 use anyhow::Result;
 
 pub use super::lowering::PicusModuleLowering;
 use super::lowering::PicusModuleRef;
-use super::vars::{NamingConvention, VarKey, VarKeySeed, VarKeySeedInner};
+use super::vars::{NamingConvention, VarKey};
 use picus::{
     opt::passes::{ConsolidateVarNamesPass, EnsureMaxExprSizePass, FoldExprsPass},
     vars::VarStr,
-    ModuleWithVars as _,
 };
 
 pub struct PicusCodegenInner {

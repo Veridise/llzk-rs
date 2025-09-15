@@ -1,28 +1,13 @@
-use std::borrow::Cow;
-use std::cell::RefCell;
 use std::collections::HashMap;
 
-use super::stmt::IRStmt;
-use anyhow::Result;
-
 use crate::halo2::{Advice, Any, Instance};
+use crate::halo2::{Field, RegionIndex};
 use crate::io::IOCell;
-use crate::ir::expr::IRAexpr;
 use crate::ir::generate::free_cells::{lift_free_cells_to_inputs, FreeCells};
 use crate::ir::generate::{region_data, RegionByIndex};
-use crate::synthesis::groups::{Group, GroupCell, Groups};
+use crate::synthesis::groups::{Group, GroupCell};
 use crate::synthesis::CircuitSynthesis;
 use crate::CircuitIO;
-use crate::{
-    backend::{
-        codegen::Codegen,
-        func::{ArgNo, FieldId, FuncIO},
-        lowering::lowerable::LowerableExpr,
-    },
-    expressions::{ExpressionInRow, ScopedExpression},
-    halo2::{Field, RegionIndex},
-    ir::groups::GroupBody,
-};
 
 pub struct IRCtx<'s> {
     groups_advice_io: HashMap<usize, CircuitIO<Advice>>,

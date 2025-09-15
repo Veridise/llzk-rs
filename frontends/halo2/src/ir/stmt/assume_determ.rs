@@ -1,14 +1,9 @@
-use std::marker::PhantomData;
-
 use anyhow::Result;
 
 use crate::{
     backend::{
         func::FuncIO,
-        lowering::{
-            lowerable::{LowerableExpr, LowerableStmt},
-            Lowering,
-        },
+        lowering::{lowerable::LowerableStmt, Lowering},
     },
     ir::equivalency::EqvRelation,
 };

@@ -21,13 +21,8 @@ use crate::halo2::{Advice, Circuit, Expression, Field, Instance, RegionIndex};
 #[cfg(feature = "lift-field-operations")]
 pub use crate::ir::lift::{Lift, LiftLike};
 pub use backend::{
-    events::{
-        BackendEventReceiver, BackendMessages, BackendResponse, EmitStmtsMessage, EventReceiver,
-        EventSender, OwnedEventSender,
-    },
-    llzk::{LlzkBackend, LlzkOutput, LlzkParams, LlzkParamsBuilder},
-    picus::{PicusBackend, PicusOutput, PicusParams, PicusParamsBuilder},
-    Backend,
+    llzk::params::{LlzkParams, LlzkParamsBuilder},
+    picus::params::{PicusParams, PicusParamsBuilder},
 };
 pub use error::to_plonk_error;
 pub use field::LoweringField;

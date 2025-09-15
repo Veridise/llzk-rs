@@ -1,14 +1,6 @@
-use std::marker::PhantomData;
-
 use anyhow::Result;
 
-use crate::{
-    backend::lowering::{
-        lowerable::{LowerableExpr, LowerableStmt},
-        Lowering,
-    },
-    ir::equivalency::EqvRelation,
-};
+use crate::backend::lowering::{lowerable::LowerableStmt, Lowering};
 
 pub struct Comment(String);
 

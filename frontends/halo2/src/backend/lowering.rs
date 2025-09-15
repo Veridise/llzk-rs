@@ -1,13 +1,12 @@
 use std::ops::Range;
 
 use crate::{
-    gates::AnyQuery,
-    halo2::{AdviceQuery, Challenge, Expression, Field, FixedQuery, InstanceQuery, Selector},
+    halo2::Challenge,
     ir::{expr::Felt, CmpOp},
 };
 use anyhow::{bail, Result};
 
-use super::{func::FuncIO, resolvers::ResolversProvider, QueryResolver, SelectorResolver};
+use super::func::FuncIO;
 
 pub mod lowerable;
 
@@ -67,12 +66,6 @@ pub trait ExprLowering {
     ) -> Result<Self::CellOutput>;
 
     fn lower_neg(&self, expr: &Self::CellOutput) -> Result<Self::CellOutput>;
-
-    fn lower_scaled(
-        &self,
-        expr: &Self::CellOutput,
-        scale: &Self::CellOutput,
-    ) -> Result<Self::CellOutput>;
 
     fn lower_challenge(&self, challenge: &Challenge) -> Result<Self::CellOutput>;
 

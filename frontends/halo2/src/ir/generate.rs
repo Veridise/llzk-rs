@@ -1,13 +1,10 @@
 use std::collections::HashMap;
 
 use crate::{
-    expressions::{ExpressionInRow, ScopedExpression},
+    expressions::ScopedExpression,
     gates::RewritePatternSet,
     halo2::{Field, PrimeField, RegionIndex},
-    ir::{
-        expr::IRAexpr, generate::patterns::load_patterns, groups::GroupBody, stmt::IRStmt,
-        IRCircuit, IRCtx,
-    },
+    ir::{generate::patterns::load_patterns, groups::GroupBody, IRCircuit, IRCtx},
     lookups::callbacks::LookupCallbacks,
     synthesis::{groups::Group, regions::RegionData, CircuitSynthesis},
     GateCallbacks,
@@ -78,31 +75,6 @@ pub fn generate_ir<'s, 'c: 's, F: PrimeField>(
             .map(|(_, gidx)| gidx)
             .collect(),
     ))
-}
-
-/// If the given statement is not empty prepends a comment
-/// with contextual information.
-#[inline]
-fn prepend_comment<'a, F: Field>(
-    stmt: IRStmt<ScopedExpression<'a, 'a, F>>,
-    comment: impl FnOnce() -> IRStmt<ScopedExpression<'a, 'a, F>>,
-) -> IRStmt<ScopedExpression<'a, 'a, F>> {
-    if stmt.is_empty() {
-        return stmt;
-    }
-    [comment(), stmt].into_iter().collect()
-}
-
-/// Converts scoped expressions into concrete arith expressions, disconecting the statements from
-/// the lifetime of the scope.
-#[inline]
-fn scoped_exprs_to_aexpr<'a, F: crate::halo2::PrimeField>(
-    stmts: Vec<IRStmt<ScopedExpression<'a, 'a, F>>>,
-) -> anyhow::Result<IRStmt<IRAexpr>> {
-    stmts
-        .into_iter()
-        .map(|stmt| stmt.try_map(&IRAexpr::try_from))
-        .collect()
 }
 
 /// Creates a map from region index to its data
