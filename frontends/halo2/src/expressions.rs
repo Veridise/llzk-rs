@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::{
     halo2::{Expression, Field},
     resolvers::{
-        boxed_resolver, FixedQueryResolver, QueryResolver, ResolversProvider, SelectorResolver,
+        FixedQueryResolver, QueryResolver, ResolversProvider, SelectorResolver, boxed_resolver,
     },
     synthesis::regions::{RegionData, RegionRow},
 };

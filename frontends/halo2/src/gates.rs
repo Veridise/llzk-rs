@@ -1,7 +1,7 @@
 use std::{borrow::Cow, cmp::Ordering, collections::HashSet, hash::Hash, ops::Range};
 
 use crate::{
-    expressions::{constant_folding::ConstantFolding, rewriter::rewrite_expr, ScopedExpression},
+    expressions::{ScopedExpression, constant_folding::ConstantFolding, rewriter::rewrite_expr},
     halo2::*,
     ir::stmt::IRStmt,
     resolvers::FixedQueryResolver,
@@ -285,10 +285,12 @@ impl<F> GateRewritePattern<F> for RewritePatternSet<F> {
             RewriteError::NoMatch
         } else {
             log::debug!("Returning {} errors", errors.len());
-            RewriteError::Err(anyhow::anyhow!(errors
-                .into_iter()
-                .flat_map(|e: anyhow::Error| [e.to_string(), "\n".to_string()])
-                .collect::<String>()))
+            RewriteError::Err(anyhow::anyhow!(
+                errors
+                    .into_iter()
+                    .flat_map(|e: anyhow::Error| [e.to_string(), "\n".to_string()])
+                    .collect::<String>()
+            ))
         })
     }
 }

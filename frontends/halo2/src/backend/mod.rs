@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::ir::{expr::IRAexpr, IRCircuit, IRCtx};
+use crate::ir::{IRCircuit, IRCtx, expr::IRAexpr};
 use anyhow::Result;
 
 pub mod codegen;
@@ -9,7 +9,7 @@ pub mod llzk;
 pub mod lowering;
 pub mod picus;
 
-use codegen::{strats::groups::GroupConstraintsStrat, Codegen, CodegenStrategy};
+use codegen::{Codegen, CodegenStrategy, strats::groups::GroupConstraintsStrat};
 
 //type DefaultStrat = InlineConstraintsStrat;
 type DefaultStrat = GroupConstraintsStrat;

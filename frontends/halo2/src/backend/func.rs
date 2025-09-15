@@ -1,6 +1,9 @@
 use std::{fmt, ops::Deref};
 
-use crate::{ir::equivalency::{EqvRelation, SymbolicEqv}, synthesis::regions::RegionData};
+use crate::{
+    ir::equivalency::{EqvRelation, SymbolicEqv},
+    synthesis::regions::RegionData,
+};
 
 /// Argument number of a function
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -61,8 +64,6 @@ enum Offset {
     Abs(usize),
 }
 
-
-
 /// A reference to a cell in the circuit.
 #[derive(Clone, Copy, Eq, Debug)]
 pub struct CellRef {
@@ -119,7 +120,9 @@ impl CellRef {
     pub fn relativize(&self, base: usize) -> Option<Self> {
         match self.offset() {
             Offset::Abs(offset) => {
-                if base > offset { return None; }
+                if base > offset {
+                    return None;
+                }
                 let offset = offset - base;
                 Some(Self::relative(self.col, base, offset))
             }
@@ -145,12 +148,13 @@ impl EqvRelation<CellRef> for SymbolicEqv {
     /// Two cell refs are equivalent if they point to the same absolute cell or the point to the
     /// same relative cell regardless of their base.
     fn equivalent(lhs: &CellRef, rhs: &CellRef) -> bool {
-        lhs.col() == rhs.col() && (
-        // Either they point to the same cell
-        lhs.row() == rhs.row() || 
+        lhs.col() == rhs.col()
+            && (
+                // Either they point to the same cell
+                lhs.row() == rhs.row() ||
         // Or they relativelly point to the same cell
         lhs.offset() == rhs.offset()
-    )
+            )
     }
 }
 
@@ -158,7 +162,10 @@ impl EqvRelation<CellRef> for SymbolicEqv {
 /// that region.
 ///
 /// Fails if the advice cell could not be found in any region.
-pub fn try_relativize_advice_cell<'a>(cell: CellRef, regions: impl IntoIterator<Item=RegionData<'a>>) -> anyhow::Result<CellRef> {
+pub fn try_relativize_advice_cell<'a>(
+    cell: CellRef,
+    regions: impl IntoIterator<Item = RegionData<'a>>,
+) -> anyhow::Result<CellRef> {
     if !cell.is_absolute() {
         return Ok(cell);
     }
@@ -166,11 +173,17 @@ pub fn try_relativize_advice_cell<'a>(cell: CellRef, regions: impl IntoIterator<
         if !region.contains_advice_cell(cell.col(), cell.row()) {
             continue;
         }
-        let start = region.start().ok_or_else(|| anyhow::anyhow!("Region {} does not have a base", region.name()))?;
-        return cell.relativize(start).ok_or_else(|| anyhow::anyhow!("Failed to relativize cell"));
+        let start = region
+            .start()
+            .ok_or_else(|| anyhow::anyhow!("Region {} does not have a base", region.name()))?;
+        return cell
+            .relativize(start)
+            .ok_or_else(|| anyhow::anyhow!("Failed to relativize cell"));
     }
 
-    Err(anyhow::anyhow!("cell reference {cell:?} was not found in any region"))
+    Err(anyhow::anyhow!(
+        "cell reference {cell:?} was not found in any region"
+    ))
 }
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
@@ -207,8 +220,6 @@ impl FuncIO {
     }
 }
 
-
-
 impl EqvRelation<FuncIO> for SymbolicEqv {
     /// Two FuncIOs are symbolically equivalent if they refer to the data regardless of how is
     /// pointed to.
@@ -221,12 +232,8 @@ impl EqvRelation<FuncIO> for SymbolicEqv {
         match (lhs, rhs) {
             (FuncIO::Arg(lhs), FuncIO::Arg(rhs)) => lhs == rhs,
             (FuncIO::Field(lhs), FuncIO::Field(rhs)) => lhs == rhs,
-            (FuncIO::Advice(lhs), FuncIO::Advice(rhs)) => {
-                Self::equivalent(lhs, rhs)
-            }
-            (FuncIO::Fixed(lhs), FuncIO::Fixed(rhs)) => {
-                Self::equivalent(lhs, rhs)
-            }
+            (FuncIO::Advice(lhs), FuncIO::Advice(rhs)) => Self::equivalent(lhs, rhs),
+            (FuncIO::Fixed(lhs), FuncIO::Fixed(rhs)) => Self::equivalent(lhs, rhs),
             (
                 FuncIO::TableLookup(_, col0, row0, _, _),
                 FuncIO::TableLookup(_, col1, row1, _, _),
@@ -370,7 +377,10 @@ mod tests {
         if let None = base.checked_add(1) {
             return true;
         }
-        if let None = base.checked_add(1).and_then(|base| base.checked_add(offset)) {
+        if let None = base
+            .checked_add(1)
+            .and_then(|base| base.checked_add(offset))
+        {
             return true;
         }
         hash(CellRef::absolute(col, base + offset))
@@ -390,7 +400,10 @@ mod tests {
         if let None = base.checked_add(offset) {
             return true;
         }
-        if let None = base.checked_add(offset).and_then(|base| base.checked_add(1)) {
+        if let None = base
+            .checked_add(offset)
+            .and_then(|base| base.checked_add(1))
+        {
             return true;
         }
         if let None = offset.checked_add(1) {
@@ -411,7 +424,7 @@ mod tests {
         if let None = base.checked_add(1) {
             return true;
         }
-        if let None = (base+offset).checked_add(1) {
+        if let None = (base + offset).checked_add(1) {
             return true;
         }
         SymbolicEqv::equivalent(

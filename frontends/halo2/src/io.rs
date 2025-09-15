@@ -1,5 +1,5 @@
 use crate::halo2::{Advice, Column, ColumnType, ConstraintSystem, Field, Instance};
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::collections::HashSet;
 use std::hash::Hash;
 

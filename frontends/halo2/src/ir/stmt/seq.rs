@@ -1,8 +1,8 @@
 use anyhow::Result;
 
 use crate::backend::lowering::{
-    lowerable::{LowerableExpr, LowerableStmt},
     Lowering,
+    lowerable::{LowerableExpr, LowerableStmt},
 };
 
 use super::IRStmt;

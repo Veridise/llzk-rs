@@ -3,13 +3,13 @@ use crate::ir::expr::Felt;
 use crate::{
     backend::{
         func::{ArgNo, FieldId, FuncIO},
-        lowering::{tag::LoweringOutput, ExprLowering, Lowering},
+        lowering::{ExprLowering, Lowering, tag::LoweringOutput},
     },
     halo2::Challenge,
     ir::CmpOp,
 };
 use anyhow::Result;
-use picus::{expr, stmt, ModuleLike as _};
+use picus::{ModuleLike as _, expr, stmt};
 
 pub type PicusModuleRef = picus::ModuleRef<VarKey>;
 pub(super) type PicusExpr = picus::expr::Expr;

@@ -2,22 +2,23 @@
 
 use std::{collections::HashSet, convert::identity};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use constraint::{EqConstraint, EqConstraintArg, EqConstraintGraph};
 use groups::{Group, GroupBuilder, GroupCell, Groups};
 use regions::{FixedData, RegionIndexToStart, TableData};
 
 use crate::{
+    CircuitIO,
     gates::AnyQuery,
     halo2::{
+        Field,
         groups::{GroupKey, RegionsGroup},
-        Field, *,
+        *,
     },
     io::{AdviceIO, IOCell, InstanceIO},
     lookups::{Lookup, LookupTableRow},
     resolvers::FixedQueryResolver,
     value::steal,
-    CircuitIO,
 };
 
 pub mod constraint;

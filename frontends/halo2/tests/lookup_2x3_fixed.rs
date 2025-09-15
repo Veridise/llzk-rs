@@ -9,7 +9,7 @@ use std::iter;
 use std::marker::PhantomData;
 
 use halo2_llzk_frontend::{
-    lookups::callbacks::LookupCallbacks, CircuitCallbacks, CircuitIO, PicusParamsBuilder,
+    CircuitCallbacks, CircuitIO, PicusParamsBuilder, lookups::callbacks::LookupCallbacks,
 };
 
 mod common;

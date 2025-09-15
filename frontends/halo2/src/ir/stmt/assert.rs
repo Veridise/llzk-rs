@@ -2,8 +2,8 @@ use anyhow::Result;
 
 use crate::{
     backend::lowering::{
-        lowerable::{LowerableExpr, LowerableStmt},
         Lowering,
+        lowerable::{LowerableExpr, LowerableStmt},
     },
     ir::{equivalency::EqvRelation, expr::IRBexpr},
 };

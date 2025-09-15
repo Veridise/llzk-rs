@@ -1,5 +1,5 @@
 use crate::backend::picus::PicusModule;
-use crate::backend::picus::{params::PicusParams, Pipeline, PipelineBuilder};
+use crate::backend::picus::{Pipeline, PipelineBuilder, params::PicusParams};
 
 use anyhow::Result;
 

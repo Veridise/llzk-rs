@@ -1,6 +1,6 @@
 use crate::ir::{
-    stmt::{constraint::Constraint, IRStmt},
     CmpOp,
+    stmt::{IRStmt, constraint::Constraint},
 };
 
 pub trait ConstraintFactory {

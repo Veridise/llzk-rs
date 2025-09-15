@@ -1,5 +1,5 @@
 use crate::halo2::{Expression, Field, FixedQuery};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 pub fn query_from_table_expr<F: Field>(e: &Expression<F>) -> Result<FixedQuery> {
     match e {

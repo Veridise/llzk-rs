@@ -2,10 +2,10 @@ use anyhow::Result;
 
 use crate::{
     backend::lowering::{
-        lowerable::{LowerableExpr, LowerableStmt},
         Lowering,
+        lowerable::{LowerableExpr, LowerableStmt},
     },
-    ir::{equivalency::EqvRelation, CmpOp},
+    ir::{CmpOp, equivalency::EqvRelation},
 };
 
 pub struct Constraint<T> {

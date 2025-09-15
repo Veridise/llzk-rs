@@ -60,11 +60,7 @@ impl Bool {
     where
         F: Field,
     {
-        if self.0 {
-            F::ONE
-        } else {
-            F::ZERO
-        }
+        if self.0 { F::ONE } else { F::ZERO }
     }
 }
 

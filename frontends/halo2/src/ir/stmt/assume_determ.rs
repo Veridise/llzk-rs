@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::{
     backend::{
         func::FuncIO,
-        lowering::{lowerable::LowerableStmt, Lowering},
+        lowering::{Lowering, lowerable::LowerableStmt},
     },
     ir::equivalency::EqvRelation,
 };

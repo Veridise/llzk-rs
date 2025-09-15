@@ -2,17 +2,17 @@ use crate::{
     backend::{
         func::FuncIO,
         lowering::{
-            lowerable::{LowerableExpr, LowerableStmt},
             Lowering,
+            lowerable::{LowerableExpr, LowerableStmt},
         },
     },
     expressions::ScopedExpression,
-    halo2::{groups::GroupKeyInstance, Field},
+    halo2::{Field, groups::GroupKeyInstance},
     ir::{
+        CmpOp,
         equivalency::{EqvRelation, SymbolicEqv},
         expr::IRAexpr,
         stmt::IRStmt,
-        CmpOp,
     },
     synthesis::{
         groups::{Group, GroupCell},

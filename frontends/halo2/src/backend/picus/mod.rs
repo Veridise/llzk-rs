@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use super::{func::FuncIO, Backend, Codegen};
+use super::{Backend, Codegen, func::FuncIO};
 use crate::io::{AdviceIO, InstanceIO};
 
 use anyhow::Result;

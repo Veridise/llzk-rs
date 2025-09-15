@@ -1,13 +1,13 @@
 use crate::{
+    CircuitIO,
     backend::func::{ArgNo, FieldId, FuncIO},
     halo2::*,
     io::{AdviceIO, IOCell, InstanceIO},
     resolvers::{
         FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
     },
-    CircuitIO,
 };
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 #[derive(Copy, Clone)]
 pub struct Row<'io, 'fq, F: Field> {

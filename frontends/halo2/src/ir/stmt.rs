@@ -1,9 +1,9 @@
-use super::{equivalency::EqvRelation, expr::IRBexpr, CmpOp};
+use super::{CmpOp, equivalency::EqvRelation, expr::IRBexpr};
 use crate::backend::{
     func::FuncIO,
     lowering::{
-        lowerable::{EitherLowerable, LowerableExpr, LowerableStmt},
         Lowering,
+        lowerable::{EitherLowerable, LowerableExpr, LowerableStmt},
     },
 };
 use anyhow::Result;

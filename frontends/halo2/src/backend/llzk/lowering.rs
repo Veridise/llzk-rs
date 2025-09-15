@@ -1,28 +1,28 @@
 use std::rc::Rc;
 
 use crate::halo2::Challenge;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use llzk::builder::OpBuilder;
 use llzk::prelude::*;
 use melior::ir::ValueLike;
 use melior::{
-    ir::{
-        attribute::FlatSymbolRefAttribute, operation::OperationLike as _, BlockLike as _, Location,
-        Operation, OperationRef, RegionLike as _, Type, Value,
-    },
     Context,
+    ir::{
+        BlockLike as _, Location, Operation, OperationRef, RegionLike as _, Type, Value,
+        attribute::FlatSymbolRefAttribute, operation::OperationLike as _,
+    },
 };
 use mlir_sys::MlirValue;
 
 use crate::backend::func::FieldId;
-use crate::backend::lowering::tag::LoweringOutput;
 use crate::backend::lowering::ExprLowering;
+use crate::backend::lowering::tag::LoweringOutput;
 use crate::backend::{
     func::{ArgNo, FuncIO},
     lowering::Lowering,
 };
-use crate::ir::expr::Felt;
 use crate::ir::CmpOp;
+use crate::ir::expr::Felt;
 
 use super::counter::Counter;
 use super::extras::{block_list, operations_list};

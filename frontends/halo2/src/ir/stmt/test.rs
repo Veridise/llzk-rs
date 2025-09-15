@@ -98,7 +98,7 @@ fn test_partial_eq_on_i32() {
 pub mod ff {
     use crate::{
         halo2::{ColumnType, Expression, Field, Fixed, Rotation},
-        ir::stmt::{test::TestHelper, IRStmt},
+        ir::stmt::{IRStmt, test::TestHelper},
     };
 
     type F = crate::halo2::Fr;

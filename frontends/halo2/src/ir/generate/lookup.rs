@@ -3,7 +3,7 @@ use crate::{
     halo2::Field,
     ir::stmt::IRStmt,
     lookups::callbacks::{LazyLookupTableGenerator, LookupCallbacks},
-    synthesis::{regions::RegionRow, CircuitSynthesis},
+    synthesis::{CircuitSynthesis, regions::RegionRow},
     utils,
 };
 use anyhow::Result;

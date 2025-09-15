@@ -1,5 +1,5 @@
-use super::lowering::lowerable::LowerableStmt;
 use super::lowering::ExprLowering as _;
+use super::lowering::lowerable::LowerableStmt;
 use super::{func::FuncIO, lowering::Lowering};
 use crate::io::{AdviceIO, InstanceIO};
 use crate::ir::expr::IRAexpr;

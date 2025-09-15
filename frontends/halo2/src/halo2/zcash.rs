@@ -1,6 +1,6 @@
 pub use zcash_halo2_proofs::{
     circuit::{self, AssignedCell, Cell, Layouter, SimpleFloorPlanner, Value},
-    dev::{metadata::Region, MockProver},
+    dev::{MockProver, metadata::Region},
     //dev::{CellValue /*, Region*/},
     pasta::Fp as Fr,
     plonk::{

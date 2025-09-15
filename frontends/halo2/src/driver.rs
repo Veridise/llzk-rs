@@ -1,4 +1,5 @@
 use crate::{
+    CircuitCallbacks, GateCallbacks,
     backend::{
         llzk::{LlzkBackend, LlzkOutput, LlzkParams},
         picus::{PicusBackend, PicusOutput, PicusParams},
@@ -6,10 +7,9 @@ use crate::{
     gates::DefaultGateCallbacks,
     halo2::{Circuit, Field, PrimeField},
     io::{AdviceIOValidator, InstanceIOValidator},
-    ir::{expr::IRAexpr, generate::generate_ir, IRCircuit, IRCtx, UnresolvedIRCircuit},
+    ir::{IRCircuit, IRCtx, UnresolvedIRCircuit, expr::IRAexpr, generate::generate_ir},
     lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
     synthesis::{CircuitSynthesis, Synthesizer},
-    CircuitCallbacks, GateCallbacks,
 };
 
 /// Controls the different lowering stages of circuits.

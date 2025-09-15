@@ -1,11 +1,11 @@
 use super::lowering::LlzkStructLowering;
 use super::state::LlzkCodegenState;
-use super::{counter::Counter, LlzkOutput};
+use super::{LlzkOutput, counter::Counter};
 use anyhow::Result;
 
 use llzk::prelude::*;
-use melior::ir::{BlockLike as _, Location, Module};
 use melior::Context;
+use melior::ir::{BlockLike as _, Location, Module};
 
 use crate::backend::llzk::factory::StructIO;
 use crate::io::{AdviceIO, InstanceIO};

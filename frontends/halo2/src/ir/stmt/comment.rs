@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::backend::lowering::{lowerable::LowerableStmt, Lowering};
+use crate::backend::lowering::{Lowering, lowerable::LowerableStmt};
 
 pub struct Comment(String);
 

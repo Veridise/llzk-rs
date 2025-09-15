@@ -4,8 +4,8 @@ use crate::{
     backend::{
         func::FuncIO,
         lowering::{
-            lowerable::{LowerableExpr, LowerableStmt},
             Lowering,
+            lowerable::{LowerableExpr, LowerableStmt},
         },
     },
     ir::equivalency::EqvRelation,

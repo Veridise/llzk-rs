@@ -1,7 +1,7 @@
 use crate::{
     backend::{
         func::FuncIO,
-        lowering::{lowerable::LowerableExpr, ExprLowering},
+        lowering::{ExprLowering, lowerable::LowerableExpr},
     },
     expressions::ScopedExpression,
     halo2::{Challenge, Expression, PrimeField},
@@ -179,11 +179,11 @@ impl LowerableExpr for IRAexpr {
 
 #[cfg(test)]
 mod tests {
+    use crate::CircuitIO;
     use crate::expressions::ScopedExpression;
     use crate::ir::equivalency::{EqvRelation as _, SymbolicEqv};
     use crate::resolvers::FixedQueryResolver;
     use crate::synthesis::regions::{RegionRow, Regions};
-    use crate::CircuitIO;
     use crate::{halo2::*, synthesis::regions::RegionData};
     use rstest::{fixture, rstest};
     type F = Fr;

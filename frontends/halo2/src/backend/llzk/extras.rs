@@ -1,6 +1,6 @@
 use std::iter;
 
-use melior::ir::{operation::OperationLike as _, BlockLike, BlockRef, OperationRef, RegionLike};
+use melior::ir::{BlockLike, BlockRef, OperationRef, RegionLike, operation::OperationLike as _};
 
 pub fn block_list<'c: 'v, 'v>(
     r: impl RegionLike<'c, 'v>,

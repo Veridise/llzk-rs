@@ -2,13 +2,13 @@ use std::borrow::Cow;
 
 use ff::{Field, PrimeField};
 use halo2_llzk_frontend::{
+    CircuitCallbacks, PicusParams,
     driver::Driver,
     ir::stmt::IRStmt,
     lookups::{
-        callbacks::{LookupCallbacks, LookupTableGenerator},
         Lookup,
+        callbacks::{LookupCallbacks, LookupTableGenerator},
     },
-    CircuitCallbacks, PicusParams,
 };
 use log::LevelFilter;
 use midnight_halo2_proofs::plonk::{Circuit, Expression};

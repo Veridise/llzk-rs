@@ -1,5 +1,5 @@
-use super::super::{equivalency::EqvRelation, CmpOp};
-use crate::backend::lowering::{lowerable::LowerableExpr, ExprLowering};
+use super::super::{CmpOp, equivalency::EqvRelation};
+use crate::backend::lowering::{ExprLowering, lowerable::LowerableExpr};
 use anyhow::Result;
 use std::{
     convert::identity,

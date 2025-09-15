@@ -20,8 +20,8 @@ struct RotationDebug(Rotation);
 
 impl std::fmt::Debug for RotationDebug {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.0 .0 != 0 {
-            write!(f, "@{}", self.0 .0)
+        if self.0.0 != 0 {
+            write!(f, "@{}", self.0.0)
         } else {
             write!(f, "")
         }

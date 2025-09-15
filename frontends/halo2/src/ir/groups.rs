@@ -1,21 +1,22 @@
 use crate::{
+    GateRewritePattern as _, GateScope, RewriteError,
     backend::{
-        func::{try_relativize_advice_cell, FuncIO},
-        lowering::{lowerable::LowerableStmt, Lowering},
+        func::{FuncIO, try_relativize_advice_cell},
+        lowering::{Lowering, lowerable::LowerableStmt},
     },
     expressions::{ExpressionInRow, ScopedExpression},
     gates::RewritePatternSet,
-    halo2::{groups::GroupKeyInstance, Expression, Field, Gate, Rotation},
+    halo2::{Expression, Field, Gate, Rotation, groups::GroupKeyInstance},
     ir::{
+        CmpOp, IRCtx,
         equivalency::{EqvRelation, SymbolicEqv},
         expr::IRAexpr,
-        generate::{free_cells::FreeCells, lookup::codegen_lookup_invocations, GroupIRCtx},
+        generate::{GroupIRCtx, free_cells::FreeCells, lookup::codegen_lookup_invocations},
         groups::{
             bounds::{Bound, EqConstraintCheck, GroupBounds},
             callsite::CallSite,
         },
         stmt::IRStmt,
-        CmpOp, IRCtx,
     },
     resolvers::FixedQueryResolver,
     synthesis::{
@@ -23,7 +24,7 @@ use crate::{
         groups::{Group, GroupCell},
         regions::{RegionData, Row},
     },
-    utils, GateRewritePattern as _, GateScope, RewriteError,
+    utils,
 };
 use anyhow::Result;
 

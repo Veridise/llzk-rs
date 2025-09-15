@@ -2,9 +2,9 @@ use std::ops::Range;
 
 use crate::{
     halo2::Challenge,
-    ir::{expr::Felt, CmpOp},
+    ir::{CmpOp, expr::Felt},
 };
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use super::func::FuncIO;
 
@@ -57,7 +57,7 @@ pub trait ExprLowering {
     type CellOutput: tag::LoweringOutput;
 
     fn lower_sum(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput)
-        -> Result<Self::CellOutput>;
+    -> Result<Self::CellOutput>;
 
     fn lower_product(
         &self,
@@ -78,7 +78,7 @@ pub trait ExprLowering {
     fn lower_ge(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput>;
     fn lower_ne(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput>;
     fn lower_and(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput)
-        -> Result<Self::CellOutput>;
+    -> Result<Self::CellOutput>;
     fn lower_or(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput>;
     fn lower_not(&self, value: &Self::CellOutput) -> Result<Self::CellOutput>;
 
