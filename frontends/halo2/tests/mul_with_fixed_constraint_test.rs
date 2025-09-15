@@ -36,6 +36,8 @@ fn mul_with_fixed_constraint_circuit_picus() {
             .short_names()
             .no_optimize()
             .build(),
+        None,
+        None,
         EXPECTED_PICUS,
     );
 }
@@ -206,7 +208,7 @@ impl<F: Field> Circuit<F> for MulWithFixedConstraintCircuit<F> {
     }
 }
 
-impl<F: Field> CircuitCallbacks<F, Self> for MulWithFixedConstraintCircuit<F> {
+impl<F: Field> CircuitCallbacks<F> for MulWithFixedConstraintCircuit<F> {
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }

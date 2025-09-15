@@ -1,5 +1,7 @@
-use super::super::{CmpOp, equivalency::EqvRelation};
-use crate::backend::lowering::{ExprLowering, lowerable::LowerableExpr};
+//! Structs for handling boolean expressions.
+
+use super::super::{equivalency::EqvRelation, CmpOp};
+use crate::backend::lowering::{lowerable::LowerableExpr, ExprLowering};
 use anyhow::Result;
 use std::{
     convert::identity,
@@ -8,13 +10,18 @@ use std::{
 
 /// Represents boolean expressions over some arithmetic expression type A.
 pub enum IRBexpr<A> {
+    /// Comparison operation of two inner arithmetic expressions.
     Cmp(CmpOp, A, A),
+    /// Represents the conjunction of the inner expressions.
     And(Vec<IRBexpr<A>>),
+    /// Represents the disjounction of the inner expressions.
     Or(Vec<IRBexpr<A>>),
+    /// Represents the negation of the inner expression.
     Not(Box<IRBexpr<A>>),
 }
 
 impl<T> IRBexpr<T> {
+    /// Transforms the inner expression into a different type.
     pub fn map<O>(self, f: &impl Fn(T) -> O) -> IRBexpr<O> {
         match self {
             IRBexpr::Cmp(cmp_op, lhs, rhs) => IRBexpr::Cmp(cmp_op, f(lhs), f(rhs)),
@@ -24,6 +31,7 @@ impl<T> IRBexpr<T> {
         }
     }
 
+    /// Transforms the inner expression into a different type without moving the struct.
     pub fn map_into<O>(&self, f: &impl Fn(&T) -> O) -> IRBexpr<O> {
         match self {
             IRBexpr::Cmp(cmp_op, lhs, rhs) => IRBexpr::Cmp(*cmp_op, f(lhs), f(rhs)),
@@ -33,6 +41,7 @@ impl<T> IRBexpr<T> {
         }
     }
 
+    /// Transforms the inner expression into a different type, potentially failing.
     pub fn try_map<O>(self, f: &impl Fn(T) -> Result<O>) -> Result<IRBexpr<O>> {
         Ok(match self {
             IRBexpr::Cmp(cmp_op, lhs, rhs) => IRBexpr::Cmp(cmp_op, f(lhs)?, f(rhs)?),
@@ -52,6 +61,7 @@ impl<T> IRBexpr<T> {
         })
     }
 
+    /// Tries to transform the inner expression in place instead of returning a new expression.
     pub fn try_map_inplace(&mut self, f: &impl Fn(&mut T) -> Result<()>) -> Result<()> {
         match self {
             IRBexpr::Cmp(_, lhs, rhs) => {

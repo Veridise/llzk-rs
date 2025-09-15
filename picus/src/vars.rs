@@ -73,7 +73,7 @@ pub trait VarAllocator {
     fn allocate<K: Into<Self::Kind> + Into<VarStr> + Clone>(&self, kind: K) -> VarStr;
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Vars<K: VarKind>(HashMap<K, VarStr>);
 
 impl<K: VarKind> Vars<K> {

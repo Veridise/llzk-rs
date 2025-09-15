@@ -1,28 +1,28 @@
 use std::rc::Rc;
 
 use crate::halo2::Challenge;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use llzk::builder::OpBuilder;
 use llzk::prelude::*;
 use melior::ir::ValueLike;
 use melior::{
-    Context,
     ir::{
-        BlockLike as _, Location, Operation, OperationRef, RegionLike as _, Type, Value,
-        attribute::FlatSymbolRefAttribute, operation::OperationLike as _,
+        attribute::FlatSymbolRefAttribute, operation::OperationLike as _, BlockLike as _, Location,
+        Operation, OperationRef, RegionLike as _, Type, Value,
     },
+    Context,
 };
 use mlir_sys::MlirValue;
 
 use crate::backend::func::FieldId;
-use crate::backend::lowering::ExprLowering;
 use crate::backend::lowering::tag::LoweringOutput;
+use crate::backend::lowering::ExprLowering;
 use crate::backend::{
     func::{ArgNo, FuncIO},
     lowering::Lowering,
 };
-use crate::ir::CmpOp;
 use crate::ir::expr::Felt;
+use crate::ir::CmpOp;
 
 use super::counter::Counter;
 use super::extras::{block_list, operations_list};
@@ -148,7 +148,7 @@ impl<'c> LlzkStructLowering<'c> {
 }
 
 /// Value wrapper used as lowering output for circumventing lifetime restrictions.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct ValueWrap(MlirValue);
 
 impl From<ValueWrap> for Value<'_, '_> {

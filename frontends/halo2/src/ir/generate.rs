@@ -1,13 +1,15 @@
+//! Logic for generating IR from a synthesized circuit.
+
 use std::collections::HashMap;
 
 use crate::{
-    GateCallbacks,
     expressions::ScopedExpression,
     gates::RewritePatternSet,
     halo2::{Field, PrimeField, RegionIndex},
-    ir::{IRCircuit, IRCtx, generate::patterns::load_patterns, groups::GroupBody, stmt::IRStmt},
+    ir::{generate::patterns::load_patterns, groups::GroupBody, stmt::IRStmt, IRCircuit, IRCtx},
     lookups::callbacks::LookupCallbacks,
-    synthesis::{CircuitSynthesis, groups::Group, regions::RegionData},
+    synthesis::{groups::Group, regions::RegionData, CircuitSynthesis},
+    GateCallbacks,
 };
 
 pub(super) mod free_cells;
@@ -42,12 +44,10 @@ pub fn generate_ir<'s, 'c: 's, F: PrimeField>(
         }
     }
     regions_to_groups.sort_by_key(|(ri, _)| **ri);
-    debug_assert!(
-        regions_to_groups
-            .iter()
-            .enumerate()
-            .all(|(n, (ri, _))| n == **ri)
-    );
+    debug_assert!(regions_to_groups
+        .iter()
+        .enumerate()
+        .all(|(n, (ri, _))| n == **ri));
     let groups_ir = enumerated_groups
         .into_iter()
         .map(|(id, g)| {

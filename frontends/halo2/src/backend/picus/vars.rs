@@ -3,7 +3,8 @@ pub use picus::vars::{VarKind, VarStr};
 
 use crate::backend::func::FuncIO;
 
-#[derive(Clone, Hash, Eq, PartialEq)]
+/// Inner value of [`VarKeySeed`].
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub enum VarKeySeedInner {
     IO(FuncIO),
     Temp,
@@ -58,7 +59,7 @@ impl Temp<'_> for VarKey {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum NamingConvention {
     Short,
 }
@@ -93,7 +94,8 @@ impl NamingConvention {
     }
 }
 
-#[derive(Clone)]
+/// Struct containing the metadata necessary to create a [`VarStr`].
+#[derive(Clone, Debug)]
 pub struct VarKeySeed(VarKeySeedInner, NamingConvention);
 
 impl VarKeySeed {

@@ -10,48 +10,10 @@ use crate::{
 use anyhow::Result;
 use std::collections::HashSet;
 
-pub trait RegionRowLike {
-    fn region_index(&self) -> Option<usize>;
-
-    fn region_index_as_str(&self) -> String {
-        match self.region_index() {
-            Some(i) => i.to_string(),
-            None => "<unk>".to_string(),
-        }
-    }
-
-    fn region_name(&self) -> &str;
-
-    fn row_number(&self) -> usize;
-
-    fn header(&self) -> String {
-        format!(
-            "region {} '{}' @ row {}",
-            self.region_index_as_str(),
-            self.region_name(),
-            self.row_number()
-        )
-    }
-}
-
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct RegionRow<'r, 'io, 'fq, F: Field> {
     region: RegionData<'r>,
     row: Row<'io, 'fq, F>,
-}
-
-impl<'r, 'io, 'fq, F: Field> RegionRowLike for RegionRow<'r, 'io, 'fq, F> {
-    fn region_index(&self) -> Option<usize> {
-        self.region.index().map(|f| *f)
-    }
-
-    fn region_name(&self) -> &str {
-        self.region.name()
-    }
-
-    fn row_number(&self) -> usize {
-        self.row.row
-    }
 }
 
 impl<'r, 'io, 'fq, F: Field> RegionRow<'r, 'io, 'fq, F> {
@@ -75,6 +37,24 @@ impl<'r, 'io, 'fq, F: Field> RegionRow<'r, 'io, 'fq, F> {
             .collect()
     }
 
+    pub fn region_index(&self) -> Option<usize> {
+        self.region.index().map(|f| *f)
+    }
+
+    pub fn region_name(&self) -> &str {
+        self.region.name()
+    }
+
+    pub fn row_number(&self) -> usize {
+        self.row.row
+    }
+
+    pub fn region_index_as_str(&self) -> String {
+        match self.region_index() {
+            Some(i) => i.to_string(),
+            None => "<unk>".to_string(),
+        }
+    }
     #[inline]
     pub fn gate_is_disabled(&self, selectors: &HashSet<&Selector>) -> bool {
         self.enabled().is_disjoint(selectors)

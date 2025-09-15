@@ -1,5 +1,5 @@
 use crate::halo2::{Advice, Column, ColumnType, ConstraintSystem, Field, Instance};
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use std::collections::HashSet;
 use std::hash::Hash;
 
@@ -55,18 +55,22 @@ impl<C: ColumnType> CircuitIO<C> {
         Self::new(&[], outputs)
     }
 
+    /// Returns the cells that are inputs.
     pub fn inputs(&self) -> &[IOCell<C>] {
         &self.inputs
     }
 
+    /// Returns the number of inputs.
     pub fn inputs_count(&self) -> usize {
         self.inputs.len()
     }
 
+    /// Returns the cells that are outputs.
     pub fn outputs(&self) -> &[IOCell<C>] {
         &self.outputs
     }
 
+    /// Returns the number of outputs.
     pub fn outputs_count(&self) -> usize {
         self.outputs.len()
     }

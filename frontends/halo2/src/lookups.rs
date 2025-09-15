@@ -1,3 +1,5 @@
+//! Structs for handling lookups.
+
 use std::ops::Index;
 
 use crate::{
@@ -10,7 +12,7 @@ use anyhow::Result;
 pub mod callbacks;
 
 /// Lightweight representation of a lookup that is cheap to copy
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Lookup<'a, F: Field> {
     name: &'a str,
     idx: usize,
@@ -25,7 +27,7 @@ impl<F: Field> std::fmt::Display for Lookup<'_, F> {
 }
 
 /// A heavier representation of the lookup
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LookupData {
     table_queries: Vec<AnyQuery>,
 }
@@ -49,6 +51,7 @@ fn compute_table_cells<'a, F: Field>(
 }
 
 impl<'a, F: Field> Lookup<'a, F> {
+    /// Returns the list of lookups defined in the constraint system.
     pub fn load(cs: &'a ConstraintSystem<F>) -> Vec<Self> {
         cs.lookups()
             .iter()
@@ -76,22 +79,27 @@ impl<'a, F: Field> Lookup<'a, F> {
         self.name
     }
 
+    /// Returns the index of the lookup.
     pub fn idx(&self) -> usize {
         self.idx
     }
 
+    /// Returns the list of expressions used to query the lookup table.
     pub fn expressions(&self) -> impl Iterator<Item = (&'a Expression<F>, &'a Expression<F>)> + 'a {
         self.inputs.iter().zip(self.table)
     }
 
+    /// Returns the inputs of the queries.
     pub fn inputs(&self) -> &'a [Expression<F>] {
         self.inputs
     }
 
+    /// Returns the queries to the lookup table.
     pub fn table_queries(&self) -> Result<Vec<AnyQuery>> {
         compute_table_cells(self.table.iter())
     }
 
+    /// Returns an expression for the query to the n-th column in the table.
     pub fn expr_for_column(&self, col: usize) -> Result<&Expression<F>> {
         self.table_queries()?
             .into_iter()
@@ -103,6 +111,7 @@ impl<'a, F: Field> Lookup<'a, F> {
 }
 
 impl LookupData {
+    /// Returns the list of queries.
     pub fn output_queries(&self) -> &[AnyQuery] {
         &self.table_queries
     }
@@ -110,6 +119,7 @@ impl LookupData {
 
 /// Represents a row in the lookup table that can be indexed by the columns participating in the
 /// lookup.
+#[derive(Debug)]
 pub struct LookupTableRow<F> {
     // Maps the n-th index of the slice to the n-th column
     columns: Vec<usize>,

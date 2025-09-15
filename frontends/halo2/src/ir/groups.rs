@@ -1,22 +1,23 @@
+//! Structs for handling the IR of groups of regions inside the circuit.
+
 use crate::{
-    GateRewritePattern as _, GateScope, RewriteError,
     backend::{
-        func::{FuncIO, try_relativize_advice_cell},
-        lowering::{Lowering, lowerable::LowerableStmt},
+        func::{try_relativize_advice_cell, FuncIO},
+        lowering::{lowerable::LowerableStmt, Lowering},
     },
     expressions::{ExpressionInRow, ScopedExpression},
     gates::RewritePatternSet,
-    halo2::{Expression, Field, Gate, Rotation, groups::GroupKeyInstance},
+    halo2::{groups::GroupKeyInstance, Expression, Field, Gate, Rotation},
     ir::{
-        CmpOp, IRCtx,
         equivalency::{EqvRelation, SymbolicEqv},
         expr::IRAexpr,
-        generate::{GroupIRCtx, free_cells::FreeCells, lookup::codegen_lookup_invocations},
+        generate::{free_cells::FreeCells, lookup::codegen_lookup_invocations, GroupIRCtx},
         groups::{
             bounds::{Bound, EqConstraintCheck, GroupBounds},
             callsite::CallSite,
         },
         stmt::IRStmt,
+        CmpOp, IRCtx,
     },
     resolvers::FixedQueryResolver,
     synthesis::{
@@ -24,7 +25,7 @@ use crate::{
         groups::{Group, GroupCell},
         regions::{RegionData, Row},
     },
-    utils,
+    utils, GateRewritePattern as _, GateScope, RewriteError,
 };
 use anyhow::Result;
 
@@ -167,33 +168,42 @@ impl GroupBody<IRAexpr> {
 }
 
 impl<E> GroupBody<E> {
+    /// Returns true if the group is the top-level.
     pub fn is_main(&self) -> bool {
         self.key.is_none()
     }
 
+    /// Returns the index in the groups list.
     pub fn id(&self) -> usize {
         self.id
     }
 
+    /// Returns the name of the group.
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// Returns a mutable reference to the name.
     pub fn name_mut(&mut self) -> &mut String {
         &mut self.name
     }
 
+    /// Returns the list of callsites inside the group.
     pub fn callsites(&self) -> &[CallSite<E>] {
         &self.callsites
     }
 
+    /// Returns a mutable reference to the callsites list inside the group.
     pub fn callsites_mut(&mut self) -> &mut Vec<CallSite<E>> {
         &mut self.callsites
     }
+
+    /// Returns the group key. Returns `None` if the group is the top-level.
     pub fn key(&self) -> Option<GroupKeyInstance> {
         self.key
     }
 
+    /// Tries to convert the inner expression type to another.
     pub fn try_map<O>(self, f: &impl Fn(E) -> Result<O>) -> Result<GroupBody<O>> {
         Ok(GroupBody {
             name: self.name,

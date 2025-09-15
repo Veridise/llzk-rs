@@ -35,6 +35,8 @@ fn mul_circuit_picus() {
             .short_names()
             .no_optimize()
             .build(),
+        None,
+        Some(&GC),
         EXPECTED_PICUS,
     );
 }
@@ -186,17 +188,13 @@ impl<F: Field> Circuit<F> for MulCircuit<F> {
     }
 }
 
-impl<F: Field> CircuitCallbacks<F, Self> for MulCircuit<F> {
+impl<F: Field> CircuitCallbacks<F> for MulCircuit<F> {
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }
 
     fn instance_io(config: &<Self as Circuit<F>>::Config) -> CircuitIO<Instance> {
         CircuitIO::new(&[(config.instance, &[0])], &[(config.instance, &[1])])
-    }
-
-    fn gate_callbacks() -> Option<Box<dyn GateCallbacks<F>>> {
-        Some(Box::new(GC))
     }
 }
 

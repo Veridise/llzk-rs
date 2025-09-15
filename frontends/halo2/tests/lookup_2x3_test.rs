@@ -8,9 +8,7 @@ use midnight_halo2_proofs::poly::Rotation;
 use std::iter;
 use std::marker::PhantomData;
 
-use halo2_llzk_frontend::{
-    CircuitCallbacks, CircuitIO, PicusParamsBuilder, lookups::callbacks::LookupCallbacks,
-};
+use halo2_llzk_frontend::{CircuitCallbacks, CircuitIO, PicusParamsBuilder};
 
 mod common;
 
@@ -33,6 +31,8 @@ fn lookup_2x3_circuit_picus() {
             .short_names()
             .no_optimize()
             .build(),
+        Some(&common::LookupCallbackHandler),
+        None,
         EXPECTED_PICUS,
     );
 }
@@ -218,15 +218,12 @@ impl<F: Field> Circuit<F> for Lookup2x3Circuit<F> {
     }
 }
 
-impl<F: Field> CircuitCallbacks<F, Self> for Lookup2x3Circuit<F> {
+impl<F: Field> CircuitCallbacks<F> for Lookup2x3Circuit<F> {
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }
 
     fn instance_io(config: &<Self as Circuit<F>>::Config) -> CircuitIO<Instance> {
         CircuitIO::new(&[(config.instance, &[0])], &[(config.instance, &[1])])
-    }
-    fn lookup_callbacks() -> Option<Box<dyn LookupCallbacks<F>>> {
-        Some(Box::new(common::LookupCallbackHandler))
     }
 }

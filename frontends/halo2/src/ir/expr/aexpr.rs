@@ -1,7 +1,9 @@
+//! Structs for handling arithmetic expressions.
+
 use crate::{
     backend::{
         func::FuncIO,
-        lowering::{ExprLowering, lowerable::LowerableExpr},
+        lowering::{lowerable::LowerableExpr, ExprLowering},
     },
     expressions::ScopedExpression,
     halo2::{Challenge, Expression, PrimeField},
@@ -13,14 +15,17 @@ use anyhow::Result;
 use internment::Intern;
 use num_bigint::BigUint;
 
+/// Represents a constant value.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Felt(Intern<BigUint>);
 
 impl Felt {
+    /// Creates a new felt from an implementation of [`PrimeField`].
     pub fn new<F: PrimeField>(f: F) -> Self {
         Self(Intern::new(BigUint::from_bytes_le(f.to_repr().as_ref())))
     }
 
+    /// Creates a new felt whose value is the prime in the [`PrimeField`].
     pub fn prime<F: PrimeField>() -> Self {
         let f = -F::ONE;
         Self(Intern::new(
@@ -44,11 +49,17 @@ impl AsRef<BigUint> for Felt {
 /// Represents an arithmetic expression.
 #[derive(PartialEq, Eq, Clone)]
 pub enum IRAexpr {
+    /// Constant value.
     Constant(Felt),
+    /// IO element of the circuit; inputs, outputs, cells, etc.
     IO(FuncIO),
+    /// A challenge.
     Challenge(Challenge),
+    /// Represents the negation of the inner expression.
     Negated(Box<IRAexpr>),
+    /// Represents the sum of the inner expressions.
     Sum(Box<IRAexpr>, Box<IRAexpr>),
+    /// Represents the product of the inner expresions.
     Product(Box<IRAexpr>, Box<IRAexpr>),
 }
 
@@ -179,11 +190,11 @@ impl LowerableExpr for IRAexpr {
 
 #[cfg(test)]
 mod tests {
-    use crate::CircuitIO;
     use crate::expressions::ScopedExpression;
     use crate::ir::equivalency::{EqvRelation as _, SymbolicEqv};
     use crate::resolvers::FixedQueryResolver;
     use crate::synthesis::regions::{RegionRow, Regions};
+    use crate::CircuitIO;
     use crate::{halo2::*, synthesis::regions::RegionData};
     use rstest::{fixture, rstest};
     type F = Fr;

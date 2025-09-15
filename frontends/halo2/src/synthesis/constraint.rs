@@ -120,6 +120,7 @@ impl<F: Field> From<(EqConstraintArg<F>, EqConstraintArg<F>)> for EqConstraint<F
 }
 
 /// Graph of equality constraints between cells and finite field values.
+#[derive(Debug)]
 pub struct EqConstraintGraph<F> {
     edges: BTreeSet<(EqConstraintArgSto, EqConstraintArgSto)>,
     vertices: BTreeSet<EqConstraintArgSto>,

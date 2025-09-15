@@ -1,18 +1,20 @@
+//! Structs for handling calls between groups.
+
 use crate::{
     backend::{
         func::FuncIO,
         lowering::{
-            Lowering,
             lowerable::{LowerableExpr, LowerableStmt},
+            Lowering,
         },
     },
     expressions::ScopedExpression,
-    halo2::{Field, groups::GroupKeyInstance},
+    halo2::{groups::GroupKeyInstance, Field},
     ir::{
-        CmpOp,
         equivalency::{EqvRelation, SymbolicEqv},
         expr::IRAexpr,
         stmt::IRStmt,
+        CmpOp,
     },
     synthesis::{
         groups::{Group, GroupCell},
@@ -143,14 +145,17 @@ impl<'s, F: Field> CallSite<ScopedExpression<'_, 's, F>> {
 }
 
 impl<E> CallSite<E> {
+    /// Returns the index in the groups list of the called group
     pub fn callee_id(&self) -> usize {
         self.callee_id
     }
 
+    /// Sets the name of the called group.
     pub fn set_name(&mut self, name: String) {
         self.name = name;
     }
 
+    /// Tries to transform the inner expression type into another.
     pub fn try_map<O>(self, f: &impl Fn(E) -> Result<O>) -> Result<CallSite<O>> {
         Ok(CallSite {
             name: self.name,

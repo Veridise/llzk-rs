@@ -1,4 +1,3 @@
-use crate::ir::stmt::IRStmt;
 use anyhow::Result;
 
 use super::{ExprLowering, Lowering};
@@ -54,104 +53,6 @@ impl<Lw: LowerableStmt> LowerableStmt for Box<Lw> {
         L: Lowering + ?Sized,
     {
         (*self).lower(l)
-    }
-}
-
-pub enum EitherLowerable<L, R> {
-    Left(L),
-    Right(R),
-}
-
-impl<L, R> EitherLowerable<L, R>
-where
-    L: Into<R>,
-{
-    /// If L: Into<R> fold this enum into R
-    pub fn fold_right(self) -> R {
-        match self {
-            EitherLowerable::Left(l) => l.into(),
-            EitherLowerable::Right(r) => r,
-        }
-    }
-}
-
-impl<L, R> EitherLowerable<L, R>
-where
-    R: Into<L>,
-{
-    /// If R: Into<L> fold this enum into L
-    pub fn fold_left(self) -> L {
-        match self {
-            EitherLowerable::Left(l) => l,
-            EitherLowerable::Right(r) => r.into(),
-        }
-    }
-}
-
-impl<T> EitherLowerable<T, T> {
-    pub fn unwrap(self) -> T {
-        match self {
-            EitherLowerable::Left(l) => l,
-            EitherLowerable::Right(r) => r,
-        }
-    }
-}
-
-impl<L, R> EitherLowerable<IRStmt<L>, IRStmt<R>>
-where
-    L: Into<R>,
-{
-    /// If L: Into<R> fold this enum into R
-    pub fn fold_stmt_right(self) -> IRStmt<R> {
-        match self {
-            EitherLowerable::Left(l) => l.map(&Into::into),
-            EitherLowerable::Right(r) => r,
-        }
-    }
-}
-
-impl<L, R> EitherLowerable<IRStmt<L>, IRStmt<R>>
-where
-    R: Into<L>,
-{
-    /// If R: Into<L> fold this enum into L
-    pub fn fold_stmt_left(self) -> IRStmt<L> {
-        match self {
-            EitherLowerable::Left(l) => l,
-            EitherLowerable::Right(r) => r.map(&Into::into),
-        }
-    }
-}
-
-impl<Left, Right> LowerableExpr for EitherLowerable<Left, Right>
-where
-    Left: LowerableExpr,
-    Right: LowerableExpr,
-{
-    fn lower<L>(self, l: &L) -> Result<L::CellOutput>
-    where
-        L: ExprLowering + ?Sized,
-    {
-        match self {
-            EitherLowerable::Left(left) => left.lower(l),
-            EitherLowerable::Right(right) => right.lower(l),
-        }
-    }
-}
-
-impl<Left, Right> LowerableStmt for EitherLowerable<Left, Right>
-where
-    Left: LowerableStmt,
-    Right: LowerableStmt,
-{
-    fn lower<L>(self, l: &L) -> Result<()>
-    where
-        L: Lowering + ?Sized,
-    {
-        match self {
-            EitherLowerable::Left(left) => left.lower(l),
-            EitherLowerable::Right(right) => right.lower(l),
-        }
     }
 }
 

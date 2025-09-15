@@ -2,23 +2,22 @@
 
 use std::{collections::HashSet, convert::identity};
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use constraint::{EqConstraint, EqConstraintArg, EqConstraintGraph};
 use groups::{Group, GroupBuilder, GroupCell, Groups};
 use regions::{FixedData, RegionIndexToStart, TableData};
 
 use crate::{
-    CircuitIO,
     gates::AnyQuery,
     halo2::{
-        Field,
         groups::{GroupKey, RegionsGroup},
-        *,
+        Field, *,
     },
     io::{AdviceIO, IOCell, InstanceIO},
     lookups::{Lookup, LookupTableRow},
     resolvers::FixedQueryResolver,
     value::steal,
+    CircuitIO,
 };
 
 pub mod constraint;
@@ -26,6 +25,7 @@ pub mod groups;
 pub mod regions;
 
 /// Result of synthesizing a circuit.
+#[derive(Debug)]
 pub struct CircuitSynthesis<F: Field> {
     cs: ConstraintSystem<F>,
     eq_constraints: EqConstraintGraph<F>,

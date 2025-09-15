@@ -39,7 +39,7 @@ struct ModuleSummary {
 
 type TR<'a> = TextRepresentation<'a>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ModuleHeader(Ident);
 
 impl From<String> for ModuleHeader {
@@ -72,6 +72,7 @@ impl TextRepresentable for ModuleHeader {
     }
 }
 
+#[derive(Debug)]
 pub struct Module<K: VarKind> {
     pub(crate) name: ModuleHeader,
     pub(crate) stmts: Vec<Stmt>,

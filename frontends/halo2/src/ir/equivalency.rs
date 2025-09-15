@@ -2,6 +2,8 @@
 
 /// Defines an equivalence relation between two entities.
 pub trait EqvRelation<L, R = L> {
+    /// Returns true if L and R are equivalent under the implementation's definition of
+    /// equivalency.
     fn equivalent(lhs: &L, rhs: &R) -> bool;
 }
 
@@ -22,4 +24,5 @@ impl<L, R, E: EqvRelation<L, R>> EqvRelation<Box<L>, Box<R>> for E {
 /// Symbolic in this context means that when comparing
 /// entities information that does not affect the semantics
 /// of what the entities are expression is ignored.
+#[derive(Debug)]
 pub struct SymbolicEqv;

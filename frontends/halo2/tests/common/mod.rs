@@ -2,33 +2,37 @@ use std::borrow::Cow;
 
 use ff::{Field, PrimeField};
 use halo2_llzk_frontend::{
-    CircuitCallbacks, PicusParams,
     driver::Driver,
     ir::stmt::IRStmt,
     lookups::{
-        Lookup,
         callbacks::{LookupCallbacks, LookupTableGenerator},
+        Lookup,
     },
+    CircuitCallbacks, GateCallbacks, PicusParams,
 };
 use log::LevelFilter;
-use midnight_halo2_proofs::plonk::{Circuit, Expression};
+use midnight_halo2_proofs::plonk::Expression;
 use simplelog::{Config, TestLogger};
 
 pub fn setup() {
     let _ = TestLogger::init(LevelFilter::Debug, Config::default());
 }
 
-pub fn picus_test<F, C>(circuit: C, params: PicusParams, expected: impl AsRef<str>)
-where
+pub fn picus_test<F, C>(
+    circuit: C,
+    params: PicusParams,
+    lookups: Option<&dyn LookupCallbacks<F>>,
+    gates: Option<&dyn GateCallbacks<F>>,
+    expected: impl AsRef<str>,
+) where
     F: PrimeField,
-    C: Circuit<F> + CircuitCallbacks<F, C>,
+    C: CircuitCallbacks<F>,
 {
-    let mut driver = Driver::default();
-    driver.set_callbacks::<C>();
+    let driver = Driver::default();
     let syn = driver.synthesize(&circuit).unwrap();
 
     let ir_ctx = driver.create_ir_ctx(&syn).unwrap();
-    let unresolved = driver.generate_ir(&syn, &ir_ctx).unwrap();
+    let unresolved = driver.generate_ir(&syn, &ir_ctx, lookups, gates).unwrap();
     let resolved = unresolved.resolve(&ir_ctx).unwrap();
 
     let output = clean_string(

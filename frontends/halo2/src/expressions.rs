@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::{
     halo2::{Expression, Field},
     resolvers::{
-        FixedQueryResolver, QueryResolver, ResolversProvider, SelectorResolver, boxed_resolver,
+        boxed_resolver, FixedQueryResolver, QueryResolver, ResolversProvider, SelectorResolver,
     },
     synthesis::regions::{RegionData, RegionRow},
 };
@@ -15,6 +15,7 @@ pub mod utils;
 /// Indicates to the driver that the expression should be scoped in that row of the circuit.
 ///
 /// The expression is internally handled by a [`std::borrow::Cow`] and can be a reference or owned.
+#[derive(Debug)]
 pub struct ExpressionInRow<'e, F: Clone> {
     expr: Cow<'e, Expression<F>>,
     row: usize,

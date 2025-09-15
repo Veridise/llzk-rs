@@ -1,15 +1,20 @@
 use std::{borrow::Cow, cmp::Ordering, collections::HashSet, hash::Hash, ops::Range};
 
 use crate::{
-    expressions::{ScopedExpression, constant_folding::ConstantFolding, rewriter::rewrite_expr},
+    expressions::{constant_folding::ConstantFolding, rewriter::rewrite_expr, ScopedExpression},
     halo2::*,
     ir::stmt::IRStmt,
     resolvers::FixedQueryResolver,
     synthesis::regions::{RegionData, RegionRow},
 };
 
+/// Error emitted by the patterns that can indicate either that the pattern didn't match or that it
+/// failed.
+#[derive(Debug)]
 pub enum RewriteError {
+    /// Indicates that the pattern didn't match the gate.
     NoMatch,
+    /// Indicates that the pattern failed.
     Err(anyhow::Error),
 }
 
@@ -168,6 +173,18 @@ impl<'a, F: Field> GateScope<'a, F> {
     }
 }
 
+impl<F: PrimeField> std::fmt::Debug for GateScope<'_, F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GateScope")
+            .field("gate", &self.gate)
+            .field("region", &self.region)
+            .field("row_bounds", &self.row_bounds)
+            .field("advice_io", &self.advice_io)
+            .field("instance_io", &self.instance_io)
+            .finish()
+    }
+}
+
 /// The type used for rewriting the gates. Each expression has an associated row that is used as
 /// the base offset on the queries.
 pub type RewriteOutput<'a, F> = IRStmt<(usize, Cow<'a, Expression<F>>)>;
@@ -176,6 +193,9 @@ pub type RewriteOutput<'a, F> = IRStmt<(usize, Cow<'a, Expression<F>>)>;
 ///
 /// The rewrites performed by these patterns should be semantics preserving.
 pub trait GateRewritePattern<F> {
+    /// Checks if the gate matches the pattern.
+    ///
+    /// Returns Ok(()) if the pattern matched.
     #[allow(unused_variables)]
     fn match_gate<'a>(&self, gate: GateScope<'a, F>) -> Result<(), RewriteError>
     where
@@ -183,6 +203,8 @@ pub trait GateRewritePattern<F> {
     {
         panic!("Implement match_gate and rewrite_gate OR match_and_rewrite")
     }
+
+    /// Performs the rewriting of the gate.
     #[allow(unused_variables)]
     fn rewrite_gate<'a>(
         &self,
@@ -194,6 +216,7 @@ pub trait GateRewritePattern<F> {
         panic!("Implement match_gate and rewrite_gate OR match_and_rewrite")
     }
 
+    /// Checks if the gate matches the pattern and then performs the rewriting.
     fn match_and_rewrite<'a>(
         &self,
         gate: GateScope<'a, F>,
@@ -285,12 +308,10 @@ impl<F> GateRewritePattern<F> for RewritePatternSet<F> {
             RewriteError::NoMatch
         } else {
             log::debug!("Returning {} errors", errors.len());
-            RewriteError::Err(anyhow::anyhow!(
-                errors
-                    .into_iter()
-                    .flat_map(|e: anyhow::Error| [e.to_string(), "\n".to_string()])
-                    .collect::<String>()
-            ))
+            RewriteError::Err(anyhow::anyhow!(errors
+                .into_iter()
+                .flat_map(|e: anyhow::Error| [e.to_string(), "\n".to_string()])
+                .collect::<String>()))
         })
     }
 }

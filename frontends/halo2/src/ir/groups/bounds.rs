@@ -1,3 +1,5 @@
+//! Structs for checking if cells are within the bounds of a group.
+
 use crate::{
     halo2::{Any, Column, Field, Fixed},
     ir::generate::RegionByIndex,
@@ -28,10 +30,13 @@ pub struct GroupBounds<'a> {
 }
 
 impl<'a> GroupBounds<'a> {
+    /// Creates a new bound for the group.
     pub fn new(group: &'a Group, regions_by_index: &RegionByIndex) -> Self {
         Self::new_with_extra(group, regions_by_index, None)
     }
 
+    /// Creates a new bound for the group, optionally adding more cells that have to be considered
+    /// within bounds.
     pub fn new_with_extra(
         group: &'a Group,
         region_by_index: &RegionByIndex,
@@ -94,6 +99,7 @@ impl<'a> GroupBounds<'a> {
         }
     }
 
+    /// Returns true if the cell is within bounds of the group.
     pub fn within_bounds(&self, col: &Column<Any>, row: &usize) -> bool {
         cell_within_bounds(&self.cols_and_rows, *col, Some(*row)) || self.is_foreign_io(col, row)
     }
@@ -108,6 +114,7 @@ impl<'a> GroupBounds<'a> {
         self.io.contains(&(*col, *row))
     }
 
+    /// Returns true if the fixed cell is within bounds of the group.
     pub fn fixed_within_regions(&self, col: &Column<Fixed>) -> bool {
         cell_within_bounds(&self.cols_and_rows, (*col).into(), None)
     }
@@ -148,15 +155,24 @@ impl<'a> GroupBounds<'a> {
     }
 }
 
+/// Represents the different positions a cell can be wrt the bounds of a group.
+#[derive(Debug)]
 pub enum Bound {
+    /// The cell is inside the group and is internal.
     Within,
+    /// The cell is inside the group and marked as input/output.
     IO,
+    /// The cell is not inside the group but was markes as input/output.
     ForeignIO,
+    /// The cell is completely outside the group.
     Outside,
 }
 
 /// Result of checking a constraint against the bounds of a group.
+#[derive(Debug)]
 pub enum EqConstraintCheck {
+    /// Result of checking `any <-> any` constraints.
     AnyToAny(Bound, (Column<Any>, usize), Bound, (Column<Any>, usize)),
+    /// Result of checking `fixed <-> const` constraints.
     FixedToConst(Bound),
 }

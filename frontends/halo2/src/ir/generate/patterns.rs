@@ -1,12 +1,10 @@
 use crate::expressions::utils::ExprDebug;
-use crate::gates::{RewritePatternSet, find_selectors};
+use crate::gates::{find_selectors, RewritePatternSet};
 use crate::halo2::Expression;
 use crate::halo2::Field;
-use crate::ir::CmpOp;
 use crate::ir::stmt::IRStmt;
-use crate::{
-    GateCallbacks, GateRewritePattern, GateScope, RegionRowLike as _, RewriteError, RewriteOutput,
-};
+use crate::ir::CmpOp;
+use crate::{GateCallbacks, GateRewritePattern, GateScope, RewriteError, RewriteOutput};
 use std::{borrow::Cow, result::Result as StdResult};
 
 /// Default gate pattern that transforms each polynomial in a gate into an equality statement for

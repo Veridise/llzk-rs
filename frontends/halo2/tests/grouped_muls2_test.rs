@@ -51,6 +51,8 @@ fn grouped_muls2_circuit_picus() {
             .short_names()
             .no_optimize()
             .build(),
+        None,
+        None,
         EXPECTED_PICUS,
     );
 }
@@ -274,7 +276,7 @@ impl<F: Field> Circuit<F> for MulCircuit<F> {
     }
 }
 
-impl<F: Field> CircuitCallbacks<F, Self> for MulCircuit<F> {
+impl<F: Field> CircuitCallbacks<F> for MulCircuit<F> {
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }

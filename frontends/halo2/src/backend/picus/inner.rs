@@ -1,5 +1,5 @@
 use crate::backend::picus::PicusModule;
-use crate::backend::picus::{Pipeline, PipelineBuilder, params::PicusParams};
+use crate::backend::picus::{params::PicusParams, Pipeline, PipelineBuilder};
 
 use anyhow::Result;
 
@@ -11,6 +11,7 @@ use picus::{
     vars::VarStr,
 };
 
+#[derive(Debug)]
 pub struct PicusCodegenInner {
     params: PicusParams,
     modules: Vec<PicusModuleRef>,

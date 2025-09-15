@@ -54,6 +54,8 @@ fn fibonacci_circuit_picus() {
             .short_names()
             .no_optimize()
             .build(),
+        None,
+        None,
         EXPECTED_PICUS,
     );
 }
@@ -226,7 +228,7 @@ impl<F: Field> Circuit<F> for FibonacciCircuit<F> {
     }
 }
 
-impl<F: Field> CircuitCallbacks<F, Self> for FibonacciCircuit<F> {
+impl<F: Field> CircuitCallbacks<F> for FibonacciCircuit<F> {
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }

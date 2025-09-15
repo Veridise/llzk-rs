@@ -14,7 +14,7 @@ mod table;
 pub use data::RegionData;
 
 pub use fixed::FixedData;
-pub use region_row::{RegionRow, RegionRowLike};
+pub use region_row::RegionRow;
 pub use row::Row;
 pub use table::TableData;
 

@@ -1,21 +1,30 @@
+//! Intermediate representation of circuits. Synthesized circuits get transformed into the structs
+//! defined in this module and then the backend uses them to generate the final output.
+
 use anyhow::Result;
 use stmt::IRStmt;
 
 use crate::{
-    backend::func::{ArgNo, FieldId, FuncIO},
     expressions::{ExpressionInRow, ScopedExpression},
     halo2::RegionIndex,
     ir::{expr::IRAexpr, generate::region_data, groups::GroupBody},
     synthesis::CircuitSynthesis,
 };
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+/// Comparison operators between arithmetic expressions.
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum CmpOp {
+    /// Equality
     Eq,
+    /// Less than
     Lt,
+    /// Less of equal than
     Le,
+    /// Greater than
     Gt,
+    /// Greater or equal than
     Ge,
+    /// Not equal
     Ne,
 }
 
@@ -47,8 +56,12 @@ pub use ctx::IRCtx;
 
 // These structs are a WIP.
 
+/// Alias for a circuit that has not resolved its expressions yet and is still tied to the lifetime
+/// of the [`CircuitSynthesis`].
 pub type UnresolvedIRCircuit<'s, F> = IRCircuit<ScopedExpression<'s, 's, F>>;
 
+/// Represents the whole circuit.
+#[derive(Debug)]
 pub struct IRCircuit<T> {
     groups: Vec<GroupBody<T>>,
     regions_to_groups: Vec<usize>,
@@ -105,6 +118,7 @@ impl<'s, F: crate::halo2::PrimeField> UnresolvedIRCircuit<'s, F> {
 }
 
 impl<T> IRCircuit<T> {
+    /// Returns a list of the groups inside the circuit.
     pub fn groups(&self) -> &[GroupBody<T>] {
         &self.groups
     }
@@ -119,103 +133,5 @@ impl<T> IRCircuit<T> {
             .rev()
             .find(|g| g.is_main())
             .expect("A main group is required")
-    }
-}
-
-#[allow(dead_code)]
-pub struct IRMainFunction<T> {
-    advice_io: crate::io::AdviceIO,
-    instance_io: crate::io::InstanceIO,
-    body: IRStmt<T>,
-    /// Set of regions the main function encompases
-    regions: std::collections::HashSet<RegionIndex>,
-}
-
-impl<T> IRMainFunction<T> {
-    #[allow(dead_code)]
-    fn new(
-        advice_io: crate::io::AdviceIO,
-        instance_io: crate::io::InstanceIO,
-        body: IRStmt<T>,
-        regions: std::collections::HashSet<RegionIndex>,
-    ) -> Self {
-        Self {
-            advice_io,
-            instance_io,
-            body,
-            regions,
-        }
-    }
-}
-
-/// For compatibility with the lookup callbacks.
-pub type IRModule<T> = IRFunction<T>;
-
-pub struct IRFunction<T> {
-    name: String,
-    io: (usize, usize),
-    body: IRStmt<T>,
-    /// Set of regions the function encompases
-    regions: std::collections::HashSet<RegionIndex>,
-}
-
-impl<T> IRFunction<T> {
-    pub fn new<S>(name: S, inputs: usize, outputs: usize) -> Self
-    where
-        S: ToString,
-    {
-        Self::new_with_body(name, inputs, outputs, Default::default())
-    }
-
-    pub fn new_with_body<S>(name: S, inputs: usize, outputs: usize, body: IRStmt<T>) -> Self
-    where
-        S: ToString,
-    {
-        Self {
-            name: name.to_string(),
-            io: (inputs, outputs),
-            body,
-            regions: Default::default(),
-        }
-    }
-
-    pub fn new_with_stmts<S>(
-        name: S,
-        inputs: usize,
-        outputs: usize,
-        body: impl Iterator<Item = IRStmt<T>>,
-    ) -> Self
-    where
-        S: ToString,
-    {
-        Self::new_with_body(name, inputs, outputs, IRStmt::seq(body))
-    }
-
-    pub fn inputs(&self) -> Vec<FuncIO> {
-        (0..self.io.0).map(ArgNo::from).map(Into::into).collect()
-    }
-
-    pub fn outputs(&self) -> Vec<FuncIO> {
-        (0..self.io.1).map(FieldId::from).map(Into::into).collect()
-    }
-
-    pub fn map<O>(self, f: &impl Fn(T) -> O) -> IRFunction<O> {
-        let body = self.body.map(f);
-        IRFunction {
-            name: self.name,
-            io: self.io,
-            body,
-            regions: self.regions,
-        }
-    }
-
-    pub fn try_map<O>(self, f: &impl Fn(T) -> Result<O>) -> Result<IRFunction<O>> {
-        let body = self.body.try_map(f)?;
-        Ok(IRFunction {
-            name: self.name,
-            io: self.io,
-            body,
-            regions: self.regions,
-        })
     }
 }

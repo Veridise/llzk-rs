@@ -2,9 +2,9 @@ use std::{borrow::Borrow, collections::HashMap, ops::Deref};
 
 use crate::{
     halo2::{
+        groups::{GroupKey, GroupKeyInstance},
         Advice, Any, Cell, Column, ColumnType, Expression, Field, Gate, Instance, RegionIndex,
         Rotation,
-        groups::{GroupKey, GroupKeyInstance},
     },
     io::{AdviceIO, IOCell, InstanceIO},
     lookups::Lookup,
@@ -236,6 +236,7 @@ impl Group {
 /// A collection of groups.
 ///
 /// It is represented with a newtype to be able to add methods to this type.
+#[derive(Debug)]
 pub struct Groups(Vec<Group>);
 
 impl Groups {

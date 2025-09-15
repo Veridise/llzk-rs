@@ -1,3 +1,5 @@
+//! Structs for handling lookups from the client side.
+
 use std::{borrow::Cow, cell::LazyCell};
 
 use crate::{
@@ -8,19 +10,17 @@ use anyhow::{Error, Result};
 
 use super::{Lookup, LookupTableRow};
 
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub enum LookupIO {
-    I,
-    O,
-}
-
+/// Type alias for a result of creating a boxed slice representing the rows in the table.
 pub type LookupTableBox<F> = Result<Box<[LookupTableRow<F>]>>;
 
+/// Implementations of this trait compute the complete table for a lookup.
 pub trait LookupTableGenerator<F> {
+    /// Returns the lookup table.
     fn table(&self) -> Result<&[LookupTableRow<F>], &Error>;
 }
 
-pub struct LazyLookupTableGenerator<F, FN>
+/// Lazy lookup table generator.
+pub(crate) struct LazyLookupTableGenerator<F, FN>
 where
     FN: FnOnce() -> LookupTableBox<F>,
 {
@@ -31,6 +31,7 @@ impl<F, FN> LazyLookupTableGenerator<F, FN>
 where
     FN: FnOnce() -> LookupTableBox<F>,
 {
+    /// Creates a new lazy generator using the given closure.
     pub fn new(f: FN) -> Self {
         Self {
             table: LazyCell::new(f),
@@ -46,7 +47,15 @@ impl<F: Field, FN: FnOnce() -> LookupTableBox<F>> LookupTableGenerator<F>
     }
 }
 
+impl<F, FN: FnOnce() -> LookupTableBox<F>> std::fmt::Debug for LazyLookupTableGenerator<F, FN> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LazyLookupTableGenerator").finish()
+    }
+}
+
+/// Callback trait for defering to the client how to handle the logic of a lookup.
 pub trait LookupCallbacks<F: Field> {
+    /// Called on each lookup the circuit defines.
     fn on_lookup<'a>(
         &self,
         lookup: Lookup<'a, F>,

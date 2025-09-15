@@ -1,9 +1,11 @@
-use super::{CmpOp, equivalency::EqvRelation, expr::IRBexpr};
+//! Structs for representing statements of the circuit's logic.
+
+use super::{equivalency::EqvRelation, expr::IRBexpr, CmpOp};
 use crate::backend::{
     func::FuncIO,
     lowering::{
+        lowerable::{LowerableExpr, LowerableStmt},
         Lowering,
-        lowerable::{EitherLowerable, LowerableExpr, LowerableStmt},
     },
 };
 use anyhow::Result;
@@ -24,11 +26,17 @@ use seq::Seq;
 
 /// IR for operations that occur in the main circuit.
 pub enum IRStmt<T> {
+    /// A call to another module.
     ConstraintCall(Call<T>),
+    /// A constraint between two expressions.
     Constraint(Constraint<T>),
+    /// A text comment.
     Comment(Comment),
+    /// Indicates that a [`FuncIO`] must be assumed deterministic by the backend.
     AssumeDeterministic(AssumeDeterministic),
+    /// A constraint that a [`IRBexpr`] must be true.
     Assert(Assert<T>),
+    /// A sequence of statements.
     Seq(Seq<T>),
 }
 
@@ -68,6 +76,7 @@ impl<T: std::fmt::Debug> std::fmt::Debug for IRStmt<T> {
 }
 
 impl<T> IRStmt<T> {
+    /// Creates a call to another module.
     pub fn call(
         callee: impl AsRef<str>,
         inputs: impl IntoIterator<Item = T>,
@@ -76,22 +85,27 @@ impl<T> IRStmt<T> {
         Call::new(callee, inputs, outputs).into()
     }
 
+    /// Creates a constraint between two expressions.
     pub fn constraint(op: CmpOp, lhs: T, rhs: T) -> Self {
         Constraint::new(op, lhs, rhs).into()
     }
 
+    /// Creates a text comment.
     pub fn comment(s: impl AsRef<str>) -> Self {
         Comment::new(s).into()
     }
 
+    /// Indicates that the [`FuncIO`] must be assumed deterministic by the backend.
     pub fn assume_deterministic(f: impl Into<FuncIO>) -> Self {
         AssumeDeterministic::new(f.into()).into()
     }
 
+    /// Creates an assertion in the circuit.
     pub fn assert(cond: IRBexpr<T>) -> Self {
         Assert::new(cond).into()
     }
 
+    /// Creates a statement that is a sequence of other statements.
     pub fn seq<I>(stmts: impl IntoIterator<Item = IRStmt<I>>) -> Self
     where
         I: Into<T>,
@@ -99,10 +113,12 @@ impl<T> IRStmt<T> {
         Seq::new(stmts).into()
     }
 
+    /// Creates an empty statement.
     pub fn empty() -> Self {
         Seq::empty().into()
     }
 
+    /// Returns true if the statement is empty.
     pub fn is_empty(&self) -> bool {
         match self {
             IRStmt::Seq(s) => s.is_empty(),
@@ -110,6 +126,7 @@ impl<T> IRStmt<T> {
         }
     }
 
+    /// Transforms the inner expression type into another.
     pub fn map<O>(self, f: &impl Fn(T) -> O) -> IRStmt<O> {
         match self {
             IRStmt::ConstraintCall(call) => call.map(f).into(),
@@ -121,6 +138,7 @@ impl<T> IRStmt<T> {
         }
     }
 
+    /// Transforms the inner expression type into another, without moving.
     pub fn map_into<O>(&self, f: &impl Fn(&T) -> O) -> IRStmt<O> {
         match self {
             IRStmt::ConstraintCall(call) => call.map_into(f).into(),
@@ -132,6 +150,7 @@ impl<T> IRStmt<T> {
         }
     }
 
+    /// Tries to transform the inner expression type into another.
     pub fn try_map<O>(self, f: &impl Fn(T) -> Result<O>) -> Result<IRStmt<O>> {
         Ok(match self {
             IRStmt::ConstraintCall(call) => call.try_map(f)?.into(),
@@ -148,6 +167,7 @@ impl<T> IRStmt<T> {
         })
     }
 
+    /// Tries to modify the inner expression type in place.
     pub fn try_map_inplace(&mut self, f: &impl Fn(&mut T) -> Result<()>) -> Result<()> {
         match self {
             IRStmt::ConstraintCall(call) => call.try_map_inplace(f),
@@ -224,6 +244,8 @@ impl<T> Default for IRStmt<T> {
     }
 }
 
+/// Iterator of statements.
+#[derive(Debug)]
 pub struct IRStmtIter<T> {
     stack: Vec<IRStmt<T>>,
 }
@@ -258,12 +280,6 @@ impl<T> IntoIterator for IRStmt<T> {
 impl<I> FromIterator<IRStmt<I>> for IRStmt<I> {
     fn from_iter<T: IntoIterator<Item = IRStmt<I>>>(iter: T) -> Self {
         Self::seq(iter)
-    }
-}
-
-impl<T> IRStmt<EitherLowerable<T, T>> {
-    pub fn unwrap(self) -> IRStmt<T> {
-        self.map(&EitherLowerable::<T, T>::unwrap)
     }
 }
 

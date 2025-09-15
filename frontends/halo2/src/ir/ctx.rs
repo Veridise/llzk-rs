@@ -1,16 +1,17 @@
 use std::collections::HashMap;
 
-use crate::CircuitIO;
 use crate::halo2::{Advice, Any, Instance};
 use crate::halo2::{Field, RegionIndex};
 use crate::io::IOCell;
-use crate::ir::generate::free_cells::{FreeCells, lift_free_cells_to_inputs};
-use crate::ir::generate::{RegionByIndex, region_data};
-use crate::synthesis::CircuitSynthesis;
+use crate::ir::generate::free_cells::{lift_free_cells_to_inputs, FreeCells};
+use crate::ir::generate::{region_data, RegionByIndex};
 use crate::synthesis::groups::{Group, GroupCell};
+use crate::synthesis::CircuitSynthesis;
+use crate::CircuitIO;
 
 /// Contains information related to the IR of a circuit. Is used by the driver to lower the
 /// circuit.
+#[derive(Debug)]
 pub struct IRCtx<'s> {
     groups_advice_io: HashMap<usize, crate::io::AdviceIO>,
     groups_instance_io: HashMap<usize, crate::io::InstanceIO>,

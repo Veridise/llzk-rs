@@ -1,13 +1,13 @@
 use crate::{
-    CircuitIO,
     backend::func::{ArgNo, FieldId, FuncIO},
     halo2::*,
     io::{AdviceIO, IOCell, InstanceIO},
     resolvers::{
         FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
     },
+    CircuitIO,
 };
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 
 #[derive(Copy, Clone)]
 pub struct Row<'io, 'fq, F: Field> {
@@ -149,5 +149,15 @@ impl<F: Field> QueryResolver<F> for Row<'_, '_, F> {
 impl<F: Field> SelectorResolver for Row<'_, '_, F> {
     fn resolve_selector(&self, _selector: &Selector) -> Result<ResolvedSelector> {
         unreachable!()
+    }
+}
+
+impl<F: Field> std::fmt::Debug for Row<'_, '_, F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Row")
+            .field("row", &self.row)
+            .field("advice_io", &self.advice_io)
+            .field("instance_io", &self.instance_io)
+            .finish()
     }
 }

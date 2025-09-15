@@ -1,3 +1,5 @@
+//! Structs for handling expressions.
+
 pub mod aexpr;
 pub mod bexpr;
 

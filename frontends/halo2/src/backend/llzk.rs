@@ -15,6 +15,7 @@ mod state;
 
 pub type LlzkBackend<'c, 's> = Backend<LlzkCodegen<'c, 's>, LlzkCodegenState<'c>>;
 
+#[derive(Debug)]
 pub struct LlzkOutput<'c> {
     module: Module<'c>,
 }

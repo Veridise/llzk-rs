@@ -5,7 +5,7 @@ use picus::felt::Felt;
 
 use crate::halo2::PrimeField;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct FeltWrap<F: PrimeField>(F);
 
 impl<F: PrimeField> Deref for FeltWrap<F> {

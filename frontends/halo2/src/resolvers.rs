@@ -47,6 +47,8 @@ where
     }
 }
 
+/// Represents the value of selector.
+#[derive(Debug)]
 pub struct Bool(bool);
 
 impl From<bool> for Bool {
@@ -60,10 +62,16 @@ impl Bool {
     where
         F: Field,
     {
-        if self.0 { F::ONE } else { F::ZERO }
+        if self.0 {
+            F::ONE
+        } else {
+            F::ZERO
+        }
     }
 }
 
+/// Possible values when resolving a selector.
+#[derive(Debug)]
 pub enum ResolvedSelector {
     // When the selector is used as argument.
     Const(Bool),
@@ -85,16 +93,11 @@ impl From<bool> for ResolvedSelector {
 
 /// Resolver that returns the value or the variable that is representing the selector.
 pub trait SelectorResolver {
+    /// Resolved the selector and returns its value.
     fn resolve_selector(&self, selector: &Selector) -> Result<ResolvedSelector>;
 }
 
-#[allow(dead_code)]
-pub enum QueryKind {
-    Advice,
-    Fixed,
-    Instance,
-}
-
+/// Possible results of resolving a query.
 #[derive(Copy, Clone, Debug)]
 pub enum ResolvedQuery<F> {
     // Literal field value
@@ -128,15 +131,19 @@ impl<F: Field> From<FuncIO> for ResolvedQuery<F> {
 
 /// Resolver trait that only supports fixed cell queries.
 pub trait FixedQueryResolver<F: Field> {
+    /// Resolved the fixed query and returns its assigned value during synthesis.
     fn resolve_query(&self, query: &FixedQuery, row: usize) -> Result<F>;
 }
 
 /// Resolver trait that converts a query to a cell into a constant value or a variable.
 pub trait QueryResolver<F: Field> {
+    /// Resolves a fixed query.
     fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>>;
 
+    /// Resolves an advice query.
     fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<ResolvedQuery<F>>;
 
+    /// Resolves an instance query.
     fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>>;
 }
 
