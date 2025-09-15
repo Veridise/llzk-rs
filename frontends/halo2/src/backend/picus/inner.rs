@@ -39,7 +39,7 @@ impl PicusCodegenInner {
     }
 
     pub fn prime(&self) -> &picus::felt::Felt {
-        &self.params.prime()
+        self.params.prime()
     }
 
     pub fn optimization_pipeline(&self) -> Option<Pipeline> {

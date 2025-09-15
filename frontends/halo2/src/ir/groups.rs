@@ -81,8 +81,8 @@ impl<'cb, 's, F: Field> GroupBody<ScopedExpression<'s, 's, F>> {
             ctx.syn().gates(),
             &group.regions(),
             ctx.patterns(),
-            &advice_io,
-            &instance_io,
+            advice_io,
+            instance_io,
             ctx.syn().fixed_query_resolver(),
         )?);
         //.and_then(scoped_exprs_to_aexpr)?;
@@ -100,8 +100,8 @@ impl<'cb, 's, F: Field> GroupBody<ScopedExpression<'s, 's, F>> {
         );
         let eq_constraints = IRStmt::seq(inter_region_constraints(
             eq_constraints,
-            &advice_io,
-            &instance_io,
+            advice_io,
+            instance_io,
             ctx.syn().fixed_query_resolver(),
         ));
         // Relativize the advice cells used in the constraints
@@ -307,10 +307,10 @@ impl<E: Clone> Clone for GroupBody<E> {
     fn clone(&self) -> Self {
         Self {
             name: self.name.clone(),
-            id: self.id.clone(),
+            id: self.id,
             input_count: self.input_count,
             output_count: self.output_count,
-            key: self.key.clone(),
+            key: self.key,
             gates: self.gates.clone(),
             eq_constraints: self.eq_constraints.clone(),
             callsites: self.callsites.clone(),
@@ -408,9 +408,9 @@ pub fn inter_region_constraints<'s, F: Field>(
 }
 
 /// Uses the given rewrite patterns to lower the gates on each region.
-fn lower_gates<'a, 'r, F: Field>(
+fn lower_gates<'a, F: Field>(
     gates: &'a [Gate<F>],
-    regions: &'r [RegionData<'a>],
+    regions: &[RegionData<'a>],
     patterns: &RewritePatternSet<F>,
     advice_io: &'a CircuitIO<Advice>,
     instance_io: &'a CircuitIO<Instance>,

@@ -161,13 +161,13 @@ impl<E> CallSite<E> {
             inputs: self
                 .inputs
                 .into_iter()
-                .map(|e| f(e))
+                .map(f)
                 .collect::<Result<Vec<_>, _>>()?,
             output_vars: self.output_vars,
             outputs: self
                 .outputs
                 .into_iter()
-                .map(|e| f(e))
+                .map(f)
                 .collect::<Result<Vec<_>, _>>()?,
         })
     }
@@ -199,8 +199,8 @@ impl<E: Clone> Clone for CallSite<E> {
     fn clone(&self) -> Self {
         Self {
             name: self.name.clone(),
-            callee: self.callee.clone(),
-            callee_id: self.callee_id.clone(),
+            callee: self.callee,
+            callee_id: self.callee_id,
             inputs: self.inputs.clone(),
             output_vars: self.output_vars.clone(),
             outputs: self.outputs.clone(),
