@@ -1,16 +1,12 @@
 use anyhow::Result;
 use stmt::IRStmt;
 
-use crate::halo2::{Advice, Instance};
-use crate::ir::expr::IRAexpr;
-use crate::ir::generate::{region_data, RegionByIndex};
-use crate::synthesis::CircuitSynthesis;
-use crate::CircuitIO;
 use crate::{
     backend::func::{ArgNo, FieldId, FuncIO},
     expressions::{ExpressionInRow, ScopedExpression},
     halo2::RegionIndex,
-    ir::groups::GroupBody,
+    ir::{expr::IRAexpr, generate::region_data, groups::GroupBody},
+    synthesis::CircuitSynthesis,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -39,9 +35,6 @@ impl std::fmt::Display for CmpOp {
         )
     }
 }
-
-#[cfg(feature = "lift-field-operations")]
-pub mod lift;
 
 mod ctx;
 pub mod equivalency;
@@ -131,8 +124,8 @@ impl<T> IRCircuit<T> {
 
 #[allow(dead_code)]
 pub struct IRMainFunction<T> {
-    advice_io: CircuitIO<Advice>,
-    instance_io: CircuitIO<Instance>,
+    advice_io: crate::io::AdviceIO,
+    instance_io: crate::io::InstanceIO,
     body: IRStmt<T>,
     /// Set of regions the main function encompases
     regions: std::collections::HashSet<RegionIndex>,
@@ -141,8 +134,8 @@ pub struct IRMainFunction<T> {
 impl<T> IRMainFunction<T> {
     #[allow(dead_code)]
     fn new(
-        advice_io: CircuitIO<Advice>,
-        instance_io: CircuitIO<Instance>,
+        advice_io: crate::io::AdviceIO,
+        instance_io: crate::io::InstanceIO,
         body: IRStmt<T>,
         regions: std::collections::HashSet<RegionIndex>,
     ) -> Self {

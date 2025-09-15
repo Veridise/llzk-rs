@@ -1,7 +1,5 @@
 use crate::backend::picus::PicusModule;
 use crate::backend::picus::{params::PicusParams, Pipeline, PipelineBuilder};
-#[cfg(feature = "lift-field-operations")]
-use crate::ir::lift::{LiftIRGuard, LiftLike};
 
 use anyhow::Result;
 
@@ -70,12 +68,7 @@ impl PicusCodegenInner {
         let module = PicusModule::shared(name.clone(), inputs, outputs);
 
         self.modules.push(module.clone());
-        let scope = PicusModuleLowering::new(
-            module,
-            #[cfg(feature = "lift-field-operations")]
-            self.params.lift_fixed(),
-            self.params.naming_convention(),
-        );
+        let scope = PicusModuleLowering::new(module, self.params.naming_convention());
         log::debug!("Setting the scope to {name}");
         self.current_scope = Some(scope.clone());
         Ok(scope)

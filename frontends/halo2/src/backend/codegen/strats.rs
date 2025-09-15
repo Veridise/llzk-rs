@@ -1,10 +1,7 @@
 pub mod inline {
 
-    use std::borrow::Cow;
-
     use crate::{
         backend::codegen::{Codegen, CodegenStrategy},
-        io::AllCircuitIO,
         ir::{expr::IRAexpr, IRCircuit, IRCtx},
     };
     use anyhow::Result;
@@ -20,14 +17,9 @@ pub mod inline {
             codegen: &C,
             ctx: &IRCtx,
             ir: &IRCircuit<IRAexpr>,
-            //lookups: &dyn LookupCallbacks<C::F>,
-            //gate_cbs: &dyn GateCallbacks<C::F>,
-            //injector: &mut dyn crate::IRInjectCallback<C::F>,
         ) -> Result<()>
         where
             C: Codegen<'c, 'st>,
-            //Row<'s, 's, C::F>: ResolversProvider<C::F> + 's,
-            //RegionRow<'s, 's, 's, C::F>: ResolversProvider<C::F> + 's,
         {
             log::debug!(
                 "Performing codegen with {} strategy",
@@ -35,73 +27,12 @@ pub mod inline {
             );
 
             log::debug!("Generating main body");
-            let io = AllCircuitIO {
-                advice: Cow::Borrowed(ctx.advice_io_of_group(ir.main().id())),
-                instance: Cow::Borrowed(ctx.instance_io_of_group(ir.main().id())),
-            };
-            codegen.define_main_function_with_body(io, ir.groups().to_vec())
-
-            //codegen.within_main(ir.main().all_io(), move |_| {
-            //    Ok([ir.groups().to_vec()])
-            //let patterns = load_patterns(gate_cbs);
-            //
-            //let mut stmts: Vec<IRStmt<_>> = vec![];
-            //let top_level = syn
-            //    .top_level_group()
-            //    .ok_or_else(|| anyhow::anyhow!("Circuit synthesis is missing a top level group"))?;
-            //let advice_io = top_level.advice_io();
-            //let instance_io = top_level.instance_io();
-            //for group in syn.groups() {
-            //    // Do the region stmts first since backends may have more information about names for
-            //    // cells there and some backends do not update the name and always use the first
-            //    // one given.
-            //
-            //    log::debug!("Lowering gates");
-            //    stmts.extend(
-            //        lower_gates(
-            //            syn.gates(),
-            //            &group.regions(),
-            //            &patterns,
-            //            advice_io,
-            //            instance_io,
-            //            syn.fixed_query_resolver(),
-            //        )
-            //        .and_then(scoped_exprs_to_aexpr)?,
-            //    );
-            //    log::debug!("Lowering lookups");
-            //    stmts.extend(
-            //        codegen_lookup_invocations(
-            //            syn,
-            //            group.region_rows(syn.fixed_query_resolver()).as_slice(),
-            //            lookups,
-            //        )
-            //        .and_then(scoped_exprs_to_aexpr)?,
-            //    );
-            //    log::debug!("Lowering inter region equality constraints");
-            //    stmts.extend(scoped_exprs_to_aexpr(inter_region_constraints(
-            //        syn.constraints().edges(),
-            //        advice_io,
-            //        instance_io,
-            //        syn.fixed_query_resolver(),
-            //    )));
-            //
-            //    for region in group.regions() {
-            //        let index = region
-            //            .index()
-            //            .ok_or_else(|| anyhow::anyhow!("Region does not have an index"))?;
-            //        let start = region.start().unwrap_or_default();
-            //        if let Some(ir) = injector.inject(index, start) {
-            //            stmts.push(crate::backend::codegen::lower_injected_ir(
-            //                ir,
-            //                region,
-            //                advice_io,
-            //                instance_io,
-            //                syn.fixed_query_resolver(),
-            //            )?);
-            //        }
-            //    }
-            //}
-            //Ok(stmts)
+            let main_id = ir.main().id();
+            codegen.define_main_function_with_body(
+                ctx.advice_io_of_group(main_id),
+                ctx.instance_io_of_group(main_id),
+                ir.groups().to_vec(),
+            )
         }
     }
 }
@@ -109,7 +40,6 @@ pub mod inline {
 pub mod groups {
 
     use crate::halo2::groups::GroupKeyInstance;
-    use crate::io::AllCircuitIO;
     use crate::ir::groups::GroupBody;
     use crate::ir::IRCtx;
     use crate::{
@@ -122,12 +52,7 @@ pub mod groups {
         utils,
     };
     use anyhow::Result;
-    use std::borrow::Cow;
     use std::collections::{HashMap, HashSet};
-
-    //mod body;
-    //mod bounds;
-    //mod callsite;
 
     /// Code generation strategy that write the code of each group in a separate function.
     #[derive(Default)]
@@ -139,44 +64,10 @@ pub mod groups {
             codegen: &C,
             ctx: &IRCtx,
             ir: &IRCircuit<IRAexpr>,
-            //lookups: &dyn LookupCallbacks<C::F>,
-            //gate_cbs: &dyn GateCallbacks<C::F>,
-            //injector: &mut dyn crate::IRInjectCallback<C::F>,
         ) -> Result<()>
         where
             C: Codegen<'c, 'st>,
-            //Row<'s, 's, C::F>: ResolversProvider<C::F> + 's,
-            //RegionRow<'s, 's, 's, C::F>: ResolversProvider<C::F> + 's,
         {
-            //log::debug!("Circuit synthesis has {} gates", syn.gates().len());
-            //let patterns = load_patterns(gate_cbs);
-            //let regions = region_data(syn)?;
-            //let ctx = GroupIRCtx {
-            //    groups: syn.groups(),
-            //    regions_by_index: &regions,
-            //    syn,
-            //    patterns: &patterns,
-            //    lookup_cb,
-            //};
-            //
-            //log::debug!("Generating step 1 IR of region groups");
-            //
-            //let free_cells = free_cells::lift_free_cells_to_inputs(syn.groups(), ctx)?;
-            //
-            //let mut groups_ir = ctx
-            //    .groups
-            //    .iter()
-            //    .enumerate()
-            //    .map(|(id, g)| GroupBody::new(g, id, ctx, &free_cells[id], injector))
-            //    .collect::<Result<Vec<_>, _>>()?;
-            //
-            //// Sanity check, only one group should be considered main.
-            //assert_eq!(
-            //    groups_ir.iter().filter(|g| g.is_main()).count(),
-            //    1,
-            //    "Only one main group is allowed"
-            //);
-
             let mut groups_ir = ir.groups().to_vec();
             // Select leaders and generate the final names.
             // If the group was renamed its index will contain Some(_).
@@ -197,21 +88,19 @@ pub mod groups {
             // Create a function per group.
             for group in groups_ir {
                 log::debug!("Group {group:#?}");
-                let io = AllCircuitIO {
-                    advice: Cow::Borrowed(ctx.advice_io_of_group(group.id())),
-                    instance: Cow::Borrowed(ctx.instance_io_of_group(group.id())),
-                };
+                let advice_io = ctx.advice_io_of_group(group.id());
+                let instance_io = ctx.instance_io_of_group(group.id());
                 if group.is_main() {
                     log::debug!("Generating main body");
-                    codegen.define_main_function_with_body(io, [group])?;
+                    codegen.define_main_function_with_body(advice_io, instance_io, [group])?;
                 } else {
                     log::debug!("Generating body of function {}", group.name());
                     let name = group.name().to_owned();
 
                     codegen.define_function_with_body(
                         &name,
-                        io.input_count(),
-                        io.output_count(),
+                        advice_io.inputs_count() + instance_io.inputs_count(),
+                        advice_io.outputs_count() + instance_io.outputs_count(),
                         |_, _, _| Ok([group]),
                     )?;
                 }

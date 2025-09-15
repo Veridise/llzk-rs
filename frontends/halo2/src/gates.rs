@@ -1,16 +1,12 @@
-use std::borrow::Cow;
-use std::cmp::Ordering;
-use std::collections::HashSet;
-use std::hash::Hash;
-use std::ops::Range;
+use std::{borrow::Cow, cmp::Ordering, collections::HashSet, hash::Hash, ops::Range};
 
-use crate::backend::resolvers::FixedQueryResolver;
-use crate::expressions::constant_folding::ConstantFolding;
-use crate::expressions::rewriter::rewrite_expr;
-use crate::expressions::ScopedExpression;
-use crate::ir::stmt::IRStmt;
-use crate::synthesis::regions::{RegionData, RegionRow};
-use crate::{halo2::*, CircuitIO};
+use crate::{
+    expressions::{constant_folding::ConstantFolding, rewriter::rewrite_expr, ScopedExpression},
+    halo2::*,
+    ir::stmt::IRStmt,
+    resolvers::FixedQueryResolver,
+    synthesis::regions::{RegionData, RegionRow},
+};
 
 pub enum RewriteError {
     NoMatch,
@@ -30,8 +26,8 @@ where
     region: RegionData<'a>,
     /// The bounds are [start,end).
     row_bounds: (usize, usize),
-    advice_io: &'a CircuitIO<Advice>,
-    instance_io: &'a CircuitIO<Instance>,
+    advice_io: &'a crate::io::AdviceIO,
+    instance_io: &'a crate::io::InstanceIO,
     fqr: &'a dyn FixedQueryResolver<F>,
 }
 
@@ -43,8 +39,8 @@ impl<'a, F: Field> GateScope<'a, F> {
         gate: &'a Gate<F>,
         region: RegionData<'a>,
         row_bounds: (usize, usize),
-        advice_io: &'a CircuitIO<Advice>,
-        instance_io: &'a CircuitIO<Instance>,
+        advice_io: &'a crate::io::AdviceIO,
+        instance_io: &'a crate::io::InstanceIO,
         fqr: &'a dyn FixedQueryResolver<F>,
     ) -> Self {
         Self {

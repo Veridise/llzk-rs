@@ -1,4 +1,4 @@
-//! Traits for defining equivalence relations between types
+//! Trait for defining equivalence relations between types
 
 /// Defines an equivalence relation between two entities.
 pub trait EqvRelation<L, R = L> {

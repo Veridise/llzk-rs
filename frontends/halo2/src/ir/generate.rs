@@ -4,15 +4,14 @@ use crate::{
     expressions::ScopedExpression,
     gates::RewritePatternSet,
     halo2::{Field, PrimeField, RegionIndex},
-    ir::{generate::patterns::load_patterns, groups::GroupBody, IRCircuit, IRCtx},
+    ir::{generate::patterns::load_patterns, groups::GroupBody, stmt::IRStmt, IRCircuit, IRCtx},
     lookups::callbacks::LookupCallbacks,
     synthesis::{groups::Group, regions::RegionData, CircuitSynthesis},
     GateCallbacks,
 };
 
 pub(super) mod free_cells;
-pub(crate) mod groups;
-pub(crate) mod inline;
+pub(crate) mod lookup;
 mod patterns;
 
 /// Generates an intermediate representation of the circuit from its synthesis.
@@ -91,6 +90,19 @@ pub(super) fn region_data<'s, F: Field>(
                 .ok_or_else(|| anyhow::anyhow!("Region {r:?} does not have an index"))
         })
         .collect()
+}
+
+/// If the given statement is not empty prepends a comment
+/// with contextual information.
+#[inline]
+fn prepend_comment<'a, F: Field>(
+    stmt: IRStmt<ScopedExpression<'a, 'a, F>>,
+    comment: impl FnOnce() -> IRStmt<ScopedExpression<'a, 'a, F>>,
+) -> IRStmt<ScopedExpression<'a, 'a, F>> {
+    if stmt.is_empty() {
+        return stmt;
+    }
+    [comment(), stmt].into_iter().collect()
 }
 
 pub(super) type RegionByIndex<'s> = HashMap<RegionIndex, RegionData<'s>>;

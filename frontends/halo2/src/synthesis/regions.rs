@@ -7,7 +7,6 @@ use std::{
 
 pub(super) mod data;
 mod fixed;
-mod fqn;
 mod region_row;
 mod row;
 mod table;
@@ -15,7 +14,6 @@ mod table;
 pub use data::RegionData;
 
 pub use fixed::FixedData;
-pub use fqn::FQN;
 pub use region_row::{RegionRow, RegionRowLike};
 pub use row::Row;
 pub use table::TableData;

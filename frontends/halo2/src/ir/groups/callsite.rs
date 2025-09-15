@@ -7,7 +7,7 @@ use crate::{
         },
     },
     expressions::ScopedExpression,
-    halo2::{groups::GroupKeyInstance, Advice, Field, Instance},
+    halo2::{groups::GroupKeyInstance, Field},
     ir::{
         equivalency::{EqvRelation, SymbolicEqv},
         expr::IRAexpr,
@@ -18,7 +18,6 @@ use crate::{
         groups::{Group, GroupCell},
         regions::{RegionData, RegionRow, Row},
     },
-    CircuitIO,
 };
 use anyhow::Result;
 
@@ -37,8 +36,8 @@ pub struct CallSite<E> {
 fn cells_to_exprs<'e, 's, F: Field>(
     cells: &[GroupCell],
     ctx: &super::GroupIRCtx<'_, 's, F>,
-    advice_io: &'s CircuitIO<Advice>,
-    instance_io: &'s CircuitIO<Instance>,
+    advice_io: &'s crate::io::AdviceIO,
+    instance_io: &'s crate::io::InstanceIO,
 ) -> anyhow::Result<Vec<ScopedExpression<'e, 's, F>>> {
     cells
         .iter()
@@ -91,7 +90,6 @@ fn cells_to_exprs<'e, 's, F: Field>(
                     ),
                 ),
             })
-            //.try_into()
         })
         .collect()
 }
@@ -111,8 +109,8 @@ impl<'s, F: Field> CallSite<ScopedExpression<'_, 's, F>> {
         callee_id: usize,
         ctx: &super::GroupIRCtx<'_, 's, F>,
         call_no: usize,
-        advice_io: &'s CircuitIO<Advice>,
-        instance_io: &'s CircuitIO<Instance>,
+        advice_io: &'s crate::io::AdviceIO,
+        instance_io: &'s crate::io::InstanceIO,
         free_cells: &[GroupCell],
     ) -> anyhow::Result<Self> {
         let callee_key = callee

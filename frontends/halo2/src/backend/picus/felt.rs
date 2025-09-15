@@ -4,8 +4,6 @@ use num_bigint::BigUint;
 use picus::felt::Felt;
 
 use crate::halo2::PrimeField;
-#[cfg(feature = "lift-field-operations")]
-use crate::ir::lift::LiftLike;
 
 #[derive(Default)]
 pub struct FeltWrap<F: PrimeField>(F);
@@ -36,11 +34,3 @@ impl<F: PrimeField> From<FeltWrap<F>> for Felt {
         Felt::new(BigUint::from_bytes_le(r.as_ref()))
     }
 }
-
-//impl<F: PrimeField> IntoPrime for FeltWrap<F> {
-//    fn prime() -> Felt {
-//        let mut f = FeltWrap(-F::ONE).into();
-//        f += 1;
-//        f
-//    }
-//}

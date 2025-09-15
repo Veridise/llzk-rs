@@ -1,13 +1,12 @@
 use std::borrow::Cow;
 
-use crate::backend::resolvers::{
-    boxed_resolver, FixedQueryResolver, QueryResolver, ResolversProvider, SelectorResolver,
+use crate::{
+    halo2::{Expression, Field},
+    resolvers::{
+        boxed_resolver, FixedQueryResolver, QueryResolver, ResolversProvider, SelectorResolver,
+    },
+    synthesis::regions::{RegionData, RegionRow},
 };
-use crate::halo2::{Advice, Instance};
-use crate::io::CircuitIO;
-use crate::synthesis::regions::{RegionData, RegionRow};
-
-use crate::halo2::{Expression, Field};
 
 pub mod constant_folding;
 pub mod rewriter;
@@ -43,8 +42,8 @@ impl<'e, F: Clone> ExpressionInRow<'e, F> {
     pub(crate) fn scoped_in_region_row<'r>(
         &self,
         region: RegionData<'r>,
-        advice_io: &'r CircuitIO<Advice>,
-        instance_io: &'r CircuitIO<Instance>,
+        advice_io: &'r crate::io::AdviceIO,
+        instance_io: &'r crate::io::InstanceIO,
         fqr: &'r dyn FixedQueryResolver<F>,
     ) -> ScopedExpression<'e, 'r, F>
     where

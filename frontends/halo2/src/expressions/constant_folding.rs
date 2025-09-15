@@ -1,9 +1,9 @@
 use midnight_halo2_proofs::plonk::{Expression, FixedQuery, Selector};
 
 use crate::{
-    backend::resolvers::{ResolvedQuery, ResolvedSelector, ResolversProvider},
     expressions::utils::ExprDebug,
     halo2::Field,
+    resolvers::{ResolvedQuery, ResolvedSelector, ResolversProvider},
 };
 
 use super::rewriter::ExpressionRewriter;

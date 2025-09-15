@@ -1,16 +1,14 @@
-use super::{RegionData, Row, FQN};
+use super::{RegionData, Row};
 use crate::{
-    backend::{
-        func::FuncIO,
-        resolvers::{
-            FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
-        },
-    },
+    backend::func::FuncIO,
     halo2::*,
-    CircuitIO,
+    io::{AdviceIO, InstanceIO},
+    resolvers::{
+        FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
+    },
 };
 use anyhow::Result;
-use std::{borrow::Cow, collections::HashSet};
+use std::collections::HashSet;
 
 pub trait RegionRowLike {
     fn region_index(&self) -> Option<usize>;
@@ -60,8 +58,8 @@ impl<'r, 'io, 'fq, F: Field> RegionRow<'r, 'io, 'fq, F> {
     pub fn new(
         region: RegionData<'r>,
         row: usize,
-        advice_io: &'io CircuitIO<Advice>,
-        instance_io: &'io CircuitIO<Instance>,
+        advice_io: &'io AdviceIO,
+        instance_io: &'io InstanceIO,
         fqr: &'fq dyn FixedQueryResolver<F>,
     ) -> Self {
         Self {
@@ -97,10 +95,7 @@ impl<F: Field> QueryResolver<F> for RegionRow<'_, '_, '_, F> {
             .map(ResolvedQuery::Lit)
     }
 
-    fn resolve_advice_query<'a>(
-        &'a self,
-        query: &AdviceQuery,
-    ) -> Result<(ResolvedQuery<F>, Option<Cow<'a, FQN>>)> {
+    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<ResolvedQuery<F>> {
         log::debug!("Resolving query: {query:?}");
         let base = self
             .region
@@ -112,7 +107,6 @@ impl<F: Field> QueryResolver<F> for RegionRow<'_, '_, '_, F> {
                 None => FuncIO::advice_abs(col, row),
             })
             .map(ResolvedQuery::IO)
-            .map(|rq| (rq, None))
     }
 
     fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>> {

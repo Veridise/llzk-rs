@@ -411,6 +411,9 @@ mod tests {
         if let None = base.checked_add(1) {
             return true;
         }
+        if let None = (base+offset).checked_add(1) {
+            return true;
+        }
         SymbolicEqv::equivalent(
             &CellRef::relative(col, base + 1, offset),
             &CellRef::relative(col, base, offset),

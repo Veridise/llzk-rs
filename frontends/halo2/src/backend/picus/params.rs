@@ -6,8 +6,6 @@ use super::vars::NamingConvention;
 pub struct PicusParams {
     expr_cutoff: Option<usize>,
     entrypoint: String,
-    #[cfg(feature = "lift-field-operations")]
-    lift_fixed: bool,
     naming_convention: NamingConvention,
     optimize: bool,
     prime: picus::felt::Felt,
@@ -30,11 +28,6 @@ impl PicusParams {
         &self.entrypoint
     }
 
-    #[cfg(feature = "lift-field-operations")]
-    pub fn lift_fixed(&self) -> bool {
-        self.lift_fixed
-    }
-
     pub fn prime(&self) -> &picus::felt::Felt {
         &self.prime
     }
@@ -44,18 +37,9 @@ impl PicusParams {
             prime: Felt::prime::<F>().into(),
             expr_cutoff: None,
             entrypoint: "Main".to_owned(),
-            #[cfg(feature = "lift-field-operations")]
-            lift_fixed: false,
-            naming_convention: NamingConvention::Default,
+            naming_convention: NamingConvention::Short,
             optimize: true,
         }
-    }
-}
-
-#[cfg(feature = "lift-field-operations")]
-impl crate::ir::lift::LiftingCfg for PicusParams {
-    fn lifting_enabled(&self) -> bool {
-        self.lift_fixed()
     }
 }
 
@@ -81,20 +65,6 @@ impl PicusParamsBuilder {
     pub fn entrypoint(self, name: &str) -> Self {
         let mut p = self.0;
         p.entrypoint = name.to_owned();
-        Self(p)
-    }
-
-    #[cfg(feature = "lift-field-operations")]
-    pub fn no_lift_fixed(self) -> Self {
-        let mut p = self.0;
-        p.lift_fixed = false;
-        Self(p)
-    }
-
-    #[cfg(feature = "lift-field-operations")]
-    pub fn lift_fixed(self) -> Self {
-        let mut p = self.0;
-        p.lift_fixed = true;
         Self(p)
     }
 

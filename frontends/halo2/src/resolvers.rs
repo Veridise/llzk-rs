@@ -1,10 +1,8 @@
 use std::borrow::Cow;
 
-use super::func::{ArgNo, FuncIO};
 use crate::{
-    gates::AnyQuery,
+    backend::func::{ArgNo, FuncIO},
     halo2::{AdviceQuery, Field, FixedQuery, InstanceQuery, Selector, Value},
-    synthesis::regions::FQN,
     value::steal,
 };
 use anyhow::Result;
@@ -141,23 +139,9 @@ pub trait FixedQueryResolver<F: Field> {
 pub trait QueryResolver<F: Field> {
     fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>>;
 
-    fn resolve_advice_query<'a>(
-        &'a self,
-        query: &AdviceQuery,
-    ) -> Result<(ResolvedQuery<F>, Option<Cow<'a, FQN>>)>;
+    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<ResolvedQuery<F>>;
 
     fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>>;
-
-    #[allow(dead_code)]
-    fn resolve_any_query(&self, query: &AnyQuery) -> Result<ResolvedQuery<F>> {
-        match query {
-            AnyQuery::Advice(advice_query) => {
-                self.resolve_advice_query(advice_query).map(|(r, _)| r)
-            }
-            AnyQuery::Instance(instance_query) => self.resolve_instance_query(instance_query),
-            AnyQuery::Fixed(fixed_query) => self.resolve_fixed_query(fixed_query),
-        }
-    }
 }
 
 impl<F: Field, Q: QueryResolver<F> + Clone> QueryResolver<F> for Cow<'_, Q> {
@@ -165,10 +149,7 @@ impl<F: Field, Q: QueryResolver<F> + Clone> QueryResolver<F> for Cow<'_, Q> {
         self.as_ref().resolve_fixed_query(query)
     }
 
-    fn resolve_advice_query<'a>(
-        &'a self,
-        query: &AdviceQuery,
-    ) -> Result<(ResolvedQuery<F>, Option<Cow<'a, FQN>>)> {
+    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<ResolvedQuery<F>> {
         self.as_ref().resolve_advice_query(query)
     }
 

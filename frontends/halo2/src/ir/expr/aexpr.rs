@@ -2,12 +2,13 @@ use crate::{
     backend::{
         func::FuncIO,
         lowering::{lowerable::LowerableExpr, ExprLowering},
-        resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     },
     expressions::ScopedExpression,
     halo2::{Challenge, Expression, PrimeField},
     ir::equivalency::{EqvRelation, SymbolicEqv},
+    resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
 };
+
 use anyhow::Result;
 use internment::Intern;
 use num_bigint::BigUint;
@@ -67,7 +68,7 @@ impl IRAexpr {
                 ResolvedQuery::IO(io) => Self::IO(io),
                 ResolvedQuery::Lit(f) => Self::Constant(Felt::new(f)),
             },
-            Expression::Advice(advice_query) => match qr.resolve_advice_query(advice_query)?.0 {
+            Expression::Advice(advice_query) => match qr.resolve_advice_query(advice_query)? {
                 ResolvedQuery::IO(io) => Self::IO(io),
                 ResolvedQuery::Lit(f) => Self::Constant(Felt::new(f)),
             },
@@ -178,9 +179,9 @@ impl LowerableExpr for IRAexpr {
 
 #[cfg(test)]
 mod tests {
-    use crate::backend::resolvers::FixedQueryResolver;
     use crate::expressions::ScopedExpression;
     use crate::ir::equivalency::{EqvRelation as _, SymbolicEqv};
+    use crate::resolvers::FixedQueryResolver;
     use crate::synthesis::regions::{RegionRow, Regions};
     use crate::CircuitIO;
     use crate::{halo2::*, synthesis::regions::RegionData};

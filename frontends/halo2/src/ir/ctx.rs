@@ -9,9 +9,11 @@ use crate::synthesis::groups::{Group, GroupCell};
 use crate::synthesis::CircuitSynthesis;
 use crate::CircuitIO;
 
+/// Contains information related to the IR of a circuit. Is used by the driver to lower the
+/// circuit.
 pub struct IRCtx<'s> {
-    groups_advice_io: HashMap<usize, CircuitIO<Advice>>,
-    groups_instance_io: HashMap<usize, CircuitIO<Instance>>,
+    groups_advice_io: HashMap<usize, crate::io::AdviceIO>,
+    groups_instance_io: HashMap<usize, crate::io::InstanceIO>,
     regions_by_index: RegionByIndex<'s>,
     free_cells: Vec<FreeCells>,
 }
@@ -22,8 +24,8 @@ impl<'s> IRCtx<'s> {
         let free_cells =
             lift_free_cells_to_inputs(syn.groups(), &regions_by_index, syn.constraints())?;
 
-        let mut groups_advice_io: HashMap<usize, CircuitIO<Advice>> = Default::default();
-        let mut groups_instance_io: HashMap<usize, CircuitIO<Instance>> = Default::default();
+        let mut groups_advice_io: HashMap<usize, crate::io::AdviceIO> = Default::default();
+        let mut groups_instance_io: HashMap<usize, crate::io::InstanceIO> = Default::default();
 
         let regions = syn.groups().region_starts();
         for (idx, group) in syn.groups().iter().enumerate() {
@@ -43,11 +45,11 @@ impl<'s> IRCtx<'s> {
         })
     }
 
-    pub(crate) fn advice_io_of_group(&self, idx: usize) -> &CircuitIO<Advice> {
+    pub(crate) fn advice_io_of_group(&self, idx: usize) -> &crate::io::AdviceIO {
         &self.groups_advice_io[&idx]
     }
 
-    pub(crate) fn instance_io_of_group(&self, idx: usize) -> &CircuitIO<Instance> {
+    pub(crate) fn instance_io_of_group(&self, idx: usize) -> &crate::io::InstanceIO {
         &self.groups_instance_io[&idx]
     }
 
@@ -63,8 +65,8 @@ impl<'s> IRCtx<'s> {
 /// If the group has free cells that need to be bounded and is not the top level group
 /// makes a copy of its IO and adds the cells as inputs.
 fn update_io(
-    advice_io: &mut CircuitIO<Advice>,
-    instance_io: &mut CircuitIO<Instance>,
+    advice_io: &mut crate::io::AdviceIO,
+    instance_io: &mut crate::io::InstanceIO,
     group: &Group,
     free_cells: &FreeCells,
 ) {
@@ -87,7 +89,7 @@ fn mk_advice_io(
     inputs: &[GroupCell],
     outputs: &[GroupCell],
     regions: &HashMap<RegionIndex, usize>,
-) -> CircuitIO<Advice> {
+) -> crate::io::AdviceIO {
     let filter_fn = |input: &GroupCell| -> Option<IOCell<Advice>> {
         match input {
             GroupCell::Assigned(cell) => match cell.column.column_type() {
@@ -112,7 +114,7 @@ fn mk_instance_io(
     inputs: &[GroupCell],
     outputs: &[GroupCell],
     regions: &HashMap<RegionIndex, usize>,
-) -> CircuitIO<Instance> {
+) -> crate::io::InstanceIO {
     let filter_fn = |input: &GroupCell| -> Option<IOCell<Instance>> {
         match input {
             GroupCell::Assigned(cell) => match cell.column.column_type() {

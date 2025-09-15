@@ -7,11 +7,6 @@ use melior::{
     Context,
 };
 
-use crate::{
-    halo2::{Advice, Instance},
-    CircuitIO,
-};
-
 fn struct_def_op_location<'c>(context: &'c Context, name: &str, index: usize) -> Location<'c> {
     Location::new(context, format!("struct {}", name).as_str(), index, 0)
 }
@@ -96,7 +91,7 @@ impl StructIO {
         iter::repeat_with(|| FeltType::new(ctx).into()).take(self.public_inputs)
     }
 
-    pub fn new_from_io(advice: &CircuitIO<Advice>, instance: &CircuitIO<Instance>) -> Self {
+    pub fn new_from_io(advice: &crate::io::AdviceIO, instance: &crate::io::InstanceIO) -> Self {
         Self {
             private_inputs: advice.inputs().len(),
             public_inputs: instance.inputs().len(),

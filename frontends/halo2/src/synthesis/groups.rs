@@ -1,15 +1,14 @@
 use std::{borrow::Borrow, collections::HashMap, ops::Deref};
 
 use crate::{
-    backend::resolvers::FixedQueryResolver,
     halo2::{
         groups::{GroupKey, GroupKeyInstance},
         Advice, Any, Cell, Column, ColumnType, Expression, Field, Gate, Instance, RegionIndex,
         Rotation,
     },
-    io::IOCell,
+    io::{AdviceIO, IOCell, InstanceIO},
     lookups::Lookup,
-    CircuitIO,
+    resolvers::FixedQueryResolver,
 };
 
 use super::regions::{RegionData, RegionRow, Regions};
@@ -105,8 +104,6 @@ pub struct Group {
     name: Option<String>,
     inputs: Vec<GroupCell>,
     outputs: Vec<GroupCell>,
-    //advice_io: CircuitIO<Advice>,
-    //instance_io: CircuitIO<Instance>,
     regions: Regions,
     children: Vec<usize>,
 }
@@ -119,10 +116,7 @@ impl Group {
         outputs: Vec<GroupCell>,
         regions: Regions,
         children: Vec<usize>,
-        //region_starts: &HashMap<RegionIndex, usize>,
     ) -> Self {
-        //let advice_io = Self::mk_advice_io(&inputs, &outputs, region_starts);
-        //let instance_io = Self::mk_instance_io(&inputs, &outputs, region_starts);
         // Sanity check; if group is top level there cannot be any assigned cells.
         if kind == GroupKind::TopLevel {
             assert!(
@@ -139,8 +133,6 @@ impl Group {
             name,
             inputs,
             outputs,
-            //advice_io,
-            //instance_io,
             regions,
             children,
         }
@@ -154,8 +146,8 @@ impl Group {
     /// Returns the regions' rows
     pub fn region_rows<'a, 'io, 'fq, F: Field>(
         &'a self,
-        advice_io: &'io CircuitIO<Advice>,
-        instance_io: &'io CircuitIO<Instance>,
+        advice_io: &'io AdviceIO,
+        instance_io: &'io InstanceIO,
         fqr: &'fq dyn FixedQueryResolver<F>,
     ) -> Vec<RegionRow<'a, 'io, 'fq, F>> {
         self.regions()
@@ -171,8 +163,8 @@ impl Group {
     pub fn lookups_per_region_row<'a, 'io, 'fq, F: Field>(
         &'a self,
         lookups: &[Lookup<'a, F>],
-        advice_io: &'io CircuitIO<Advice>,
-        instance_io: &'io CircuitIO<Instance>,
+        advice_io: &'io AdviceIO,
+        instance_io: &'io InstanceIO,
         fqr: &'fq dyn FixedQueryResolver<F>,
     ) -> Vec<(RegionRow<'a, 'io, 'fq, F>, Lookup<'a, F>)> {
         self.region_rows(advice_io, instance_io, fqr)
@@ -184,14 +176,6 @@ impl Group {
     pub fn is_top_level(&self) -> bool {
         matches!(self.kind, GroupKind::TopLevel)
     }
-
-    //pub fn advice_io(&self) -> &CircuitIO<Advice> {
-    //    &self.advice_io
-    //}
-    //
-    //pub fn instance_io(&self) -> &CircuitIO<Instance> {
-    //    &self.instance_io
-    //}
 
     pub fn inputs(&self) -> &[GroupCell] {
         &self.inputs
@@ -342,8 +326,6 @@ impl GroupTree {
         }
     }
 
-    //fn flatten_rec(self, region_starts: &HashMap<RegionIndex, usize>) -> Groups {}
-
     /// Transforms the tree into a read-only flat representation.
     pub fn flatten(self) -> Groups {
         let mut child_indices = vec![];
@@ -360,11 +342,8 @@ impl GroupTree {
             self.outputs,
             self.regions,
             child_indices,
-            //region_starts,
         ));
         Groups(groups)
-        //let region_starts = self.region_starts();
-        //self.flatten_rec(&region_starts)
     }
 }
 

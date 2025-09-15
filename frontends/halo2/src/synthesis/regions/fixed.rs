@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    backend::resolvers::FixedQueryResolver,
     halo2::{Assigned, Column, Field, Fixed, FixedQuery, Value},
+    resolvers::FixedQueryResolver,
     value::steal,
 };
 

@@ -5,9 +5,7 @@ use std::{
 };
 
 use super::{func::FuncIO, Backend, Codegen};
-use crate::io::AllCircuitIO;
-#[cfg(feature = "lift-field-operations")]
-use crate::ir::lift::{LiftIRGuard, LiftLike};
+use crate::io::{AdviceIO, InstanceIO};
 
 use anyhow::Result;
 
@@ -110,32 +108,15 @@ impl<'c: 's, 's> Codegen<'c, 's> for PicusCodegen {
     fn initialize(state: &'s Self::State) -> Self {
         Self {
             inner: state.clone(),
-            //queue: Default::default(),
         }
     }
 
-    //fn define_gate_function(
-    //    &self,
-    //    name: &str,
-    //    selectors: &[&Selector],
-    //    input_queries: &[AnyQuery],
-    //    output_queries: &[AnyQuery],
-    //) -> Result<Self::FuncOutput> {
-    //    log::debug!("[Picus codegen::define_gate_function] selectors = {selectors:?}");
-    //    log::debug!("[Picus codegen::define_gate_function] input_queries = {input_queries:?}");
-    //    log::debug!("[Picus codegen::define_gate_function] output_queries = {output_queries:?}");
-    //    let nc = self.naming_convention();
-    //    self.inner.borrow_mut().add_module(
-    //        name.to_owned(),
-    //        mk_io(selectors.len() + input_queries.len(), VarKeySeed::arg, nc),
-    //        mk_io(output_queries.len(), VarKeySeed::field, nc),
-    //    )
-    //}
-
-    fn define_main_function(&self, io: AllCircuitIO) -> Result<Self::FuncOutput> {
+    fn define_main_function(
+        &self,
+        advice_io: &AdviceIO,
+        instance_io: &InstanceIO,
+    ) -> Result<Self::FuncOutput> {
         let ep = self.inner.borrow().entrypoint();
-        let instance_io = io.instance;
-        let advice_io = io.advice;
         let nc = self.naming_convention();
         self.inner.borrow_mut().add_module(
             ep,

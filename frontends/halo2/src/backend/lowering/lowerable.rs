@@ -30,17 +30,6 @@ impl<Lw: LowerableExpr> LowerableExpr for Box<Lw> {
     }
 }
 
-//impl<F: Field> LowerableExpr for (F,) {
-//    type F = F;
-//
-//    fn lower<L>(self, l: &L) -> Result<L::CellOutput>
-//    where
-//        L: ExprLowering<F = Self::F> + ?Sized,
-//    {
-//        l.lower_constant(self.0)
-//    }
-//}
-
 pub trait LowerableStmt {
     fn lower<L>(self, l: &L) -> Result<()>
     where
@@ -67,17 +56,6 @@ impl<Lw: LowerableStmt> LowerableStmt for Box<Lw> {
         (*self).lower(l)
     }
 }
-
-//impl<F: Field> LowerableStmt for (F,) {
-//    type F = F;
-//
-//    fn lower<L>(self, _: &L) -> Result<()>
-//    where
-//        L: Lowering<F = Self::F> + ?Sized,
-//    {
-//        Ok(())
-//    }
-//}
 
 pub enum EitherLowerable<L, R> {
     Left(L),

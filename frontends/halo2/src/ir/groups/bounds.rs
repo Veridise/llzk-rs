@@ -1,6 +1,6 @@
 use crate::{
     halo2::{Any, Column, Field, Fixed},
-    ir::RegionByIndex,
+    ir::generate::RegionByIndex,
     synthesis::{
         constraint::EqConstraint,
         groups::{Group, GroupCell},

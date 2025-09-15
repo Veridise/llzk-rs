@@ -1,31 +1,27 @@
-use super::FQN;
 use crate::{
-    backend::{
-        func::{ArgNo, FieldId, FuncIO},
-        resolvers::{
-            FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
-        },
-    },
+    backend::func::{ArgNo, FieldId, FuncIO},
     halo2::*,
-    io::IOCell,
+    io::{AdviceIO, IOCell, InstanceIO},
+    resolvers::{
+        FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
+    },
     CircuitIO,
 };
 use anyhow::{bail, Result};
-use std::borrow::Cow;
 
 #[derive(Copy, Clone)]
 pub struct Row<'io, 'fq, F: Field> {
     pub(super) row: usize,
-    advice_io: &'io CircuitIO<Advice>,
-    instance_io: &'io CircuitIO<Instance>,
+    advice_io: &'io AdviceIO,
+    instance_io: &'io InstanceIO,
     pub(super) fqr: &'fq dyn FixedQueryResolver<F>,
 }
 
 impl<'io, 'fq, F: Field> Row<'io, 'fq, F> {
     pub fn new(
         row: usize,
-        advice_io: &'io CircuitIO<Advice>,
-        instance_io: &'io CircuitIO<Instance>,
+        advice_io: &'io AdviceIO,
+        instance_io: &'io InstanceIO,
         fqr: &'fq dyn FixedQueryResolver<F>,
     ) -> Self {
         Self {
@@ -137,13 +133,9 @@ impl<F: Field> QueryResolver<F> for Row<'_, '_, F> {
         self.fqr.resolve_query(query, row).map(ResolvedQuery::Lit)
     }
 
-    fn resolve_advice_query<'a>(
-        &'a self,
-        query: &AdviceQuery,
-    ) -> Result<(ResolvedQuery<F>, Option<Cow<'a, FQN>>)> {
+    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<ResolvedQuery<F>> {
         let r = self.resolve_advice_query_impl(query, FuncIO::advice_abs)?;
-
-        Ok((r.into(), None))
+        Ok(r.into())
     }
 
     fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>> {

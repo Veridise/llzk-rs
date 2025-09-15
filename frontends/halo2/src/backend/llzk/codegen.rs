@@ -7,9 +7,8 @@ use llzk::prelude::*;
 use melior::ir::{BlockLike as _, Location, Module};
 use melior::Context;
 
-//use crate::backend::codegen::queue::CodegenQueueHelper;
 use crate::backend::llzk::factory::StructIO;
-use crate::io::AllCircuitIO;
+use crate::io::{AdviceIO, InstanceIO};
 
 use crate::backend::codegen::Codegen;
 
@@ -17,10 +16,8 @@ use super::factory;
 
 pub struct LlzkCodegen<'c, 's> {
     state: &'s LlzkCodegenState<'c>,
-    //queue: Rc<RefCell<CodegenQueueHelper<F>>>,
     module: Module<'c>,
     struct_count: Counter,
-    //_marker: PhantomData<F>,
 }
 
 impl<'c> LlzkCodegen<'c, '_> {
@@ -50,19 +47,10 @@ impl<'c: 's, 's> Codegen<'c, 's> for LlzkCodegen<'c, 's> {
         }
     }
 
-    //fn define_gate_function(
-    //    &self,
-    //    _name: &str,
-    //    _selectors: &[&Selector],
-    //    _input_queries: &[AnyQuery],
-    //    _output_queries: &[AnyQuery],
-    //) -> Result<Self::FuncOutput> {
-    //    unimplemented!()
-    //}
-
     fn define_main_function(
         &self,
-        io: AllCircuitIO, /*, syn: &CircuitSynthesis<Self::F>*/
+        advice_io: &AdviceIO,
+        instance_io: &InstanceIO,
     ) -> Result<Self::FuncOutput> {
         let struct_name = self.state.params().top_level().unwrap_or("Main");
         log::debug!("Creating struct with name '{struct_name}'");
@@ -70,7 +58,7 @@ impl<'c: 's, 's> Codegen<'c, 's> for LlzkCodegen<'c, 's> {
             self.context(),
             struct_name,
             self.struct_count.next(),
-            StructIO::new_from_io(&io.advice, &io.instance),
+            StructIO::new_from_io(advice_io, instance_io),
         )?;
         log::debug!("Created struct object {s:?}");
         //let regions = syn.regions_by_index();
@@ -93,7 +81,6 @@ impl<'c: 's, 's> Codegen<'c, 's> for LlzkCodegen<'c, 's> {
     }
 
     fn on_scope_end(&self, fo: Self::FuncOutput) -> Result<()> {
-        //self.queue.borrow_mut().dequeue_stmts(&fo)?;
         self.add_struct(fo.take_struct())?;
         Ok(())
     }
@@ -102,13 +89,3 @@ impl<'c: 's, 's> Codegen<'c, 's> for LlzkCodegen<'c, 's> {
         Ok(self.module.into())
     }
 }
-
-//impl<'c: 's, 's, F: LoweringField> CodegenQueue<'c, 's> for LlzkCodegen<'c, 's, F> {
-//    fn enqueue_stmts(
-//        &self,
-//        region: RegionIndex,
-//        stmts: Vec<IRStmt<Expression<Self::F>>>,
-//    ) -> Result<()> {
-//        self.queue.borrow_mut().enqueue_stmts(region, stmts)
-//    }
-//}

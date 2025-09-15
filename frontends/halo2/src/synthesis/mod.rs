@@ -1,24 +1,21 @@
 //! Defines types for handling the result of synthesizing a circuit.
 
-use std::{
-    collections::{HashMap, HashSet},
-    convert::identity,
-};
+use std::{collections::HashSet, convert::identity};
 
 use anyhow::{anyhow, Result};
 use constraint::{EqConstraint, EqConstraintArg, EqConstraintGraph};
 use groups::{Group, GroupBuilder, GroupCell, Groups};
-use regions::{FixedData, RegionIndexToStart, TableData, FQN};
+use regions::{FixedData, RegionIndexToStart, TableData};
 
 use crate::{
-    backend::resolvers::FixedQueryResolver,
     gates::AnyQuery,
     halo2::{
         groups::{GroupKey, RegionsGroup},
         Field, *,
     },
-    io::IOCell,
+    io::{AdviceIO, IOCell, InstanceIO},
     lookups::{Lookup, LookupTableRow},
+    resolvers::FixedQueryResolver,
     value::steal,
     CircuitIO,
 };
@@ -33,7 +30,6 @@ pub struct CircuitSynthesis<F: Field> {
     eq_constraints: EqConstraintGraph<F>,
     fixed: FixedData<F>,
     tables: Vec<TableData<F>>,
-    advice_names: HashMap<(usize, usize), FQN>,
     groups: Groups,
 }
 
@@ -99,22 +95,6 @@ impl<F: Field> CircuitSynthesis<F> {
         })
     }
 
-    ///// Returns the advice IO for the top level group.
-    //pub fn advice_io(&self) -> &CircuitIO<Advice> {
-    //    self.groups
-    //        .top_level()
-    //        .expect("top level is missing")
-    //        .advice_io()
-    //}
-    //
-    ///// Returns the instance IO for the top level group.
-    //pub fn instance_io(&self) -> &CircuitIO<Instance> {
-    //    self.groups
-    //        .top_level()
-    //        .expect("top level is missing")
-    //        .instance_io()
-    //}
-
     /// Returns the groups in the circuit.
     pub fn groups(&self) -> &Groups {
         &self.groups
@@ -144,11 +124,6 @@ impl<F: Field> CircuitSynthesis<F> {
     /// Returns a reference to a resolver for fixed queries.
     pub fn fixed_query_resolver(&self) -> &dyn FixedQueryResolver<F> {
         &self.fixed
-    }
-
-    /// Returns the FQNs of advice cells noted during synthesis.
-    pub fn seen_advice_cells(&self) -> &HashMap<(usize, usize), FQN> {
-        &self.advice_names
     }
 }
 
@@ -180,21 +155,19 @@ impl<F: Field> Synthesizer<F> {
         self,
         circuit: &C,
         config: C::Config,
-        advice_io: CircuitIO<Advice>,
-        instance_io: CircuitIO<Instance>,
+        advice_io: AdviceIO,
+        instance_io: InstanceIO,
     ) -> Result<CircuitSynthesis<F>> {
         let mut eq_constraints = Default::default();
         // A list of set of columns. Represents the regions that need to be converted into tables.
         let mut tables: Vec<HashSet<Column<Fixed>>> = vec![];
         let mut fixed = FixedData::default();
-        let mut advice_names = HashMap::<(usize, usize), FQN>::new();
         let mut region_indices = (0..).map(RegionIndex::from);
         let groups = {
             let mut inner = SynthesizerInner {
                 eq_constraints: &mut eq_constraints,
                 tables: &mut tables,
                 fixed: &mut fixed,
-                advice_names: &mut advice_names,
                 next_index: &mut region_indices,
                 groups: GroupBuilder::new(),
                 #[cfg(feature = "phase-tracking")]
@@ -216,7 +189,6 @@ impl<F: Field> Synthesizer<F> {
             cs: self.cs,
             eq_constraints,
             fixed,
-            advice_names,
             tables,
             groups,
         })
@@ -278,7 +250,6 @@ struct SynthesizerInner<'a, F: Field> {
     eq_constraints: &'a mut EqConstraintGraph<F>,
     tables: &'a mut Vec<HashSet<Column<Fixed>>>,
     fixed: &'a mut FixedData<F>,
-    advice_names: &'a mut HashMap<(usize, usize), FQN>,
     next_index: &'a mut dyn Iterator<Item = RegionIndex>,
     groups: GroupBuilder,
     #[cfg(feature = "phase-tracking")]
@@ -366,7 +337,7 @@ impl<F: Field> Assignment<F> for SynthesizerInner<'_, F> {
 
     fn assign_advice<V, VR, A, AR>(
         &mut self,
-        name: A,
+        _name: A,
         advice: Column<Advice>,
         row: usize,
         _value: V,
@@ -379,18 +350,6 @@ impl<F: Field> Assignment<F> for SynthesizerInner<'_, F> {
     {
         self.groups.regions_mut().edit(|region| {
             region.update_extent(advice.into(), row);
-            let fqn = FQN::new(
-                region.name(),
-                region.index(),
-                //&self.inner.namespaces,
-                &[],
-                Some(name().into()),
-            );
-            log::debug!(
-                "Recording advice assignment @ col = {}, row = {row}, name = {fqn}",
-                advice.index()
-            );
-            self.advice_names.insert((advice.index(), row), fqn);
         });
         Ok(())
     }

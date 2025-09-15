@@ -1,17 +1,15 @@
 use crate::{
     backend::{
-        codegen::lookup::codegen_lookup_invocations,
         func::{try_relativize_advice_cell, FuncIO},
         lowering::{lowerable::LowerableStmt, Lowering},
-        resolvers::FixedQueryResolver,
     },
     expressions::{ExpressionInRow, ScopedExpression},
     gates::RewritePatternSet,
-    halo2::{groups::GroupKeyInstance, Advice, Expression, Field, Gate, Instance, Rotation},
+    halo2::{groups::GroupKeyInstance, Expression, Field, Gate, Rotation},
     ir::{
         equivalency::{EqvRelation, SymbolicEqv},
         expr::IRAexpr,
-        generate::{free_cells::FreeCells, GroupIRCtx},
+        generate::{free_cells::FreeCells, lookup::codegen_lookup_invocations, GroupIRCtx},
         groups::{
             bounds::{Bound, EqConstraintCheck, GroupBounds},
             callsite::CallSite,
@@ -19,12 +17,13 @@ use crate::{
         stmt::IRStmt,
         CmpOp, IRCtx,
     },
+    resolvers::FixedQueryResolver,
     synthesis::{
         constraint::EqConstraint,
         groups::{Group, GroupCell},
         regions::{RegionData, Row},
     },
-    utils, CircuitIO, GateRewritePattern as _, GateScope, RewriteError,
+    utils, GateRewritePattern as _, GateScope, RewriteError,
 };
 use anyhow::Result;
 
@@ -53,8 +52,8 @@ impl<'cb, 's, F: Field> GroupBody<ScopedExpression<'s, 's, F>> {
         id: usize,
         ctx: &GroupIRCtx<'cb, 's, F>,
         free_cells: &FreeCells,
-        advice_io: &'s CircuitIO<Advice>,
-        instance_io: &'s CircuitIO<Instance>,
+        advice_io: &'s crate::io::AdviceIO,
+        instance_io: &'s crate::io::InstanceIO,
     ) -> anyhow::Result<Self> {
         log::debug!("Lowering call-sites for group {:?}", group.name());
         let callsites = {
@@ -104,8 +103,6 @@ impl<'cb, 's, F: Field> GroupBody<ScopedExpression<'s, 's, F>> {
             instance_io,
             ctx.syn().fixed_query_resolver(),
         ));
-        // Relativize the advice cells used in the constraints
-        // TODO: Move this to the resolve method.
 
         log::debug!(
             "[{}] Equality constraints (lowered): {eq_constraints:?}",
@@ -117,28 +114,7 @@ impl<'cb, 's, F: Field> GroupBody<ScopedExpression<'s, 's, F>> {
             ctx.syn(),
             &group.region_rows(advice_io, instance_io, ctx.syn().fixed_query_resolver()),
             ctx.lookup_cb(),
-        )
-        //.and_then(scoped_exprs_to_aexpr)
-        ?);
-
-        //        log::debug!("Adding injected IR for group {:?}", group.name());
-        //        let mut injected = vec![];
-        //for region in group.regions() {
-        //                    let index = region
-        //                        .index()
-        //                        .ok_or_else(|| anyhow::anyhow!("Region does not have an index"))?;
-        //                    let start = region
-        //                        .start().unwrap_or_default();
-        //                    if let Some(ir) = injector.inject(index, start) {
-        //                        injected.push(crate::backend::codegen::lower_injected_ir(
-        //                            ir,
-        //                            region,
-        //                            &advice_io,
-        //                            &instance_io,
-        //                            ctx.syn().fixed_query_resolver(),
-        //                        )?);
-        //                    }
-        //                }
+        )?);
 
         Ok(Self {
             id,
@@ -159,8 +135,8 @@ impl<'cb, 's, F: Field> GroupBody<ScopedExpression<'s, 's, F>> {
         &'a mut self,
         region: RegionData<'s>,
         ir: &IRStmt<ExpressionInRow<'s, F>>,
-        advice_io: &'s CircuitIO<Advice>,
-        instance_io: &'s CircuitIO<Instance>,
+        advice_io: &'s crate::io::AdviceIO,
+        instance_io: &'s crate::io::InstanceIO,
         fqr: &'s dyn FixedQueryResolver<F>,
     ) {
         self.injected.push(
@@ -375,8 +351,8 @@ fn select_equality_constraints<F: Field>(
 /// filtering the equality constraints of a group from the global equality constraints graph.
 pub fn inter_region_constraints<'s, F: Field>(
     constraints: impl IntoIterator<Item = EqConstraint<F>>,
-    advice_io: &'s CircuitIO<Advice>,
-    instance_io: &'s CircuitIO<Instance>,
+    advice_io: &'s crate::io::AdviceIO,
+    instance_io: &'s crate::io::InstanceIO,
     fixed_query_resolver: &'s dyn FixedQueryResolver<F>,
 ) -> Vec<IRStmt<ScopedExpression<'s, 's, F>>> {
     constraints
@@ -412,8 +388,8 @@ fn lower_gates<'a, F: Field>(
     gates: &'a [Gate<F>],
     regions: &[RegionData<'a>],
     patterns: &RewritePatternSet<F>,
-    advice_io: &'a CircuitIO<Advice>,
-    instance_io: &'a CircuitIO<Instance>,
+    advice_io: &'a crate::io::AdviceIO,
+    instance_io: &'a crate::io::InstanceIO,
     fqr: &'a dyn FixedQueryResolver<F>,
 ) -> Result<Vec<IRStmt<ScopedExpression<'a, 'a, F>>>> {
     log::debug!("Got {} gates and {} regions", gates.len(), regions.len());

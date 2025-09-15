@@ -14,19 +14,15 @@ use melior::{
 };
 use mlir_sys::MlirValue;
 
-//use crate::backend::codegen::queue::RegionStartResolver;
 use crate::backend::func::FieldId;
 use crate::backend::lowering::tag::LoweringOutput;
 use crate::backend::lowering::ExprLowering;
+use crate::backend::{
+    func::{ArgNo, FuncIO},
+    lowering::Lowering,
+};
 use crate::ir::expr::Felt;
 use crate::ir::CmpOp;
-use crate::{
-    backend::{
-        func::{ArgNo, FuncIO},
-        lowering::Lowering,
-    },
-    synthesis::regions::FQN,
-};
 
 use super::counter::Counter;
 use super::extras::{block_list, operations_list};
@@ -61,20 +57,11 @@ impl<'c> LlzkStructLowering<'c> {
     /// Tries to fetch an advice cell field, if it doesn't exist creates a field that represents
     /// it.
     #[allow(dead_code)]
-    fn get_temp_decl(
-        &self,
-        col: usize,
-        row: usize,
-        fqn: Option<&FQN>,
-    ) -> Result<FieldDefOpRef<'c, '_>> {
+    fn get_temp_decl(&self, col: usize, row: usize) -> Result<FieldDefOpRef<'c, '_>> {
         let name = format!("adv_{col}_{row}");
         Ok(self.struct_op.get_or_create_field_def(&name, || {
             let field_name = FlatSymbolRefAttribute::new(self.context(), &name);
-            let filename = format!(
-                "struct {} | advice field{}",
-                self.struct_name(),
-                fqn.map(|fqn| format!(" | {fqn}")).unwrap_or_default()
-            );
+            let filename = format!("struct {} | advice field", self.struct_name(),);
             let loc = Location::new(self.context(), &filename, col, row);
 
             r#struct::field(loc, field_name, FeltType::new(self.context()), false, false)
@@ -158,38 +145,7 @@ impl<'c> LlzkStructLowering<'c> {
             const_attr,
         )?)
     }
-
-    //fn lower_resolved_query(
-    //    &self,
-    //    query: ResolvedQuery<F>,
-    //    fqn: Option<&FQN>,
-    //) -> Result<Value<'c, '_>> {
-    //    match query {
-    //        ResolvedQuery::Lit(f) => self.lower_constant_impl(f),
-    //        ResolvedQuery::IO(FuncIO::Arg(arg)) => self.get_arg(arg),
-    //        ResolvedQuery::IO(FuncIO::Field(field)) => {
-    //            let field = self.get_output(field)?;
-    //            self.read_field(field.field_name(), field.field_type())
-    //        }
-    //        ResolvedQuery::IO(FuncIO::Advice(adv)) => {
-    //            let field = self.get_temp_decl(adv.col(), adv.row(), fqn)?;
-    //            self.read_field(field.field_name(), field.field_type())
-    //        }
-    //        ResolvedQuery::IO(FuncIO::Fixed(_)) => todo!(),
-    //        ResolvedQuery::IO(FuncIO::TableLookup(_, _, _, _, _)) => todo!(),
-    //        ResolvedQuery::IO(FuncIO::CallOutput(_, _)) => todo!(),
-    //    }
-    //}
 }
-
-//impl RegionStartResolver for LlzkStructLowering<'_> {
-//    fn find(&self, idx: RegionIndex) -> Result<RegionStart> {
-//        self.regions
-//            .as_ref()
-//            .and_then(|regions| regions.get(&idx).copied())
-//            .ok_or_else(|| anyhow::anyhow!("Failed to get start row for region {}", *idx))
-//    }
-//}
 
 /// Value wrapper used as lowering output for circumventing lifetime restrictions.
 #[derive(Copy, Clone)]
@@ -324,42 +280,6 @@ impl<'c> ExprLowering for LlzkStructLowering<'c> {
     fn lower_challenge(&self, _challenge: &Challenge) -> Result<Self::CellOutput> {
         unimplemented!()
     }
-
-    //fn lower_selector(
-    //    &self,
-    //    sel: &Selector,
-    //    resolver: &dyn SelectorResolver,
-    //) -> Result<Self::CellOutput> {
-    //    match resolver.resolve_selector(sel)? {
-    //        ResolvedSelector::Const(b) => self.lower_constant(b.to_f()),
-    //        ResolvedSelector::Arg(arg_no) => wrap! {self.get_arg(arg_no) },
-    //    }
-    //}
-    //
-    //fn lower_advice_query(
-    //    &self,
-    //    query: &AdviceQuery,
-    //    resolver: &dyn QueryResolver<Self::F>,
-    //) -> Result<Self::CellOutput> {
-    //    let (query, fqn) = resolver.resolve_advice_query(query)?;
-    //    wrap! {self.lower_resolved_query(query, fqn.as_deref()) }
-    //}
-    //
-    //fn lower_instance_query(
-    //    &self,
-    //    query: &InstanceQuery,
-    //    resolver: &dyn QueryResolver<Self::F>,
-    //) -> Result<Self::CellOutput> {
-    //    wrap! {self.lower_resolved_query(resolver.resolve_instance_query(query)?, None)}
-    //}
-    //
-    //fn lower_fixed_query(
-    //    &self,
-    //    query: &FixedQuery,
-    //    resolver: &dyn QueryResolver<Self::F>,
-    //) -> Result<Self::CellOutput> {
-    //    wrap! {self.lower_resolved_query(resolver.resolve_fixed_query(query)?, None)}
-    //}
 
     fn lower_constant(&self, f: Felt) -> Result<Self::CellOutput> {
         wrap! {self.lower_constant_impl(f)}

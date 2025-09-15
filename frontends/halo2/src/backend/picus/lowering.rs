@@ -1,8 +1,5 @@
 use super::vars::{NamingConvention, VarKey, VarKeySeed};
-#[cfg(not(feature = "lift-field-operations"))]
 use crate::ir::expr::Felt;
-#[cfg(feature = "lift-field-operations")]
-use crate::ir::lift::{LiftLike, LiftLowering};
 use crate::{
     backend::{
         func::{ArgNo, FieldId, FuncIO},
@@ -10,11 +7,9 @@ use crate::{
     },
     halo2::Challenge,
     ir::CmpOp,
-    synthesis::regions::FQN,
 };
 use anyhow::Result;
 use picus::{expr, stmt, ModuleLike as _};
-use std::borrow::Cow;
 
 pub type PicusModuleRef = picus::ModuleRef<VarKey>;
 pub(super) type PicusExpr = picus::expr::Expr;
@@ -22,108 +17,22 @@ pub(super) type PicusExpr = picus::expr::Expr;
 #[derive(Clone)]
 pub struct PicusModuleLowering {
     module: PicusModuleRef,
-    #[cfg(feature = "lift-field-operations")]
-    lift_fixed: bool,
     naming_convention: NamingConvention,
 }
 
 impl PicusModuleLowering {
-    pub fn new(
-        module: PicusModuleRef,
-        #[cfg(feature = "lift-field-operations")] lift_fixed: bool,
-        naming_convention: NamingConvention,
-    ) -> Self {
+    pub fn new(module: PicusModuleRef, naming_convention: NamingConvention) -> Self {
         Self {
             module,
-            #[cfg(feature = "lift-field-operations")]
-            lift_fixed,
             naming_convention,
         }
     }
 }
 
 impl PicusModuleLowering {
-    pub fn lower_func_io(&self, func_io: FuncIO, fqn: Option<Cow<FQN>>) -> PicusExpr {
-        let seed = VarKeySeed::named_io(func_io, fqn, self.naming_convention);
+    pub fn lower_func_io(&self, func_io: FuncIO) -> PicusExpr {
+        let seed = VarKeySeed::io(func_io, self.naming_convention);
         expr::var(&self.module, seed)
-    }
-
-    //fn lower_resolved_query(
-    //    &self,
-    //    query: ResolvedQuery<L>,
-    //    fqn: Option<Cow<FQN>>,
-    //) -> Result<PicusExpr> {
-    //    Ok(match query {
-    //        ResolvedQuery::Lit(f) => self.lower_constant(f)?,
-    //        ResolvedQuery::IO(func_io) => self.lower_func_io(func_io, fqn),
-    //    })
-    //}
-}
-
-#[cfg(feature = "lift-field-operations")]
-impl<L: LiftLike> LiftLowering for PicusModuleLowering<L> {
-    type F = L::Inner;
-
-    type Output = PicusExpr;
-
-    fn lower_constant(&self, f: &Self::F) -> Result<Self::Output> {
-        Ok(expr::r#const(FeltWrap(*f)))
-    }
-
-    fn lower_lifted(&self, id: usize, f: Option<&Self::F>) -> Result<Self::Output> {
-        if self.lift_fixed {
-            Ok(expr::var(
-                &self.module,
-                VarKeySeed::lifted(id, self.naming_convention),
-            ))
-        } else if let Some(f) = f {
-            Ok(expr::r#const(FeltWrap(*f)))
-        } else {
-            anyhow::bail!(
-                "Lifted value did not have an inner value and the lowerer was not configured to lift"
-            )
-        }
-    }
-
-    fn lower_add(&self, lhs: &Self::Output, rhs: &Self::Output) -> Result<Self::Output> {
-        Ok(expr::add(lhs, rhs))
-    }
-
-    fn lower_sub(&self, lhs: &Self::Output, rhs: &Self::Output) -> Result<Self::Output> {
-        Ok(expr::sub(lhs, rhs))
-    }
-
-    fn lower_mul(&self, lhs: &Self::Output, rhs: &Self::Output) -> Result<Self::Output> {
-        Ok(expr::mul(lhs, rhs))
-    }
-
-    fn lower_neg(&self, expr: &Self::Output) -> Result<Self::Output> {
-        Ok(expr::neg(expr))
-    }
-
-    fn lower_double(&self, expr: &Self::Output) -> Result<Self::Output> {
-        Ok(expr::add(expr, expr))
-    }
-
-    fn lower_square(&self, expr: &Self::Output) -> Result<Self::Output> {
-        Ok(expr::mul(expr, expr))
-    }
-
-    fn lower_invert(&self, _expr: &Self::Output) -> Result<Self::Output> {
-        unimplemented!()
-    }
-
-    fn lower_sqrt_ratio(&self, _lhs: &Self::Output, _rhs: &Self::Output) -> Result<Self::Output> {
-        unimplemented!()
-    }
-
-    fn lower_cond_select(
-        &self,
-        _cond: bool,
-        _then: &Self::Output,
-        _else: &Self::Output,
-    ) -> Result<Self::Output> {
-        unimplemented!()
     }
 }
 
@@ -168,7 +77,7 @@ impl Lowering for PicusModuleLowering {
             outputs
                 .iter()
                 .copied()
-                .map(|o| self.lower_func_io(o, None))
+                .map(|o| self.lower_func_io(o))
                 .collect(),
         )?;
         self.module.borrow_mut().add_stmt(stmt);
@@ -176,7 +85,7 @@ impl Lowering for PicusModuleLowering {
     }
 
     fn generate_assume_deterministic(&self, func_io: FuncIO) -> Result<()> {
-        let stmt = stmt::assume_deterministic(self.lower_func_io(func_io, None))?;
+        let stmt = stmt::assume_deterministic(self.lower_func_io(func_io))?;
         self.module.borrow_mut().add_stmt(stmt);
         Ok(())
     }
@@ -215,52 +124,6 @@ impl ExprLowering for PicusModuleLowering {
         unimplemented!()
     }
 
-    //fn lower_selector(
-    //    &self,
-    //    sel: &Selector,
-    //    resolver: &dyn SelectorResolver,
-    //) -> Result<Self::CellOutput> {
-    //    match resolver.resolve_selector(sel)? {
-    //        ResolvedSelector::Const(value) => self.lower_constant(value.to_f()),
-    //        ResolvedSelector::Arg(arg_no) => Ok(self.lower_func_io(arg_no.into(), None)),
-    //    }
-    //}
-    //
-    //fn lower_advice_query(
-    //    &self,
-    //    query: &AdviceQuery,
-    //    resolver: &dyn QueryResolver<Self::F>,
-    //) -> Result<Self::CellOutput> {
-    //    let (res, fqn) = resolver.resolve_advice_query(query)?;
-    //    self.lower_resolved_query(res, fqn)
-    //}
-    //
-    //fn lower_instance_query(
-    //    &self,
-    //    query: &InstanceQuery,
-    //    resolver: &dyn QueryResolver<Self::F>,
-    //) -> Result<Self::CellOutput> {
-    //    self.lower_resolved_query(resolver.resolve_instance_query(query)?, None)
-    //}
-    //
-    //fn lower_fixed_query(
-    //    &self,
-    //    query: &FixedQuery,
-    //    resolver: &dyn QueryResolver<Self::F>,
-    //) -> Result<Self::CellOutput> {
-    //    self.lower_resolved_query(resolver.resolve_fixed_query(query)?, None)
-    //}
-
-    #[cfg(feature = "lift-field-operations")]
-    fn lower_constant(&self, f: Self::F) -> Result<Self::CellOutput> {
-        let expr = self.lower(&f, true)?;
-        log::debug!(
-            "[PicusBackend::lower_constant] Constant value {f:?} becomes expression {expr:?}"
-        );
-        Ok(expr)
-    }
-
-    #[cfg(not(feature = "lift-field-operations"))]
     fn lower_constant(&self, f: Felt) -> Result<Self::CellOutput> {
         let expr = expr::r#const(f);
         log::debug!(
@@ -297,7 +160,7 @@ impl ExprLowering for PicusModuleLowering {
     where
         IO: Into<FuncIO>,
     {
-        Ok(self.lower_func_io(io.into(), None))
+        Ok(self.lower_func_io(io.into()))
     }
 
     fn lower_lt(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {

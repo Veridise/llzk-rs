@@ -1,14 +1,11 @@
-use std::{
-    hash::{DefaultHasher, Hash as _, Hasher as _},
-    ops::Index,
-};
+use std::ops::Index;
 
 use crate::{
     backend::codegen::lookup::query_from_table_expr,
     gates::AnyQuery,
     halo2::{ConstraintSystem, Expression, Field, FixedQuery},
 };
-use anyhow::{bail, Result};
+use anyhow::Result;
 
 pub mod callbacks;
 
@@ -83,22 +80,12 @@ impl<'a, F: Field> Lookup<'a, F> {
         self.idx
     }
 
-    pub fn module_name(&self) -> Result<String> {
-        self.kind().map(|kind| kind.module_name())
-    }
-
     pub fn expressions(&self) -> impl Iterator<Item = (&'a Expression<F>, &'a Expression<F>)> + 'a {
         self.inputs.iter().zip(self.table)
     }
 
     pub fn inputs(&self) -> &'a [Expression<F>] {
         self.inputs
-    }
-
-    pub fn kind(&self) -> Result<LookupKind> {
-        LookupKind::new(
-            self.table, //, self.inputs
-        )
     }
 
     pub fn table_queries(&self) -> Result<Vec<AnyQuery>> {
@@ -118,48 +105,6 @@ impl<'a, F: Field> Lookup<'a, F> {
 impl LookupData {
     pub fn output_queries(&self) -> &[AnyQuery] {
         &self.table_queries
-    }
-}
-
-/// Uniquely identifies a lookup target by the table columns used in it.
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct LookupKind {
-    columns: Vec<usize>,
-}
-
-impl LookupKind {
-    /// Constructs a lookup kind. The callbacks are invoked for deducing which columns are
-    /// designated as inputs and which as outputs.
-    pub fn new<F: Field>(
-        tables: &[Expression<F>],
-        //inputs: &[Expression<F>],
-        //lookups: &dyn LookupCallbacks<F>,
-    ) -> anyhow::Result<Self> {
-        //fn empty_io() -> anyhow::Result<(usize, usize)> {
-        //    Ok((0, 0))
-        //}
-        let columns = tables
-            .iter()
-            .map(|e| match e {
-                Expression::Fixed(q) => Ok(q.column_index()),
-                _ => bail!("Unsupported table column definition: {e:?}"),
-            })
-            .collect::<anyhow::Result<Vec<_>>>()?;
-        Ok(Self { columns })
-    }
-
-    pub fn id(&self) -> u64 {
-        let mut s = DefaultHasher::new();
-        self.hash(&mut s);
-        s.finish()
-    }
-
-    pub fn module_name(&self) -> String {
-        format!("lookup_{}", self.id())
-    }
-
-    pub fn columns(&self) -> &[usize] {
-        &self.columns
     }
 }
 

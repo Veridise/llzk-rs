@@ -5,8 +5,6 @@ use melior::Context;
 pub struct LlzkParams<'c> {
     context: &'c LlzkContext,
     top_level: Option<String>,
-    #[cfg(feature = "lift-field-operations")]
-    lift_fixed: bool,
 }
 
 impl<'c> LlzkParams<'c> {
@@ -14,8 +12,6 @@ impl<'c> LlzkParams<'c> {
         Self {
             context,
             top_level: Default::default(),
-            #[cfg(feature = "lift-field-operations")]
-            lift_fixed: false,
         }
     }
 
@@ -25,13 +21,6 @@ impl<'c> LlzkParams<'c> {
 
     pub fn top_level(&self) -> Option<&str> {
         self.top_level.as_deref()
-    }
-}
-
-#[cfg(feature = "lift-field-operations")]
-impl crate::ir::lift::LiftingCfg for LlzkParams<'_> {
-    fn lifting_enabled(&self) -> bool {
-        self.lift_fixed
     }
 }
 
@@ -54,19 +43,6 @@ impl<'c> LlzkParamsBuilder<'c> {
 
     pub fn build(self) -> LlzkParams<'c> {
         self.0
-    }
-}
-
-#[cfg(feature = "lift-field-operations")]
-impl<'c> LlzkParamsBuilder<'c> {
-    pub fn lift_fixed(mut self) -> Self {
-        self.0.lift_fixed = true;
-        self
-    }
-
-    pub fn no_lift_fixed(mut self) -> Self {
-        self.0.lift_fixed = false;
-        self
     }
 }
 

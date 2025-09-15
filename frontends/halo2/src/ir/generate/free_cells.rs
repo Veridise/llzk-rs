@@ -1,8 +1,8 @@
 use crate::{
     halo2::{Any, Column, Field},
     ir::{
+        generate::RegionByIndex,
         groups::bounds::{Bound, EqConstraintCheck, GroupBounds},
-        RegionByIndex,
     },
     synthesis::{
         constraint::EqConstraintGraph,
