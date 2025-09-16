@@ -33,6 +33,7 @@ pub use backend::{
     },
 };
 pub use error::to_plonk_error;
+pub use expressions::ExpressionInRow;
 pub use gates::{GateCallbacks, GateRewritePattern, GateScope, RewriteError, RewriteOutput};
 pub use io::CircuitIO;
 pub use lookups::callbacks::LookupCallbacks;
