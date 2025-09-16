@@ -23,8 +23,14 @@ use crate::{
     io::{AdviceIO, InstanceIO},
 };
 pub use backend::{
-    llzk::params::{LlzkParams, LlzkParamsBuilder},
-    picus::params::{PicusParams, PicusParamsBuilder},
+    llzk::{
+        params::{LlzkParams, LlzkParamsBuilder},
+        LlzkOutput,
+    },
+    picus::{
+        params::{PicusParams, PicusParamsBuilder},
+        PicusOutput,
+    },
 };
 pub use error::to_plonk_error;
 pub use gates::{GateCallbacks, GateRewritePattern, GateScope, RewriteError, RewriteOutput};

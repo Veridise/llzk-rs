@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use super::{Backend, Codegen, func::FuncIO};
+use super::{func::FuncIO, Backend, Codegen};
 use crate::io::{AdviceIO, InstanceIO};
 
 use anyhow::Result;
@@ -26,6 +26,7 @@ mod vars;
 pub type PicusBackend = Backend<PicusCodegen, InnerState>;
 type InnerState = Rc<RefCell<PicusCodegenInner>>;
 pub type PicusModule = picus::Module<VarKey>;
+/// Output produced by the picus backend.
 pub type PicusOutput = picus::Program<VarKey>;
 type PipelineBuilder = picus::opt::OptimizerPipelineBuilder<VarKey>;
 type Pipeline = picus::opt::OptimizerPipeline<VarKey>;
