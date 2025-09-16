@@ -2,13 +2,14 @@
 
 use crate::{
     backend::{
-        func::{try_relativize_advice_cell, FuncIO},
+        func::{CellRef, FuncIO},
         lowering::{lowerable::LowerableStmt, Lowering},
     },
     expressions::{ExpressionInRow, ScopedExpression},
     gates::RewritePatternSet,
     halo2::{groups::GroupKeyInstance, Expression, Field, Gate, Rotation},
     ir::{
+        ctx::AdviceCells,
         equivalency::{EqvRelation, SymbolicEqv},
         expr::IRAexpr,
         generate::{free_cells::FreeCells, lookup::codegen_lookup_invocations, GroupIRCtx},
@@ -48,14 +49,20 @@ pub struct GroupBody<E> {
     injected: Vec<IRStmt<E>>,
 }
 
-impl<'cb, 's, F: Field> GroupBody<ScopedExpression<'s, 's, F>> {
+impl<'cb, 'syn, 'ctx, 'sco /*: 'ctx + 'syn*/, F> GroupBody<ScopedExpression<'syn, 'sco, F>>
+where
+    'cb: 'sco + 'syn,
+    'syn: 'sco,
+    'ctx: 'sco + 'syn,
+    F: Field,
+{
     pub(super) fn new(
-        group: &'s Group,
+        group: &'syn Group,
         id: usize,
-        ctx: &GroupIRCtx<'cb, 's, F>,
-        free_cells: &FreeCells,
-        advice_io: &'s crate::io::AdviceIO,
-        instance_io: &'s crate::io::InstanceIO,
+        ctx: &GroupIRCtx<'cb, 'syn, F>,
+        free_cells: &'ctx FreeCells,
+        advice_io: &'ctx crate::io::AdviceIO,
+        instance_io: &'ctx crate::io::InstanceIO,
     ) -> anyhow::Result<Self> {
         log::debug!("Lowering call-sites for group {:?}", group.name());
         let callsites = {
@@ -86,7 +93,6 @@ impl<'cb, 's, F: Field> GroupBody<ScopedExpression<'s, 's, F>> {
             instance_io,
             ctx.syn().fixed_query_resolver(),
         )?);
-        //.and_then(scoped_exprs_to_aexpr)?;
         log::debug!("Gates IR: {gates:?}");
 
         log::debug!(
@@ -135,11 +141,11 @@ impl<'cb, 's, F: Field> GroupBody<ScopedExpression<'s, 's, F>> {
     /// Injects IR into the group scoped by the region.
     pub(super) fn inject_ir<'a>(
         &'a mut self,
-        region: RegionData<'s>,
-        ir: &IRStmt<ExpressionInRow<'s, F>>,
-        advice_io: &'s crate::io::AdviceIO,
-        instance_io: &'s crate::io::InstanceIO,
-        fqr: &'s dyn FixedQueryResolver<F>,
+        region: RegionData<'syn>,
+        ir: &IRStmt<ExpressionInRow<'syn, F>>,
+        advice_io: &'ctx crate::io::AdviceIO,
+        instance_io: &'ctx crate::io::InstanceIO,
+        fqr: &'syn dyn FixedQueryResolver<F>,
     ) {
         self.injected.push(
             ir.map_into(&|expr| expr.scoped_in_region_row(region, advice_io, instance_io, fqr)),
@@ -155,16 +161,41 @@ impl GroupBody<IRAexpr> {
         self.eq_constraints.try_map_inplace(&|expr| {
             expr.try_map_io(&|io| match io {
                 FuncIO::Advice(cell) => {
-                    *cell = try_relativize_advice_cell(
-                        *cell,
-                        ctx.regions_by_index().values().copied(),
-                    )?;
+                    *cell = try_relativize_advice_cell(*cell, ctx.advice_cells().values())?;
                     Ok(())
                 }
                 _ => Ok(()),
             })
         })
     }
+}
+
+/// Searches to what region the advice cell belongs to and converts it to a relative reference from
+/// that region.
+///
+/// Fails if the advice cell could not be found in any region.
+fn try_relativize_advice_cell<'a>(
+    cell: CellRef,
+    regions: impl IntoIterator<Item = &'a AdviceCells>,
+) -> anyhow::Result<CellRef> {
+    if !cell.is_absolute() {
+        return Ok(cell);
+    }
+    for region in regions {
+        if !region.contains_advice_cell(cell.col(), cell.row()) {
+            continue;
+        }
+        let start = region
+            .start()
+            .ok_or_else(|| anyhow::anyhow!("Region does not have a base"))?;
+        return cell
+            .relativize(start)
+            .ok_or_else(|| anyhow::anyhow!("Failed to relativize cell"));
+    }
+
+    Err(anyhow::anyhow!(
+        "cell reference {cell:?} was not found in any region"
+    ))
 }
 
 impl<E> GroupBody<E> {
@@ -360,12 +391,12 @@ fn select_equality_constraints<F: Field>(
 ///
 /// This function accepts an iterator of equality constraints to facilitate
 /// filtering the equality constraints of a group from the global equality constraints graph.
-pub fn inter_region_constraints<'s, F: Field>(
+fn inter_region_constraints<'e, 's, F: Field>(
     constraints: impl IntoIterator<Item = EqConstraint<F>>,
     advice_io: &'s crate::io::AdviceIO,
     instance_io: &'s crate::io::InstanceIO,
     fixed_query_resolver: &'s dyn FixedQueryResolver<F>,
-) -> Vec<IRStmt<ScopedExpression<'s, 's, F>>> {
+) -> Vec<IRStmt<ScopedExpression<'e, 's, F>>> {
     constraints
         .into_iter()
         .map(|constraint| match constraint {
@@ -395,14 +426,19 @@ pub fn inter_region_constraints<'s, F: Field>(
 }
 
 /// Uses the given rewrite patterns to lower the gates on each region.
-fn lower_gates<'a, F: Field>(
-    gates: &'a [Gate<F>],
-    regions: &[RegionData<'a>],
+fn lower_gates<'sco, 'syn, 'io, F>(
+    gates: &'syn [Gate<F>],
+    regions: &[RegionData<'syn>],
     patterns: &RewritePatternSet<F>,
-    advice_io: &'a crate::io::AdviceIO,
-    instance_io: &'a crate::io::InstanceIO,
-    fqr: &'a dyn FixedQueryResolver<F>,
-) -> Result<Vec<IRStmt<ScopedExpression<'a, 'a, F>>>> {
+    advice_io: &'io crate::io::AdviceIO,
+    instance_io: &'io crate::io::InstanceIO,
+    fqr: &'syn dyn FixedQueryResolver<F>,
+) -> Result<Vec<IRStmt<ScopedExpression<'syn, 'sco, F>>>>
+where
+    'syn: 'sco,
+    'io: 'sco + 'syn,
+    F: Field,
+{
     log::debug!("Got {} gates and {} regions", gates.len(), regions.len());
     utils::product(regions, gates)
         .map(|(r, g)| {

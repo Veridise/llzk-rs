@@ -1,9 +1,8 @@
-use super::lowering::ExprLowering as _;
 use super::lowering::lowerable::LowerableStmt;
+use super::lowering::ExprLowering as _;
 use super::{func::FuncIO, lowering::Lowering};
 use crate::io::{AdviceIO, InstanceIO};
-use crate::ir::expr::IRAexpr;
-use crate::ir::{IRCircuit, IRCtx};
+use crate::ir::{IRCtx, ResolvedIRCircuit};
 use anyhow::Result;
 
 pub mod lookup;
@@ -83,7 +82,7 @@ pub trait CodegenStrategy: Default {
         &self,
         codegen: &C,
         ctx: &IRCtx,
-        ir: &IRCircuit<IRAexpr>,
+        ir: &ResolvedIRCircuit,
     ) -> Result<()>
     where
         C: Codegen<'c, 'st>;

@@ -27,6 +27,7 @@ pub mod regions;
 /// Result of synthesizing a circuit.
 #[derive(Debug)]
 pub struct CircuitSynthesis<F: Field> {
+    id: usize,
     cs: ConstraintSystem<F>,
     eq_constraints: EqConstraintGraph<F>,
     fixed: FixedData<F>,
@@ -126,17 +127,23 @@ impl<F: Field> CircuitSynthesis<F> {
     pub fn fixed_query_resolver(&self) -> &dyn FixedQueryResolver<F> {
         &self.fixed
     }
+
+    pub(crate) fn id(&self) -> usize {
+        self.id
+    }
 }
 
 /// Collects the information from the synthesis.
 #[derive(Default)]
 pub(crate) struct Synthesizer<F: Field> {
     cs: ConstraintSystem<F>,
+    id: usize,
 }
 
 impl<F: Field> Synthesizer<F> {
-    pub fn new() -> Self {
+    pub fn new(id: usize) -> Self {
         Self {
+            id,
             cs: Default::default(),
         }
     }
@@ -187,6 +194,7 @@ impl<F: Field> Synthesizer<F> {
         let tables = fill_tables(tables, &fixed)?;
 
         Ok(CircuitSynthesis {
+            id: self.id,
             cs: self.cs,
             eq_constraints,
             fixed,

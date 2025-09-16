@@ -35,16 +35,16 @@ pub struct CallSite<E> {
     outputs: Vec<E>,
 }
 
-fn cells_to_exprs<'e, 's, F: Field>(
+fn cells_to_exprs<'e, 's /*: 'syn + 'io*/, 'syn: 's, 'cb, 'io: 's, F: Field>(
     cells: &[GroupCell],
-    ctx: &super::GroupIRCtx<'_, 's, F>,
-    advice_io: &'s crate::io::AdviceIO,
-    instance_io: &'s crate::io::InstanceIO,
+    ctx: &super::GroupIRCtx<'cb, 'syn, F>,
+    advice_io: &'io crate::io::AdviceIO,
+    instance_io: &'io crate::io::InstanceIO,
 ) -> anyhow::Result<Vec<ScopedExpression<'e, 's, F>>> {
     cells
         .iter()
         .map(|cell| {
-            let region: Option<RegionData<'_>> = cell
+            let region: Option<RegionData<'syn>> = cell
                 .region_index()
                 .map(|index| {
                     ctx.regions_by_index().get(&index).ok_or_else(|| {
@@ -105,15 +105,15 @@ impl EqvRelation<CallSite<IRAexpr>> for SymbolicEqv {
     }
 }
 
-impl<'s, F: Field> CallSite<ScopedExpression<'_, 's, F>> {
+impl<'s /*: 'ctx + 'syn*/, 'syn: 's, 'ctx: 's, F: Field> CallSite<ScopedExpression<'_, 's, F>> {
     pub(super) fn new(
         callee: &Group,
         callee_id: usize,
-        ctx: &super::GroupIRCtx<'_, 's, F>,
+        ctx: &super::GroupIRCtx<'_, 'syn, F>,
         call_no: usize,
-        advice_io: &'s crate::io::AdviceIO,
-        instance_io: &'s crate::io::InstanceIO,
-        free_cells: &[GroupCell],
+        advice_io: &'ctx crate::io::AdviceIO,
+        instance_io: &'ctx crate::io::InstanceIO,
+        free_cells: &'ctx [GroupCell],
     ) -> anyhow::Result<Self> {
         let callee_key = callee
             .key()

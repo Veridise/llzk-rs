@@ -2,7 +2,7 @@ pub mod inline {
 
     use crate::{
         backend::codegen::{Codegen, CodegenStrategy},
-        ir::{IRCircuit, IRCtx, expr::IRAexpr},
+        ir::{IRCtx, ResolvedIRCircuit},
     };
     use anyhow::Result;
 
@@ -16,7 +16,7 @@ pub mod inline {
             &self,
             codegen: &C,
             ctx: &IRCtx,
-            ir: &IRCircuit<IRAexpr>,
+            ir: &ResolvedIRCircuit,
         ) -> Result<()>
         where
             C: Codegen<'c, 'st>,
@@ -40,14 +40,14 @@ pub mod inline {
 pub mod groups {
 
     use crate::halo2::groups::GroupKeyInstance;
-    use crate::ir::IRCtx;
+    use crate::ir::expr::IRAexpr;
     use crate::ir::groups::GroupBody;
+    use crate::ir::IRCtx;
     use crate::{
         backend::codegen::{Codegen, CodegenStrategy},
         ir::{
-            IRCircuit,
             equivalency::{EqvRelation, SymbolicEqv},
-            expr::IRAexpr,
+            ResolvedIRCircuit,
         },
         utils,
     };
@@ -63,7 +63,7 @@ pub mod groups {
             &self,
             codegen: &C,
             ctx: &IRCtx,
-            ir: &IRCircuit<IRAexpr>,
+            ir: &ResolvedIRCircuit,
         ) -> Result<()>
         where
             C: Codegen<'c, 'st>,

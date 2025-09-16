@@ -201,7 +201,7 @@ impl<F: Field> CircuitCallbacks<F> for MulCircuit<F> {
 struct DummyPattern;
 
 impl<F> GateRewritePattern<F> for DummyPattern {
-    fn match_gate<'a>(&self, _gate: GateScope<'a, F>) -> Result<(), RewriteError>
+    fn match_gate<'a>(&self, _gate: GateScope<'a, '_, F>) -> Result<(), RewriteError>
     where
         F: Field,
     {

@@ -13,11 +13,11 @@ pub mod callbacks;
 
 /// Lightweight representation of a lookup that is cheap to copy
 #[derive(Clone, Copy, Debug)]
-pub struct Lookup<'a, F: Field> {
-    name: &'a str,
+pub struct Lookup<'syn, F: Field> {
+    name: &'syn str,
     idx: usize,
-    inputs: &'a [Expression<F>],
-    table: &'a [Expression<F>],
+    inputs: &'syn [Expression<F>],
+    table: &'syn [Expression<F>],
 }
 
 impl<F: Field> std::fmt::Display for Lookup<'_, F> {
@@ -32,17 +32,17 @@ pub struct LookupData {
     table_queries: Vec<AnyQuery>,
 }
 
-impl<'a, F: Field> TryFrom<Lookup<'a, F>> for LookupData {
+impl<'syn, F: Field> TryFrom<Lookup<'syn, F>> for LookupData {
     type Error = anyhow::Error;
 
-    fn try_from(lookup: Lookup<'a, F>) -> std::result::Result<Self, Self::Error> {
+    fn try_from(lookup: Lookup<'syn, F>) -> std::result::Result<Self, Self::Error> {
         let table_queries = compute_table_cells(lookup.table.iter())?;
         Ok(LookupData { table_queries })
     }
 }
 
-fn compute_table_cells<'a, F: Field>(
-    table: impl Iterator<Item = &'a Expression<F>>,
+fn compute_table_cells<'syn, F: Field>(
+    table: impl Iterator<Item = &'syn Expression<F>>,
 ) -> Result<Vec<AnyQuery>> {
     table
         .map(query_from_table_expr)
@@ -50,9 +50,9 @@ fn compute_table_cells<'a, F: Field>(
         .collect()
 }
 
-impl<'a, F: Field> Lookup<'a, F> {
+impl<'syn, F: Field> Lookup<'syn, F> {
     /// Returns the list of lookups defined in the constraint system.
-    pub fn load(cs: &'a ConstraintSystem<F>) -> Vec<Self> {
+    pub fn load(cs: &'syn ConstraintSystem<F>) -> Vec<Self> {
         cs.lookups()
             .iter()
             .enumerate()
@@ -62,9 +62,9 @@ impl<'a, F: Field> Lookup<'a, F> {
 
     fn new(
         idx: usize,
-        name: &'a str,
-        inputs: &'a [Expression<F>],
-        table: &'a [Expression<F>],
+        name: &'syn str,
+        inputs: &'syn [Expression<F>],
+        table: &'syn [Expression<F>],
     ) -> Self {
         Self {
             idx,
@@ -85,12 +85,14 @@ impl<'a, F: Field> Lookup<'a, F> {
     }
 
     /// Returns the list of expressions used to query the lookup table.
-    pub fn expressions(&self) -> impl Iterator<Item = (&'a Expression<F>, &'a Expression<F>)> + 'a {
+    pub fn expressions(
+        &self,
+    ) -> impl Iterator<Item = (&'syn Expression<F>, &'syn Expression<F>)> + 'syn {
         self.inputs.iter().zip(self.table)
     }
 
     /// Returns the inputs of the queries.
-    pub fn inputs(&self) -> &'a [Expression<F>] {
+    pub fn inputs(&self) -> &'syn [Expression<F>] {
         self.inputs
     }
 

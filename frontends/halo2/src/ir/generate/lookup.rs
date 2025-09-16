@@ -3,18 +3,24 @@ use crate::{
     halo2::Field,
     ir::stmt::IRStmt,
     lookups::callbacks::{LazyLookupTableGenerator, LookupCallbacks},
-    synthesis::{CircuitSynthesis, regions::RegionRow},
+    synthesis::{regions::RegionRow, CircuitSynthesis},
     utils,
 };
 use anyhow::Result;
 
 use super::prepend_comment;
 
-pub fn codegen_lookup_invocations<'s, F: Field>(
-    syn: &'s CircuitSynthesis<F>,
-    region_rows: &[RegionRow<'s, 's, 's, F>],
-    lookup_cb: &dyn LookupCallbacks<F>,
-) -> Result<Vec<IRStmt<ScopedExpression<'s, 's, F>>>> {
+pub fn codegen_lookup_invocations<'sco, 'syn, 'ctx, 'cb, F>(
+    syn: &'syn CircuitSynthesis<F>,
+    region_rows: &[RegionRow<'syn, 'ctx, 'syn, F>],
+    lookup_cb: &'cb dyn LookupCallbacks<F>,
+) -> Result<Vec<IRStmt<ScopedExpression<'syn, 'sco, F>>>>
+where
+    'syn: 'sco,
+    'ctx: 'sco + 'syn,
+    'cb: 'sco + 'syn,
+    F: Field,
+{
     utils::product(syn.lookups(), region_rows)
         .map(|(lookup, rr)| {
             let table = LazyLookupTableGenerator::new(|| {

@@ -6,7 +6,7 @@ use stmt::IRStmt;
 
 use crate::{
     expressions::{ExpressionInRow, ScopedExpression},
-    halo2::RegionIndex,
+    halo2::{PrimeField, RegionIndex},
     ir::{expr::IRAexpr, generate::region_data, groups::GroupBody},
     synthesis::CircuitSynthesis,
 };
@@ -54,25 +54,33 @@ pub mod stmt;
 
 pub use ctx::IRCtx;
 
-// These structs are a WIP.
-
-/// Alias for a circuit that has not resolved its expressions yet and is still tied to the lifetime
-/// of the [`CircuitSynthesis`].
-pub type UnresolvedIRCircuit<'s, F> = IRCircuit<ScopedExpression<'s, 's, F>>;
-
-/// Represents the whole circuit.
+/// Circuit that has not resolved its expressions yet and is still tied to the lifetime
+/// of the [`CircuitSynthesis`] and the [`crate::driver::Driver`].
 #[derive(Debug)]
-pub struct IRCircuit<T> {
-    groups: Vec<GroupBody<T>>,
+pub struct UnresolvedIRCircuit<'ctx, 'syn, 'sco, F>
+where
+    F: PrimeField,
+    'syn: 'sco,
+    'ctx: 'sco + 'syn,
+{
+    ctx: &'ctx IRCtx,
+    groups: Vec<GroupBody<ScopedExpression<'syn, 'sco, F>>>,
     regions_to_groups: Vec<usize>,
 }
 
-impl<'s, F: crate::halo2::PrimeField> UnresolvedIRCircuit<'s, F> {
-    fn new(
-        groups: Vec<GroupBody<ScopedExpression<'s, 's, F>>>,
+impl<'ctx, 'syn, 'sco, F> UnresolvedIRCircuit<'ctx, 'syn, 'sco, F>
+where
+    F: PrimeField,
+    'syn: 'sco,
+    'ctx: 'sco + 'syn,
+{
+    pub(crate) fn new(
+        ctx: &'ctx IRCtx,
+        groups: Vec<GroupBody<ScopedExpression<'syn, 'sco, F>>>,
         regions_to_groups: Vec<usize>,
     ) -> Self {
         Self {
+            ctx,
             groups,
             regions_to_groups,
         }
@@ -81,52 +89,64 @@ impl<'s, F: crate::halo2::PrimeField> UnresolvedIRCircuit<'s, F> {
     /// Injects the IR into the specific regions
     pub fn inject_ir(
         &mut self,
-        ir: &[(RegionIndex, IRStmt<ExpressionInRow<'s, F>>)],
-        syn: &'s CircuitSynthesis<F>,
-        ctx: &'s IRCtx,
-    ) -> anyhow::Result<()> {
-        let regions = region_data(syn)?;
+        ir: &[(RegionIndex, IRStmt<ExpressionInRow<'syn, F>>)],
+        syn: &'syn CircuitSynthesis<F>,
+    ) {
+        let regions = region_data(syn);
         for (index, stmt) in ir {
             let region = regions[index];
             let group_idx = self.regions_to_groups[**index];
             self.groups[group_idx].inject_ir(
                 region,
                 stmt,
-                ctx.advice_io_of_group(group_idx),
-                ctx.instance_io_of_group(group_idx),
+                self.ctx.advice_io_of_group(group_idx),
+                self.ctx.instance_io_of_group(group_idx),
                 syn.fixed_query_resolver(),
             );
         }
-        Ok(())
     }
 
     /// Resolves the IR.
-    pub fn resolve(self, ctx: &IRCtx) -> anyhow::Result<IRCircuit<IRAexpr>> {
+    pub fn resolve(self) -> anyhow::Result<ResolvedIRCircuit> {
         let mut groups = self
             .groups
             .into_iter()
             .map(|g| g.try_map(&IRAexpr::try_from))
             .collect::<Result<Vec<_>, _>>()?;
         for group in &mut groups {
-            group.relativize_eq_constraints(ctx)?;
+            group.relativize_eq_constraints(self.ctx)?;
         }
-        Ok(IRCircuit {
+        Ok(ResolvedIRCircuit {
+            ctx: self.ctx.clone(),
             groups,
-            regions_to_groups: self.regions_to_groups,
+            //regions_to_groups: self.regions_to_groups,
         })
     }
 }
 
-impl<T> IRCircuit<T> {
+/// Circuit that has resolved its expressions and is no longer tied to the lifetime of the
+/// synthesis and is not parametrized on a prime field.
+#[derive(Debug)]
+pub struct ResolvedIRCircuit {
+    ctx: IRCtx,
+    groups: Vec<GroupBody<IRAexpr>>,
+}
+
+impl ResolvedIRCircuit {
     /// Returns a list of the groups inside the circuit.
-    pub fn groups(&self) -> &[GroupBody<T>] {
+    pub fn groups(&self) -> &[GroupBody<IRAexpr>] {
         &self.groups
+    }
+
+    /// Returns the context associated with this circuit.
+    pub fn ctx(&self) -> &IRCtx {
+        &self.ctx
     }
 
     /// Returns the main group.
     ///
     /// Panics if there isn't a main group.
-    pub fn main(&self) -> &GroupBody<T> {
+    pub fn main(&self) -> &GroupBody<IRAexpr> {
         // Reverse the iterator because the main group is likely to be the last one.
         self.groups
             .iter()

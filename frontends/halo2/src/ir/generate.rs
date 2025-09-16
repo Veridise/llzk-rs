@@ -6,7 +6,7 @@ use crate::{
     expressions::ScopedExpression,
     gates::RewritePatternSet,
     halo2::{Field, PrimeField, RegionIndex},
-    ir::{generate::patterns::load_patterns, groups::GroupBody, stmt::IRStmt, IRCircuit, IRCtx},
+    ir::{generate::patterns::load_patterns, groups::GroupBody, stmt::IRStmt, IRCtx},
     lookups::callbacks::LookupCallbacks,
     synthesis::{groups::Group, regions::RegionData, CircuitSynthesis},
     GateCallbacks,
@@ -17,15 +17,21 @@ pub(crate) mod lookup;
 mod patterns;
 
 /// Generates an intermediate representation of the circuit from its synthesis.
-pub fn generate_ir<'s, 'c: 's, F: PrimeField>(
-    syn: &'s CircuitSynthesis<F>,
-    lookup_cb: &dyn LookupCallbacks<F>,
+pub fn generate_ir<'syn, 'ctx, 'cb, 'sco, F>(
+    syn: &'syn CircuitSynthesis<F>,
+    lookup_cb: &'cb dyn LookupCallbacks<F>,
     gate_cbs: &dyn GateCallbacks<F>,
-    ir_ctx: &'c IRCtx<'s>,
-) -> anyhow::Result<IRCircuit<ScopedExpression<'s, 's, F>>> {
+    ir_ctx: &'ctx IRCtx,
+) -> anyhow::Result<Vec<GroupBody<ScopedExpression<'syn, 'sco, F>>>>
+where
+    F: PrimeField,
+    'syn: 'sco,
+    'ctx: 'sco + 'syn,
+    'cb: 'sco + 'syn,
+{
     log::debug!("Circuit synthesis has {} gates", syn.gates().len());
     let patterns = load_patterns(gate_cbs);
-    let regions_by_index = region_data(syn)?;
+    let regions_by_index = region_data(syn);
     let ctx = GroupIRCtx {
         regions_by_index,
         syn,
@@ -35,21 +41,10 @@ pub fn generate_ir<'s, 'c: 's, F: PrimeField>(
 
     log::debug!("Generating IR of region groups");
 
-    let enumerated_groups = ctx.groups().iter().enumerate().collect::<Vec<_>>();
-    let mut regions_to_groups = vec![];
-
-    for (idx, group) in &enumerated_groups {
-        for region in group.regions() {
-            regions_to_groups.push((region.index().unwrap(), *idx));
-        }
-    }
-    regions_to_groups.sort_by_key(|(ri, _)| **ri);
-    debug_assert!(regions_to_groups
-        .iter()
-        .enumerate()
-        .all(|(n, (ri, _))| n == **ri));
-    let groups_ir = enumerated_groups
+    let groups_ir = ctx
+        .groups()
         .into_iter()
+        .enumerate()
         .map(|(id, g)| {
             GroupBody::new(
                 g,
@@ -69,27 +64,19 @@ pub fn generate_ir<'s, 'c: 's, F: PrimeField>(
         "Only one main group is allowed"
     );
 
-    Ok(IRCircuit::new(
-        groups_ir,
-        regions_to_groups
-            .into_iter()
-            .map(|(_, gidx)| gidx)
-            .collect(),
-    ))
+    Ok(groups_ir)
 }
 
 /// Creates a map from region index to its data
 #[inline]
-pub(super) fn region_data<'s, F: Field>(
-    syn: &'s CircuitSynthesis<F>,
-) -> anyhow::Result<RegionByIndex<'s>> {
+pub(super) fn region_data<'s, F: Field>(syn: &'s CircuitSynthesis<F>) -> RegionByIndex<'s> {
     syn.groups()
         .iter()
         .flat_map(|g| g.regions())
         .map(|r| {
             r.index()
                 .map(|i| (i, r))
-                .ok_or_else(|| anyhow::anyhow!("Region {r:?} does not have an index"))
+                .unwrap_or_else(|| panic!("Region {r:?} does not have an index"))
         })
         .collect()
 }

@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use ff::{Field, PrimeField};
 use halo2_llzk_frontend::{
     driver::Driver,
-    ir::stmt::IRStmt,
+    ir::{stmt::IRStmt, ResolvedIRCircuit},
     lookups::{
         callbacks::{LookupCallbacks, LookupTableGenerator},
         Lookup,
@@ -18,6 +18,24 @@ pub fn setup() {
     let _ = TestLogger::init(LevelFilter::Debug, Config::default());
 }
 
+/// We run the synthesis separately to test that the lifetimes of the values
+/// can be untied to the CircuitSynthesis struct. But also if we want to add LLZK tests
+/// this makes sure to test the retargeability of the driver.
+fn synthesize_and_generate_ir<'drv, F, C>(
+    driver: &'drv mut Driver,
+    circuit: C,
+    lookups: Option<&dyn LookupCallbacks<F>>,
+    gates: Option<&dyn GateCallbacks<F>>,
+) -> ResolvedIRCircuit
+where
+    F: PrimeField,
+    C: CircuitCallbacks<F>,
+{
+    let syn = driver.synthesize(&circuit).unwrap();
+    let unresolved = driver.generate_ir(&syn, lookups, gates).unwrap();
+    unresolved.resolve().unwrap()
+}
+
 pub fn picus_test<F, C>(
     circuit: C,
     params: PicusParams,
@@ -28,16 +46,12 @@ pub fn picus_test<F, C>(
     F: PrimeField,
     C: CircuitCallbacks<F>,
 {
-    let driver = Driver::default();
-    let syn = driver.synthesize(&circuit).unwrap();
-
-    let ir_ctx = driver.create_ir_ctx(&syn).unwrap();
-    let unresolved = driver.generate_ir(&syn, &ir_ctx, lookups, gates).unwrap();
-    let resolved = unresolved.resolve(&ir_ctx).unwrap();
+    let mut driver = Driver::default();
+    let resolved = synthesize_and_generate_ir(&mut driver, circuit, lookups, gates);
 
     let output = clean_string(
         &driver
-            .picus(&resolved, &ir_ctx, params)
+            .picus(&resolved, params)
             .unwrap()
             .display()
             .to_string(),

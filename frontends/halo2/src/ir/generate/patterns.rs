@@ -22,17 +22,17 @@ impl FallbackGateRewriter {
 }
 
 impl<F> GateRewritePattern<F> for FallbackGateRewriter {
-    fn match_gate<'a>(&self, _gate: GateScope<'a, F>) -> StdResult<(), RewriteError>
+    fn match_gate<'syn>(&self, _gate: GateScope<'syn, '_, F>) -> StdResult<(), RewriteError>
     where
         F: Field,
     {
         Ok(()) // Match all
     }
 
-    fn rewrite_gate<'a>(
+    fn rewrite_gate<'syn>(
         &self,
-        gate: GateScope<'a, F>,
-    ) -> StdResult<RewriteOutput<'a, F>, anyhow::Error>
+        gate: GateScope<'syn, '_, F>,
+    ) -> StdResult<RewriteOutput<'syn, F>, anyhow::Error>
     where
         F: Field,
     {
@@ -68,7 +68,7 @@ impl<F> GateRewritePattern<F> for FallbackGateRewriter {
                             Cow::Owned(Expression::Constant(F::ZERO)),
                         )
                     })
-                    .map(move |s| s.map(&|e: Cow<'a, _>| (row.row_number(), e)))
+                    .map(move |s| s.map(&|e: Cow<'syn, _>| (row.row_number(), e)))
                 //.collect()
             })
             .collect())

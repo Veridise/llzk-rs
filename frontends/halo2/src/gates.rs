@@ -23,30 +23,30 @@ pub type FoldedExpressions<F> = Vec<(usize, Expression<F>)>;
 
 /// Scope in which a gate is being called
 #[derive(Copy, Clone)]
-pub struct GateScope<'a, F>
+pub struct GateScope<'syn, 'io, F>
 where
     F: Field,
 {
-    gate: &'a Gate<F>,
-    region: RegionData<'a>,
+    gate: &'syn Gate<F>,
+    region: RegionData<'syn>,
     /// The bounds are [start,end).
     row_bounds: (usize, usize),
-    advice_io: &'a crate::io::AdviceIO,
-    instance_io: &'a crate::io::InstanceIO,
-    fqr: &'a dyn FixedQueryResolver<F>,
+    advice_io: &'io crate::io::AdviceIO,
+    instance_io: &'io crate::io::InstanceIO,
+    fqr: &'syn dyn FixedQueryResolver<F>,
 }
 
-impl<'a, F: Field> GateScope<'a, F> {
+impl<'syn, 'io, F: Field> GateScope<'syn, 'io, F> {
     /// Constructs a new gate scope.
     ///
     /// Since this class is passed to a callback its constructor is protected.
     pub(crate) fn new(
-        gate: &'a Gate<F>,
-        region: RegionData<'a>,
+        gate: &'syn Gate<F>,
+        region: RegionData<'syn>,
         row_bounds: (usize, usize),
-        advice_io: &'a crate::io::AdviceIO,
-        instance_io: &'a crate::io::InstanceIO,
-        fqr: &'a dyn FixedQueryResolver<F>,
+        advice_io: &'io crate::io::AdviceIO,
+        instance_io: &'io crate::io::InstanceIO,
+        fqr: &'syn dyn FixedQueryResolver<F>,
     ) -> Self {
         Self {
             gate,
@@ -58,11 +58,11 @@ impl<'a, F: Field> GateScope<'a, F> {
         }
     }
 
-    pub(crate) fn region(&self) -> RegionData<'a> {
+    pub(crate) fn region(&self) -> RegionData<'syn> {
         self.region
     }
 
-    pub(crate) fn region_row(&self, row: usize) -> anyhow::Result<RegionRow<'a, 'a, 'a, F>> {
+    pub(crate) fn region_row(&self, row: usize) -> anyhow::Result<RegionRow<'syn, 'io, 'syn, F>> {
         if !self.rows().contains(&row) {
             anyhow::bail!(
                 "Row {} is not within the rows of the scope [{}, {}]",
@@ -80,7 +80,7 @@ impl<'a, F: Field> GateScope<'a, F> {
         ))
     }
 
-    pub(crate) fn region_rows(&self) -> impl Iterator<Item = RegionRow<'a, 'a, 'a, F>> {
+    pub(crate) fn region_rows(&self) -> impl Iterator<Item = RegionRow<'syn, 'io, 'syn, F>> {
         self.rows().map(|row| {
             RegionRow::new(
                 self.region(),
@@ -98,7 +98,7 @@ impl<'a, F: Field> GateScope<'a, F> {
     }
 
     /// Returns the polynomials defined during circuit configuration.
-    pub fn polynomials(&self) -> &'a [Expression<F>] {
+    pub fn polynomials(&self) -> &'syn [Expression<F>] {
         self.gate.polynomials()
     }
 
@@ -106,7 +106,7 @@ impl<'a, F: Field> GateScope<'a, F> {
     /// first.
     pub fn polynomials_per_row(
         &self,
-    ) -> anyhow::Result<Vec<(&'a Expression<F>, FoldedExpressions<F>)>> {
+    ) -> anyhow::Result<Vec<(&'syn Expression<F>, FoldedExpressions<F>)>> {
         self.polynomials()
             .iter()
             .map(|e| {
@@ -173,7 +173,7 @@ impl<'a, F: Field> GateScope<'a, F> {
     }
 }
 
-impl<F: PrimeField> std::fmt::Debug for GateScope<'_, F> {
+impl<F: PrimeField> std::fmt::Debug for GateScope<'_, '_, F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GateScope")
             .field("gate", &self.gate)
@@ -187,7 +187,7 @@ impl<F: PrimeField> std::fmt::Debug for GateScope<'_, F> {
 
 /// The type used for rewriting the gates. Each expression has an associated row that is used as
 /// the base offset on the queries.
-pub type RewriteOutput<'a, F> = IRStmt<(usize, Cow<'a, Expression<F>>)>;
+pub type RewriteOutput<'syn, F> = IRStmt<(usize, Cow<'syn, Expression<F>>)>;
 
 /// Implementations of this trait can selectively rewrite a gate when lowering the circuit.
 ///
@@ -197,7 +197,7 @@ pub trait GateRewritePattern<F> {
     ///
     /// Returns Ok(()) if the pattern matched.
     #[allow(unused_variables)]
-    fn match_gate<'a>(&self, gate: GateScope<'a, F>) -> Result<(), RewriteError>
+    fn match_gate(&self, gate: GateScope<F>) -> Result<(), RewriteError>
     where
         F: Field,
     {
@@ -206,10 +206,10 @@ pub trait GateRewritePattern<F> {
 
     /// Performs the rewriting of the gate.
     #[allow(unused_variables)]
-    fn rewrite_gate<'a>(
+    fn rewrite_gate<'syn>(
         &self,
-        gate: GateScope<'a, F>,
-    ) -> Result<RewriteOutput<'a, F>, anyhow::Error>
+        gate: GateScope<'syn, '_, F>,
+    ) -> Result<RewriteOutput<'syn, F>, anyhow::Error>
     where
         F: Field,
     {
@@ -217,10 +217,10 @@ pub trait GateRewritePattern<F> {
     }
 
     /// Checks if the gate matches the pattern and then performs the rewriting.
-    fn match_and_rewrite<'a>(
+    fn match_and_rewrite<'syn>(
         &self,
-        gate: GateScope<'a, F>,
-    ) -> Result<RewriteOutput<'a, F>, RewriteError>
+        gate: GateScope<'syn, '_, F>,
+    ) -> Result<RewriteOutput<'syn, F>, RewriteError>
     where
         F: Field,
     {
@@ -273,10 +273,10 @@ impl<F> Extend<Box<dyn GateRewritePattern<F>>> for RewritePatternSet<F> {
 }
 
 impl<F> GateRewritePattern<F> for RewritePatternSet<F> {
-    fn match_and_rewrite<'a>(
+    fn match_and_rewrite<'syn>(
         &self,
-        gate: GateScope<'a, F>,
-    ) -> Result<RewriteOutput<'a, F>, RewriteError>
+        gate: GateScope<'syn, '_, F>,
+    ) -> Result<RewriteOutput<'syn, F>, RewriteError>
     where
         F: Field,
     {

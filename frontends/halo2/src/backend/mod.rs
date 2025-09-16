@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::ir::{IRCircuit, IRCtx, expr::IRAexpr};
+use crate::ir::{IRCtx, ResolvedIRCircuit};
 use anyhow::Result;
 
 pub mod codegen;
@@ -9,7 +9,7 @@ pub mod llzk;
 pub mod lowering;
 pub mod picus;
 
-use codegen::{Codegen, CodegenStrategy, strats::groups::GroupConstraintsStrat};
+use codegen::{strats::groups::GroupConstraintsStrat, Codegen, CodegenStrategy};
 
 //type DefaultStrat = InlineConstraintsStrat;
 type DefaultStrat = GroupConstraintsStrat;
@@ -40,14 +40,14 @@ where
     }
 
     /// Generate code using the default strategy.
-    pub fn codegen(&'b self, ir: &IRCircuit<IRAexpr>, ctx: &IRCtx) -> Result<C::Output> {
+    pub fn codegen(&'b self, ir: &ResolvedIRCircuit, ctx: &IRCtx) -> Result<C::Output> {
         self.codegen_with_strat(ir, ctx, DefaultStrat::default())
     }
 
     /// Generate code using the given strategy.
     pub(crate) fn codegen_with_strat(
         &'b self,
-        ir: &IRCircuit<IRAexpr>,
+        ir: &ResolvedIRCircuit,
         ctx: &IRCtx,
         strat: impl CodegenStrategy,
     ) -> Result<C::Output> {

@@ -9,11 +9,10 @@ use crate::{
         groups::{Group, GroupCell},
     },
 };
-use anyhow::Result;
 use std::collections::VecDeque;
 
 /// List of free cells that need to be binded in a group.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FreeCells {
     pub inputs: Vec<GroupCell>,
     pub callsites: Vec<Vec<GroupCell>>,
@@ -30,7 +29,7 @@ pub fn lift_free_cells_to_inputs<F: Field>(
     groups: &[Group],
     region_by_index: &RegionByIndex,
     constraints: &EqConstraintGraph<F>,
-) -> Result<Vec<FreeCells>> {
+) -> Vec<FreeCells> {
     let mut result: Vec<_> = groups
         .iter()
         .map(|g| FreeCells {
@@ -91,7 +90,7 @@ pub fn lift_free_cells_to_inputs<F: Field>(
         log::debug!("Worklist after iteration: {worklist:?}");
     }
 
-    Ok(result)
+    result
 }
 
 /// Searches for cells in constraints that are not within the bounds of the group but the other

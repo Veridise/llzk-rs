@@ -1,9 +1,6 @@
 use std::{fmt, ops::Deref};
 
-use crate::{
-    ir::equivalency::{EqvRelation, SymbolicEqv},
-    synthesis::regions::RegionData,
-};
+use crate::ir::equivalency::{EqvRelation, SymbolicEqv};
 
 /// Argument number of a function
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -156,34 +153,6 @@ impl EqvRelation<CellRef> for SymbolicEqv {
         lhs.offset() == rhs.offset()
             )
     }
-}
-
-/// Searches to what region the advice cell belongs to and converts it to a relative reference from
-/// that region.
-///
-/// Fails if the advice cell could not be found in any region.
-pub fn try_relativize_advice_cell<'a>(
-    cell: CellRef,
-    regions: impl IntoIterator<Item = RegionData<'a>>,
-) -> anyhow::Result<CellRef> {
-    if !cell.is_absolute() {
-        return Ok(cell);
-    }
-    for region in regions {
-        if !region.contains_advice_cell(cell.col(), cell.row()) {
-            continue;
-        }
-        let start = region
-            .start()
-            .ok_or_else(|| anyhow::anyhow!("Region {} does not have a base", region.name()))?;
-        return cell
-            .relativize(start)
-            .ok_or_else(|| anyhow::anyhow!("Failed to relativize cell"));
-    }
-
-    Err(anyhow::anyhow!(
-        "cell reference {cell:?} was not found in any region"
-    ))
 }
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]

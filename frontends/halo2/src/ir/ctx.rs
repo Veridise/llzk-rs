@@ -1,29 +1,31 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::ops::Range;
 
-use crate::halo2::{Advice, Any, Instance};
+use crate::halo2::{Advice, Any, Column, Instance};
 use crate::halo2::{Field, RegionIndex};
 use crate::io::IOCell;
 use crate::ir::generate::free_cells::{lift_free_cells_to_inputs, FreeCells};
-use crate::ir::generate::{region_data, RegionByIndex};
+use crate::ir::generate::region_data;
 use crate::synthesis::groups::{Group, GroupCell};
+use crate::synthesis::regions::RegionData;
 use crate::synthesis::CircuitSynthesis;
 use crate::CircuitIO;
 
 /// Contains information related to the IR of a circuit. Is used by the driver to lower the
 /// circuit.
-#[derive(Debug)]
-pub struct IRCtx<'s> {
+#[derive(Debug, Clone)]
+pub struct IRCtx {
     groups_advice_io: HashMap<usize, crate::io::AdviceIO>,
     groups_instance_io: HashMap<usize, crate::io::InstanceIO>,
-    regions_by_index: RegionByIndex<'s>,
+    advice_cells: HashMap<RegionIndex, AdviceCells>,
     free_cells: Vec<FreeCells>,
 }
 
-impl<'s> IRCtx<'s> {
-    pub(crate) fn new<F: Field>(syn: &'s CircuitSynthesis<F>) -> anyhow::Result<Self> {
-        let regions_by_index = region_data(syn)?;
+impl IRCtx {
+    pub(crate) fn new<F: Field>(syn: &CircuitSynthesis<F>) -> Self {
+        let regions_by_index = region_data(syn);
         let free_cells =
-            lift_free_cells_to_inputs(syn.groups(), &regions_by_index, syn.constraints())?;
+            lift_free_cells_to_inputs(syn.groups(), &regions_by_index, syn.constraints());
 
         let mut groups_advice_io: HashMap<usize, crate::io::AdviceIO> = Default::default();
         let mut groups_instance_io: HashMap<usize, crate::io::InstanceIO> = Default::default();
@@ -38,12 +40,15 @@ impl<'s> IRCtx<'s> {
             groups_instance_io.insert(idx, instance_io);
         }
 
-        Ok(Self {
+        Self {
             groups_instance_io,
             groups_advice_io,
-            regions_by_index: region_data(syn)?,
+            advice_cells: region_data(syn)
+                .into_iter()
+                .map(|(k, r)| (k, AdviceCells::new(r)))
+                .collect(),
             free_cells,
-        })
+        }
     }
 
     pub(crate) fn advice_io_of_group(&self, idx: usize) -> &crate::io::AdviceIO {
@@ -58,8 +63,43 @@ impl<'s> IRCtx<'s> {
         &self.free_cells[idx]
     }
 
-    pub(crate) fn regions_by_index(&self) -> &RegionByIndex<'s> {
-        &self.regions_by_index
+    pub(crate) fn advice_cells(&self) -> &HashMap<RegionIndex, AdviceCells> {
+        &self.advice_cells
+    }
+}
+
+/// Contains information about the advice cells in a region.
+#[derive(Debug, Clone)]
+pub(crate) struct AdviceCells {
+    columns: HashSet<Column<Any>>,
+    rows: Range<usize>,
+    start: Option<usize>,
+}
+
+impl AdviceCells {
+    pub fn new(region: RegionData) -> Self {
+        Self {
+            columns: region
+                .columns()
+                .iter()
+                .filter(|c| matches!(c.column_type(), Any::Advice(_)))
+                .copied()
+                .collect(),
+            rows: region.rows(),
+            start: region.start(),
+        }
+    }
+
+    /// Returns true if the region contains the given advice cell.
+    pub fn contains_advice_cell(&self, col: usize, row: usize) -> bool {
+        let in_col_set = self.columns.iter().any(|c| c.index() == col);
+        let in_row_range = self.rows.contains(&row);
+        in_col_set && in_row_range
+    }
+
+    /// Returns the start of the region.
+    pub fn start(&self) -> Option<usize> {
+        self.start
     }
 }
 

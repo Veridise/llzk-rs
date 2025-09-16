@@ -56,22 +56,22 @@ impl<F, FN: FnOnce() -> LookupTableBox<F>> std::fmt::Debug for LazyLookupTableGe
 /// Callback trait for defering to the client how to handle the logic of a lookup.
 pub trait LookupCallbacks<F: Field> {
     /// Called on each lookup the circuit defines.
-    fn on_lookup<'a>(
+    fn on_lookup<'syn>(
         &self,
-        lookup: Lookup<'a, F>,
+        lookup: Lookup<'syn, F>,
         table: &dyn LookupTableGenerator<F>,
-    ) -> Result<IRStmt<Cow<'a, Expression<F>>>>;
+    ) -> Result<IRStmt<Cow<'syn, Expression<F>>>>;
 }
 
 pub(crate) struct DefaultLookupCallbacks;
 
 impl<F: Field> LookupCallbacks<F> for DefaultLookupCallbacks {
     #[allow(unused_variables)]
-    fn on_lookup<'a>(
+    fn on_lookup<'syn>(
         &self,
-        lookup: Lookup<'a, F>,
+        lookup: Lookup<'syn, F>,
         table: &dyn LookupTableGenerator<F>,
-    ) -> Result<IRStmt<Cow<'a, Expression<F>>>> {
+    ) -> Result<IRStmt<Cow<'syn, Expression<F>>>> {
         panic!("Target circuit has lookups but their behaviour was not specified");
     }
 }
