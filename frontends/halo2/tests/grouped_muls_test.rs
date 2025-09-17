@@ -41,8 +41,7 @@ const EXPECTED_OPT_PICUS: &'static str = r"
 (begin-module Main)
 (input in_0)
 (output out_0)
-(call [cout_0_0] test_group [in_0])
-(assert (= cout_0_0 out_0))
+(call [out_0] test_group [in_0])
 (end-module)
 ";
 

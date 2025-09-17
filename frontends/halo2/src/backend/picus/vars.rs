@@ -28,16 +28,6 @@ pub enum VarKey {
     Lifted(usize),
 }
 
-impl VarKey {
-    pub fn is_temp(&self) -> bool {
-        match self {
-            VarKey::IO(func_io) => matches!(func_io, FuncIO::Advice(_)),
-            VarKey::Temp => true,
-            VarKey::Lifted(_) => false,
-        }
-    }
-}
-
 impl Default for VarKeySeedInner {
     fn default() -> Self {
         Self::Temp
@@ -107,14 +97,6 @@ impl VarKeySeed {
         Self(VarKeySeedInner::IO(i.into()), conv)
     }
 
-    //pub fn named_io<I: Into<FuncIO>>(
-    //    i: I,
-    //    fqn: Option<Cow<'a, FQN>>,
-    //    conv: NamingConvention,
-    //) -> Self {
-    //    Self(VarKeySeedInner::IO(i.into(), fqn), conv)
-    //}
-
     pub fn lifted(id: usize, conv: NamingConvention) -> Self {
         Self(VarKeySeedInner::Lifted(id), conv)
     }
@@ -160,7 +142,7 @@ impl VarKind for VarKey {
 
     fn is_temp(&self) -> bool {
         match self {
-            VarKey::IO(func_io) => matches!(func_io, FuncIO::Advice(_)),
+            VarKey::IO(func_io) => matches!(func_io, FuncIO::Advice(_) | FuncIO::CallOutput(_, _)),
             VarKey::Temp => true,
             _ => false,
         }
