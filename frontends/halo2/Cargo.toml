@@ -42,7 +42,7 @@ git = "https://github.com/Veridise/halo2-midnight.git"
 package = "halo2_proofs"
 optional = true 
 # rev = "92d9356"
-rev = "c01963e9"
+rev = "53c2d2d3"
 default-features = false
 features = [
     "bits",
