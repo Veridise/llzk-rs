@@ -2,6 +2,7 @@ use super::lowering::lowerable::LowerableStmt;
 use super::lowering::ExprLowering as _;
 use super::{func::FuncIO, lowering::Lowering};
 use crate::io::{AdviceIO, InstanceIO};
+use crate::ir::expr::Felt;
 use crate::ir::{IRCtx, ResolvedIRCircuit};
 use anyhow::Result;
 
@@ -14,6 +15,9 @@ pub trait Codegen<'c: 's, 's>: Sized + 's {
     type State: 'c;
 
     fn initialize(state: &'s Self::State) -> Self;
+
+    /// Sets the prime field used by the circuit.
+    fn set_prime_field(&self, prime: Felt) -> Result<()>;
 
     fn define_function(
         &self,

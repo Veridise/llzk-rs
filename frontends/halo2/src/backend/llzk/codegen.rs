@@ -1,16 +1,17 @@
 use super::lowering::LlzkStructLowering;
 use super::state::LlzkCodegenState;
-use super::{LlzkOutput, counter::Counter};
+use super::{counter::Counter, LlzkOutput};
 use anyhow::Result;
 
 use llzk::prelude::*;
-use melior::Context;
 use melior::ir::{BlockLike as _, Location, Module};
+use melior::Context;
 
 use crate::backend::llzk::factory::StructIO;
 use crate::io::{AdviceIO, InstanceIO};
 
 use crate::backend::codegen::Codegen;
+use crate::ir::expr::Felt;
 
 use super::factory;
 
@@ -45,6 +46,10 @@ impl<'c: 's, 's> Codegen<'c, 's> for LlzkCodegen<'c, 's> {
             module: llzk_module(Location::unknown(state.context())),
             struct_count: Default::default(),
         }
+    }
+
+    fn set_prime_field(&self, _prime: Felt) -> Result<()> {
+        todo!()
     }
 
     fn define_main_function(

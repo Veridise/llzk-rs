@@ -7,7 +7,11 @@ use stmt::IRStmt;
 use crate::{
     expressions::{ExpressionInRow, ScopedExpression},
     halo2::{PrimeField, RegionIndex},
-    ir::{expr::IRAexpr, generate::region_data, groups::GroupBody},
+    ir::{
+        expr::{Felt, IRAexpr},
+        generate::region_data,
+        groups::GroupBody,
+    },
     synthesis::CircuitSynthesis,
 };
 
@@ -117,6 +121,7 @@ where
             group.relativize_eq_constraints(self.ctx)?;
         }
         Ok(ResolvedIRCircuit {
+            prime: Felt::prime::<F>(),
             ctx: self.ctx.clone(),
             groups,
             //regions_to_groups: self.regions_to_groups,
@@ -128,6 +133,7 @@ where
 /// synthesis and is not parametrized on a prime field.
 #[derive(Debug)]
 pub struct ResolvedIRCircuit {
+    prime: Felt,
     ctx: IRCtx,
     groups: Vec<GroupBody<IRAexpr>>,
 }
@@ -153,5 +159,10 @@ impl ResolvedIRCircuit {
             .rev()
             .find(|g| g.is_main())
             .expect("A main group is required")
+    }
+
+    /// Returns the prime that defines the finite field the circuit uses.
+    pub fn prime(&self) -> Felt {
+        self.prime
     }
 }

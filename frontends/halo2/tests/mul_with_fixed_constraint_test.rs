@@ -32,7 +32,7 @@ fn mul_with_fixed_constraint_circuit_picus() {
     common::setup();
     common::picus_test(
         MulWithFixedConstraintCircuit::<Fr>::default(),
-        PicusParamsBuilder::new::<Fr>()
+        PicusParamsBuilder::new()
             .short_names()
             .no_optimize()
             .build(),

@@ -53,6 +53,7 @@ where
     ) -> Result<C::Output> {
         log::debug!("Initializing code generator");
         let codegen = self.create_codegen();
+        codegen.set_prime_field(ir.prime())?;
         log::debug!(
             "Starting code generation with {} strategy...",
             std::any::type_name_of_val(&strat)

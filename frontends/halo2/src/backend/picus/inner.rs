@@ -1,5 +1,6 @@
 use crate::backend::picus::PicusModule;
 use crate::backend::picus::{params::PicusParams, Pipeline, PipelineBuilder};
+use crate::ir::expr::Felt;
 
 use anyhow::Result;
 
@@ -14,6 +15,7 @@ use picus::{
 #[derive(Debug)]
 pub struct PicusCodegenInner {
     params: PicusParams,
+    prime: Option<Felt>,
     modules: Vec<PicusModuleRef>,
     current_scope: Option<PicusModuleLowering>,
 }
@@ -21,6 +23,7 @@ pub struct PicusCodegenInner {
 impl PicusCodegenInner {
     pub fn new(params: PicusParams) -> Self {
         Self {
+            prime: None,
             params,
             modules: Default::default(),
             current_scope: Default::default(),
@@ -37,8 +40,10 @@ impl PicusCodegenInner {
         &self.modules
     }
 
-    pub fn prime(&self) -> &picus::felt::Felt {
-        self.params.prime()
+    pub fn prime(&self) -> Result<picus::felt::Felt> {
+        self.prime
+            .ok_or_else(|| anyhow::anyhow!("Prime was not set!"))
+            .map(Into::into)
     }
 
     pub fn optimization_pipeline(&self) -> Option<Pipeline> {
@@ -55,6 +60,10 @@ impl PicusCodegenInner {
             ))
         }
         Some(pipeline.into())
+    }
+
+    pub fn set_prime(&mut self, prime: Felt) {
+        self.prime = Some(prime);
     }
 
     pub fn add_module<O>(

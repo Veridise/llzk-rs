@@ -1,5 +1,3 @@
-use crate::{halo2::PrimeField, ir::expr::Felt};
-
 use super::vars::NamingConvention;
 
 /// Configuration for the Picus backend.
@@ -9,7 +7,6 @@ pub struct PicusParams {
     entrypoint: String,
     naming_convention: NamingConvention,
     optimize: bool,
-    prime: picus::felt::Felt,
 }
 
 impl PicusParams {
@@ -33,14 +30,8 @@ impl PicusParams {
         &self.entrypoint
     }
 
-    /// Returns the prime number used in the Picus program.
-    pub fn prime(&self) -> &picus::felt::Felt {
-        &self.prime
-    }
-
-    fn new<F: PrimeField>() -> Self {
+    fn new() -> Self {
         Self {
-            prime: Felt::prime::<F>().into(),
             expr_cutoff: None,
             entrypoint: "Main".to_owned(),
             naming_convention: NamingConvention::Short,
@@ -49,14 +40,20 @@ impl PicusParams {
     }
 }
 
+impl Default for PicusParams {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Builder for configuring the parameters of the Picus backend.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PicusParamsBuilder(PicusParams);
 
 impl PicusParamsBuilder {
     /// Creates a new builder using the parameter F as the prime.
-    pub fn new<F: PrimeField>() -> Self {
-        Self(PicusParams::new::<F>())
+    pub fn new() -> Self {
+        Self(PicusParams::new())
     }
 
     /// Sets the maximum size for the expressions.

@@ -5,7 +5,10 @@ use std::{
 };
 
 use super::{func::FuncIO, Backend, Codegen};
-use crate::io::{AdviceIO, InstanceIO};
+use crate::{
+    io::{AdviceIO, InstanceIO},
+    ir::expr::Felt,
+};
 
 use anyhow::Result;
 
@@ -112,6 +115,11 @@ impl<'c: 's, 's> Codegen<'c, 's> for PicusCodegen {
         }
     }
 
+    fn set_prime_field(&self, prime: Felt) -> Result<()> {
+        self.inner.borrow_mut().set_prime(prime);
+        Ok(())
+    }
+
     fn define_main_function(
         &self,
         advice_io: &AdviceIO,
@@ -141,7 +149,7 @@ impl<'c: 's, 's> Codegen<'c, 's> for PicusCodegen {
 
     fn generate_output(self) -> Result<Self::Output> {
         let mut output = PicusOutput::new(
-            self.inner.borrow().prime().clone(),
+            self.inner.borrow().prime()?,
             self.inner.borrow().modules().to_vec(),
         );
         self.var_consistency_check(&output)?;
