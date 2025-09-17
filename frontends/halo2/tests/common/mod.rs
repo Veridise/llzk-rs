@@ -36,44 +36,23 @@ where
     unresolved.resolve().unwrap()
 }
 
-pub fn picus_test_with_edit<F, C>(
-    circuit: C,
-    params: PicusParams,
-    lookups: Option<&dyn LookupCallbacks<F>>,
-    gates: Option<&dyn GateCallbacks<F>>,
-    edit: impl Fn(&mut ResolvedIRCircuit) -> (),
-    expected: impl AsRef<str>,
-) where
-    F: PrimeField,
-    C: CircuitCallbacks<F>,
-{
-    let mut driver = Driver::default();
-    let mut resolved = synthesize_and_generate_ir(&mut driver, circuit, lookups, gates);
-    edit(&mut resolved);
-    let output = clean_string(
-        &driver
-            .picus(&resolved, params)
-            .unwrap()
-            .display()
-            .to_string(),
-    );
-    let expected = clean_string(expected.as_ref());
-    similar_asserts::assert_eq!(output, expected);
-}
-
 pub fn picus_test<F, C>(
     circuit: C,
     params: PicusParams,
     lookups: Option<&dyn LookupCallbacks<F>>,
     gates: Option<&dyn GateCallbacks<F>>,
     expected: impl AsRef<str>,
+    canonicalize: bool,
 ) where
     F: PrimeField,
     C: CircuitCallbacks<F>,
 {
     let mut driver = Driver::default();
-    let resolved = synthesize_and_generate_ir(&mut driver, circuit, lookups, gates);
-
+    let mut resolved = synthesize_and_generate_ir(&mut driver, circuit, lookups, gates);
+    if canonicalize {
+        resolved.constant_fold().unwrap();
+        resolved.canonicalize();
+    }
     let output = clean_string(
         &driver
             .picus(&resolved, params)
@@ -82,7 +61,7 @@ pub fn picus_test<F, C>(
             .to_string(),
     );
     let expected = clean_string(expected.as_ref());
-    similar_asserts::assert_eq!(output, expected);
+    similar_asserts::assert_eq!(expected, output);
 }
 
 fn clean_string(s: &str) -> String {

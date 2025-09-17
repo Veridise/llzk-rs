@@ -48,6 +48,13 @@ impl Seq<IRAexpr> {
             .iter_mut()
             .try_for_each(|inner| inner.constant_fold(prime))
     }
+
+    /// Matches the statements against a series of known patterns and applies rewrites if able to.
+    pub(crate) fn canonicalize(&mut self) {
+        for inner in &mut self.0 {
+            inner.canonicalize();
+        }
+    }
 }
 
 impl<T: LowerableExpr> LowerableStmt for Seq<T> {

@@ -3,7 +3,7 @@ use halo2_llzk_frontend::PicusParamsBuilder;
 use halo2curves_070::bn256::Fr;
 use midnight_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
 use midnight_halo2_proofs::plonk::{
-    Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector,
+    Advice, Circuit, Column, ConstraintSystem, Error, Expression, Fixed, Instance, Selector,
 };
 use midnight_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
@@ -19,7 +19,7 @@ const EXPECTED_PICUS: &'static str = r"
 (output out_0)
 (assert (= (* 1 (+ (* 21888242871839275222246405745257275088548364400416034343698204186575808495616 adv_0_0) (- adv_1_0))) 0))
 (assert (= (* 1 (+ (* adv_0_0 adv_1_0) (- adv_2_0))) 0))
-(assert (= (* 1 (+ 21888242871839275222246405745257275088548364400416034343698204186575808495616 (- 2))) 0))
+(assert (= (* 1 (+ (+ 21888242871839275222246405745257275088548364400416034343698204186575808495616 (- 2)) 3)) 0))
 (assert (= adv_0_0 in_0))
 (assert (= adv_2_0 out_0))
 (assert (= 2 adv_3_0))
@@ -39,6 +39,31 @@ fn mul_with_fixed_constraint_circuit_picus() {
         None,
         None,
         EXPECTED_PICUS,
+        false,
+    );
+}
+
+const EXPECTED_OPT_PICUS: &'static str = r"
+(prime-number 21888242871839275222246405745257275088548364400416034343698204186575808495617)
+(begin-module Main)
+(input in_0)
+(output out_0)
+(assert (= (- in_0) adv_1_0))
+(assert (= (* in_0 adv_1_0) out_0))
+(assert (= 2 adv_3_0))
+(end-module)
+";
+
+#[test]
+fn mul_with_fixed_constraint_opt_circuit_picus() {
+    common::setup();
+    common::picus_test(
+        MulWithFixedConstraintCircuit::<Fr>::default(),
+        PicusParamsBuilder::new().short_names().build(),
+        None,
+        None,
+        EXPECTED_OPT_PICUS,
+        true,
     );
 }
 
@@ -103,7 +128,7 @@ impl<F: Field> MulChip<F> {
             let f = meta.query_fixed(col_fixed, Rotation::cur());
             let f2 = meta.query_fixed(col_fixed, Rotation::next());
 
-            vec![s * (f - f2)]
+            vec![s * ((f - f2) + Expression::Constant(F::ONE + F::ONE + F::ONE).into())]
         });
 
         MulWithFixedConstraintConfig {

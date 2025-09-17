@@ -38,6 +38,30 @@ fn mul_circuit_picus() {
         None,
         Some(&GC),
         EXPECTED_PICUS,
+        false,
+    );
+}
+
+const EXPECTED_OPT_PICUS: &'static str = r"
+(prime-number 21888242871839275222246405745257275088548364400416034343698204186575808495617)
+(begin-module Main)
+(input in_0)
+(output out_0)
+(assert (= (- in_0) adv_1_0))
+(assert (= (* in_0 adv_1_0) out_0))
+(end-module)
+";
+
+#[test]
+fn mul_opt_circuit_picus() {
+    common::setup();
+    common::picus_test(
+        MulCircuit::<Fr>::default(),
+        PicusParamsBuilder::new().short_names().build(),
+        None,
+        Some(&GC),
+        EXPECTED_OPT_PICUS,
+        true,
     );
 }
 

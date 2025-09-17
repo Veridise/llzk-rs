@@ -59,7 +59,7 @@ where
     T: Into<BigUint> + Copy,
 {
     fn eq(&self, other: &T) -> bool {
-        self.as_ref().eq(&other.clone().into())
+        self.as_ref().eq(&(*other).into())
     }
 }
 
@@ -120,7 +120,7 @@ impl Mul for Felt {
     type Output = Felt;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        ((*self).clone() + (*rhs).clone()).into()
+        ((*self).clone() * (*rhs).clone()).into()
     }
 }
 

@@ -63,7 +63,7 @@ impl Driver {
             syn,
             lookups.unwrap_or(&DefaultLookupCallbacks),
             gates.unwrap_or(&DefaultGateCallbacks),
-            &ctx,
+            ctx,
         )?;
         let enumerated_groups = syn.groups().iter().enumerate().collect::<Vec<_>>();
         let mut regions_to_groups = vec![];

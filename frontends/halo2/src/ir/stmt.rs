@@ -215,6 +215,18 @@ impl IRStmt<IRAexpr> {
         }
         Ok(())
     }
+
+    /// Matches the statements against a series of known patterns and applies rewrites if able to.
+    pub(crate) fn canonicalize(&mut self) {
+        match self {
+            IRStmt::ConstraintCall(_) => {}
+            IRStmt::Constraint(constraint) => constraint.canonicalize(),
+            IRStmt::Comment(_) => {}
+            IRStmt::AssumeDeterministic(_) => {}
+            IRStmt::Assert(assert) => assert.canonicalize(),
+            IRStmt::Seq(seq) => seq.canonicalize(),
+        }
+    }
 }
 
 /// IRStmt transilitively inherits any equivalence relation.

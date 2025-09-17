@@ -45,6 +45,23 @@ const EXPECTED_PICUS: &'static str = r"
 (end-module)
 ";
 
+const EXPECTED_OPT_PICUS: &'static str = r"
+(prime-number 21888242871839275222246405745257275088548364400416034343698204186575808495617)
+(begin-module Main)
+(input in_0)
+(input in_1)
+(output out_0)
+(assert (= (+ in_0 in_1) adv_0_2))
+(assert (= (+ in_1 adv_0_2) adv_0_3))
+(assert (= (+ adv_0_2 adv_0_3) adv_0_4))
+(assert (= (+ adv_0_3 adv_0_4) adv_0_5))
+(assert (= (+ adv_0_4 adv_0_5) adv_0_6))
+(assert (= (+ adv_0_5 adv_0_6) adv_0_7))
+(assert (= (+ adv_0_6 adv_0_7) adv_1_7))
+(assert (= (+ adv_0_7 adv_1_7) out_0))
+(end-module)
+";
+
 #[test]
 fn fibonacci_circuit_picus() {
     common::setup();
@@ -57,8 +74,23 @@ fn fibonacci_circuit_picus() {
         None,
         None,
         EXPECTED_PICUS,
+        false,
     );
 }
+
+#[test]
+fn fibonacci_opt_circuit_picus() {
+    common::setup();
+    common::picus_test(
+        FibonacciCircuit::<Fr>::default(),
+        PicusParamsBuilder::new().short_names().build(),
+        None,
+        None,
+        EXPECTED_OPT_PICUS,
+        true,
+    );
+}
+
 #[derive(Debug, Clone)]
 pub struct FibonacciConfig {
     pub col_a: Column<Advice>,

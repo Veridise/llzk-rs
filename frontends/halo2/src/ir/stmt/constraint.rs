@@ -6,6 +6,7 @@ use crate::{
         Lowering,
     },
     ir::{
+        canon::canonicalize_constraint,
         equivalency::EqvRelation,
         expr::{Felt, IRAexpr},
         stmt::IRStmt,
@@ -70,6 +71,13 @@ impl Constraint<IRAexpr> {
             }
         }
         Ok(None)
+    }
+
+    /// Matches the statements against a series of known patterns and applies rewrites if able to.
+    pub(crate) fn canonicalize(&mut self) {
+        if let Some((op, lhs, rhs)) = canonicalize_constraint(self.op, &self.lhs, &self.rhs) {
+            *self = Self::new(op, lhs, rhs);
+        }
     }
 }
 

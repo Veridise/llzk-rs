@@ -221,6 +221,16 @@ impl GroupBody<IRAexpr> {
             .iter_mut()
             .try_for_each(|s| s.constant_fold(prime))
     }
+
+    /// Matches the statements against a series of known patterns and applies rewrites if able to.
+    pub fn canonicalize(&mut self) {
+        self.gates.canonicalize();
+        self.eq_constraints.canonicalize();
+        self.lookups.canonicalize();
+        for stmt in &mut self.injected {
+            stmt.canonicalize();
+        }
+    }
 }
 
 /// Searches to what region the advice cell belongs to and converts it to a relative reference from

@@ -3,7 +3,10 @@
 use super::super::{equivalency::EqvRelation, CmpOp};
 use crate::{
     backend::lowering::{lowerable::LowerableExpr, ExprLowering},
-    ir::expr::{Felt, IRAexpr},
+    ir::{
+        canon::canonicalize_constraint,
+        expr::{Felt, IRAexpr},
+    },
 };
 use anyhow::Result;
 use std::{
@@ -153,6 +156,56 @@ impl IRBexpr<IRAexpr> {
                 expr.constant_fold(prime);
                 if let Some(b) = expr.const_value() {
                     *self = b.into();
+                }
+            }
+        }
+    }
+
+    /// Matches the expressions against a series of known patterns and applies rewrites if able to.
+    pub(crate) fn canonicalize(&mut self) {
+        match self {
+            IRBexpr::True => {}
+            IRBexpr::False => {}
+            IRBexpr::Cmp(op, lhs, rhs) => {
+                if let Some((op, lhs, rhs)) = canonicalize_constraint(*op, lhs, rhs) {
+                    *self = IRBexpr::Cmp(op, lhs, rhs);
+                }
+            }
+            IRBexpr::And(exprs) => {
+                for expr in exprs {
+                    expr.canonicalize();
+                }
+            }
+            IRBexpr::Or(exprs) => {
+                for expr in exprs {
+                    expr.canonicalize();
+                }
+            }
+            IRBexpr::Not(expr) => {
+                expr.canonicalize();
+                match &**expr {
+                    IRBexpr::True => {
+                        *self = IRBexpr::False;
+                    }
+                    IRBexpr::False => {
+                        *self = IRBexpr::True;
+                    }
+                    IRBexpr::Cmp(op, lhs, rhs) => {
+                        *self = IRBexpr::Cmp(
+                            match op {
+                                CmpOp::Eq => CmpOp::Ne,
+                                CmpOp::Lt => CmpOp::Ge,
+                                CmpOp::Le => CmpOp::Gt,
+                                CmpOp::Gt => CmpOp::Le,
+                                CmpOp::Ge => CmpOp::Lt,
+                                CmpOp::Ne => CmpOp::Eq,
+                            },
+                            lhs.clone(),
+                            rhs.clone(),
+                        );
+                        self.canonicalize();
+                    }
+                    _ => {}
                 }
             }
         }

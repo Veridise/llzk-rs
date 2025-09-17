@@ -53,6 +53,11 @@ impl Assert<IRAexpr> {
         }
         Ok(None)
     }
+
+    /// Matches the statements against a series of known patterns and applies rewrites if able to.
+    pub(crate) fn canonicalize(&mut self) {
+        self.0.canonicalize();
+    }
 }
 
 impl<T: LowerableExpr> LowerableStmt for Assert<T> {

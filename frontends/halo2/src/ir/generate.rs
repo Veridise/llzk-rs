@@ -43,7 +43,7 @@ where
 
     let groups_ir = ctx
         .groups()
-        .into_iter()
+        .iter()
         .enumerate()
         .map(|(id, g)| {
             GroupBody::new(

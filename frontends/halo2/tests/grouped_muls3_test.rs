@@ -33,8 +33,26 @@ const EXPECTED_PICUS: &'static str = r"
 (assert (= adv_2_2 cout_1_0))
 (assert (= adv_0_0 in_0))
 (assert (= adv_0_0 adv_0_1))
+(assert (= adv_2_1 adv_0_2))
 (assert (= adv_2_2 adv_2_3))
 (assert (= adv_2_3 out_0))
+(end-module)
+";
+
+const EXPECTED_OPT_PICUS: &'static str = r"
+(prime-number 21888242871839275222246405745257275088548364400416034343698204186575808495617)
+(begin-module test_group)
+(input in_0)
+(output out_0)
+(assert (= (- in_0) adv_1_1))
+(assert (= (* in_0 adv_1_1) out_0))
+(end-module)
+(begin-module Main)
+(input in_0)
+(output out_0)
+(call [cout_0_0] test_group [in_0])
+(call [cout_1_0] test_group [cout_0_0])
+(assert (= cout_1_0 out_0))
 (end-module)
 ";
 
@@ -50,8 +68,23 @@ fn groped_mul3_circuit_picus() {
         None,
         None,
         EXPECTED_PICUS,
+        false,
     );
 }
+
+#[test]
+fn groped_mul3_opt_circuit_picus() {
+    common::setup();
+    common::picus_test(
+        MulCircuit::<Fr>::default(),
+        PicusParamsBuilder::new().short_names().build(),
+        None,
+        None,
+        EXPECTED_OPT_PICUS,
+        true,
+    );
+}
+
 #[derive(Debug, Clone)]
 pub struct MulConfig {
     pub col_fixed: Column<Fixed>,

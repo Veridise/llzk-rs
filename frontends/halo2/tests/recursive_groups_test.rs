@@ -1,9 +1,9 @@
 use group::ff::Field;
 use halo2curves_070::bn256::Fr;
-use midnight_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
+use midnight_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
 use midnight_halo2_proofs::default_group_key;
 use midnight_halo2_proofs::plonk::{
-    Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector,
+    Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector,
 };
 use midnight_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
@@ -79,8 +79,59 @@ fn recursive_groups_circuit_picus() {
         None,
         None,
         EXPECTED_PICUS,
+        false,
     );
 }
+
+const EXPECTED_OPT_PICUS: &'static str = r"
+(prime-number 21888242871839275222246405745257275088548364400416034343698204186575808495617)
+(begin-module mul_many)
+(input in_0)
+(input in_1)
+(output out_0)
+(assert (= (* in_0 in_1) out_0))
+(end-module)
+(begin-module mul_many1)
+(input in_0)
+(input in_1)
+(input in_2)
+(output out_0)
+(call [cout_0_0] mul_many [in_1 in_2])
+(assert (= (* in_0 cout_0_0) out_0))
+(end-module)
+(begin-module mul_many2)
+(input in_0)
+(input in_1)
+(input in_2)
+(input in_3)
+(output out_0)
+(call [cout_0_0] mul_many1 [in_1 in_2 in_3])
+(assert (= (* in_0 cout_0_0) out_0))
+(end-module)
+(begin-module Main)
+(input in_0)
+(input in_1)
+(input in_2)
+(input in_3)
+(output out_0)
+(call [cout_0_0] mul_many2 [in_0 in_1 in_2 in_3])
+(assert (= cout_0_0 out_0))
+(end-module)
+";
+
+#[test]
+fn recursive_groups_opt_circuit_picus() {
+    common::setup();
+    common::picus_test(
+        MulCircuit::<Fr>::default(),
+        PicusParamsBuilder::new().short_names().build(),
+        None,
+        None,
+        EXPECTED_OPT_PICUS,
+        true,
+    );
+}
+
 #[derive(Debug, Clone)]
 pub struct MulConfig {
     pub col_a: Column<Advice>,

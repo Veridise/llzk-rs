@@ -49,6 +49,7 @@ impl std::fmt::Display for CmpOp {
     }
 }
 
+mod canon;
 mod ctx;
 pub mod equivalency;
 pub mod expr;
@@ -173,5 +174,12 @@ impl ResolvedIRCircuit {
         self.groups
             .iter_mut()
             .try_for_each(|g| g.constant_fold(prime))
+    }
+
+    /// Matches the statements against a series of known patterns and applies rewrites if able to.
+    pub fn canonicalize(&mut self) {
+        for group in &mut self.groups {
+            group.canonicalize();
+        }
     }
 }
