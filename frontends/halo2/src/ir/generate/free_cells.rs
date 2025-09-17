@@ -33,7 +33,7 @@ pub fn lift_free_cells_to_inputs<F: Field>(
     let mut result: Vec<_> = groups
         .iter()
         .map(|g| FreeCells {
-            inputs: find_free_cells(g, region_by_index, constraints)
+            inputs: find_free_cells(g, groups, region_by_index, constraints)
                 .into_iter()
                 .filter_map(GroupCell::from_tuple)
                 .collect(),
@@ -73,7 +73,7 @@ pub fn lift_free_cells_to_inputs<F: Field>(
             }
             // Check if by extending the callsite we would have new fresh variables
             // and add the caller to the worklist
-            let bounds = GroupBounds::new(caller, region_by_index);
+            let bounds = GroupBounds::new(caller, groups, region_by_index);
             let out_of_bounds: Vec<_> = inputs
                 .into_iter()
                 .filter(|c| !bounds.within_bounds(&c.col(), &c.row()))
@@ -97,10 +97,11 @@ pub fn lift_free_cells_to_inputs<F: Field>(
 /// side of the equality is.
 fn find_free_cells<F: Field>(
     group: &Group,
+    groups: &[Group],
     region_by_index: &RegionByIndex,
     constraints: &EqConstraintGraph<F>,
 ) -> Vec<(Column<Any>, usize)> {
-    let bounds = GroupBounds::new(group, region_by_index);
+    let bounds = GroupBounds::new(group, groups, region_by_index);
 
     log::debug!("Search for free cells in '{}' constraints", group.name());
     log::debug!("  Inputs: {:?}", group.inputs());

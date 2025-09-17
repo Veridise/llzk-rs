@@ -1,7 +1,10 @@
 //! Structs for handling boolean expressions.
 
 use super::super::{equivalency::EqvRelation, CmpOp};
-use crate::backend::lowering::{lowerable::LowerableExpr, ExprLowering};
+use crate::{
+    backend::lowering::{lowerable::LowerableExpr, ExprLowering},
+    ir::expr::{Felt, IRAexpr},
+};
 use anyhow::Result;
 use std::{
     convert::identity,
@@ -10,6 +13,10 @@ use std::{
 
 /// Represents boolean expressions over some arithmetic expression type A.
 pub enum IRBexpr<A> {
+    /// Literal value for true.
+    True,
+    /// Literal value for false.
+    False,
     /// Comparison operation of two inner arithmetic expressions.
     Cmp(CmpOp, A, A),
     /// Represents the conjunction of the inner expressions.
@@ -28,6 +35,8 @@ impl<T> IRBexpr<T> {
             IRBexpr::And(exprs) => IRBexpr::And(exprs.into_iter().map(|e| e.map(f)).collect()),
             IRBexpr::Or(exprs) => IRBexpr::Or(exprs.into_iter().map(|e| e.map(f)).collect()),
             IRBexpr::Not(expr) => IRBexpr::Not(Box::new(expr.map(f))),
+            IRBexpr::True => IRBexpr::True,
+            IRBexpr::False => IRBexpr::False,
         }
     }
 
@@ -38,6 +47,8 @@ impl<T> IRBexpr<T> {
             IRBexpr::And(exprs) => IRBexpr::And(exprs.iter().map(|e| e.map_into(f)).collect()),
             IRBexpr::Or(exprs) => IRBexpr::Or(exprs.iter().map(|e| e.map_into(f)).collect()),
             IRBexpr::Not(expr) => IRBexpr::Not(Box::new(expr.map_into(f))),
+            IRBexpr::True => IRBexpr::True,
+            IRBexpr::False => IRBexpr::False,
         }
     }
 
@@ -58,6 +69,8 @@ impl<T> IRBexpr<T> {
                     .collect::<Result<Vec<_>>>()?,
             ),
             IRBexpr::Not(expr) => IRBexpr::Not(Box::new(expr.try_map(f)?)),
+            IRBexpr::True => IRBexpr::True,
+            IRBexpr::False => IRBexpr::False,
         })
     }
 
@@ -81,6 +94,77 @@ impl<T> IRBexpr<T> {
                 Ok(())
             }
             IRBexpr::Not(expr) => expr.try_map_inplace(f),
+            IRBexpr::True => Ok(()),
+            IRBexpr::False => Ok(()),
+        }
+    }
+}
+
+impl IRBexpr<IRAexpr> {
+    /// Returns `Some(true)` or `Some(false)` if the expression is constant, `None` otherwise.
+    pub fn const_value(&self) -> Option<bool> {
+        match self {
+            IRBexpr::True => Some(true),
+            IRBexpr::False => Some(false),
+            _ => None,
+        }
+    }
+
+    /// Folds the expression if the values are constant.
+    pub(crate) fn constant_fold(&mut self, prime: Felt) {
+        fn collect_folds(exprs: &mut [IRBexpr<IRAexpr>], prime: Felt) -> Option<Vec<bool>> {
+            exprs
+                .iter_mut()
+                .map(|e| {
+                    e.constant_fold(prime);
+                    e.const_value()
+                })
+                .collect()
+        }
+        match self {
+            IRBexpr::True => {}
+            IRBexpr::False => {}
+            IRBexpr::Cmp(op, lhs, rhs) => {
+                lhs.constant_fold(prime);
+                rhs.constant_fold(prime);
+                if let Some((lhs, rhs)) = lhs.const_value().zip(rhs.const_value()) {
+                    *self = match op {
+                        CmpOp::Eq => lhs == rhs,
+                        CmpOp::Lt => lhs < rhs,
+                        CmpOp::Le => lhs <= rhs,
+                        CmpOp::Gt => lhs > rhs,
+                        CmpOp::Ge => lhs >= rhs,
+                        CmpOp::Ne => lhs != rhs,
+                    }
+                    .into()
+                }
+            }
+            IRBexpr::And(exprs) => {
+                if let Some(exprs) = collect_folds(exprs, prime) {
+                    *self = exprs.into_iter().all(identity).into();
+                }
+            }
+            IRBexpr::Or(exprs) => {
+                if let Some(exprs) = collect_folds(exprs, prime) {
+                    *self = exprs.into_iter().any(identity).into()
+                }
+            }
+            IRBexpr::Not(expr) => {
+                expr.constant_fold(prime);
+                if let Some(b) = expr.const_value() {
+                    *self = b.into();
+                }
+            }
+        }
+    }
+}
+
+impl<T> From<bool> for IRBexpr<T> {
+    fn from(value: bool) -> Self {
+        if value {
+            IRBexpr::True
+        } else {
+            IRBexpr::False
         }
     }
 }
@@ -160,6 +244,8 @@ impl<T: std::fmt::Debug> std::fmt::Debug for IRBexpr<T> {
             IRBexpr::And(exprs) => write!(f, "AND {exprs:?}"),
             IRBexpr::Or(exprs) => write!(f, "OR {exprs:?}"),
             IRBexpr::Not(expr) => write!(f, "NOT {expr:?}"),
+            IRBexpr::True => write!(f, "TRUE"),
+            IRBexpr::False => write!(f, "FALSE"),
         }
     }
 }
@@ -171,6 +257,8 @@ impl<T: Clone> Clone for IRBexpr<T> {
             IRBexpr::And(exprs) => IRBexpr::And(exprs.clone()),
             IRBexpr::Or(exprs) => IRBexpr::Or(exprs.clone()),
             IRBexpr::Not(expr) => IRBexpr::Not(expr.clone()),
+            IRBexpr::True => IRBexpr::True,
+            IRBexpr::False => IRBexpr::False,
         }
     }
 }
@@ -184,6 +272,8 @@ impl<T: PartialEq> PartialEq for IRBexpr<T> {
             (IRBexpr::And(lhs), IRBexpr::And(rhs)) => lhs == rhs,
             (IRBexpr::Or(lhs), IRBexpr::Or(rhs)) => lhs == rhs,
             (IRBexpr::Not(lhs), IRBexpr::Not(rhs)) => lhs == rhs,
+            (IRBexpr::True, IRBexpr::True) => true,
+            (IRBexpr::False, IRBexpr::False) => false,
             _ => false,
         }
     }
@@ -229,6 +319,8 @@ impl<A: LowerableExpr> LowerableExpr for IRBexpr<A> {
             IRBexpr::And(exprs) => reduce_bool_expr(exprs, l, L::lower_and),
             IRBexpr::Or(exprs) => reduce_bool_expr(exprs, l, L::lower_or),
             IRBexpr::Not(expr) => expr.lower(l).and_then(|e| l.lower_not(&e)),
+            IRBexpr::True => l.lower_true(),
+            IRBexpr::False => l.lower_false(),
         }
     }
 }

@@ -367,4 +367,12 @@ impl<'c> ExprLowering for LlzkStructLowering<'c> {
     fn lower_not(&self, _value: &Self::CellOutput) -> Result<Self::CellOutput> {
         todo!()
     }
+
+    fn lower_true(&self) -> Result<Self::CellOutput> {
+        todo!()
+    }
+
+    fn lower_false(&self) -> Result<Self::CellOutput> {
+        todo!()
+    }
 }

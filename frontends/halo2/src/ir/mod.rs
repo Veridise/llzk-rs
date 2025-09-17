@@ -124,7 +124,6 @@ where
             prime: Felt::prime::<F>(),
             ctx: self.ctx.clone(),
             groups,
-            //regions_to_groups: self.regions_to_groups,
         })
     }
 }
@@ -164,5 +163,15 @@ impl ResolvedIRCircuit {
     /// Returns the prime that defines the finite field the circuit uses.
     pub fn prime(&self) -> Felt {
         self.prime
+    }
+
+    /// Folds the statements if the expressions are constant.
+    ///
+    /// If any of the statements fails to fold returns an error.
+    pub fn constant_fold(&mut self) -> Result<()> {
+        let prime = self.prime();
+        self.groups
+            .iter_mut()
+            .try_for_each(|g| g.constant_fold(prime))
     }
 }

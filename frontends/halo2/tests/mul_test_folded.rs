@@ -1,7 +1,6 @@
 use group::ff::Field;
 use halo2curves_070::bn256::Fr;
 use midnight_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
-use midnight_halo2_proofs::default_group_key;
 use midnight_halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector,
 };
@@ -14,25 +13,20 @@ mod common;
 
 const EXPECTED_PICUS: &'static str = r"
 (prime-number 21888242871839275222246405745257275088548364400416034343698204186575808495617)
-(begin-module test_group)
-(input in_0)
-(output out_0)
-(assert (= (* 1 (+ (* 21888242871839275222246405745257275088548364400416034343698204186575808495616 adv_0_0) (- adv_1_0))) 0))
-(assert (= (* 1 (+ (* adv_0_0 adv_1_0) (- out_0))) 0))
-(assert (= adv_0_0 in_0))
-(end-module)
 (begin-module Main)
 (input in_0)
 (output out_0)
-(call [cout_0_0] test_group [in_0])
-(assert (= adv_2_0 cout_0_0))
+(assert (= (+ (* 21888242871839275222246405745257275088548364400416034343698204186575808495616 adv_0_0) (- adv_1_0)) 0))
+(assert (= (+ (* adv_0_0 adv_1_0) (- adv_2_0)) 0))
+(assert (= adv_0_0 in_0))
+(assert (= adv_2_0 out_0))
 (end-module)
 ";
 
 #[test]
-fn grouped_muls_circuit_picus() {
+fn folded_mul_circuit_picus() {
     common::setup();
-    common::picus_test(
+    common::picus_test_with_edit(
         MulCircuit::<Fr>::default(),
         PicusParamsBuilder::new()
             .short_names()
@@ -40,9 +34,11 @@ fn grouped_muls_circuit_picus() {
             .build(),
         None,
         None,
+        |ir| ir.constant_fold().expect("constant folding failed"),
         EXPECTED_PICUS,
     );
 }
+
 #[derive(Debug, Clone)]
 pub struct MulConfig {
     pub col_fixed: Column<Fixed>,
@@ -182,17 +178,10 @@ impl<F: Field> Circuit<F> for MulCircuit<F> {
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
         let chip = MulChip::construct(config);
-        let prev_c = layouter.group(
-            || "test group",
-            default_group_key!(),
-            |layouter, group| {
-                let prev_c = chip.assign_first_row(layouter.namespace(|| "first row"))?;
-                group.annotate_output(prev_c.cell())?;
-                Ok(prev_c)
-            },
-        )?;
-        chip.expose_public(layouter.namespace(|| "out"), &prev_c, 1)?;
 
+        let prev_c = chip.assign_first_row(layouter.namespace(|| "first row"))?;
+
+        chip.expose_public(layouter.namespace(|| "out"), &prev_c, 1)?;
         Ok(())
     }
 }

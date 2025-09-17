@@ -36,6 +36,31 @@ where
     unresolved.resolve().unwrap()
 }
 
+pub fn picus_test_with_edit<F, C>(
+    circuit: C,
+    params: PicusParams,
+    lookups: Option<&dyn LookupCallbacks<F>>,
+    gates: Option<&dyn GateCallbacks<F>>,
+    edit: impl Fn(&mut ResolvedIRCircuit) -> (),
+    expected: impl AsRef<str>,
+) where
+    F: PrimeField,
+    C: CircuitCallbacks<F>,
+{
+    let mut driver = Driver::default();
+    let mut resolved = synthesize_and_generate_ir(&mut driver, circuit, lookups, gates);
+    edit(&mut resolved);
+    let output = clean_string(
+        &driver
+            .picus(&resolved, params)
+            .unwrap()
+            .display()
+            .to_string(),
+    );
+    let expected = clean_string(expected.as_ref());
+    similar_asserts::assert_eq!(output, expected);
+}
+
 pub fn picus_test<F, C>(
     circuit: C,
     params: PicusParams,

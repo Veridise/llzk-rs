@@ -186,4 +186,12 @@ impl ExprLowering for PicusModuleLowering {
     fn lower_not(&self, value: &Self::CellOutput) -> Result<Self::CellOutput> {
         Ok(expr::not(value))
     }
+
+    fn lower_true(&self) -> Result<Self::CellOutput> {
+        Ok(expr::eq(&expr::r#const(0), &expr::r#const(0)))
+    }
+
+    fn lower_false(&self) -> Result<Self::CellOutput> {
+        Ok(expr::eq(&expr::r#const(0), &expr::r#const(1)))
+    }
 }

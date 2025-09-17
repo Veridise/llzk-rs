@@ -27,86 +27,107 @@ pub struct GroupBounds<'a> {
     cols_and_rows: ColsAndRows<'a>,
     foreign_io: HashSet<(Column<Any>, usize)>,
     io: HashSet<(Column<Any>, usize)>,
+    children_output: HashSet<(Column<Any>, usize)>,
 }
+
+//fn region_indices(group: &Group) -> HashSet<RegionIndex> {
+//group
+//            .regions()
+//            .iter()
+//            .map(|r| *r.index().unwrap())
+//            .collect()
+//}
+//
+//fn cols_and_rows(group: &Group) -> Vec<(&HashSet<Column<Any>>, Range<usize>)
 
 impl<'a> GroupBounds<'a> {
     /// Creates a new bound for the group.
-    pub fn new(group: &'a Group, regions_by_index: &RegionByIndex) -> Self {
-        Self::new_with_extra(group, regions_by_index, None)
+    pub fn new(group: &'a Group, groups: &'a [Group], regions_by_index: &RegionByIndex) -> Self {
+        Self::new_with_extra(group, groups, regions_by_index, None)
     }
 
     /// Creates a new bound for the group, optionally adding more cells that have to be considered
     /// within bounds.
     pub fn new_with_extra(
         group: &'a Group,
+        groups: &'a [Group],
         region_by_index: &RegionByIndex,
         extra_inputs: Option<&[GroupCell]>,
     ) -> Self {
-        let region_indices: HashSet<_> = group
-            .regions()
-            .iter()
-            .map(|r| *r.index().unwrap())
-            .collect();
-        let cols_and_rows = group
-            .regions()
-            .iter()
-            .map(|r| (r.columns(), r.rows()))
-            .collect();
-        let foreign_io: HashSet<_> = std::iter::chain(group.inputs(), group.outputs())
+        let mut region_indices = HashSet::new();
+        let mut cols_and_rows = vec![];
+        let mut foreign_io = HashSet::new();
+        let mut io = HashSet::new();
+        let mut children_output = HashSet::new();
+        for region in group.regions() {
+            region_indices.insert(*region.index().unwrap());
+            cols_and_rows.push((region.columns(), region.rows()));
+        }
+
+        for cell in std::iter::chain(group.inputs(), group.outputs())
             .chain(extra_inputs.iter().flat_map(|i| *i))
-            .filter_map(|i| {
-                match i {
-                    GroupCell::Assigned(cell) => {
-                        if !region_indices.contains(&cell.region_index) {
-                            // Copy constraints use absolute rows but the labels have relative
-                            // rows.
-                            let abs_row =
-                                cell.row_offset + region_by_index[&cell.region_index].start()?;
-                            Some((cell.column, abs_row))
-                        } else {
-                            None
-                        }
-                    }
-                    GroupCell::InstanceIO((col, row)) => Some(((*col).into(), *row)),
-                    GroupCell::AdviceIO((col, row)) => Some(((*col).into(), *row)),
-                }
-            })
-            .collect();
-        let io: HashSet<_> = std::iter::chain(group.inputs(), group.outputs())
-            .chain(extra_inputs.iter().flat_map(|i| *i))
-            .filter_map(|i| {
-                match i {
-                    GroupCell::Assigned(cell) => {
+        {
+            match cell {
+                GroupCell::Assigned(cell) => {
+                    // Copy constraints use absolute rows but the labels have relative
+                    // rows.
+                    if let Some(start) = region_by_index[&cell.region_index].start() {
+                        let abs_row = cell.row_offset + start;
                         if region_indices.contains(&cell.region_index) {
-                            // Copy constraints use absolute rows but the labels have relative
-                            // rows.
-                            let abs_row =
-                                cell.row_offset + region_by_index[&cell.region_index].start()?;
-                            Some((cell.column, abs_row))
+                            io.insert((cell.column, abs_row));
                         } else {
-                            None
+                            foreign_io.insert((cell.column, abs_row));
                         }
                     }
-                    _ => None,
                 }
-            })
-            .collect();
+                GroupCell::InstanceIO((col, row)) => {
+                    foreign_io.insert(((*col).into(), *row));
+                }
+                GroupCell::AdviceIO((col, row)) => {
+                    foreign_io.insert(((*col).into(), *row));
+                }
+            }
+        }
+        for cell in group
+            .children(groups)
+            .into_iter()
+            .flat_map(|(_, c)| c.outputs())
+        {
+            match cell {
+                GroupCell::Assigned(cell) => {
+                    if let Some(start) = region_by_index[&cell.region_index].start() {
+                        let abs_row = cell.row_offset + start;
+                        children_output.insert((cell.column, abs_row));
+                    }
+                }
+                GroupCell::InstanceIO(_) => unreachable!(),
+                GroupCell::AdviceIO(_) => unreachable!(),
+            }
+        }
 
         Self {
             cols_and_rows,
             foreign_io,
             io,
+            children_output,
         }
     }
 
     /// Returns true if the cell is within bounds of the group.
     pub fn within_bounds(&self, col: &Column<Any>, row: &usize) -> bool {
-        cell_within_bounds(&self.cols_and_rows, *col, Some(*row)) || self.is_foreign_io(col, row)
+        cell_within_bounds(&self.cols_and_rows, *col, Some(*row))
+            || self.is_foreign_io(col, row)
+            || self.is_children_output(col, row)
     }
 
     /// Returns true if the cell is an input or output that is not in the group's regions.
     pub fn is_foreign_io(&self, col: &Column<Any>, row: &usize) -> bool {
         self.foreign_io.contains(&(*col, *row))
+    }
+
+    /// Returns true if the cell is introduced by one of the children of the group.
+    pub fn is_children_output(&self, col: &Column<Any>, row: &usize) -> bool {
+        self.children_output.contains(&(*col, *row))
     }
 
     /// Returns true if the cell is an input or output that is in the group's regions.

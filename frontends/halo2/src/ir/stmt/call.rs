@@ -4,11 +4,14 @@ use crate::{
     backend::{
         func::FuncIO,
         lowering::{
-            Lowering,
             lowerable::{LowerableExpr, LowerableStmt},
+            Lowering,
         },
     },
-    ir::equivalency::EqvRelation,
+    ir::{
+        equivalency::EqvRelation,
+        expr::{Felt, IRAexpr},
+    },
 };
 
 pub struct Call<I> {
@@ -55,6 +58,15 @@ impl<T> Call<T> {
             f(i)?;
         }
         Ok(())
+    }
+}
+
+impl Call<IRAexpr> {
+    /// Folds the statements if the expressions are constant.
+    pub fn constant_fold(&mut self, prime: Felt) {
+        for i in &mut self.inputs {
+            i.constant_fold(prime);
+        }
     }
 }
 

@@ -1,5 +1,7 @@
 //! Structs for handling arithmetic expressions.
 
+use std::ops::{Add, Deref, Mul, Rem, RemAssign, Sub};
+
 use crate::{
     backend::{
         func::FuncIO,
@@ -16,7 +18,7 @@ use internment::Intern;
 use num_bigint::BigUint;
 
 /// Represents a constant value.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Felt(Intern<BigUint>);
 
 impl Felt {
@@ -34,15 +36,97 @@ impl Felt {
     }
 }
 
+impl std::fmt::Debug for Felt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.as_ref())
+    }
+}
+
 impl From<Felt> for picus::felt::Felt {
     fn from(value: Felt) -> Self {
         Self::new(value.0.as_ref().clone())
     }
 }
 
+impl<T: Into<BigUint>> From<T> for Felt {
+    fn from(value: T) -> Self {
+        Self(Intern::new(value.into()))
+    }
+}
+
+impl<T> PartialEq<T> for Felt
+where
+    T: Into<BigUint> + Copy,
+{
+    fn eq(&self, other: &T) -> bool {
+        self.as_ref().eq(&other.clone().into())
+    }
+}
+
 impl AsRef<BigUint> for Felt {
     fn as_ref(&self) -> &BigUint {
         self.0.as_ref()
+    }
+}
+
+impl Deref for Felt {
+    type Target = BigUint;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
+impl Rem for Felt {
+    type Output = Self;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        if self < rhs {
+            return self;
+        }
+        ((*self).clone() % (*rhs).clone()).into()
+    }
+}
+
+impl RemAssign for Felt {
+    fn rem_assign(&mut self, rhs: Self) {
+        if *self > rhs {
+            *self = *self % rhs;
+        }
+    }
+}
+
+impl Sub for Felt {
+    type Output = Option<Self>;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        if self < rhs {
+            return None;
+        }
+
+        Some(((*self).clone() - (*rhs).clone()).into())
+    }
+}
+
+impl Add for Felt {
+    type Output = Felt;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        ((*self).clone() + (*rhs).clone()).into()
+    }
+}
+
+impl Mul for Felt {
+    type Output = Felt;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        ((*self).clone() + (*rhs).clone()).into()
+    }
+}
+
+impl std::fmt::Display for Felt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_ref())
     }
 }
 
@@ -106,6 +190,69 @@ impl IRAexpr {
         })
     }
 
+    /// Returns `Some(_)` if the expression is a constant value. None otherwise.
+    pub fn const_value(&self) -> Option<Felt> {
+        match self {
+            IRAexpr::Constant(f) => Some(*f),
+            _ => None,
+        }
+    }
+
+    /// Folds the expression if the values are constant.
+    pub(crate) fn constant_fold(&mut self, prime: Felt) {
+        match self {
+            IRAexpr::Constant(felt) => *felt %= prime,
+            IRAexpr::IO(_) => {}
+            IRAexpr::Challenge(_) => {}
+            IRAexpr::Negated(expr) => {
+                expr.constant_fold(prime);
+                if let Some(f) = expr.const_value().and_then(|f| prime - f) {
+                    *self = IRAexpr::Constant(f % prime);
+                }
+            }
+
+            IRAexpr::Sum(lhs, rhs) => {
+                lhs.constant_fold(prime);
+                rhs.constant_fold(prime);
+
+                match (lhs.const_value(), rhs.const_value()) {
+                    (Some(lhs), Some(rhs)) => {
+                        *self = IRAexpr::Constant((lhs + rhs) % prime);
+                    }
+                    (None, Some(rhs)) if rhs == 0usize => {
+                        *self = (**lhs).clone();
+                    }
+                    (Some(lhs), None) if lhs == 0usize => {
+                        *self = (**rhs).clone();
+                    }
+                    _ => {}
+                }
+            }
+            IRAexpr::Product(lhs, rhs) => {
+                lhs.constant_fold(prime);
+                rhs.constant_fold(prime);
+                match (lhs.const_value(), rhs.const_value()) {
+                    (Some(lhs), Some(rhs)) => {
+                        *self = IRAexpr::Constant((lhs * rhs) % prime);
+                    }
+                    (None, Some(rhs)) if rhs == 1usize => {
+                        *self = (**lhs).clone();
+                    }
+                    (Some(lhs), None) if lhs == 1usize => {
+                        *self = (**rhs).clone();
+                    }
+                    (None, Some(rhs)) if rhs == 0usize => {
+                        *self = IRAexpr::Constant(0usize.into());
+                    }
+                    (Some(lhs), None) if lhs == 0usize => {
+                        *self = IRAexpr::Constant(0usize.into());
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
     /// Similar to [`AExpr::try_map`] but maps the IO instead and edits in-place.
     pub fn try_map_io(&mut self, f: &impl Fn(&mut FuncIO) -> Result<()>) -> Result<()> {
         match self {
@@ -127,8 +274,8 @@ impl IRAexpr {
 impl std::fmt::Debug for IRAexpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Constant(arg0) => write!(f, "(const {arg0:?})"),
-            Self::IO(arg0) => write!(f, "(io {arg0:?})"),
+            Self::Constant(arg0) => write!(f, "{arg0:?}"),
+            Self::IO(arg0) => write!(f, "{arg0:?}"),
             Self::Challenge(arg0) => write!(f, "(chall {arg0:?})"),
             Self::Negated(arg0) => write!(f, "(- {arg0:?})"),
             Self::Sum(arg0, arg1) => write!(f, "(+ {arg0:?} {arg1:?})"),
@@ -189,7 +336,88 @@ impl LowerableExpr for IRAexpr {
 }
 
 #[cfg(test)]
-mod tests {
+mod folding_tests {
+    use super::*;
+    use rstest::{fixture, rstest};
+
+    #[fixture]
+    fn seven() -> Felt {
+        Felt::from(7usize)
+    }
+
+    #[rstest]
+    fn folding_constant_within_field(seven: Felt) {
+        let mut test = IRAexpr::Constant(5usize.into());
+        let expected = test.clone();
+        test.constant_fold(seven);
+        assert_eq!(test, expected);
+    }
+
+    #[rstest]
+    fn folding_constant_outside_field(seven: Felt) {
+        let mut test = IRAexpr::Constant(8usize.into());
+        let expected = IRAexpr::Constant(1usize.into());
+        test.constant_fold(seven);
+        assert_eq!(test, expected);
+    }
+
+    #[rstest]
+    fn mult_identity(seven: Felt) {
+        let lhs = IRAexpr::Constant(1usize.into());
+        let rhs = IRAexpr::IO(FuncIO::Arg(0.into()));
+        let mut mul = IRAexpr::Product(Box::new(lhs), Box::new(rhs.clone()));
+        mul.constant_fold(seven);
+        assert_eq!(mul, rhs);
+    }
+
+    #[rstest]
+    fn mult_identity_rev(seven: Felt) {
+        let rhs = IRAexpr::Constant(1usize.into());
+        let lhs = IRAexpr::IO(FuncIO::Arg(0.into()));
+        let mut mul = IRAexpr::Product(Box::new(lhs.clone()), Box::new(rhs));
+        mul.constant_fold(seven);
+        assert_eq!(mul, lhs);
+    }
+
+    #[rstest]
+    fn mult_by_zero(seven: Felt) {
+        let lhs = IRAexpr::Constant(0usize.into());
+        let rhs = IRAexpr::IO(FuncIO::Arg(0.into()));
+        let mut mul = IRAexpr::Product(Box::new(lhs.clone()), Box::new(rhs));
+        mul.constant_fold(seven);
+        assert_eq!(mul, lhs);
+    }
+
+    #[rstest]
+    fn mult_by_zero_rev(seven: Felt) {
+        let rhs = IRAexpr::Constant(0usize.into());
+        let lhs = IRAexpr::IO(FuncIO::Arg(0.into()));
+        let mut mul = IRAexpr::Product(Box::new(lhs), Box::new(rhs.clone()));
+        mul.constant_fold(seven);
+        assert_eq!(mul, rhs);
+    }
+
+    #[rstest]
+    fn sum_identity(seven: Felt) {
+        let lhs = IRAexpr::Constant(0usize.into());
+        let rhs = IRAexpr::IO(FuncIO::Arg(0.into()));
+        let mut sum = IRAexpr::Sum(Box::new(lhs), Box::new(rhs.clone()));
+        sum.constant_fold(seven);
+        assert_eq!(sum, rhs);
+    }
+
+    #[rstest]
+    fn sum_identity_rev(seven: Felt) {
+        let rhs = IRAexpr::Constant(0usize.into());
+        let lhs = IRAexpr::IO(FuncIO::Arg(0.into()));
+        let mut sum = IRAexpr::Sum(Box::new(lhs.clone()), Box::new(rhs));
+        sum.constant_fold(seven);
+        assert_eq!(sum, lhs);
+    }
+}
+
+#[cfg(test)]
+mod lowering_tests {
     use crate::expressions::ScopedExpression;
     use crate::ir::equivalency::{EqvRelation as _, SymbolicEqv};
     use crate::resolvers::FixedQueryResolver;

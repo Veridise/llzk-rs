@@ -234,9 +234,9 @@ impl<F: Field> MulChip<F> {
             // Defined here to get always the same key.
             default_group_key!(),
             |layouter, group| {
-                group.annotate_input(input.cell());
+                group.annotate_input(input.cell())?;
                 let prev_c = self.assign_first_row(layouter, input, selector)?;
-                group.annotate_output(prev_c.cell());
+                group.annotate_output(prev_c.cell())?;
                 Ok(prev_c)
             },
         )

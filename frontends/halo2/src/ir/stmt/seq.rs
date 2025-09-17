@@ -1,8 +1,11 @@
 use anyhow::Result;
 
-use crate::backend::lowering::{
-    Lowering,
-    lowerable::{LowerableExpr, LowerableStmt},
+use crate::{
+    backend::lowering::{
+        lowerable::{LowerableExpr, LowerableStmt},
+        Lowering,
+    },
+    ir::expr::{Felt, IRAexpr},
 };
 
 use super::IRStmt;
@@ -33,6 +36,17 @@ impl<T> Seq<T> {
 
     pub fn iter_mut<'a>(&'a mut self) -> std::slice::IterMut<'a, IRStmt<T>> {
         self.0.iter_mut()
+    }
+}
+
+impl Seq<IRAexpr> {
+    /// Folds the statements if the expressions are constant.
+    /// If a assert-like statement folds into a tautology (i.e. `(= 0 0 )`) gets removed. If it
+    /// folds into a unsatisfiable proposition the method returns an error.
+    pub fn constant_fold(&mut self, prime: Felt) -> Result<()> {
+        self.0
+            .iter_mut()
+            .try_for_each(|inner| inner.constant_fold(prime))
     }
 }
 

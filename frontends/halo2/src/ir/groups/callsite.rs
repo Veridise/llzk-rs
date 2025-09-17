@@ -12,7 +12,7 @@ use crate::{
     halo2::{groups::GroupKeyInstance, Field},
     ir::{
         equivalency::{EqvRelation, SymbolicEqv},
-        expr::IRAexpr,
+        expr::{Felt, IRAexpr},
         stmt::IRStmt,
         CmpOp,
     },
@@ -105,7 +105,7 @@ impl EqvRelation<CallSite<IRAexpr>> for SymbolicEqv {
     }
 }
 
-impl<'s /*: 'ctx + 'syn*/, 'syn: 's, 'ctx: 's, F: Field> CallSite<ScopedExpression<'_, 's, F>> {
+impl<'s, 'syn: 's, 'ctx: 's, F: Field> CallSite<ScopedExpression<'_, 's, F>> {
     pub(super) fn new(
         callee: &Group,
         callee_id: usize,
@@ -173,6 +173,14 @@ impl<E> CallSite<E> {
                 .map(f)
                 .collect::<Result<Vec<_>, _>>()?,
         })
+    }
+}
+
+impl CallSite<IRAexpr> {
+    /// Folds the statements if the expressions are constant.
+    pub(crate) fn constant_fold(&mut self, prime: Felt) {
+        std::iter::chain(self.inputs.iter_mut(), self.outputs.iter_mut())
+            .for_each(|expr| expr.constant_fold(prime))
     }
 }
 

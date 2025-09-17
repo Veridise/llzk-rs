@@ -2,10 +2,15 @@ use anyhow::Result;
 
 use crate::{
     backend::lowering::{
-        Lowering,
         lowerable::{LowerableExpr, LowerableStmt},
+        Lowering,
     },
-    ir::{CmpOp, equivalency::EqvRelation},
+    ir::{
+        equivalency::EqvRelation,
+        expr::{Felt, IRAexpr},
+        stmt::IRStmt,
+        CmpOp,
+    },
 };
 
 pub struct Constraint<T> {
@@ -34,6 +39,37 @@ impl<T> Constraint<T> {
     pub fn try_map_inplace(&mut self, f: &impl Fn(&mut T) -> Result<()>) -> Result<()> {
         f(&mut self.lhs)?;
         f(&mut self.rhs)
+    }
+}
+
+impl Constraint<IRAexpr> {
+    /// Folds the statements if the expressions are constant.
+    /// If a assert-like statement folds into a tautology (i.e. `(= 0 0 )`) gets removed. If it
+    /// folds into a unsatisfiable proposition the method returns an error.
+    pub fn constant_fold(&mut self, prime: Felt) -> Result<Option<IRStmt<IRAexpr>>> {
+        self.lhs.constant_fold(prime);
+        self.rhs.constant_fold(prime);
+        if let Some((lhs, rhs)) = self.lhs.const_value().zip(self.rhs.const_value()) {
+            let r = match self.op {
+                CmpOp::Eq => lhs == rhs,
+                CmpOp::Lt => lhs < rhs,
+                CmpOp::Le => lhs <= rhs,
+                CmpOp::Gt => lhs > rhs,
+                CmpOp::Ge => lhs >= rhs,
+                CmpOp::Ne => lhs != rhs,
+            };
+            if r {
+                return Ok(Some(IRStmt::empty()));
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Detected constraint statement with false predicate: {} {} {}",
+                    lhs,
+                    self.op,
+                    rhs
+                ));
+            }
+        }
+        Ok(None)
     }
 }
 

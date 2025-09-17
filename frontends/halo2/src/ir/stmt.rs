@@ -1,12 +1,15 @@
 //! Structs for representing statements of the circuit's logic.
 
 use super::{equivalency::EqvRelation, expr::IRBexpr, CmpOp};
-use crate::backend::{
-    func::FuncIO,
-    lowering::{
-        lowerable::{LowerableExpr, LowerableStmt},
-        Lowering,
+use crate::{
+    backend::{
+        func::FuncIO,
+        lowering::{
+            lowerable::{LowerableExpr, LowerableStmt},
+            Lowering,
+        },
     },
+    ir::expr::{Felt, IRAexpr},
 };
 use anyhow::Result;
 
@@ -186,6 +189,31 @@ impl<T> IRStmt<T> {
 
     fn iter<'a>(&'a self) -> IRStmtRefIter<'a, T> {
         IRStmtRefIter { stack: vec![self] }
+    }
+}
+
+impl IRStmt<IRAexpr> {
+    /// Folds the statements if the expressions are constant.
+    /// If a assert-like statement folds into a tautology (i.e. `(= 0 0 )`) gets removed. If it
+    /// folds into a unsatisfiable proposition the method returns an error.
+    pub(crate) fn constant_fold(&mut self, prime: Felt) -> Result<()> {
+        match self {
+            IRStmt::ConstraintCall(call) => call.constant_fold(prime),
+            IRStmt::Constraint(constraint) => {
+                if let Some(replacement) = constraint.constant_fold(prime)? {
+                    *self = replacement;
+                }
+            }
+            IRStmt::Comment(_) => {}
+            IRStmt::AssumeDeterministic(_) => {}
+            IRStmt::Assert(assert) => {
+                if let Some(replacement) = assert.constant_fold(prime)? {
+                    *self = replacement;
+                }
+            }
+            IRStmt::Seq(seq) => seq.constant_fold(prime)?,
+        }
+        Ok(())
     }
 }
 

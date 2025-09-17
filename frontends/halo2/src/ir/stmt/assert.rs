@@ -2,10 +2,14 @@ use anyhow::Result;
 
 use crate::{
     backend::lowering::{
-        Lowering,
         lowerable::{LowerableExpr, LowerableStmt},
+        Lowering,
     },
-    ir::{equivalency::EqvRelation, expr::IRBexpr},
+    ir::{
+        equivalency::EqvRelation,
+        expr::{Felt, IRAexpr, IRBexpr},
+        stmt::IRStmt,
+    },
 };
 
 pub struct Assert<T>(IRBexpr<T>);
@@ -29,6 +33,25 @@ impl<T> Assert<T> {
 
     pub fn try_map_inplace(&mut self, f: &impl Fn(&mut T) -> Result<()>) -> Result<()> {
         self.0.try_map_inplace(f)
+    }
+}
+
+impl Assert<IRAexpr> {
+    /// Folds the statements if the expressions are constant.
+    /// If a assert-like statement folds into a tautology (i.e. `(= 0 0 )`) gets removed. If it
+    /// folds into a unsatisfiable proposition the method returns an error.
+    pub fn constant_fold(&mut self, prime: Felt) -> Result<Option<IRStmt<IRAexpr>>> {
+        self.0.constant_fold(prime);
+        if let Some(b) = self.0.const_value() {
+            if b {
+                return Ok(Some(IRStmt::empty()));
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Detected assert statement with predicate evaluating to 'false'"
+                ));
+            }
+        }
+        Ok(None)
     }
 }
 

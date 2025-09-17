@@ -11,7 +11,7 @@ use crate::{
     ir::{
         ctx::AdviceCells,
         equivalency::{EqvRelation, SymbolicEqv},
-        expr::IRAexpr,
+        expr::{Felt, IRAexpr},
         generate::{free_cells::FreeCells, lookup::codegen_lookup_invocations, GroupIRCtx},
         groups::{
             bounds::{Bound, EqConstraintCheck, GroupBounds},
@@ -49,7 +49,7 @@ pub struct GroupBody<E> {
     injected: Vec<IRStmt<E>>,
 }
 
-impl<'cb, 'syn, 'ctx, 'sco /*: 'ctx + 'syn*/, F> GroupBody<ScopedExpression<'syn, 'sco, F>>
+impl<'cb, 'syn, 'ctx, 'sco, F> GroupBody<ScopedExpression<'syn, 'sco, F>>
 where
     'cb: 'sco + 'syn,
     'syn: 'sco,
@@ -105,6 +105,7 @@ where
             group.name(),
             eq_constraints
         );
+
         let eq_constraints = IRStmt::seq(inter_region_constraints(
             eq_constraints,
             advice_io,
@@ -124,6 +125,43 @@ where
             ctx.lookup_cb(),
         )?);
 
+        let mut injected = vec![IRStmt::comment(format!(
+            "free cells: {:?}",
+            free_cells.inputs
+        ))];
+        for (n, callsite) in free_cells.callsites.iter().enumerate() {
+            injected.push(IRStmt::comment(format!(
+                " call {n}  free cells: {callsite:?}"
+            )));
+        }
+        for (n, (col, row)) in instance_io.inputs().iter().enumerate() {
+            injected.push(IRStmt::comment(format!(
+                " in{n} (instance): {}, {row}",
+                col.index()
+            )));
+        }
+        let l = instance_io.inputs().len();
+        for (n, (col, row)) in advice_io.inputs().iter().enumerate() {
+            injected.push(IRStmt::comment(format!(
+                " in{} (advice): {}, {row}",
+                n + l,
+                col.index()
+            )));
+        }
+        for (n, (col, row)) in instance_io.outputs().iter().enumerate() {
+            injected.push(IRStmt::comment(format!(
+                " out{n} (instance): {}, {row}",
+                col.index()
+            )));
+        }
+        let l = instance_io.outputs().len();
+        for (n, (col, row)) in advice_io.outputs().iter().enumerate() {
+            injected.push(IRStmt::comment(format!(
+                " out{} (advice): {}, {row}",
+                n + l,
+                col.index()
+            )));
+        }
         Ok(Self {
             id,
             input_count: instance_io.inputs().len() + advice_io.inputs().len(),
@@ -134,7 +172,7 @@ where
             gates,
             eq_constraints,
             lookups,
-            injected: vec![],
+            injected,
         })
     }
 
@@ -167,6 +205,21 @@ impl GroupBody<IRAexpr> {
                 _ => Ok(()),
             })
         })
+    }
+
+    /// Folds the statements if the expressions are constant.
+    ///
+    /// If any of the statements fails to fold returns an error.
+    pub(crate) fn constant_fold(&mut self, prime: Felt) -> Result<()> {
+        self.gates.constant_fold(prime)?;
+        self.eq_constraints.constant_fold(prime)?;
+        for callsite in &mut self.callsites {
+            callsite.constant_fold(prime);
+        }
+        self.lookups.constant_fold(prime)?;
+        self.injected
+            .iter_mut()
+            .try_for_each(|s| s.constant_fold(prime))
     }
 }
 
@@ -344,7 +397,12 @@ fn select_equality_constraints<F: Field>(
     ctx: &GroupIRCtx<'_, '_, F>,
     free_inputs: &[GroupCell],
 ) -> Vec<EqConstraint<F>> {
-    let bounds = GroupBounds::new_with_extra(group, ctx.regions_by_index(), Some(free_inputs));
+    let bounds = GroupBounds::new_with_extra(
+        group,
+        ctx.groups(),
+        ctx.regions_by_index(),
+        Some(free_inputs),
+    );
 
     ctx.syn()
         .constraints()

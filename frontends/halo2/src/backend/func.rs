@@ -3,7 +3,7 @@ use std::{fmt, ops::Deref};
 use crate::ir::equivalency::{EqvRelation, SymbolicEqv};
 
 /// Argument number of a function
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ArgNo(usize);
 
 impl From<usize> for ArgNo {
@@ -32,8 +32,14 @@ impl fmt::Display for ArgNo {
     }
 }
 
+impl fmt::Debug for ArgNo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "arg{}", self.0)
+    }
+}
+
 /// An identifier that Backend::FuncOutput will use to identify an output field in the function.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FieldId(usize);
 
 impl From<usize> for FieldId {
@@ -54,6 +60,12 @@ impl fmt::Display for FieldId {
     }
 }
 
+impl fmt::Debug for FieldId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "field{}", self.0)
+    }
+}
+
 /// Used for comparing cell's offsets.
 #[derive(Copy, Clone, Eq, PartialEq)]
 enum Offset {
@@ -62,7 +74,7 @@ enum Offset {
 }
 
 /// A reference to a cell in the circuit.
-#[derive(Clone, Copy, Eq, Debug)]
+#[derive(Clone, Copy, Eq)]
 pub struct CellRef {
     col: usize,
     base: Option<usize>,
@@ -128,6 +140,15 @@ impl CellRef {
     }
 }
 
+impl std::fmt::Debug for CellRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.base {
+            Some(base) => write!(f, "[{}, {base}(+{})]", self.col, self.offset),
+            None => write!(f, "[{}, {}]", self.col, self.offset),
+        }
+    }
+}
+
 impl PartialEq for CellRef {
     fn eq(&self, other: &Self) -> bool {
         self.col() == other.col() && self.row() == other.row()
@@ -155,7 +176,7 @@ impl EqvRelation<CellRef> for SymbolicEqv {
     }
 }
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq)]
 pub enum FuncIO {
     /// Points to the n-th input argument
     Arg(ArgNo),
@@ -209,6 +230,21 @@ impl EqvRelation<FuncIO> for SymbolicEqv {
             ) => col0 == col1 && row0 == row1,
             (FuncIO::CallOutput(_, o0), FuncIO::CallOutput(_, o1)) => o0 == o1,
             _ => false,
+        }
+    }
+}
+
+impl std::fmt::Debug for FuncIO {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Arg(arg) => write!(f, "{arg:?}"),
+            Self::Field(field) => write!(f, "{field:?}"),
+            Self::Advice(c) => write!(f, "adv{c:?}"),
+            Self::Fixed(c) => write!(f, "fix{c:?}"),
+            Self::TableLookup(id, col, row, idx, region_idx) => {
+                write!(f, "lookup{id}[{col}, {row}]@({idx}, {region_idx})")
+            }
+            Self::CallOutput(call, out) => write!(f, "call{call} -> {out}"),
         }
     }
 }
