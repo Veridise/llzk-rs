@@ -113,7 +113,7 @@ impl PicusParamsBuilder {
 
     /// Finishes the build process and returns the parameters.
     pub fn build(&mut self) -> PicusParams {
-        std::mem::replace(&mut self.0, PicusParams::new())
+        std::mem::take(&mut self.0)
     }
 }
 

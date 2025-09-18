@@ -115,7 +115,7 @@ impl<'lc, 'gc, F: Field> IRGenParamsBuilder<'lc, 'gc, F> {
 
     /// Creates the params.
     pub fn build(&mut self) -> IRGenParams<'lc, 'gc, F> {
-        std::mem::replace(&mut self.0, IRGenParams::new())
+        std::mem::take(&mut self.0)
     }
 }
 
