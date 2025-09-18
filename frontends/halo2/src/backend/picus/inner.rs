@@ -1,12 +1,18 @@
-use crate::backend::picus::PicusModule;
-use crate::backend::picus::{params::PicusParams, Pipeline, PipelineBuilder};
-use crate::ir::expr::Felt;
+use crate::{
+    backend::{
+        codegen::CodegenParams,
+        picus::{params::PicusParams, PicusModule, Pipeline, PipelineBuilder},
+    },
+    ir::expr::Felt,
+};
 
 use anyhow::Result;
 
 pub use super::lowering::PicusModuleLowering;
-use super::lowering::PicusModuleRef;
-use super::vars::{NamingConvention, VarKey};
+use super::{
+    lowering::PicusModuleRef,
+    vars::{NamingConvention, VarKey},
+};
 use picus::{
     opt::passes::{ConsolidateVarNamesPass, EnsureMaxExprSizePass, FoldExprsPass},
     vars::VarStr,
@@ -29,9 +35,7 @@ impl PicusCodegenInner {
             current_scope: Default::default(),
         }
     }
-}
 
-impl PicusCodegenInner {
     pub fn naming_convention(&self) -> NamingConvention {
         self.params.naming_convention()
     }
@@ -86,5 +90,11 @@ impl PicusCodegenInner {
 
     pub fn entrypoint(&self) -> String {
         self.params.entrypoint().to_owned()
+    }
+}
+
+impl CodegenParams for PicusCodegenInner {
+    fn inlining_enabled(&self) -> bool {
+        self.params.inline()
     }
 }

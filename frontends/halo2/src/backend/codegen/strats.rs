@@ -8,7 +8,6 @@ pub mod inline {
 
     /// Code generation strategy that generates the all the code inside the main function.
     #[derive(Default)]
-    #[allow(dead_code)]
     pub struct InlineConstraintsStrat {}
 
     impl CodegenStrategy for InlineConstraintsStrat {

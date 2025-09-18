@@ -1,4 +1,5 @@
 use group::ff::Field;
+use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
 use halo2curves_070::bn256::Fr;
 use midnight_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
 use midnight_halo2_proofs::plonk::{
@@ -35,8 +36,7 @@ fn mul_circuit_picus() {
             .short_names()
             .no_optimize()
             .build(),
-        None,
-        Some(&GC),
+        IRGenParamsBuilder::new().gate_callbacks(&GC).build(),
         EXPECTED_PICUS,
         false,
     );
@@ -58,8 +58,7 @@ fn mul_opt_circuit_picus() {
     common::picus_test(
         MulCircuit::<Fr>::default(),
         PicusParamsBuilder::new().short_names().build(),
-        None,
-        Some(&GC),
+        IRGenParamsBuilder::new().gate_callbacks(&GC).build(),
         EXPECTED_OPT_PICUS,
         true,
     );

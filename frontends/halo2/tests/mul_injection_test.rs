@@ -1,5 +1,6 @@
 use group::ff::Field;
 use halo2_llzk_frontend::driver::Driver;
+use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
 use halo2_llzk_frontend::ir::stmt::IRStmt;
 use halo2_llzk_frontend::ir::{CmpOp, UnresolvedIRCircuit};
 use halo2curves_070::bn256::Fr;
@@ -103,7 +104,10 @@ fn mul_injected_circuit_picus() {
     let mut driver = Driver::default();
     let resolved = {
         let syn = driver.synthesize(&circuit).unwrap();
-        let mut unresolved = driver.generate_ir(&syn, None, None).unwrap();
+
+        let mut unresolved = driver
+            .generate_ir(&syn, IRGenParamsBuilder::new().build())
+            .unwrap();
         let ir = ir_to_inject();
         unresolved.inject_ir(ir, &syn).unwrap();
         unresolved.resolve().unwrap()
@@ -128,7 +132,10 @@ fn mul_injected_opt_circuit_picus() {
         let mut driver = Driver::default();
         let mut resolved = {
             let syn = driver.synthesize(&circuit).unwrap();
-            let mut unresolved = driver.generate_ir(&syn, None, None).unwrap();
+
+            let mut unresolved = driver
+                .generate_ir(&syn, IRGenParamsBuilder::new().build())
+                .unwrap();
             let ir = ir_to_inject();
             unresolved.inject_ir(ir, &syn).unwrap();
             unresolved.resolve().unwrap()

@@ -1,5 +1,7 @@
 use melior::Context;
 
+use crate::backend::codegen::CodegenParams;
+
 use super::LlzkParams;
 
 pub struct LlzkCodegenState<'c> {
@@ -23,5 +25,11 @@ impl<'c> From<LlzkParams<'c>> for LlzkCodegenState<'c> {
             context: params.context(),
             params,
         }
+    }
+}
+
+impl CodegenParams for LlzkCodegenState<'_> {
+    fn inlining_enabled(&self) -> bool {
+        self.params().inline()
     }
 }

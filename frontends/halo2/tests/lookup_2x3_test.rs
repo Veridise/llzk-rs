@@ -1,4 +1,5 @@
 use group::ff::Field;
+use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
 use halo2curves_070::bn256::Fr;
 use midnight_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
 use midnight_halo2_proofs::plonk::{
@@ -31,8 +32,9 @@ fn lookup_2x3_circuit_picus() {
             .short_names()
             .no_optimize()
             .build(),
-        Some(&common::LookupCallbackHandler),
-        None,
+        IRGenParamsBuilder::new()
+            .lookup_callbacks(&common::LookupCallbackHandler)
+            .build(),
         EXPECTED_PICUS,
         false,
     );
@@ -52,8 +54,9 @@ fn lookup_2x3_opt_circuit_picus() {
     common::picus_test(
         Lookup2x3Circuit::<Fr>::default(),
         PicusParamsBuilder::new().short_names().build(),
-        Some(&common::LookupCallbackHandler),
-        None,
+        IRGenParamsBuilder::new()
+            .lookup_callbacks(&common::LookupCallbackHandler)
+            .build(),
         EXPECTED_OPT_PICUS,
         true,
     );

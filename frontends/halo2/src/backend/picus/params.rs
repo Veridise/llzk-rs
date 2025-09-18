@@ -7,6 +7,7 @@ pub struct PicusParams {
     entrypoint: String,
     naming_convention: NamingConvention,
     optimize: bool,
+    inline: bool,
 }
 
 impl PicusParams {
@@ -36,7 +37,13 @@ impl PicusParams {
             entrypoint: "Main".to_owned(),
             naming_convention: NamingConvention::Short,
             optimize: true,
+            inline: false,
         }
+    }
+
+    /// Returns wether inlining is enabled or not.
+    pub fn inline(&self) -> bool {
+        self.inline
     }
 }
 
@@ -92,6 +99,18 @@ impl PicusParamsBuilder {
     /// Disables optimizations.
     pub fn no_optimize(mut self) -> Self {
         self.0.optimize = false;
+        self
+    }
+
+    /// Sets lowering to inlining everything into one module.
+    pub fn inline(mut self) -> Self {
+        self.0.inline = true;
+        self
+    }
+
+    /// Sets lowering to creating separate modules for each group.
+    pub fn no_inline(mut self) -> Self {
+        self.0.inline = false;
         self
     }
 

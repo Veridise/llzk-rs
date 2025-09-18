@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use crate::ir::{IRCtx, ResolvedIRCircuit};
+use crate::{
+    backend::codegen::{strats::inline::InlineConstraintsStrat, CodegenParams},
+    ir::{IRCtx, ResolvedIRCircuit},
+};
 use anyhow::Result;
 
 pub mod codegen;
@@ -10,9 +13,6 @@ pub mod lowering;
 pub mod picus;
 
 use codegen::{strats::groups::GroupConstraintsStrat, Codegen, CodegenStrategy};
-
-//type DefaultStrat = InlineConstraintsStrat;
-type DefaultStrat = GroupConstraintsStrat;
 
 /// Entrypoint for the backend.
 pub struct Backend<C, S> {
@@ -34,6 +34,7 @@ where
     C: Codegen<'s, 'b>,
     C::State: 's,
     C::Output: 's,
+    C::State: CodegenParams,
 {
     fn create_codegen(&'b self) -> C {
         C::initialize(&self.state)
@@ -41,11 +42,15 @@ where
 
     /// Generate code using the default strategy.
     pub fn codegen(&'b self, ir: &ResolvedIRCircuit, ctx: &IRCtx) -> Result<C::Output> {
-        self.codegen_with_strat(ir, ctx, DefaultStrat::default())
+        if self.state.inlining_enabled() {
+            self.codegen_with_strat(ir, ctx, InlineConstraintsStrat::default())
+        } else {
+            self.codegen_with_strat(ir, ctx, GroupConstraintsStrat::default())
+        }
     }
 
     /// Generate code using the given strategy.
-    pub(crate) fn codegen_with_strat(
+    fn codegen_with_strat(
         &'b self,
         ir: &ResolvedIRCircuit,
         ctx: &IRCtx,

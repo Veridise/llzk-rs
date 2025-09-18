@@ -1,4 +1,5 @@
 use group::ff::Field;
+use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
 use halo2_llzk_frontend::PicusParamsBuilder;
 use halo2curves_070::bn256::Fr;
 use midnight_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
@@ -36,8 +37,7 @@ fn mul_with_fixed_constraint_circuit_picus() {
             .short_names()
             .no_optimize()
             .build(),
-        None,
-        None,
+        IRGenParamsBuilder::new().build(),
         EXPECTED_PICUS,
         false,
     );
@@ -60,8 +60,7 @@ fn mul_with_fixed_constraint_opt_circuit_picus() {
     common::picus_test(
         MulWithFixedConstraintCircuit::<Fr>::default(),
         PicusParamsBuilder::new().short_names().build(),
-        None,
-        None,
+        IRGenParamsBuilder::new().build(),
         EXPECTED_OPT_PICUS,
         true,
     );

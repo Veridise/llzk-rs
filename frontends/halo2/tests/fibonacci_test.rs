@@ -1,4 +1,5 @@
 use group::ff::Field;
+use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
 use midnight_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
 use midnight_halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector,
@@ -71,8 +72,7 @@ fn fibonacci_circuit_picus() {
             .short_names()
             .no_optimize()
             .build(),
-        None,
-        None,
+        IRGenParamsBuilder::new().build(),
         EXPECTED_PICUS,
         false,
     );
@@ -84,8 +84,7 @@ fn fibonacci_opt_circuit_picus() {
     common::picus_test(
         FibonacciCircuit::<Fr>::default(),
         PicusParamsBuilder::new().short_names().build(),
-        None,
-        None,
+        IRGenParamsBuilder::new().build(),
         EXPECTED_OPT_PICUS,
         true,
     );

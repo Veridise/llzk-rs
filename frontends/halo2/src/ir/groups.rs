@@ -12,7 +12,7 @@ use crate::{
         ctx::AdviceCells,
         equivalency::{EqvRelation, SymbolicEqv},
         expr::{Felt, IRAexpr},
-        generate::{free_cells::FreeCells, lookup::codegen_lookup_invocations, GroupIRCtx},
+        generate::{free_cells::FreeCells, GroupIRCtx},
         groups::{
             bounds::{Bound, EqConstraintCheck, GroupBounds},
             callsite::CallSite,
@@ -20,13 +20,15 @@ use crate::{
         stmt::IRStmt,
         CmpOp, IRCtx,
     },
+    lookups::callbacks::LazyLookupTableGenerator,
     resolvers::FixedQueryResolver,
     synthesis::{
         constraint::EqConstraint,
         groups::{Group, GroupCell},
-        regions::{RegionData, Row},
+        regions::{RegionData, RegionRow, Row},
+        CircuitSynthesis,
     },
-    utils, GateRewritePattern as _, GateScope, RewriteError,
+    utils, GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
 };
 use anyhow::Result;
 
@@ -47,6 +49,7 @@ pub struct GroupBody<E> {
     callsites: Vec<CallSite<E>>,
     lookups: IRStmt<E>,
     injected: Vec<IRStmt<E>>,
+    generate_debug_comments: bool,
 }
 
 impl<'cb, 'syn, 'ctx, 'sco, F> GroupBody<ScopedExpression<'syn, 'sco, F>>
@@ -59,7 +62,7 @@ where
     pub(super) fn new(
         group: &'syn Group,
         id: usize,
-        ctx: &GroupIRCtx<'cb, 'syn, F>,
+        ctx: &GroupIRCtx<'cb, '_, 'syn, F>,
         free_cells: &'ctx FreeCells,
         advice_io: &'ctx crate::io::AdviceIO,
         instance_io: &'ctx crate::io::InstanceIO,
@@ -92,6 +95,7 @@ where
             advice_io,
             instance_io,
             ctx.syn().fixed_query_resolver(),
+            ctx.generate_debug_comments(),
         )?);
         log::debug!("Gates IR: {gates:?}");
 
@@ -123,45 +127,9 @@ where
             ctx.syn(),
             &group.region_rows(advice_io, instance_io, ctx.syn().fixed_query_resolver()),
             ctx.lookup_cb(),
+            ctx.generate_debug_comments(),
         )?);
 
-        let mut injected = vec![IRStmt::comment(format!(
-            "free cells: {:?}",
-            free_cells.inputs
-        ))];
-        for (n, callsite) in free_cells.callsites.iter().enumerate() {
-            injected.push(IRStmt::comment(format!(
-                " call {n}  free cells: {callsite:?}"
-            )));
-        }
-        for (n, (col, row)) in instance_io.inputs().iter().enumerate() {
-            injected.push(IRStmt::comment(format!(
-                " in{n} (instance): {}, {row}",
-                col.index()
-            )));
-        }
-        let l = instance_io.inputs().len();
-        for (n, (col, row)) in advice_io.inputs().iter().enumerate() {
-            injected.push(IRStmt::comment(format!(
-                " in{} (advice): {}, {row}",
-                n + l,
-                col.index()
-            )));
-        }
-        for (n, (col, row)) in instance_io.outputs().iter().enumerate() {
-            injected.push(IRStmt::comment(format!(
-                " out{n} (instance): {}, {row}",
-                col.index()
-            )));
-        }
-        let l = instance_io.outputs().len();
-        for (n, (col, row)) in advice_io.outputs().iter().enumerate() {
-            injected.push(IRStmt::comment(format!(
-                " out{} (advice): {}, {row}",
-                n + l,
-                col.index()
-            )));
-        }
         Ok(Self {
             id,
             input_count: instance_io.inputs().len() + advice_io.inputs().len(),
@@ -172,7 +140,8 @@ where
             gates,
             eq_constraints,
             lookups,
-            injected,
+            injected: vec![],
+            generate_debug_comments: ctx.generate_debug_comments(),
         })
     }
 
@@ -321,6 +290,7 @@ impl<E> GroupBody<E> {
                 .into_iter()
                 .map(|i| i.try_map(f))
                 .collect::<Result<Vec<_>, _>>()?,
+            generate_debug_comments: self.generate_debug_comments,
         })
     }
 }
@@ -368,17 +338,27 @@ impl LowerableStmt for GroupBody<IRAexpr> {
     where
         L: Lowering + ?Sized,
     {
-        l.generate_comment("Calls to subgroups".to_owned())?;
+        if self.generate_debug_comments {
+            l.generate_comment("Calls to subgroups".to_owned())?;
+        }
         for callsite in self.callsites {
             callsite.lower(l)?;
         }
-        l.generate_comment("Gate constraints".to_owned())?;
+        if self.generate_debug_comments {
+            l.generate_comment("Gate constraints".to_owned())?;
+        }
         self.gates.lower(l)?;
-        l.generate_comment("Equality constraints".to_owned())?;
+        if self.generate_debug_comments {
+            l.generate_comment("Equality constraints".to_owned())?;
+        }
         self.eq_constraints.lower(l)?;
-        l.generate_comment("Lookups".to_owned())?;
+        if self.generate_debug_comments {
+            l.generate_comment("Lookups".to_owned())?;
+        }
         self.lookups.lower(l)?;
-        l.generate_comment("Injected".to_owned())?;
+        if self.generate_debug_comments {
+            l.generate_comment("Injected".to_owned())?;
+        }
         for stmt in self.injected {
             stmt.lower(l)?;
         }
@@ -400,6 +380,7 @@ impl<E: Clone> Clone for GroupBody<E> {
             callsites: self.callsites.clone(),
             lookups: self.lookups.clone(),
             injected: self.injected.clone(),
+            generate_debug_comments: self.generate_debug_comments,
         }
     }
 }
@@ -407,7 +388,7 @@ impl<E: Clone> Clone for GroupBody<E> {
 /// Select the equality constraints that concern this group.
 fn select_equality_constraints<F: Field>(
     group: &Group,
-    ctx: &GroupIRCtx<'_, '_, F>,
+    ctx: &GroupIRCtx<'_, '_, '_, F>,
     free_inputs: &[GroupCell],
 ) -> Vec<EqConstraint<F>> {
     let bounds = GroupBounds::new_with_extra(
@@ -504,6 +485,7 @@ fn lower_gates<'sco, 'syn, 'io, F>(
     advice_io: &'io crate::io::AdviceIO,
     instance_io: &'io crate::io::InstanceIO,
     fqr: &'syn dyn FixedQueryResolver<F>,
+    generate_debug_comments: bool,
 ) -> Result<Vec<IRStmt<ScopedExpression<'syn, 'sco, F>>>>
 where
     'syn: 'sco,
@@ -536,8 +518,38 @@ where
                             scope.start_row(),
                             scope.end_row()
                         )),
+                        generate_debug_comments,
                     )
                 })
+        })
+        .collect()
+}
+
+fn codegen_lookup_invocations<'sco, 'syn, 'ctx, 'cb, F>(
+    syn: &'syn CircuitSynthesis<F>,
+    region_rows: &[RegionRow<'syn, 'ctx, 'syn, F>],
+    lookup_cb: &'cb dyn LookupCallbacks<F>,
+    generate_debug_comments: bool,
+) -> Result<Vec<IRStmt<ScopedExpression<'syn, 'sco, F>>>>
+where
+    'syn: 'sco,
+    'ctx: 'sco + 'syn,
+    'cb: 'sco + 'syn,
+    F: Field,
+{
+    utils::product(syn.lookups(), region_rows)
+        .map(|(lookup, rr)| {
+            let table = LazyLookupTableGenerator::new(|| {
+                syn.tables_for_lookup(&lookup)
+                    .map(|table| table.into_boxed_slice())
+            });
+            lookup_cb.on_lookup(lookup, &table).map(|stmts| {
+                let comment = IRStmt::comment(format!("{lookup} @ {}", rr.header()));
+                let stmts = stmts
+                    .into_iter()
+                    .map(|stmt| stmt.map(&|e| ScopedExpression::from_cow(e, *rr)));
+                prepend_comment(stmts.collect(), comment, generate_debug_comments)
+            })
         })
         .collect()
 }
@@ -548,8 +560,9 @@ where
 fn prepend_comment<'a, F: Field>(
     stmt: IRStmt<ScopedExpression<'a, 'a, F>>,
     comment: IRStmt<ScopedExpression<'a, 'a, F>>,
+    generate_debug_comments: bool,
 ) -> IRStmt<ScopedExpression<'a, 'a, F>> {
-    if stmt.is_empty() {
+    if stmt.is_empty() || !generate_debug_comments {
         return stmt;
     }
     [comment, stmt].into_iter().collect()

@@ -6,6 +6,7 @@ use melior::Context;
 pub struct LlzkParams<'c> {
     context: &'c LlzkContext,
     top_level: Option<String>,
+    inline: bool,
 }
 
 impl<'c> LlzkParams<'c> {
@@ -13,6 +14,7 @@ impl<'c> LlzkParams<'c> {
         Self {
             context,
             top_level: Default::default(),
+            inline: false,
         }
     }
 
@@ -24,6 +26,11 @@ impl<'c> LlzkParams<'c> {
     /// Returns the name of the top-level structure if it was configured.
     pub fn top_level(&self) -> Option<&str> {
         self.top_level.as_deref()
+    }
+
+    /// Returns wether inlining is enabled or not.
+    pub fn inline(&self) -> bool {
+        self.inline
     }
 }
 
@@ -46,6 +53,18 @@ impl<'c> LlzkParamsBuilder<'c> {
     /// Removes the name of the top-level struct.
     pub fn no_top_level(mut self) -> Self {
         self.0.top_level = None;
+        self
+    }
+
+    /// Sets lowering to inlining everything into one module.
+    pub fn inline(mut self) -> Self {
+        self.0.inline = true;
+        self
+    }
+
+    /// Sets lowering to creating separate modules for each group.
+    pub fn no_inline(mut self) -> Self {
+        self.0.inline = false;
         self
     }
 

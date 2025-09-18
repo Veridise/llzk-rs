@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use super::lowering::lowerable::LowerableStmt;
 use super::lowering::ExprLowering as _;
 use super::{func::FuncIO, lowering::Lowering};
@@ -81,7 +84,7 @@ pub trait Codegen<'c: 's, 's>: Sized + 's {
         Self::Output: 'c;
 }
 
-pub trait CodegenStrategy: Default {
+pub trait CodegenStrategy {
     fn codegen<'c: 'st, 's, 'st, C>(
         &self,
         codegen: &C,
@@ -90,4 +93,15 @@ pub trait CodegenStrategy: Default {
     ) -> Result<()>
     where
         C: Codegen<'c, 'st>;
+}
+
+pub trait CodegenParams {
+    /// Returns true if inlining is enabled.
+    fn inlining_enabled(&self) -> bool;
+}
+
+impl<T: CodegenParams> CodegenParams for Rc<RefCell<T>> {
+    fn inlining_enabled(&self) -> bool {
+        self.borrow().inlining_enabled()
+    }
 }

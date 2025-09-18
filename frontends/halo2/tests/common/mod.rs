@@ -3,12 +3,12 @@ use std::borrow::Cow;
 use ff::{Field, PrimeField};
 use halo2_llzk_frontend::{
     driver::Driver,
-    ir::{stmt::IRStmt, ResolvedIRCircuit},
+    ir::{generate::IRGenParams, stmt::IRStmt, ResolvedIRCircuit},
     lookups::{
         callbacks::{LookupCallbacks, LookupTableGenerator},
         Lookup,
     },
-    CircuitCallbacks, GateCallbacks, PicusParams,
+    CircuitCallbacks, PicusParams,
 };
 use log::LevelFilter;
 use midnight_halo2_proofs::plonk::Expression;
@@ -24,23 +24,22 @@ pub fn setup() {
 pub fn synthesize_and_generate_ir<'drv, F, C>(
     driver: &'drv mut Driver,
     circuit: C,
-    lookups: Option<&dyn LookupCallbacks<F>>,
-    gates: Option<&dyn GateCallbacks<F>>,
+    params: IRGenParams<F>,
 ) -> ResolvedIRCircuit
 where
     F: PrimeField,
     C: CircuitCallbacks<F>,
 {
     let syn = driver.synthesize(&circuit).unwrap();
-    let unresolved = driver.generate_ir(&syn, lookups, gates).unwrap();
+    let unresolved = driver.generate_ir(&syn, params).unwrap();
     unresolved.resolve().unwrap()
 }
 
+#[allow(dead_code)]
 pub fn picus_test<F, C>(
     circuit: C,
     params: PicusParams,
-    lookups: Option<&dyn LookupCallbacks<F>>,
-    gates: Option<&dyn GateCallbacks<F>>,
+    ir_params: IRGenParams<F>,
     expected: impl AsRef<str>,
     canonicalize: bool,
 ) where
@@ -48,7 +47,7 @@ pub fn picus_test<F, C>(
     C: CircuitCallbacks<F>,
 {
     let mut driver = Driver::default();
-    let mut resolved = synthesize_and_generate_ir(&mut driver, circuit, lookups, gates);
+    let mut resolved = synthesize_and_generate_ir(&mut driver, circuit, ir_params);
     if canonicalize {
         resolved.constant_fold().unwrap();
         resolved.canonicalize();

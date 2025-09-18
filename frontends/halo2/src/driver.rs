@@ -7,13 +7,14 @@ use crate::{
         llzk::{LlzkBackend, LlzkOutput, LlzkParams},
         picus::{PicusBackend, PicusOutput, PicusParams},
     },
-    gates::DefaultGateCallbacks,
     halo2::PrimeField,
     io::{AdviceIO, AdviceIOValidator, InstanceIO, InstanceIOValidator},
-    ir::{generate::generate_ir, IRCtx, ResolvedIRCircuit, UnresolvedIRCircuit},
-    lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
+    ir::{
+        generate::{generate_ir, IRGenParams},
+        IRCtx, ResolvedIRCircuit, UnresolvedIRCircuit,
+    },
     synthesis::{CircuitSynthesis, Synthesizer},
-    CircuitCallbacks, GateCallbacks,
+    CircuitCallbacks,
 };
 
 /// Controls the different lowering stages of circuits.
@@ -49,8 +50,7 @@ impl Driver {
     pub fn generate_ir<'syn, 'drv, 'cb, 'sco, F>(
         &'drv mut self,
         syn: &'syn CircuitSynthesis<F>,
-        lookups: Option<&'cb dyn LookupCallbacks<F>>,
-        gates: Option<&dyn GateCallbacks<F>>,
+        params: IRGenParams<'cb, '_, F>,
     ) -> anyhow::Result<UnresolvedIRCircuit<'drv, 'syn, 'sco, F>>
     where
         F: PrimeField,
@@ -59,12 +59,7 @@ impl Driver {
         'cb: 'sco + 'syn,
     {
         let ctx = self.get_or_create_ir_ctx(syn);
-        let ir = generate_ir(
-            syn,
-            lookups.unwrap_or(&DefaultLookupCallbacks),
-            gates.unwrap_or(&DefaultGateCallbacks),
-            ctx,
-        )?;
+        let ir = generate_ir(syn, params, ctx)?;
         let enumerated_groups = syn.groups().iter().enumerate().collect::<Vec<_>>();
         let mut regions_to_groups = vec![];
 

@@ -35,9 +35,9 @@ pub struct CallSite<E> {
     outputs: Vec<E>,
 }
 
-fn cells_to_exprs<'e, 's /*: 'syn + 'io*/, 'syn: 's, 'cb, 'io: 's, F: Field>(
+fn cells_to_exprs<'e, 's, 'syn: 's, 'cb, 'io: 's, F: Field>(
     cells: &[GroupCell],
-    ctx: &super::GroupIRCtx<'cb, 'syn, F>,
+    ctx: &super::GroupIRCtx<'cb, '_, 'syn, F>,
     advice_io: &'io crate::io::AdviceIO,
     instance_io: &'io crate::io::InstanceIO,
 ) -> anyhow::Result<Vec<ScopedExpression<'e, 's, F>>> {
@@ -109,7 +109,7 @@ impl<'s, 'syn: 's, 'ctx: 's, F: Field> CallSite<ScopedExpression<'_, 's, F>> {
     pub(super) fn new(
         callee: &Group,
         callee_id: usize,
-        ctx: &super::GroupIRCtx<'_, 'syn, F>,
+        ctx: &super::GroupIRCtx<'_, '_, 'syn, F>,
         call_no: usize,
         advice_io: &'ctx crate::io::AdviceIO,
         instance_io: &'ctx crate::io::InstanceIO,

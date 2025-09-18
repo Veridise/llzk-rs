@@ -1,4 +1,5 @@
 use group::ff::Field;
+use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
 use halo2_llzk_frontend::{CircuitCallbacks, CircuitIO, PicusParamsBuilder};
 use halo2curves_070::bn256::Fr;
 use midnight_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
@@ -75,8 +76,7 @@ fn grouped_muls2_circuit_picus() {
             .short_names()
             .no_optimize()
             .build(),
-        None,
-        None,
+        IRGenParamsBuilder::new().build(),
         EXPECTED_PICUS,
         false,
     );
@@ -88,8 +88,7 @@ fn grouped_muls2_opt_circuit_picus() {
     common::picus_test(
         MulCircuit::<Fr>::default(),
         PicusParamsBuilder::new().short_names().build(),
-        None,
-        None,
+        IRGenParamsBuilder::new().build(),
         EXPECTED_OPT_PICUS,
         true,
     );
