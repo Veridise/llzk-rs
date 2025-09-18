@@ -229,23 +229,33 @@ impl IRAexpr {
                 }
             }
             IRAexpr::Product(lhs, rhs) => {
+                let minus_one = (prime - 1usize.into()).unwrap();
                 lhs.constant_fold(prime);
                 rhs.constant_fold(prime);
                 match (lhs.const_value(), rhs.const_value()) {
                     (Some(lhs), Some(rhs)) => {
                         *self = IRAexpr::Constant((lhs * rhs) % prime);
                     }
+                    // (* 1 X) => X
                     (None, Some(rhs)) if rhs == 1usize => {
                         *self = (**lhs).clone();
                     }
                     (Some(lhs), None) if lhs == 1usize => {
                         *self = (**rhs).clone();
                     }
+                    // (* 0 X) => X
                     (None, Some(rhs)) if rhs == 0usize => {
                         *self = IRAexpr::Constant(0usize.into());
                     }
                     (Some(lhs), None) if lhs == 0usize => {
                         *self = IRAexpr::Constant(0usize.into());
+                    }
+                    // (* -1 X) => -X
+                    (None, Some(rhs)) if rhs == minus_one => {
+                        *self = IRAexpr::Negated(lhs.clone());
+                    }
+                    (Some(lhs), None) if lhs == minus_one => {
+                        *self = IRAexpr::Negated(rhs.clone());
                     }
                     _ => {}
                 }

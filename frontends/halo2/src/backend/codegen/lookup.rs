@@ -1,5 +1,5 @@
 use crate::halo2::{Expression, Field, FixedQuery};
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 
 pub fn query_from_table_expr<F: Field>(e: &Expression<F>) -> Result<FixedQuery> {
     match e {
@@ -9,21 +9,3 @@ pub fn query_from_table_expr<F: Field>(e: &Expression<F>) -> Result<FixedQuery> 
         )),
     }
 }
-
-//pub fn contains_fixed<F: Field>(e: &&Expression<F>) -> bool {
-//    fn false_cb<I>(_: I) -> bool {
-//        false
-//    }
-//    e.evaluate(
-//        &false_cb,
-//        &false_cb,
-//        &|_| true,
-//        &false_cb,
-//        &false_cb,
-//        &false_cb,
-//        &identity,
-//        &BitOr::bitor,
-//        &BitOr::bitor,
-//        &|b, _| b,
-//    )
-//}

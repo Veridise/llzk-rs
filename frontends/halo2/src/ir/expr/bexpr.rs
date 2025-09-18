@@ -145,12 +145,28 @@ impl IRBexpr<IRAexpr> {
             IRBexpr::And(exprs) => {
                 if let Some(exprs) = collect_folds(exprs, prime) {
                     *self = exprs.into_iter().all(identity).into();
+                    return;
                 }
+                // Remove any literal 'true' values.
+                exprs.retain(|expr| {
+                    expr.const_value()
+                        // If the expr is IRBexpr::True we don't want to retain.
+                        .map(|b| !b)
+                        // Default to true to keep the non-literal values.
+                        .unwrap_or(true)
+                });
             }
             IRBexpr::Or(exprs) => {
                 if let Some(exprs) = collect_folds(exprs, prime) {
-                    *self = exprs.into_iter().any(identity).into()
+                    *self = exprs.into_iter().any(identity).into();
+                    return;
                 }
+                // Remove any literal 'false' values.
+                exprs.retain(|expr| {
+                    expr.const_value()
+                        // Default to true to keep the non-literal values.
+                        .unwrap_or(true)
+                });
             }
             IRBexpr::Not(expr) => {
                 expr.constant_fold(prime);
