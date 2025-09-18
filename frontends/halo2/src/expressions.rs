@@ -15,7 +15,7 @@ pub mod utils;
 /// Indicates to the driver that the expression should be scoped in that row of the circuit.
 ///
 /// The expression is internally handled by a [`std::borrow::Cow`] and can be a reference or owned.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExpressionInRow<'e, F: Clone> {
     expr: Cow<'e, Expression<F>>,
     row: usize,
@@ -41,19 +41,28 @@ impl<'e, F: Clone> ExpressionInRow<'e, F> {
     /// Creates a [`ScopedExpression`] scoped by a
     /// [`crate::synthesis::regions::RegionRow`].
     pub(crate) fn scoped_in_region_row<'r>(
-        &self,
+        self,
         region: RegionData<'r>,
         advice_io: &'r crate::io::AdviceIO,
         instance_io: &'r crate::io::InstanceIO,
         fqr: &'r dyn FixedQueryResolver<F>,
-    ) -> ScopedExpression<'e, 'r, F>
+    ) -> anyhow::Result<ScopedExpression<'e, 'r, F>>
     where
         F: Field,
     {
-        ScopedExpression::from_cow(
-            self.expr.clone(),
-            RegionRow::new(region, self.row, advice_io, instance_io, fqr),
-        )
+        // Rows in injected IR are relative offsets to the region RegionRow expects the absolute
+        // row number.
+        let start = region.start().ok_or_else(|| {
+            anyhow::anyhow!(
+                "Region {:?} (\"{}\") does not have a start row",
+                region.index(),
+                region.name()
+            )
+        })?;
+        Ok(ScopedExpression::from_cow(
+            self.expr,
+            RegionRow::new(region, start + self.row, advice_io, instance_io, fqr),
+        ))
     }
 }
 

@@ -94,21 +94,22 @@ where
     /// Injects the IR into the specific regions
     pub fn inject_ir(
         &mut self,
-        ir: &[(RegionIndex, IRStmt<ExpressionInRow<'syn, F>>)],
+        ir: impl IntoIterator<Item = (RegionIndex, IRStmt<ExpressionInRow<'syn, F>>)>,
         syn: &'syn CircuitSynthesis<F>,
-    ) {
+    ) -> anyhow::Result<()> {
         let regions = region_data(syn);
         for (index, stmt) in ir {
-            let region = regions[index];
-            let group_idx = self.regions_to_groups[**index];
+            let region = regions[&index];
+            let group_idx = self.regions_to_groups[*index];
             self.groups[group_idx].inject_ir(
                 region,
                 stmt,
                 self.ctx.advice_io_of_group(group_idx),
                 self.ctx.instance_io_of_group(group_idx),
                 syn.fixed_query_resolver(),
-            );
+            )?;
         }
+        Ok(())
     }
 
     /// Resolves the IR.

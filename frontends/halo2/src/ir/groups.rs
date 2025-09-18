@@ -180,14 +180,17 @@ where
     pub(super) fn inject_ir<'a>(
         &'a mut self,
         region: RegionData<'syn>,
-        ir: &IRStmt<ExpressionInRow<'syn, F>>,
+        ir: IRStmt<ExpressionInRow<'syn, F>>,
         advice_io: &'ctx crate::io::AdviceIO,
         instance_io: &'ctx crate::io::InstanceIO,
         fqr: &'syn dyn FixedQueryResolver<F>,
-    ) {
+    ) -> anyhow::Result<()> {
+        // TODO: See if there is a problem here on why the injected IR does not resolve the row
+        // properly. See the demo example for midnight.
         self.injected.push(
-            ir.map_into(&|expr| expr.scoped_in_region_row(region, advice_io, instance_io, fqr)),
-        )
+            ir.try_map(&|expr| expr.scoped_in_region_row(region, advice_io, instance_io, fqr))?,
+        );
+        Ok(())
     }
 }
 

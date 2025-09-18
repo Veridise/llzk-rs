@@ -21,7 +21,7 @@ pub fn setup() {
 /// We run the synthesis separately to test that the lifetimes of the values
 /// can be untied to the CircuitSynthesis struct. But also if we want to add LLZK tests
 /// this makes sure to test the retargeability of the driver.
-fn synthesize_and_generate_ir<'drv, F, C>(
+pub fn synthesize_and_generate_ir<'drv, F, C>(
     driver: &'drv mut Driver,
     circuit: C,
     lookups: Option<&dyn LookupCallbacks<F>>,
@@ -53,9 +53,18 @@ pub fn picus_test<F, C>(
         resolved.constant_fold().unwrap();
         resolved.canonicalize();
     }
+    check_picus(&driver, &resolved, params, expected);
+}
+
+pub fn check_picus(
+    driver: &Driver,
+    circuit: &ResolvedIRCircuit,
+    params: PicusParams,
+    expected: impl AsRef<str>,
+) {
     let output = clean_string(
         &driver
-            .picus(&resolved, params)
+            .picus(&circuit, params)
             .unwrap()
             .display()
             .to_string(),
