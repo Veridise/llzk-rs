@@ -115,15 +115,6 @@ impl IRBexpr<IRAexpr> {
 
     /// Folds the expression if the values are constant.
     pub(crate) fn constant_fold(&mut self, prime: Felt) {
-        fn collect_folds(exprs: &mut [IRBexpr<IRAexpr>], prime: Felt) -> Option<Vec<bool>> {
-            exprs
-                .iter_mut()
-                .map(|e| {
-                    e.constant_fold(prime);
-                    e.const_value()
-                })
-                .collect()
-        }
         match self {
             IRBexpr::True => {}
             IRBexpr::False => {}
@@ -143,8 +134,18 @@ impl IRBexpr<IRAexpr> {
                 }
             }
             IRBexpr::And(exprs) => {
-                if let Some(exprs) = collect_folds(exprs, prime) {
-                    *self = exprs.into_iter().all(identity).into();
+                for expr in &mut *exprs {
+                    expr.constant_fold(prime);
+                }
+                // If any value is a literal 'false' convert into IRBexpr::False
+                if exprs.iter().any(|expr| {
+                    expr.const_value()
+                        // If the expr is false-y flip the boolean to return 'true'.
+                        .map(|b| !b)
+                        // Default to 'false' for non-literal expressions.
+                        .unwrap_or_default()
+                }) {
+                    *self = IRBexpr::False;
                     return;
                 }
                 // Remove any literal 'true' values.
@@ -157,8 +158,15 @@ impl IRBexpr<IRAexpr> {
                 });
             }
             IRBexpr::Or(exprs) => {
-                if let Some(exprs) = collect_folds(exprs, prime) {
-                    *self = exprs.into_iter().any(identity).into();
+                for expr in &mut *exprs {
+                    expr.constant_fold(prime);
+                }
+                // If any value is a literal 'true' convert into IRBexpr::True.
+                if exprs
+                    .iter()
+                    .any(|expr| expr.const_value().unwrap_or_default())
+                {
+                    *self = IRBexpr::True;
                     return;
                 }
                 // Remove any literal 'false' values.
