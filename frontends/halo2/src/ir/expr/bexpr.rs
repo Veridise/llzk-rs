@@ -156,6 +156,9 @@ impl IRBexpr<IRAexpr> {
                         // Default to true to keep the non-literal values.
                         .unwrap_or(true)
                 });
+                if exprs.is_empty() {
+                    *self = IRBexpr::True;
+                }
             }
             IRBexpr::Or(exprs) => {
                 for expr in &mut *exprs {
@@ -175,6 +178,9 @@ impl IRBexpr<IRAexpr> {
                         // Default to true to keep the non-literal values.
                         .unwrap_or(true)
                 });
+                if exprs.is_empty() {
+                    *self = IRBexpr::False;
+                }
             }
             IRBexpr::Not(expr) => {
                 expr.constant_fold(prime);
