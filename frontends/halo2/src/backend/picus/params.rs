@@ -4,7 +4,7 @@ use super::vars::NamingConvention;
 #[derive(Clone, Debug)]
 pub struct PicusParams {
     expr_cutoff: Option<usize>,
-    entrypoint: String,
+    entrypoint: Option<String>,
     naming_convention: NamingConvention,
     optimize: bool,
     inline: bool,
@@ -28,13 +28,13 @@ impl PicusParams {
 
     /// Returns the name of the top-level module.
     pub fn entrypoint(&self) -> &str {
-        &self.entrypoint
+        self.entrypoint.as_deref().unwrap_or("Main")
     }
 
     fn new() -> Self {
         Self {
             expr_cutoff: None,
-            entrypoint: "Main".to_owned(),
+            entrypoint: None,
             naming_convention: NamingConvention::Short,
             optimize: true,
             inline: false,
@@ -64,59 +64,56 @@ impl PicusParamsBuilder {
     }
 
     /// Sets the maximum size for the expressions.
-    pub fn expr_cutoff(self, expr_cutoff: usize) -> Self {
-        let mut p = self.0;
-        p.expr_cutoff = Some(expr_cutoff);
-        Self(p)
+    pub fn expr_cutoff(&mut self, expr_cutoff: usize) -> &mut Self {
+        self.0.expr_cutoff = Some(expr_cutoff);
+        self
     }
 
     /// Removes the configured value for the maximum size for expressions.
-    pub fn no_expr_cutoff(self) -> Self {
-        let mut p = self.0;
-        p.expr_cutoff = None;
-        Self(p)
+    pub fn no_expr_cutoff(&mut self) -> &mut Self {
+        self.0.expr_cutoff = None;
+        self
     }
 
     /// Sets the name of the top-level module.
-    pub fn entrypoint(self, name: &str) -> Self {
-        let mut p = self.0;
-        p.entrypoint = name.to_owned();
-        Self(p)
+    pub fn entrypoint(&mut self, name: &str) -> &mut Self {
+        self.0.entrypoint = Some(name.to_owned());
+        self
     }
 
     /// Sets the naming convention to 'short'.
-    pub fn short_names(mut self) -> Self {
+    pub fn short_names(&mut self) -> &mut Self {
         self.0.naming_convention = NamingConvention::Short;
         self
     }
 
     /// Enables optimizations.
-    pub fn optimize(mut self) -> Self {
+    pub fn optimize(&mut self) -> &mut Self {
         self.0.optimize = true;
         self
     }
 
     /// Disables optimizations.
-    pub fn no_optimize(mut self) -> Self {
+    pub fn no_optimize(&mut self) -> &mut Self {
         self.0.optimize = false;
         self
     }
 
     /// Sets lowering to inlining everything into one module.
-    pub fn inline(mut self) -> Self {
+    pub fn inline(&mut self) -> &mut Self {
         self.0.inline = true;
         self
     }
 
     /// Sets lowering to creating separate modules for each group.
-    pub fn no_inline(mut self) -> Self {
+    pub fn no_inline(&mut self) -> &mut Self {
         self.0.inline = false;
         self
     }
 
     /// Finishes the build process and returns the parameters.
-    pub fn build(self) -> PicusParams {
-        self.0
+    pub fn build(&mut self) -> PicusParams {
+        std::mem::replace(&mut self.0, PicusParams::new())
     }
 }
 

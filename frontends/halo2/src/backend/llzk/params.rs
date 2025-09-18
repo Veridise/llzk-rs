@@ -45,32 +45,33 @@ impl<'c> LlzkParamsBuilder<'c> {
     }
 
     /// Sets the name of the top-level struct.
-    pub fn with_top_level<S: ToString>(mut self, s: S) -> Self {
+    pub fn with_top_level<S: ToString>(&mut self, s: S) -> &mut Self {
         self.0.top_level = Some(s.to_string());
         self
     }
 
     /// Removes the name of the top-level struct.
-    pub fn no_top_level(mut self) -> Self {
+    pub fn no_top_level(&mut self) -> &mut Self {
         self.0.top_level = None;
         self
     }
 
     /// Sets lowering to inlining everything into one module.
-    pub fn inline(mut self) -> Self {
+    pub fn inline(&mut self) -> &mut Self {
         self.0.inline = true;
         self
     }
 
     /// Sets lowering to creating separate modules for each group.
-    pub fn no_inline(mut self) -> Self {
+    pub fn no_inline(&mut self) -> &mut Self {
         self.0.inline = false;
         self
     }
 
     /// Completes the build process and returns the parameters.
-    pub fn build(self) -> LlzkParams<'c> {
-        self.0
+    pub fn build(&mut self) -> LlzkParams<'c> {
+        let context = self.0.context;
+        std::mem::replace(&mut self.0, LlzkParams::new(context))
     }
 }
 

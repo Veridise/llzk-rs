@@ -2,7 +2,7 @@ use group::ff::Field;
 use halo2_llzk_frontend::driver::Driver;
 use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
 use halo2_llzk_frontend::ir::stmt::IRStmt;
-use halo2_llzk_frontend::ir::{CmpOp, UnresolvedIRCircuit};
+use halo2_llzk_frontend::ir::CmpOp;
 use halo2curves_070::bn256::Fr;
 use midnight_halo2_proofs::circuit::{
     AssignedCell, Layouter, RegionIndex, SimpleFloorPlanner, Value,

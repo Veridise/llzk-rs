@@ -78,44 +78,44 @@ impl<'lc, 'gc, F: Field> IRGenParamsBuilder<'lc, 'gc, F> {
     }
 
     /// Enables debug comments.
-    pub fn with_debug_comments(mut self) -> Self {
+    pub fn with_debug_comments(&mut self) -> &mut Self {
         self.0.debug_comments = true;
         self
     }
 
     /// Disables debug comments.
-    pub fn without_debug_comments(mut self) -> Self {
+    pub fn without_debug_comments(&mut self) -> &mut Self {
         self.0.debug_comments = false;
         self
     }
 
     /// Sets the lookup callbacks.
-    pub fn lookup_callbacks(mut self, lc: &'lc dyn LookupCallbacks<F>) -> Self {
+    pub fn lookup_callbacks(&mut self, lc: &'lc dyn LookupCallbacks<F>) -> &mut Self {
         self.0.lookup_cb = Some(lc);
         self
     }
 
     /// Unsets the lookup callbacks.
-    pub fn no_lookup_callbacks(mut self) -> Self {
+    pub fn no_lookup_callbacks(&mut self) -> &mut Self {
         self.0.lookup_cb = None;
         self
     }
 
     /// Sets the gate callbacks.
-    pub fn gate_callbacks(mut self, gc: &'gc dyn GateCallbacks<F>) -> Self {
+    pub fn gate_callbacks(&mut self, gc: &'gc dyn GateCallbacks<F>) -> &mut Self {
         self.0.gate_cb = Some(gc);
         self
     }
 
     /// Unsets the gate callbacks.
-    pub fn no_gate_callbacks(mut self) -> Self {
+    pub fn no_gate_callbacks(&mut self) -> &mut Self {
         self.0.gate_cb = None;
         self
     }
 
     /// Creates the params.
-    pub fn build(self) -> IRGenParams<'lc, 'gc, F> {
-        self.0
+    pub fn build(&mut self) -> IRGenParams<'lc, 'gc, F> {
+        std::mem::replace(&mut self.0, IRGenParams::new())
     }
 }
 
