@@ -40,7 +40,7 @@ pub fn build_llzk(default_cfg: &DefaultConfig) -> Result<LlzkBuild> {
         println!("cargo:rustc-link-search={}", path.display());
     }
     for lib in llzk.library_names()? {
-        println!("cargo:rustc-link-lib={}", lib);
+        println!("cargo:rustc-link-lib={lib}");
     }
 
     Ok(llzk)

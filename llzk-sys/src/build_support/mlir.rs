@@ -1,7 +1,8 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use bindgen::Builder;
 use cc::Build;
 use cmake::Config;
+use std::borrow::Cow;
 use std::{env, path::Path};
 
 use super::config_traits::{BindgenConfig, CCConfig, CMakeConfig};
@@ -25,12 +26,20 @@ impl<'a> MlirConfig<'a> {
         }
     }
 
-    pub fn mlir_path(&self) -> Result<String> {
-        Ok(env::var("DEP_MLIR_PREFIX")?)
+    pub fn mlir_path(&self) -> Result<Cow<'static, Path>> {
+        let path = Path::new(env!("MLIR_SYS_200_PREFIX"));
+        if !path.is_dir() {
+            bail!("MLIR prefix path {} is not a directory", path.display());
+        }
+        Ok(Cow::Borrowed(path))
     }
 
-    pub fn mlir_cmake_path(&self) -> Result<String> {
-        Ok(env::var("DEP_MLIR_CMAKE_DIR")?)
+    pub fn mlir_cmake_path(&self) -> Result<Cow<'static, Path>> {
+        let path = self.mlir_path()?.join("lib/cmake");
+        if !path.is_dir() {
+            bail!("MLIR cmake path {} is not a directory", path.display());
+        }
+        Ok(Cow::Owned(path))
     }
 
     pub fn wrapper(&self) -> &'static str {
@@ -55,7 +64,7 @@ impl<'a> MlirConfig<'a> {
         })
     }
 
-    fn cmake_flags_list(&self) -> Result<Vec<(&'static str, String)>> {
+    fn cmake_flags_list(&self) -> Result<Vec<(&'static str, Cow<'static, Path>)>> {
         Ok(vec![
             ("LLVM_DIR", self.mlir_cmake_path()?),
             ("MLIR_DIR", self.mlir_cmake_path()?),
@@ -68,7 +77,7 @@ impl<'a> MlirConfig<'a> {
         Ok(self
             .cmake_flags_list()?
             .into_iter()
-            .map(|(k, v)| format!("-D{k}={v}"))
+            .map(|(k, v)| format!("-D{k}={}", v.display()))
             .collect())
     }
 }
@@ -76,7 +85,7 @@ impl<'a> MlirConfig<'a> {
 impl CMakeConfig for MlirConfig<'_> {
     fn apply(&self, cmake: &mut Config) -> Result<()> {
         for (k, v) in self.cmake_flags_list()? {
-            cmake.define(k, v);
+            cmake.define(k, &*v);
         }
         Ok(())
     }
@@ -86,7 +95,7 @@ impl BindgenConfig for MlirConfig<'_> {
     fn apply(&self, bindgen: Builder) -> Result<Builder> {
         let path = self.mlir_path()?;
         Ok(self.add_allowlist_patterns(
-            BindgenConfig::include_path(self, bindgen, Path::new(&path))
+            BindgenConfig::include_path(self, bindgen, &path)
                 .header(self.wrapper())
                 .parse_callbacks(Box::new(bindgen::CargoCallbacks::new())),
         ))
@@ -96,7 +105,7 @@ impl BindgenConfig for MlirConfig<'_> {
 impl CCConfig for MlirConfig<'_> {
     fn apply(&self, cc: &mut Build) -> Result<()> {
         let path = self.mlir_path()?;
-        CCConfig::include_path(self, cc, Path::new(&path));
+        CCConfig::include_path(self, cc, &path);
         Ok(())
     }
 }
