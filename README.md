@@ -16,12 +16,15 @@ llzk = { git = "https://github.com/Veridise/llzk-rs" }
 
 ## Building tips
 
-If you are using homebrew in macos you can access MLIR 18 by installing `llvm@18` with homebrew.
-Setting the following environment variables configures the build system with the correct versions of MLIR and its dependencies.
+If you are using homebrew in macos you can access MLIR 20 by installing `llvm@20` with homebrew.
+Setting the following environment variables configures the build system with the correct versions of MLIR and its dependencies. 
+Depending on the version of your default C++ compiler you may need to set `CXX` and `CC` to a compiler that supports C++ 20.
 
 ```
-export MLIR_SYS_180_PREFIX=/opt/homebrew/opt/llvm@18/
-export TABLEGEN_180_PREFIX=/opt/homebrew/opt/llvm@18/
+export MLIR_SYS_200_PREFIX=/opt/homebrew/opt/llvm@20/
+export TABLEGEN_200_PREFIX=/opt/homebrew/opt/llvm@20/
+export CXX=clang++
+export CC=clang
 export RUSTFLAGS='-L /opt/homebrew/lib/'
 ```
 

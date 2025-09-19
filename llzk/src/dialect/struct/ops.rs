@@ -13,7 +13,7 @@ use melior::{
         Attribute, AttributeLike, Block, BlockLike as _, Identifier, Location, Operation,
         OperationRef, Region, RegionLike as _, Type, TypeLike, Value, ValueLike,
     },
-    LogicalResult, StringRef,
+    StringRef,
 };
 use mlir_sys::MlirOperation;
 
@@ -111,8 +111,8 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     }
 
     /// Returns true if the struct has fields marked as columns.
-    fn has_columns(&self) -> LogicalResult {
-        LogicalResult::from_raw(unsafe { llzkStructDefOpGetHasColumns(self.to_raw()) })
+    fn has_columns(&self) -> bool {
+        unsafe { llzkStructDefOpGetHasColumns(self.to_raw()) }.value != 0
     }
 
     /// Returns the FuncDefOp operation that defines the witness computation of the struct.
