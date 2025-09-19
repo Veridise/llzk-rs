@@ -197,7 +197,9 @@ pub mod groups {
     fn fresh_group_name(name: &str, used_names: &mut HashSet<String>, n: usize) -> String {
         // Create a lazy iterator with the input name and every rename and then consume it until we get
         // a valid name.
-        let name = std::iter::chain([name.to_owned()], (n..).map(|n| format!("{name}{n}")))
+        let name = [name.to_owned()]
+            .into_iter()
+            .chain((n..).map(|n| format!("{name}{n}")))
             .find_map(|name| {
                 if used_names.contains(&name) {
                     return None;

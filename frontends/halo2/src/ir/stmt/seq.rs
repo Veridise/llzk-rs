@@ -99,9 +99,7 @@ impl<T: std::fmt::Debug> std::fmt::Debug for Seq<T> {
             writeln!(f, "}}")
         } else {
             write!(f, "{{ ")?;
-            self.0
-                .iter()
-                .try_for_each(|stmt| write!(f, "{:?}; ", stmt))?;
+            self.0.iter().try_for_each(|stmt| write!(f, "{stmt:?}; "))?;
             write!(f, " }}")
         }
     }

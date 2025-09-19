@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::backend::lowering::ExprLowering;
 use crate::halo2::Challenge;
 use anyhow::{anyhow, Result};
 use llzk::builder::OpBuilder;
@@ -15,8 +16,6 @@ use melior::{
 use mlir_sys::MlirValue;
 
 use crate::backend::func::FieldId;
-use crate::backend::lowering::tag::LoweringOutput;
-use crate::backend::lowering::ExprLowering;
 use crate::backend::{
     func::{ArgNo, FuncIO},
     lowering::Lowering,
@@ -168,8 +167,6 @@ macro_rules! wrap {
         ($r).map(|v| ValueWrap(v.to_raw()))
     };
 }
-
-impl LoweringOutput for ValueWrap {}
 
 impl<'c> Lowering for LlzkStructLowering<'c> {
     fn generate_constraint(

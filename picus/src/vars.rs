@@ -203,9 +203,7 @@ impl<K: VarKind + Clone + fmt::Debug> Vars<K> {
                 if c == 0 {
                     v
                 } else {
-                    format!("{}__{}", v, c)
-                        .try_into()
-                        .expect("valid identifier")
+                    format!("{v}__{c}").try_into().expect("valid identifier")
                 }
             })
             .inspect(|v| log::debug!("[{self:p}]  Testing if {v:?} is a fresh name"))

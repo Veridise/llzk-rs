@@ -3,7 +3,7 @@ use crate::ir::expr::Felt;
 use crate::{
     backend::{
         func::{ArgNo, FieldId, FuncIO},
-        lowering::{tag::LoweringOutput, ExprLowering, Lowering},
+        lowering::{ExprLowering, Lowering},
     },
     halo2::Challenge,
     ir::CmpOp,
@@ -35,8 +35,6 @@ impl PicusModuleLowering {
         expr::var(&self.module, seed)
     }
 }
-
-impl LoweringOutput for PicusExpr {}
 
 impl Lowering for PicusModuleLowering {
     fn generate_constraint(

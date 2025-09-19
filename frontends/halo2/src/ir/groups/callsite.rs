@@ -179,7 +179,9 @@ impl<E> CallSite<E> {
 impl CallSite<IRAexpr> {
     /// Folds the statements if the expressions are constant.
     pub(crate) fn constant_fold(&mut self, prime: Felt) {
-        std::iter::chain(self.inputs.iter_mut(), self.outputs.iter_mut())
+        self.inputs
+            .iter_mut()
+            .chain(self.outputs.iter_mut())
             .for_each(|expr| expr.constant_fold(prime))
     }
 }
