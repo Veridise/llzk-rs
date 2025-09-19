@@ -7,10 +7,10 @@ on:
   push:
 
 env:
-  # /opt/homebrew/opt/llvm@18/ is for macOS
-  MLIR_SYS_180_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@18/
-  TABLEGEN_180_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@18/
-  RUSTFLAGS: '-L /home/linuxbrew/.linuxbrew/opt/llvm@18/lib'
+  # /opt/homebrew/opt/llvm@20/ is for macOS
+  MLIR_SYS_200_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@20/
+  TABLEGEN_200_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@20/
+  RUSTFLAGS: '-L /home/linuxbrew/.linuxbrew/opt/llvm@20/lib'
 
 jobs:
   build:
@@ -32,8 +32,8 @@ jobs:
           # It's not the greatest key in the world but works
           key: ${{ runner.os }}-homebrew-${{ hashFiles('**/Cargo.lock') }}
       - name: Install LLVM & MLIR
-        run: brew install llvm@18
-      - run: /home/linuxbrew/.linuxbrew/opt/llvm@18/bin/llvm-config --version
+        run: brew install llvm@20
+      - run: /home/linuxbrew/.linuxbrew/opt/llvm@20/bin/llvm-config --version
       - name: Cache cargo crates
         uses: actions/cache@v4
         with:
