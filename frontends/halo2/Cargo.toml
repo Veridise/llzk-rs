@@ -29,6 +29,7 @@ disjoint = "0.8"
 ouroboros = "0.18"
 paste = "1.0"
 internment = "0.8.6"
+egg = "0.10"
 
 # Different halo2 implementations
 [dependencies.axiom_halo2_proofs]
