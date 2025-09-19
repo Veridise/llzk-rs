@@ -9,7 +9,7 @@ fn build_op<'c>(
     operands: &[Value<'c, '_>],
 ) -> Result<Operation<'c>, Error> {
     let ctx = location.context();
-    OperationBuilder::new(format!("felt.{}", name).as_str(), location)
+    OperationBuilder::new(format!("felt.{name}").as_str(), location)
         .add_results(&[FeltType::new(unsafe { ctx.to_ref() }).into()])
         .add_operands(operands)
         .build()

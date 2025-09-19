@@ -30,16 +30,6 @@ pub struct GroupBounds<'a> {
     children_output: HashSet<(Column<Any>, usize)>,
 }
 
-//fn region_indices(group: &Group) -> HashSet<RegionIndex> {
-//group
-//            .regions()
-//            .iter()
-//            .map(|r| *r.index().unwrap())
-//            .collect()
-//}
-//
-//fn cols_and_rows(group: &Group) -> Vec<(&HashSet<Column<Any>>, Range<usize>)
-
 impl<'a> GroupBounds<'a> {
     /// Creates a new bound for the group.
     pub fn new(group: &'a Group, groups: &'a [Group], regions_by_index: &RegionByIndex) -> Self {
@@ -64,7 +54,10 @@ impl<'a> GroupBounds<'a> {
             cols_and_rows.push((region.columns(), region.rows()));
         }
 
-        for cell in std::iter::chain(group.inputs(), group.outputs())
+        for cell in group
+            .inputs()
+            .iter()
+            .chain(group.outputs())
             .chain(extra_inputs.iter().flat_map(|i| *i))
         {
             match cell {

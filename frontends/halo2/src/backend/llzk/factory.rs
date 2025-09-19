@@ -3,12 +3,12 @@ use std::{borrow::Cow, iter};
 use llzk::prelude::*;
 
 use melior::{
+    ir::{attribute::FlatSymbolRefAttribute, r#type::FunctionType, Location, Operation, Type},
     Context,
-    ir::{Location, Operation, Type, attribute::FlatSymbolRefAttribute, r#type::FunctionType},
 };
 
 fn struct_def_op_location<'c>(context: &'c Context, name: &str, index: usize) -> Location<'c> {
-    Location::new(context, format!("struct {}", name).as_str(), index, 0)
+    Location::new(context, format!("struct {name}").as_str(), index, 0)
 }
 
 fn create_field<'c>(
@@ -18,7 +18,7 @@ fn create_field<'c>(
     public: bool,
 ) -> Result<FieldDefOp<'c>, LlzkError> {
     let field_name = FlatSymbolRefAttribute::new(context, name);
-    let filename = format!("struct {} | field {}", header, name);
+    let filename = format!("struct {header} | field {name}");
     let loc = Location::new(context, &filename, 0, 0);
 
     r#struct::field(loc, field_name, FeltType::new(context), false, public)

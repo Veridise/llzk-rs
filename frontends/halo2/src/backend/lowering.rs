@@ -10,10 +10,6 @@ use super::func::FuncIO;
 
 pub mod lowerable;
 
-pub mod tag {
-    pub trait LoweringOutput {}
-}
-
 pub trait Lowering: ExprLowering {
     fn generate_constraint(
         &self,
@@ -54,7 +50,7 @@ pub trait Lowering: ExprLowering {
 }
 
 pub trait ExprLowering {
-    type CellOutput: tag::LoweringOutput;
+    type CellOutput;
 
     fn lower_sum(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput)
         -> Result<Self::CellOutput>;

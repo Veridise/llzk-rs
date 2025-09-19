@@ -1,6 +1,4 @@
-use llzk_sys::{
-    llzkAttributeIsAFeltConstAttr, llzkFeltConstAttrGet, llzkFeltConstAttrParseFromBase10Str,
-};
+use llzk_sys::{llzkAttributeIsAFeltConstAttr, llzkFeltConstAttrGet};
 use melior::{
     ir::{Attribute, AttributeLike},
     Context, StringRef,
@@ -53,14 +51,17 @@ impl<'c> FeltConstAttribute<'c> {
         unsafe { Self::from_raw(llzkFeltConstAttrGet(ctx.to_raw(), value as i64)) }
     }
 
-    pub fn parse(ctx: &'c Context, value: &str) -> Self {
-        let value = StringRef::new(value);
-        unsafe {
-            Self::from_raw(llzkFeltConstAttrParseFromBase10Str(
-                ctx.to_raw(),
-                value.to_raw(),
-            ))
-        }
+    pub fn parse(_ctx: &'c Context, value: &str) -> Self {
+        let _value = StringRef::new(value);
+        todo!(
+            "Required C function llzkFeltConstAttrParseFromBase10Str is not available in main yet."
+        )
+        //unsafe {
+        //    Self::from_raw(llzkFeltConstAttrParseFromBase10Str(
+        //        ctx.to_raw(),
+        //        value.to_raw(),
+        //    ))
+        //}
     }
 }
 
