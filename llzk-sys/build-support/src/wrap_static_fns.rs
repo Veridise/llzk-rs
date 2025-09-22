@@ -12,9 +12,9 @@ pub struct WrapStaticFns {
 }
 
 impl WrapStaticFns {
-    pub fn new() -> Result<Self> {
+    pub fn new(out_dir: &Path) -> Self {
         Ok(Self {
-            dst: Path::new(&env::var("OUT_DIR")?).join("bindgen_wrap"),
+            dst: out_dir.join("bindgen_wrap"),
         })
     }
 
