@@ -1,4 +1,4 @@
-use super::{config_traits::CMakeConfig, llzk::LlzkBuild};
+use super::{config::cmake::CMakeConfig, llzk::LlzkBuild};
 use anyhow::bail;
 use anyhow::Result;
 use cmake::Config;

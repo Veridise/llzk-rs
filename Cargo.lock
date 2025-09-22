@@ -1056,12 +1056,20 @@ name = "llzk-sys"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "llzk-sys-build-support",
+ "mlir-sys",
+ "rstest 0.25.0",
+]
+
+[[package]]
+name = "llzk-sys-build-support"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
  "bindgen",
  "cc",
  "cmake",
  "glob",
- "mlir-sys",
- "rstest 0.25.0",
  "tempfile",
 ]
 

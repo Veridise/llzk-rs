@@ -1,4 +1,4 @@
-use super::config_traits::{BindgenConfig, CCConfig};
+use super::config::{bindgen::BindgenConfig, cc::CCConfig};
 use anyhow::{bail, Result};
 use bindgen::Builder;
 use cc::Build;

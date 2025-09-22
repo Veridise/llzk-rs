@@ -2,9 +2,8 @@ name: Continuous Integration
 
 on:
   pull_request:
-    branches: 
-      - main
-  push:
+  push: main
+    branches: [ main ]
 
 env:
   # /opt/homebrew/opt/llvm@20/ is for macOS
@@ -44,5 +43,5 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Build in "${{ matrix.BUILD_TARGET }}" mode
         run: cargo build --profile ${{ matrix.BUILD_TARGET }}
-#      - name: Run tests in "${{ matrix.BUILD_TARGET }}" mode
-#        run: cargo test --profile ${{ matrix.BUILD_TARGET }}
+     - name: Run tests in "${{ matrix.BUILD_TARGET }}" mode
+       run: cargo test --profile ${{ matrix.BUILD_TARGET }}

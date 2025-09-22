@@ -4,7 +4,7 @@ use cc::Build;
 use cmake::Config;
 
 use super::{
-    config_traits::{BindgenConfig, CCConfig, CMakeConfig},
+    config::{bindgen::BindgenConfig, cc::CCConfig, cmake::CMakeConfig},
     mlir::MlirConfig,
 };
 
@@ -28,6 +28,7 @@ impl CMakeConfig for DefaultConfig<'_> {
     fn apply(&self, cmake: &mut Config) -> Result<()> {
         cmake
             .define("LLZK_BUILD_DEVTOOLS", "OFF")
+            .define("LLZK_ENABLE_BINDINGS_PYTHON", "OFF")
             .define("BUILD_TESTING", "OFF");
         CMakeConfig::apply(&self.mlir, cmake)
     }
