@@ -1,10 +1,8 @@
 use group::ff::Field;
 use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
-use midnight_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
-use midnight_halo2_proofs::plonk::{
-    Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector,
-};
-use midnight_halo2_proofs::poly::Rotation;
+use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
+use halo2_proofs::plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector};
+use halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
 use halo2_llzk_frontend::{CircuitCallbacks, CircuitIO, PicusParamsBuilder};

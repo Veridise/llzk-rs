@@ -1,6 +1,6 @@
 pub use ff::{Field, PrimeField};
-pub use midnight_halo2_proofs::plonk::Challenge;
-pub use midnight_halo2_proofs::{
+pub use halo2_proofs::plonk::Challenge;
+pub use halo2_proofs::{
     circuit::{Cell, RegionIndex, RegionStart, Value, groups},
     plonk::{
         Advice, AdviceQuery, Any, Assignment, Circuit, Column, ColumnType, ConstraintSystem, Error,
@@ -12,7 +12,7 @@ pub use midnight_halo2_proofs::{
 };
 
 #[allow(unused_imports)]
-pub use midnight_halo2_proofs::default_group_key;
+pub use halo2_proofs::default_group_key;
 
 #[allow(unused_imports)]
-pub use midnight_halo2_proofs::halo2curves::bn256::Fr;
+pub use halo2_proofs::halo2curves::bn256::Fr;

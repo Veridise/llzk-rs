@@ -10,8 +10,8 @@ use halo2_llzk_frontend::{
     },
     CircuitCallbacks, PicusParams,
 };
+use halo2_proofs::plonk::Expression;
 use log::LevelFilter;
-use midnight_halo2_proofs::plonk::Expression;
 use simplelog::{Config, TestLogger};
 
 pub fn setup() {

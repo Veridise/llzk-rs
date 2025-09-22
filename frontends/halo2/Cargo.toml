@@ -32,18 +32,18 @@ internment = "0.8.6"
 egg = "0.10"
 
 # Different halo2 implementations
-[dependencies.axiom_halo2_proofs]
-git = "https://github.com/axiom-crypto/halo2.git"
-package = "halo2-axiom"
-optional = true
+# [dependencies.axiom_halo2_proofs]
+# git = "https://github.com/axiom-crypto/halo2.git"
+# package = "halo2-axiom"
+# optional = true
 
-[dependencies.midnight_halo2_proofs]
+[dependencies.halo2_proofs]
 # git = "https://github.com/midnightntwrk/halo2.git"
 git = "https://github.com/Veridise/halo2-midnight.git"
-package = "halo2_proofs"
 optional = true 
+branch = "dev"
 # rev = "92d9356"
-rev = "53c2d2d3"
+# rev = "53c2d2d3"
 default-features = false
 features = [
     "bits",
@@ -53,33 +53,33 @@ features = [
     "region-groups"
 ]
 
-[dependencies.pse_halo2_proofs]
-git = "https://github.com/privacy-scaling-explorations/halo2.git"
-package = "halo2_proofs"
-optional = true
-
-[dependencies.pse_v1_halo2_proofs]
-git = "https://github.com/privacy-scaling-explorations/halo2.git"
-tag = "v2022_08_19"
-package = "halo2_proofs"
-optional = true
-
-[dependencies.scroll_halo2_proofs]
-git = "https://github.com/scroll-tech/halo2.git"
-package = "halo2_proofs"
-optional = true
-
-[dependencies.zcash_halo2_proofs]
-git = "https://github.com/zcash/halo2.git"
-package = "halo2_proofs"
-optional = true
-
-[dependencies.halo2curves_021]
-package = "halo2curves"
-git = 'https://github.com/privacy-scaling-explorations/halo2curves'
-tag = "0.2.1"
-optional = true
-
+# [dependencies.pse_halo2_proofs]
+# git = "https://github.com/privacy-scaling-explorations/halo2.git"
+# package = "halo2_proofs"
+# optional = true
+#
+# [dependencies.pse_v1_halo2_proofs]
+# git = "https://github.com/privacy-scaling-explorations/halo2.git"
+# tag = "v2022_08_19"
+# package = "halo2_proofs"
+# optional = true
+#
+# [dependencies.scroll_halo2_proofs]
+# git = "https://github.com/scroll-tech/halo2.git"
+# package = "halo2_proofs"
+# optional = true
+#
+# [dependencies.zcash_halo2_proofs]
+# git = "https://github.com/zcash/halo2.git"
+# package = "halo2_proofs"
+# optional = true
+#
+# [dependencies.halo2curves_021]
+# package = "halo2curves"
+# git = 'https://github.com/privacy-scaling-explorations/halo2curves'
+# tag = "0.2.1"
+# optional = true
+#
 [dependencies.halo2curves_070]
 package = "halo2curves"
 version = "0.7.0"
@@ -88,12 +88,12 @@ optional = true
 
 [features]
 default = ["midnight"]
-axiom = ["axiom_halo2_proofs", "phase-tracking", "halo2curves_021"]
-midnight = ["midnight_halo2_proofs", "annotate-column", "get-challenge", "halo2curves_070"]
-pse = ["pse_halo2_proofs", "phase-tracking", "halo2curves_021"]
-pse-v1 = ["pse_v1_halo2_proofs", "halo2curves_021"]
-scroll = ["scroll_halo2_proofs", "phase-tracking", "halo2curves_021"]
-zcash = ["zcash_halo2_proofs", "halo2curves_021"]
+# axiom = ["axiom_halo2_proofs", "phase-tracking", "halo2curves_021"]
+midnight = ["halo2_proofs", "annotate-column", "get-challenge", "halo2curves_070"]
+# pse = ["pse_halo2_proofs", "phase-tracking", "halo2curves_021"]
+# pse-v1 = ["pse_v1_halo2_proofs", "halo2curves_021"]
+# scroll = ["scroll_halo2_proofs", "phase-tracking", "halo2curves_021"]
+# zcash = ["zcash_halo2_proofs", "halo2curves_021"]
 
 # These features encapsulate behavior where the different implementations deviate.
 # Each represents a particular change or feature and different libraries activate them

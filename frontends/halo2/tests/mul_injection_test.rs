@@ -3,14 +3,12 @@ use halo2_llzk_frontend::driver::Driver;
 use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
 use halo2_llzk_frontend::ir::stmt::IRStmt;
 use halo2_llzk_frontend::ir::CmpOp;
-use halo2curves_070::bn256::Fr;
-use midnight_halo2_proofs::circuit::{
-    AssignedCell, Layouter, RegionIndex, SimpleFloorPlanner, Value,
-};
-use midnight_halo2_proofs::plonk::{
+use halo2_proofs::circuit::{AssignedCell, Layouter, RegionIndex, SimpleFloorPlanner, Value};
+use halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Error, Expression, Fixed, Instance, Selector,
 };
-use midnight_halo2_proofs::poly::Rotation;
+use halo2_proofs::poly::Rotation;
+use halo2curves_070::bn256::Fr;
 use std::marker::PhantomData;
 
 use halo2_llzk_frontend::{CircuitCallbacks, CircuitIO, ExpressionInRow, PicusParamsBuilder};

@@ -1,4 +1,4 @@
-use midnight_halo2_proofs::plonk::{Expression, FixedQuery, Selector};
+use halo2_proofs::plonk::{Expression, FixedQuery, Selector};
 
 use crate::{
     expressions::utils::ExprDebug,
