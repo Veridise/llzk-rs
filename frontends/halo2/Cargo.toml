@@ -30,6 +30,7 @@ ouroboros = "0.18"
 paste = "1.0"
 internment = "0.8.6"
 egg = "0.10"
+# halo2_proofs = {version = "*", default-features = false, features = [ "cost-estimator", "circuit-params", "committed-instances"]}
 
 # Different halo2 implementations
 # [dependencies.axiom_halo2_proofs]
@@ -40,7 +41,7 @@ egg = "0.10"
 [dependencies.halo2_proofs]
 # git = "https://github.com/midnightntwrk/halo2.git"
 git = "https://github.com/Veridise/halo2-midnight.git"
-optional = true 
+# optional = true 
 # rev = "92d9356"
 # rev = "53c2d2d3"
 default-features = false
@@ -83,12 +84,12 @@ features = [
 package = "halo2curves"
 version = "0.7.0"
 default-features = false 
-optional = true
+# optional = true
 
 [features]
-default = ["midnight"]
+default = ["annotate-column", "get-challenge"]
 # axiom = ["axiom_halo2_proofs", "phase-tracking", "halo2curves_021"]
-midnight = ["halo2_proofs", "annotate-column", "get-challenge", "halo2curves_070"]
+# midnight = [ "halo2_proofs/region-groups","halo2_proofs/bits", "annotate-column", "get-challenge", "halo2curves_070"]
 # pse = ["pse_halo2_proofs", "phase-tracking", "halo2curves_021"]
 # pse-v1 = ["pse_v1_halo2_proofs", "halo2curves_021"]
 # scroll = ["scroll_halo2_proofs", "phase-tracking", "halo2curves_021"]
