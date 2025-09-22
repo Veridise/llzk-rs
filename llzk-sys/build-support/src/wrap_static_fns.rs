@@ -13,9 +13,9 @@ pub struct WrapStaticFns {
 
 impl WrapStaticFns {
     pub fn new(out_dir: &Path) -> Self {
-        Ok(Self {
+        Self {
             dst: out_dir.join("bindgen_wrap"),
-        })
+        }
     }
 
     pub fn source_file(&self) -> PathBuf {

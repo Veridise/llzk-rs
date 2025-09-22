@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use llzk_sys_build_support::{
     build_llzk,
     config::{bindgen::BindgenConfig, cc::CCConfig},
@@ -34,7 +34,8 @@ const DEFAULT_CFG: DefaultConfig<'static> = DefaultConfig::new(
 );
 
 fn run() -> Result<()> {
-    let out_dir = Path::new(&env::var("OUT_DIR").context("Loading OUT_DIR env variable failed")?);
+    let out_dir_var = env::var("OUT_DIR").with_context(|| "Loading OUT_DIR env variable failed")?;
+    let out_dir = Path::new(&out_dir_var);
     let cfg = (
         DEFAULT_CFG,
         build_llzk(&DEFAULT_CFG).context("Failed to build LLZK")?,
