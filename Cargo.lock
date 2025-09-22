@@ -48,6 +48,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
+name = "bench_macros"
+version = "0.1.0"
+source = "git+https://github.com/Veridise/midnight-zk.git#9e66d745e851a8f25646ce5c409ec6969d42386d"
+dependencies = [
+ "quote",
+ "syn 2.0.106",
+]
+
+[[package]]
 name = "bindgen"
 version = "0.71.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -91,7 +100,7 @@ version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46502ad458c9a52b69d4d4d32775c788b7a1b85e8bc9d482d92250fc0e3f8efe"
 dependencies = [
- "digest 0.10.7",
+ "digest",
 ]
 
 [[package]]
@@ -107,28 +116,12 @@ dependencies = [
 
 [[package]]
 name = "block-buffer"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4152116fd6e9dadb291ae18fc1ec3575ed6d84c29642d97890f4b4a3417297e4"
-dependencies = [
- "block-padding",
- "generic-array",
-]
-
-[[package]]
-name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
  "generic-array",
 ]
-
-[[package]]
-name = "block-padding"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "blst"
@@ -140,27 +133,6 @@ dependencies = [
  "glob",
  "threadpool",
  "zeroize",
-]
-
-[[package]]
-name = "blstrs"
-version = "0.7.1"
-source = "git+https://github.com/davidnevadoc/blstrs?rev=3dfe5bf#3dfe5bf15d7b1fa4f898b1a286a9d43d5669b48e"
-dependencies = [
- "bitvec",
- "blst",
- "byte-slice-cast",
- "ff",
- "getrandom 0.2.16",
- "group",
- "halo2curves",
- "num-bigint",
- "pairing",
- "pasta_curves",
- "rand",
- "rand_core",
- "serde",
- "subtle",
 ]
 
 [[package]]
@@ -342,20 +314,11 @@ checksum = "abd57806937c9cc163efc8ea3910e00a62e2aeb0b8119f1793a978088f8f6b04"
 
 [[package]]
 name = "digest"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3dd60d1080a57a05ab032377049e0591415d2b31afd7028356dbf3cc6dcb066"
-dependencies = [
- "generic-array",
-]
-
-[[package]]
-name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
- "block-buffer 0.10.4",
+ "block-buffer",
  "crypto-common",
  "subtle",
 ]
@@ -581,7 +544,6 @@ dependencies = [
  "egg",
  "ff",
  "group",
- "halo2_proofs",
  "halo2curves",
  "internment",
  "lazy_static",
@@ -589,6 +551,7 @@ dependencies = [
  "llzk-sys",
  "log",
  "melior",
+ "midnight-proofs",
  "mlir-sys",
  "num-bigint",
  "ouroboros",
@@ -605,34 +568,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "halo2_proofs"
-version = "0.5.0"
-source = "git+https://github.com/Veridise/halo2-midnight.git#404050a2d4cddf95e782d42d8428ff748631f44b"
-dependencies = [
- "blake2b_simd",
- "blstrs",
- "ff",
- "getrandom 0.2.16",
- "group",
- "halo2curves",
- "num-bigint",
- "rand_chacha",
- "rand_core",
- "rayon",
- "serde",
- "serde_derive",
- "sha3",
- "tracing",
-]
-
-[[package]]
 name = "halo2curves"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d380afeef3f1d4d3245b76895172018cfb087d9976a7cabcd5597775b2933e07"
 dependencies = [
  "blake2",
- "digest 0.10.7",
+ "digest",
  "ff",
  "group",
  "halo2derive",
@@ -740,15 +682,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "keccak"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecc2af9a1119c51f12a14607e783cb977bde58bc069ff0c3da1095e635d70654"
-dependencies = [
- "cpufeatures",
-]
-
-[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -844,6 +777,46 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32a282da65faaf38286cf3be983213fcf1d2e2a58700e808f83f4ea9a4804bc0"
 
 [[package]]
+name = "midnight-curves"
+version = "0.1.1"
+source = "git+https://github.com/Veridise/midnight-zk.git#9e66d745e851a8f25646ce5c409ec6969d42386d"
+dependencies = [
+ "bitvec",
+ "blst",
+ "byte-slice-cast",
+ "ff",
+ "getrandom 0.2.16",
+ "group",
+ "halo2curves",
+ "num-bigint",
+ "pairing",
+ "rand_core",
+ "serde",
+ "subtle",
+]
+
+[[package]]
+name = "midnight-proofs"
+version = "0.5.0"
+source = "git+https://github.com/Veridise/midnight-zk.git#9e66d745e851a8f25646ce5c409ec6969d42386d"
+dependencies = [
+ "bench_macros",
+ "blake2b_simd",
+ "ff",
+ "getrandom 0.2.16",
+ "group",
+ "halo2curves",
+ "midnight-curves",
+ "num-bigint",
+ "rand_chacha",
+ "rand_core",
+ "rayon",
+ "serde",
+ "serde_derive",
+ "tracing",
+]
+
+[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -926,12 +899,6 @@ name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
-
-[[package]]
-name = "opaque-debug"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 
 [[package]]
 name = "ouroboros"
@@ -1371,19 +1338,7 @@ checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
 dependencies = [
  "cfg-if",
  "cpufeatures",
- "digest 0.10.7",
-]
-
-[[package]]
-name = "sha3"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f81199417d4e5de3f04b1e871023acea7389672c4135918f05aa9cbf2f2fa809"
-dependencies = [
- "block-buffer 0.9.0",
- "digest 0.9.0",
- "keccak",
- "opaque-debug",
+ "digest",
 ]
 
 [[package]]
