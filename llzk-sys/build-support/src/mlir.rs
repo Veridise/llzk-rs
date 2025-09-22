@@ -31,6 +31,7 @@ impl<'a> MlirConfig<'a> {
     }
 
     /// Returns the path configured by the `MLIR_SYS_200_PREFIX` environment variable.
+    /// If the variable is not set returns `Ok(None)`.
     ///
     /// Returns [`Err`] if the path does not exists or is not a directory.
     pub fn mlir_path(&self) -> Result<Option<Cow<'static, Path>>> {
@@ -45,6 +46,7 @@ impl<'a> MlirConfig<'a> {
     }
 
     /// Returns the path `$MLIR_SYS_200_PREFIX/lib/cmake`.
+    /// If the variable is not set returns `Ok(None)`.
     ///
     /// Returns [`Err`] if the path does not exists or is not a directory. Also if [`Self::mlir_path`]
     /// fails

@@ -34,6 +34,13 @@ impl<'a> LlzkBuild<'a> {
         let lib_path = self.path.join(LIBDIR);
 
         println!("cargo:rustc-link-search=native={}", lib_path.display());
+        // Adding the whole archive modifier is optional since only seems to be required for some GNU-like linkers.
+        let modifier = if std::env::var("LLZK_SYS_ENABLE_WHOLE_ARCHIVE").is_ok_and(|var| var == "1")
+        {
+            ":+whole-archive"
+        } else {
+            ""
+        };
         for entry in lib_path
             .read_dir()
             .with_context(|| format!("Failed to read directory {}", lib_path.display()))?
@@ -44,7 +51,7 @@ impl<'a> LlzkBuild<'a> {
                 .into_string()
                 .map_err(|orig| anyhow::anyhow!("Failed to convert {orig:?} into a String"))?;
             if let Some(lib) = name.strip_prefix("lib").and_then(|s| s.strip_suffix(".a")) {
-                println!("cargo:rustc-link-lib=static:+whole-archive={lib}");
+                println!("cargo:rustc-link-lib=static{modifier}={lib}");
             }
         }
 
