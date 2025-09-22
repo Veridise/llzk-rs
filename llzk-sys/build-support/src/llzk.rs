@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 
 use super::config::{bindgen::BindgenConfig, cc::CCConfig, cmake::CMakeConfig};
 
+pub const LIBDIR: &'static str = "lib";
+
 pub struct LlzkBuild<'a> {
     path: PathBuf,
     src_path: &'a Path,
@@ -29,7 +31,8 @@ impl<'a> LlzkBuild<'a> {
         );
         println!("cargo:rerun-if-changed={}/lib", self.src_path().display());
 
-        let lib_path = self.path.join("lib64");
+        let lib_path = self.path.join(LIBDIR);
+
         println!("cargo:rustc-link-search=native={}", lib_path.display());
         for entry in lib_path
             .read_dir()
