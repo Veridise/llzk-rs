@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use bindgen::Builder;
 use cc::Build;
 use std::path::{Path, PathBuf};
@@ -31,8 +31,12 @@ impl<'a> LlzkBuild<'a> {
 
         let lib_path = self.path.join("lib64");
         println!("cargo:rustc-link-search=native={}", lib_path.display());
-        for entry in lib_path.read_dir()? {
-            let name = entry?
+        for entry in lib_path
+            .read_dir()
+            .with_context(|| format!("Failed to read directory {}", lib_path.display()))?
+        {
+            let name = entry
+                .context("Failed to read entry in directory")?
                 .file_name()
                 .into_string()
                 .map_err(|orig| anyhow::anyhow!("Failed to convert {orig:?} into a String"))?;

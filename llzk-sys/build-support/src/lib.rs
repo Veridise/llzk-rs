@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use compile_commands::CompileCommands;
 use default::DefaultConfig;
 use llzk::LlzkBuild;
@@ -13,10 +13,14 @@ pub mod wrap_static_fns;
 
 pub fn build_llzk(default_cfg: &DefaultConfig) -> Result<LlzkBuild<'static>> {
     let comp_db = CompileCommands::get();
-    let llzk = LlzkBuild::build((default_cfg, &comp_db), Path::new("llzk-lib"))?;
+    let llzk = LlzkBuild::build((default_cfg, &comp_db), Path::new("llzk-lib"))
+        .context("Failed to build LLZK")?;
     if let Some(comp_db) = comp_db {
-        comp_db.link(&llzk)?;
+        comp_db
+            .link(&llzk)
+            .context("Failed to link compile_commands.json")?;
     }
-    llzk.emit_cargo_instructions()?;
+    llzk.emit_cargo_instructions()
+        .context("Failed to emit cargo instructions")?;
     Ok(llzk)
 }
