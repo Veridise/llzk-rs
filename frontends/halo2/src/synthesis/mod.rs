@@ -447,7 +447,9 @@ impl<F: Field> Assignment<F> for SynthesizerInner<'_, F> {
         N: FnOnce() -> NR,
         K: GroupKey,
     {
-        self.groups.push(name_fn, key)
+        let name = name_fn().into();
+        log::debug!("Entering group '{name}'");
+        self.groups.push(|| name, key)
     }
 
     fn exit_group(&mut self, meta: RegionsGroup) {
@@ -457,6 +459,7 @@ impl<F: Field> Assignment<F> for SynthesizerInner<'_, F> {
         for output in meta.outputs() {
             self.groups.add_output(output);
         }
+        log::debug!("Exiting group '{}'", self.groups.current().name());
         self.groups.pop();
     }
 }

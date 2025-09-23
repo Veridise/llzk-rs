@@ -1,11 +1,11 @@
 pub use ff::{Field, PrimeField};
 pub use halo2_proofs::plonk::Challenge;
 pub use halo2_proofs::{
-    circuit::{Cell, RegionIndex, RegionStart, Value, groups},
+    circuit::{groups, Cell, RegionIndex, RegionStart, Value},
     plonk::{
-        Advice, AdviceQuery, Any, Assignment, Circuit, Column, ColumnType, ConstraintSystem, Error,
-        Expression, FirstPhase, Fixed, FixedQuery, FloorPlanner, Gate, Instance, InstanceQuery,
-        Phase, Selector,
+        Advice, AdviceQuery, Any, Assignment, Circuit, Column, ColumnType, ConstraintSystem,
+        Constraints, Error, Expression, FirstPhase, Fixed, FixedQuery, FloorPlanner, Gate,
+        Instance, InstanceQuery, Phase, Selector,
     },
     poly::Rotation,
     utils::rational::Rational as Assigned,
