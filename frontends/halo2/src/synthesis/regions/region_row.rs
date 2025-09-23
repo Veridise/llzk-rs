@@ -30,6 +30,22 @@ impl<'r, 'io, 'fq, F: Field> RegionRow<'r, 'io, 'fq, F> {
         }
     }
 
+    /// Changes the priority to inputs.
+    pub fn prioritize_inputs(self) -> Self {
+        Self {
+            region: self.region,
+            row: self.row.prioritize_inputs(),
+        }
+    }
+
+    /// Changes the priority to outputs.
+    pub fn prioritize_outputs(self) -> Self {
+        Self {
+            region: self.region,
+            row: self.row.prioritize_outputs(),
+        }
+    }
+
     fn enabled(&self) -> HashSet<&'r Selector> {
         self.region
             .selectors_enabled_for_row(self.row.row)

@@ -22,7 +22,7 @@ pub enum GroupKind {
 }
 
 /// A cell that could be either assigned during synthesis or declared as circuit IO.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum GroupCell {
     /// A cell that comes from an assigned cell during synthesis.
     Assigned(Cell),

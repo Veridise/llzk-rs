@@ -12,7 +12,7 @@ use crate::{
         ctx::AdviceCells,
         equivalency::{EqvRelation, SymbolicEqv},
         expr::{Felt, IRAexpr},
-        generate::{free_cells::FreeCells, GroupIRCtx},
+        generate::{free_cells::FreeCells, GroupIRCtx, RegionByIndex},
         groups::{
             bounds::{Bound, EqConstraintCheck, GroupBounds},
             callsite::CallSite,
@@ -31,6 +31,7 @@ use crate::{
     utils, GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
 };
 use anyhow::Result;
+use disjoint::DisjointSetVec;
 
 pub mod bounds;
 pub mod callsite;
@@ -110,12 +111,21 @@ where
             eq_constraints
         );
 
-        let eq_constraints = IRStmt::seq(inter_region_constraints(
+        let mut eq_constraints = inter_region_constraints(
             eq_constraints,
             advice_io,
             instance_io,
             ctx.syn().fixed_query_resolver(),
-        ));
+        );
+        let extra_eq_constraints = search_double_annotated(
+            group,
+            advice_io,
+            instance_io,
+            ctx.syn().fixed_query_resolver(),
+            ctx.regions_by_index(),
+        );
+        eq_constraints.extend(extra_eq_constraints);
+        let eq_constraints = IRStmt::seq(eq_constraints);
 
         log::debug!(
             "[{}] Equality constraints (lowered): {eq_constraints:?}",
@@ -474,6 +484,72 @@ fn inter_region_constraints<'e, 's, F: Field>(
             ),
         })
         .map(|(lhs, rhs)| IRStmt::constraint(CmpOp::Eq, lhs, rhs))
+        .collect()
+}
+
+/// Creates a resolver based on the type of cell.
+fn mk_resolver<'r, 'io, 'fq, F: Field>(
+    cell: &GroupCell,
+    advice_io: &'io crate::io::AdviceIO,
+    instance_io: &'io crate::io::InstanceIO,
+    fqr: &'fq dyn FixedQueryResolver<F>,
+    regions_by_index: &RegionByIndex<'r>,
+) -> Result<RegionRow<'r, 'io, 'fq, F>, Row<'io, 'fq, F>> {
+    cell.region_index()
+        .and_then(|idx| {
+            let region = regions_by_index[&idx];
+            Some((region, region.start()?))
+        })
+        .ok_or_else(|| {
+            // No region, so we return Row.
+            Row::new(cell.row(), advice_io, instance_io, fqr)
+        })
+        .map(|(region, start)| {
+            RegionRow::new(region, start + cell.row(), advice_io, instance_io, fqr)
+        })
+}
+
+macro_rules! mk_side {
+    (@inner $io:ident, $cell:expr $(, $args:expr)* $(,)?) => {
+        match mk_resolver($cell, $($args ,)*) {
+            Ok(region_row) => ScopedExpression::new($cell.to_expr(), region_row.$io()),
+            Err(row) => ScopedExpression::new($cell.to_expr(), row.$io()),
+        }
+    };
+    (@lhs $cell:expr $(, $args:expr)* $(,)?) => {
+        mk_side!(@inner prioritize_inputs, $cell, $($args ,)*)
+    };
+    (@rhs $cell:expr $(, $args:expr)* $(,)?) => {
+        mk_side!(@inner prioritize_outputs, $cell, $($args ,)*)
+    };
+}
+
+/// Searches for cells that are annotated as both inputs and outputs and generates constraints that
+/// connects the input variable with the output variable.
+///
+/// Returns a list of statements with the constraints.
+fn search_double_annotated<'e, 'io, 'syn, 'sco, F>(
+    group: &Group,
+    advice_io: &'io crate::io::AdviceIO,
+    instance_io: &'io crate::io::InstanceIO,
+    fqr: &'syn dyn FixedQueryResolver<F>,
+    regions_by_index: &RegionByIndex<'syn>,
+) -> Vec<IRStmt<ScopedExpression<'e, 'sco, F>>>
+where
+    'syn: 'sco,
+    'io: 'sco + 'syn,
+    F: Field,
+{
+    utils::product(group.inputs(), group.outputs())
+        .filter_map(|(i, o)| {
+            if i != o {
+                return None;
+            }
+
+            let lhs = mk_side!(@lhs i, advice_io, instance_io, fqr, regions_by_index);
+            let rhs = mk_side!(@rhs o, advice_io, instance_io, fqr, regions_by_index);
+            Some(IRStmt::constraint(CmpOp::Eq, lhs, rhs))
+        })
         .collect()
 }
 
