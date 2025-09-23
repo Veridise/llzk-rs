@@ -1,7 +1,9 @@
 use group::ff::Field;
 use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
 use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
-use halo2_proofs::plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector};
+use halo2_proofs::plonk::{
+    Advice, Circuit, Column, ConstraintSystem, Constraints, Error, Instance, Selector,
+};
 use halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
@@ -128,12 +130,11 @@ impl<F: Field> FibonacciChip<F> {
             // col_a | col_b | col_c | selector
             //   a      b        c       s
             //
-            let s = meta.query_selector(selector);
             let a = meta.query_advice(col_a, Rotation::cur());
             let b = meta.query_advice(col_b, Rotation::cur());
             let c = meta.query_advice(col_c, Rotation::cur());
 
-            vec![s * (a + b - c)]
+            Constraints::with_selector(selector, vec![a + b - c])
         });
 
         FibonacciConfig {

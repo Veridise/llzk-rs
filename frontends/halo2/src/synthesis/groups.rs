@@ -346,6 +346,11 @@ impl GroupTree {
         ));
         Groups(groups)
     }
+
+    /// Returns the name of the group.
+    pub fn name(&self) -> &str {
+        self.name.as_deref().unwrap_or("<no name>")
+    }
 }
 
 /// Manages the creation of groups during synthesis.
@@ -366,6 +371,17 @@ impl GroupBuilder {
         Self {
             root: GroupTree::top_level(),
             stack: vec![],
+        }
+    }
+
+    /// Returns a mutable reference to the group that is currently being built.
+    /// Private to ensure that only the builder can mutate the groups.
+    #[inline]
+    pub fn current(&self) -> &GroupTree {
+        if self.stack.is_empty() {
+            &self.root
+        } else {
+            self.stack.last().unwrap()
         }
     }
 

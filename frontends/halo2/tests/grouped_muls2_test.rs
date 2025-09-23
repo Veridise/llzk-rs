@@ -4,7 +4,7 @@ use halo2_llzk_frontend::{CircuitCallbacks, CircuitIO, PicusParamsBuilder};
 use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::default_group_key;
 use halo2_proofs::plonk::{
-    Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector,
+    Advice, Circuit, Column, ConstraintSystem, Constraints, Error, Fixed, Instance, Selector,
 };
 use halo2_proofs::poly::Rotation;
 use halo2curves_070::bn256::Fr;
@@ -140,13 +140,12 @@ impl<F: Field> MulChip<F> {
             // col_fixed | col_a | col_b | col_c | selector
             //      f       a      b        c       s
             //
-            let s = meta.query_selector(selector);
             let f = meta.query_fixed(col_fixed, Rotation::cur());
             let a = meta.query_advice(col_a, Rotation::cur());
             let b = meta.query_advice(col_b, Rotation::cur());
             let c = meta.query_advice(col_c, Rotation::cur());
 
-            vec![s.clone() * (f * a.clone() - b.clone()), s * (a * b - c)]
+            Constraints::with_selector(selector, vec![f * a.clone() - b.clone(), a * b - c])
         });
 
         // computes c = -a^2
@@ -155,12 +154,11 @@ impl<F: Field> MulChip<F> {
             // col_fixed | col_a | col_b | col_c | selector
             //      f       a      b        c       s
             //
-            let s = meta.query_selector(selector2);
             let a = meta.query_advice(col_a, Rotation::cur());
             let b = meta.query_advice(col_b, Rotation::cur());
             let c = meta.query_advice(col_c, Rotation::cur());
 
-            vec![s * (a * b - c)]
+            Constraints::with_selector(selector2, vec![a * b - c])
         });
 
         MulConfig {

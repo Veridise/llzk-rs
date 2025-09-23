@@ -457,12 +457,11 @@ mod lowering_tests {
         let selector = cs.selector();
 
         cs.create_gate("mul", |meta| {
-            let s = meta.query_selector(selector);
             let a = meta.query_advice(col_a, Rotation::cur());
             let b = meta.query_advice(col_b, Rotation::cur());
             let c = meta.query_advice(col_c, Rotation::cur());
 
-            vec![s * (a * b - c)]
+            Constraints::with_selector(selector, vec![a * b - c])
         });
         MulCfg {
             cs,

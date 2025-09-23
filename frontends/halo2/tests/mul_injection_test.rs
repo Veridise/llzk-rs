@@ -190,13 +190,15 @@ impl<F: Field> MulChip<F> {
             // col_fixed | col_a | col_b | col_c | selector
             //      f       a      b        c       s
             //
-            let s = meta.query_selector(selector);
             let f = meta.query_fixed(col_fixed, Rotation::cur());
             let a = meta.query_advice(col_a, Rotation::cur());
             let b = meta.query_advice(col_a, Rotation::next());
             let c = meta.query_advice(col_c, Rotation::cur());
 
-            vec![s.clone() * (f * a.clone() - b.clone()), s * (a * b - c)]
+            halo2_proofs::plonk::Constraints::with_selector(
+                selector,
+                vec![f * a.clone() - b.clone(), a * b - c],
+            )
         });
 
         MulConfig {
