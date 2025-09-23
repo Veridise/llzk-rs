@@ -187,8 +187,14 @@ impl<T> IRStmt<T> {
         }
     }
 
-    fn iter<'a>(&'a self) -> IRStmtRefIter<'a, T> {
+    /// Returns an iterator of references to the statements.
+    pub fn iter<'a>(&'a self) -> IRStmtRefIter<'a, T> {
         IRStmtRefIter { stack: vec![self] }
+    }
+
+    /// Returns an iterator of mutable references to the statements.
+    pub fn iter_mut<'a>(&'a mut self) -> IRStmtRefMutIter<'a, T> {
+        IRStmtRefMutIter { stack: vec![self] }
     }
 }
 
@@ -257,7 +263,9 @@ where
     }
 }
 
-struct IRStmtRefIter<'a, T> {
+/// Iterator over references.
+#[derive(Debug)]
+pub struct IRStmtRefIter<'a, T> {
     stack: Vec<&'a IRStmt<T>>,
 }
 
@@ -270,6 +278,29 @@ impl<'a, T> Iterator for IRStmtRefIter<'a, T> {
                 IRStmt::Seq(children) => {
                     // Reverse to preserve left-to-right order
                     self.stack.extend(children.iter().rev());
+                }
+                stmt => return Some(stmt),
+            }
+        }
+        None
+    }
+}
+
+/// Iterator over mutable references.
+#[derive(Debug)]
+pub struct IRStmtRefMutIter<'a, T> {
+    stack: Vec<&'a mut IRStmt<T>>,
+}
+
+impl<'a, T> Iterator for IRStmtRefMutIter<'a, T> {
+    type Item = &'a mut IRStmt<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(node) = self.stack.pop() {
+            match node {
+                IRStmt::Seq(children) => {
+                    // Reverse to preserve left-to-right order
+                    self.stack.extend(children.iter_mut().rev());
                 }
                 stmt => return Some(stmt),
             }
@@ -314,6 +345,26 @@ impl<T> IntoIterator for IRStmt<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         IRStmtIter { stack: vec![self] }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a IRStmt<T> {
+    type Item = Self;
+
+    type IntoIter = IRStmtRefIter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut IRStmt<T> {
+    type Item = Self;
+
+    type IntoIter = IRStmtRefMutIter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 

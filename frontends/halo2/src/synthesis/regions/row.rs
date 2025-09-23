@@ -9,12 +9,24 @@ use crate::{
 };
 use anyhow::{bail, Result};
 
+/// When resolving a query it is possible that the same cell is in the input and the output set.
+/// This enum configures what kind will be chosen in the case of conflicting.
+///
+/// The default priority is outputs.
+#[derive(Debug, Copy, Clone, Default)]
+pub enum ResolutionPriority {
+    Input,
+    #[default]
+    Output,
+}
+
 #[derive(Copy, Clone)]
 pub struct Row<'io, 'fq, F: Field> {
     pub(super) row: usize,
     advice_io: &'io AdviceIO,
     instance_io: &'io InstanceIO,
     pub(super) fqr: &'fq dyn FixedQueryResolver<F>,
+    priority: ResolutionPriority,
 }
 
 impl<'io, 'fq, F: Field> Row<'io, 'fq, F> {
@@ -29,7 +41,20 @@ impl<'io, 'fq, F: Field> Row<'io, 'fq, F> {
             row,
             advice_io,
             instance_io,
+            priority: Default::default(),
         }
+    }
+
+    /// Changes the priority to inputs.
+    pub fn prioritize_inputs(mut self) -> Self {
+        self.priority = ResolutionPriority::Input;
+        self
+    }
+
+    /// Changes the priority to outputs.
+    pub fn prioritize_outputs(mut self) -> Self {
+        self.priority = ResolutionPriority::Output;
+        self
     }
 
     pub(super) fn resolve_rotation(&self, rot: Rotation) -> Result<usize> {
@@ -82,7 +107,12 @@ impl<'io, 'fq, F: Field> Row<'io, 'fq, F> {
             }
             (None, Some(r)) => r,
             (Some(r), None) => r,
-            (Some(_), Some(_)) => bail!("Failed to resolve {} cell ({}, {}): Query is both an input and an output in main function", std::any::type_name::<C>(), col, rot),
+            // Cell is both input and output so we need to decide based on priority.
+(Some(input), Some(output)) => match self.priority {
+    ResolutionPriority::Input => input,
+    ResolutionPriority::Output => output,
+}
+            //(Some(_), Some(_)) => bail!("Failed to resolve {} cell ({}, {}): Query is both an input and an output in main function", std::any::type_name::<C>(), col, rot),
         })
     }
 
