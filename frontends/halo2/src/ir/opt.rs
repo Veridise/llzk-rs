@@ -8,6 +8,7 @@ use crate::{
     ir::{expr::Felt, CmpOp},
 };
 
+#[allow(dead_code)]
 pub enum Aexpr {
     Lit(Felt),
     Var(FuncIO),
@@ -17,6 +18,7 @@ pub enum Aexpr {
     Product([Id; 2]),
 }
 
+#[allow(dead_code)]
 pub enum Bexpr {
     Lit(bool),
     Cmp(CmpOp, Aexpr, Aexpr),
@@ -25,6 +27,7 @@ pub enum Bexpr {
     Or([Id; 2]),
 }
 
+#[allow(dead_code)]
 pub enum Stmt {
     Constr(CmpOp, Aexpr, Aexpr),
     Assert(Bexpr),

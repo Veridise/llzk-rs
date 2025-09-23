@@ -31,7 +31,6 @@ use crate::{
     utils, GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
 };
 use anyhow::Result;
-use disjoint::DisjointSetVec;
 
 pub mod bounds;
 pub mod callsite;

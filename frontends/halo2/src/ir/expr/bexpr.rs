@@ -103,6 +103,48 @@ impl<T> IRBexpr<T> {
     }
 }
 
+struct LogLine {
+    before: Option<String>,
+    ident: usize,
+}
+
+impl LogLine {
+    fn new(expr: &IRBexpr<IRAexpr>, ident: usize) -> Self {
+        if matches!(expr, IRBexpr::True | IRBexpr::False | IRBexpr::Cmp(_, _, _)) {
+            Self {
+                before: Some(format!("{expr:?}")),
+                ident,
+            }
+        } else {
+            log::debug!("[constant_fold] {:ident$} {expr:?} {{", "", ident = ident);
+            Self {
+                before: None,
+                ident,
+            }
+        }
+    }
+
+    fn log(self, expr: &mut IRBexpr<IRAexpr>) {
+        match self.before {
+            Some(before) => {
+                log::debug!(
+                    "[constant_fold] {:ident$} {} -> {expr:?}",
+                    "",
+                    before,
+                    ident = self.ident
+                );
+            }
+            None => {
+                log::debug!(
+                    "[constant_fold] {:ident$} }} -> {expr:?}",
+                    "",
+                    ident = self.ident
+                );
+            }
+        }
+    }
+}
+
 impl IRBexpr<IRAexpr> {
     /// Returns `Some(true)` or `Some(false)` if the expression is constant, `None` otherwise.
     pub fn const_value(&self) -> Option<bool> {
@@ -114,10 +156,15 @@ impl IRBexpr<IRAexpr> {
     }
 
     /// Folds the expression if the values are constant.
-    pub(crate) fn constant_fold(&mut self, prime: Felt) {
+    fn constant_fold_impl(&mut self, prime: Felt, ident: usize) {
+        let log = LogLine::new(self, ident);
         match self {
-            IRBexpr::True => {}
-            IRBexpr::False => {}
+            IRBexpr::True => {
+                log.log(self);
+            }
+            IRBexpr::False => {
+                log.log(self);
+            }
             IRBexpr::Cmp(op, lhs, rhs) => {
                 lhs.constant_fold(prime);
                 rhs.constant_fold(prime);
@@ -132,10 +179,11 @@ impl IRBexpr<IRAexpr> {
                     }
                     .into()
                 }
+                log.log(self);
             }
             IRBexpr::And(exprs) => {
                 for expr in &mut *exprs {
-                    expr.constant_fold(prime);
+                    expr.constant_fold_impl(prime, ident + 2);
                 }
                 // If any value is a literal 'false' convert into IRBexpr::False
                 if exprs.iter().any(|expr| {
@@ -146,6 +194,7 @@ impl IRBexpr<IRAexpr> {
                         .unwrap_or_default()
                 }) {
                     *self = IRBexpr::False;
+                    log.log(self);
                     return;
                 }
                 // Remove any literal 'true' values.
@@ -159,10 +208,11 @@ impl IRBexpr<IRAexpr> {
                 if exprs.is_empty() {
                     *self = IRBexpr::True;
                 }
+                log.log(self);
             }
             IRBexpr::Or(exprs) => {
                 for expr in &mut *exprs {
-                    expr.constant_fold(prime);
+                    expr.constant_fold_impl(prime, ident + 2);
                 }
                 // If any value is a literal 'true' convert into IRBexpr::True.
                 if exprs
@@ -170,6 +220,7 @@ impl IRBexpr<IRAexpr> {
                     .any(|expr| expr.const_value().unwrap_or_default())
                 {
                     *self = IRBexpr::True;
+                    log.log(self);
                     return;
                 }
                 // Remove any literal 'false' values.
@@ -181,14 +232,20 @@ impl IRBexpr<IRAexpr> {
                 if exprs.is_empty() {
                     *self = IRBexpr::False;
                 }
+                log.log(self);
             }
             IRBexpr::Not(expr) => {
-                expr.constant_fold(prime);
+                expr.constant_fold_impl(prime, ident + 2);
                 if let Some(b) = expr.const_value() {
                     *self = b.into();
                 }
+                log.log(self);
             }
         }
+    }
+
+    pub(crate) fn constant_fold(&mut self, prime: Felt) {
+        self.constant_fold_impl(prime, 0)
     }
 
     /// Matches the expressions against a series of known patterns and applies rewrites if able to.
@@ -323,12 +380,12 @@ impl<T> Not for IRBexpr<T> {
 impl<T: std::fmt::Debug> std::fmt::Debug for IRBexpr<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            IRBexpr::Cmp(cmp_op, lhs, rhs) => write!(f, "{lhs:?} {cmp_op} {rhs:?}",),
-            IRBexpr::And(exprs) => write!(f, "AND {exprs:?}"),
-            IRBexpr::Or(exprs) => write!(f, "OR {exprs:?}"),
-            IRBexpr::Not(expr) => write!(f, "NOT {expr:?}"),
-            IRBexpr::True => write!(f, "TRUE"),
-            IRBexpr::False => write!(f, "FALSE"),
+            IRBexpr::Cmp(cmp_op, lhs, rhs) => write!(f, "({cmp_op} {lhs:?} {rhs:?})",),
+            IRBexpr::And(exprs) => write!(f, "(&& {exprs:?})"),
+            IRBexpr::Or(exprs) => write!(f, "(|| {exprs:?})"),
+            IRBexpr::Not(expr) => write!(f, "(! {expr:?})"),
+            IRBexpr::True => write!(f, "(true)"),
+            IRBexpr::False => write!(f, "(false)"),
         }
     }
 }
