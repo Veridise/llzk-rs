@@ -1,5 +1,6 @@
 pub use ff::{Field, PrimeField};
 pub use halo2_proofs::plonk::Challenge;
+#[allow(unused_imports)]
 pub use halo2_proofs::{
     circuit::{groups, Cell, RegionIndex, RegionStart, Value},
     plonk::{
