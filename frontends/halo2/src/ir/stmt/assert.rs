@@ -47,7 +47,8 @@ impl Assert<IRAexpr> {
                 return Ok(Some(IRStmt::empty()));
             } else {
                 return Err(anyhow::anyhow!(
-                    "Detected assert statement with predicate evaluating to 'false'"
+                    "Detected assert statement with predicate evaluating to 'false': {:#?}",
+                    self.0
                 ));
             }
         }
