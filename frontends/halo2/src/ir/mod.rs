@@ -16,7 +16,7 @@ use crate::{
 };
 
 /// Comparison operators between arithmetic expressions.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, PartialOrd, Ord, Hash)]
 pub enum CmpOp {
     /// Equality
     Eq,
