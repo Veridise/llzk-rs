@@ -18,7 +18,7 @@ use internment::Intern;
 use num_bigint::BigUint;
 
 /// Represents a constant value.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Felt(Intern<BigUint>);
 
 impl Felt {

@@ -3,7 +3,7 @@ use std::{fmt, ops::Deref};
 use crate::ir::equivalency::{EqvRelation, SymbolicEqv};
 
 /// Argument number of a function
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ArgNo(usize);
 
 impl From<usize> for ArgNo {
@@ -39,7 +39,7 @@ impl fmt::Debug for ArgNo {
 }
 
 /// An identifier that Backend::FuncOutput will use to identify an output field in the function.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FieldId(usize);
 
 impl From<usize> for FieldId {
@@ -74,7 +74,7 @@ enum Offset {
 }
 
 /// A reference to a cell in the circuit.
-#[derive(Clone, Copy, Eq)]
+#[derive(Clone, Copy, Eq, PartialOrd, Ord)]
 pub struct CellRef {
     col: usize,
     base: Option<usize>,
@@ -149,6 +149,15 @@ impl std::fmt::Debug for CellRef {
     }
 }
 
+impl std::fmt::Display for CellRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.base {
+            Some(base) => write!(f, "[{},{base}(+{})]", self.col, self.offset),
+            None => write!(f, "[{},{}]", self.col, self.offset),
+        }
+    }
+}
+
 impl PartialEq for CellRef {
     fn eq(&self, other: &Self) -> bool {
         self.col() == other.col() && self.row() == other.row()
@@ -176,7 +185,7 @@ impl EqvRelation<CellRef> for SymbolicEqv {
     }
 }
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum FuncIO {
     /// Points to the n-th input argument
     Arg(ArgNo),
@@ -242,9 +251,24 @@ impl std::fmt::Debug for FuncIO {
             Self::Advice(c) => write!(f, "adv{c:?}"),
             Self::Fixed(c) => write!(f, "fix{c:?}"),
             Self::TableLookup(id, col, row, idx, region_idx) => {
-                write!(f, "lookup{id}[{col}, {row}]@({idx}, {region_idx})")
+                write!(f, "lookup{id}[{col},{row}]@({idx},{region_idx})")
             }
-            Self::CallOutput(call, out) => write!(f, "call{call} -> {out}"),
+            Self::CallOutput(call, out) => write!(f, "call{call}->{out}"),
+        }
+    }
+}
+
+impl std::fmt::Display for FuncIO {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Arg(arg) => write!(f, "{arg}"),
+            Self::Field(field) => write!(f, "{field}"),
+            Self::Advice(c) => write!(f, "adv{c}"),
+            Self::Fixed(c) => write!(f, "fix{c}"),
+            Self::TableLookup(id, col, row, idx, region_idx) => {
+                write!(f, "lookup{id}[{col},{row}]@({idx},{region_idx})")
+            }
+            Self::CallOutput(call, out) => write!(f, "call{call}->{out}"),
         }
     }
 }
