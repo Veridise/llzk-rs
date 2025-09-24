@@ -141,6 +141,22 @@ impl<T> IRStmt<T> {
         }
     }
 
+    /// Transforms the inner expression type using [`Into::into`].
+    pub fn into<O>(self) -> IRStmt<O>
+    where
+        O: From<T>,
+    {
+        self.map(&Into::into)
+    }
+
+    /// Transforms the inner expression type using [`From::from`].
+    pub fn from<O>(value: IRStmt<O>) -> Self
+    where
+        O: Into<T>,
+    {
+        value.map(&Into::into)
+    }
+
     /// Transforms the inner expression type into another, without moving.
     pub fn map_into<O>(&self, f: &impl Fn(&T) -> O) -> IRStmt<O> {
         match self {
