@@ -138,7 +138,8 @@ fn mk_advice_io(
                     let row = cell.row_offset + regions[&cell.region_index];
                     Some((cell.column.try_into().unwrap(), row))
                 }
-                _ => None,
+                Any::Instance => None,
+                Any::Fixed => unreachable!(),
             },
             GroupCell::InstanceIO(_) => None,
             GroupCell::AdviceIO(cell) => Some(*cell),
@@ -163,7 +164,8 @@ fn mk_instance_io(
                     let row = cell.row_offset + regions[&cell.region_index];
                     Some((cell.column.try_into().unwrap(), row))
                 }
-                _ => None,
+                Any::Advice(_) => None,
+                Any::Fixed => unreachable!(),
             },
             GroupCell::InstanceIO(cell) => Some(*cell),
             GroupCell::AdviceIO(_) => None,
