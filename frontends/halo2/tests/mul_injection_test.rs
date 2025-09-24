@@ -73,13 +73,13 @@ fn ir_to_inject<'e>() -> Vec<(RegionIndex, IRStmt<ExpressionInRow<'e, Fr>>)> {
     let stmts = [
         IRStmt::constraint(
             CmpOp::Lt,
-            ExpressionInRow::new(a.clone(), 0),
-            ExpressionInRow::new(hundrend.clone(), 0),
+            ExpressionInRow::new(0, a.clone()),
+            ExpressionInRow::new(0, hundrend.clone()),
         ),
         IRStmt::constraint(
             CmpOp::Ge,
-            ExpressionInRow::new(a, 1),
-            ExpressionInRow::new(hundrend, 1),
+            ExpressionInRow::new(1, a),
+            ExpressionInRow::new(1, hundrend),
         ),
     ];
 

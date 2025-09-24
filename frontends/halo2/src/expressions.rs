@@ -23,7 +23,7 @@ pub struct ExpressionInRow<'e, F: Clone> {
 
 impl<'e, F: Clone> ExpressionInRow<'e, F> {
     /// Creates a new struct owning the expression.
-    pub fn new(expr: Expression<F>, row: usize) -> Self {
+    pub fn new(row: usize, expr: Expression<F>) -> Self {
         Self {
             expr: Cow::Owned(expr),
             row,
