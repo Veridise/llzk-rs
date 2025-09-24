@@ -129,6 +129,32 @@ where
             groups,
         })
     }
+
+    /// Validates the IR, returning errors if it failed.
+    pub fn validate(&self) -> (Result<()>, Vec<String>) {
+        let mut errors = vec![];
+
+        for group in &self.groups {
+            let (status, group_errors) = group.validate(&self.groups);
+            if status.is_err() {
+                for err in group_errors {
+                    errors.push(format!("Error in group \"{}\": {err}", group.name()));
+                }
+            }
+        }
+
+        (
+            if errors.is_empty() {
+                Ok(())
+            } else {
+                Err(anyhow::anyhow!(
+                    "Validation of unresolved IR failed with {} errors",
+                    errors.len()
+                ))
+            },
+            errors,
+        )
+    }
 }
 
 /// Circuit that has resolved its expressions and is no longer tied to the lifetime of the
@@ -183,5 +209,31 @@ impl ResolvedIRCircuit {
         for group in &mut self.groups {
             group.canonicalize();
         }
+    }
+
+    /// Validates the IR, returning errors if it failed.
+    pub fn validate(&self) -> (Result<()>, Vec<String>) {
+        let mut errors = vec![];
+
+        for group in &self.groups {
+            let (status, group_errors) = group.validate(&self.groups);
+            if status.is_err() {
+                for err in group_errors {
+                    errors.push(format!("Error in group \"{}\": {err}", group.name()));
+                }
+            }
+        }
+
+        (
+            if errors.is_empty() {
+                Ok(())
+            } else {
+                Err(anyhow::anyhow!(
+                    "Validation of resolved IR failed with {} errors",
+                    errors.len()
+                ))
+            },
+            errors,
+        )
     }
 }

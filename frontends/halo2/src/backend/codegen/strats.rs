@@ -73,6 +73,7 @@ pub mod groups {
             let (leaders, updated_calldata) = select_leaders(&groups_ir);
 
             log::debug!("Leaders for the non-main groups: {leaders:?}");
+            log::debug!("Updated calldata: {updated_calldata:?}");
             // Build the final list of IR and invoke codegen
             groups_ir.retain_mut(|g| {
                 // Keep a group if its main or is in the leaders list.
@@ -84,9 +85,24 @@ pub mod groups {
                 keep
             });
 
+            let mut err_count = 0;
+            for group in &groups_ir {
+                log::debug!("Validating group \"{}\"", group.name());
+                let (validation_status, validation_errors) = group.validate(ir.groups());
+                if validation_status.is_err() {
+                    err_count += validation_errors.len();
+                    for err in validation_errors {
+                        log::error!("Codegen error: {err}");
+                    }
+                }
+            }
+            if err_count > 0 {
+                anyhow::bail!("Codegen failed due to {err_count} validation errors");
+            }
             // Create a function per group.
             for group in groups_ir {
-                log::debug!("Group {group:#?}");
+                log::debug!("Generating code for group \"{}\"", group.name());
+
                 let advice_io = ctx.advice_io_of_group(group.id());
                 let instance_io = ctx.instance_io_of_group(group.id());
                 if group.is_main() {
@@ -128,13 +144,15 @@ pub mod groups {
     }
 
     /// Find the leaders of each equivalence class in the groups and annotate the required renames
-    fn select_leaders(groups_ir: &[GroupBody<IRAexpr>]) -> (Vec<usize>, Vec<Option<String>>) {
+    fn select_leaders(
+        groups_ir: &[GroupBody<IRAexpr>],
+    ) -> (Vec<usize>, Vec<Option<(usize, String)>>) {
         // Separate the groups by their key.
         let groups_by_key = organize_groups_by_key(groups_ir);
         log::debug!("Groups: {groups_by_key:?}");
         let mut leaders = vec![];
         // For each group annotate its new name if it needs to be renamed.
-        let mut updated_calldata: Vec<Option<String>> = vec![None; groups_ir.len()];
+        let mut updated_calldata: Vec<Option<(usize, String)>> = vec![None; groups_ir.len()];
         // Avoids duplicating names
         let mut used_names: HashSet<String> = HashSet::default();
         // For each set of groups with the same key we create equivalence classes and select a
@@ -170,11 +188,12 @@ pub mod groups {
             debug_assert!(!set.is_empty());
             let set: Vec<_> = set.into_iter().map(|id| eqv_class_ids[&id]).collect();
             // We arbitrarily chose the leader to be the first element.
-            leaders.push(set[0]);
-            let leader = groups_ir.get(set[0]).unwrap();
+            let leader_id = set[0];
+            leaders.push(leader_id);
+            let leader = groups_ir.get(leader_id).unwrap();
             let name = fresh_group_name(leader.name(), &mut used_names, n);
             for update in &set {
-                updated_calldata[*update] = Some(name.clone());
+                updated_calldata[*update] = Some((leader_id, name.clone()));
             }
         }
 
@@ -182,12 +201,14 @@ pub mod groups {
     }
 
     /// Updates the name of the group and the names of the functions each callsite references.
-    fn update_names(group: &mut GroupBody<IRAexpr>, updated_calldata: &[Option<String>]) {
-        if let Some(name) = &updated_calldata[group.id()] {
+    fn update_names(group: &mut GroupBody<IRAexpr>, updated_calldata: &[Option<(usize, String)>]) {
+        if let Some((id, name)) = &updated_calldata[group.id()] {
             *group.name_mut() = name.clone();
+            group.set_id(*id);
         }
         for callsite in group.callsites_mut() {
-            if let Some(name) = &updated_calldata[callsite.callee_id()] {
+            if let Some((id, name)) = &updated_calldata[callsite.callee_id()] {
+                callsite.set_callee_id(*id);
                 callsite.set_name(name.clone());
             }
         }

@@ -123,10 +123,7 @@ impl<'lc, 'gc, F: Field> IRGenParamsBuilder<'lc, 'gc, F> {
 pub fn generate_ir<'syn, 'ctx, 'cb, 'sco, F>(
     syn: &'syn CircuitSynthesis<F>,
     params: IRGenParams<'cb, '_, F>,
-    //lookup_cb: &'cb dyn LookupCallbacks<F>,
-    //gate_cbs: &dyn GateCallbacks<F>,
     ir_ctx: &'ctx IRCtx,
-    //generate_debug_comments: bool,
 ) -> anyhow::Result<Vec<GroupBody<ScopedExpression<'syn, 'sco, F>>>>
 where
     F: PrimeField,

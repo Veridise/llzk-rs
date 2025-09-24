@@ -108,7 +108,22 @@ fn mul_injected_circuit_picus() {
             .unwrap();
         let ir = ir_to_inject();
         unresolved.inject_ir(ir, &syn).unwrap();
-        unresolved.resolve().unwrap()
+        let (status, errs) = unresolved.validate();
+        if status.is_err() {
+            for err in errs {
+                log::error!("{err}");
+            }
+            panic!("Test failed due to validation errors");
+        }
+        let resolved = unresolved.resolve().unwrap();
+        let (status, errs) = resolved.validate();
+        if status.is_err() {
+            for err in errs {
+                log::error!("{err}");
+            }
+            panic!("Test failed due to validation errors");
+        }
+        resolved
     };
 
     common::check_picus(
@@ -136,10 +151,39 @@ fn mul_injected_opt_circuit_picus() {
                 .unwrap();
             let ir = ir_to_inject();
             unresolved.inject_ir(ir, &syn).unwrap();
-            unresolved.resolve().unwrap()
+            let (status, errs) = unresolved.validate();
+            if status.is_err() {
+                for err in errs {
+                    log::error!("{err}");
+                }
+                panic!("Test failed due to validation errors");
+            }
+            let resolved = unresolved.resolve().unwrap();
+            let (status, errs) = resolved.validate();
+            if status.is_err() {
+                for err in errs {
+                    log::error!("{err}");
+                }
+                panic!("Test failed due to validation errors");
+            }
+            resolved
         };
         resolved.constant_fold().unwrap();
+        let (status, errs) = resolved.validate();
+        if status.is_err() {
+            for err in errs {
+                log::error!("{err}");
+            }
+            panic!("Test failed due to validation errors");
+        }
         resolved.canonicalize();
+        let (status, errs) = resolved.validate();
+        if status.is_err() {
+            for err in errs {
+                log::error!("{err}");
+            }
+            panic!("Test failed due to validation errors");
+        }
         common::check_picus(
             &driver,
             &resolved,

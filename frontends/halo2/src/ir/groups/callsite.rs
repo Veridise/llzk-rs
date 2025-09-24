@@ -150,6 +150,16 @@ impl<E> CallSite<E> {
         self.callee_id
     }
 
+    /// Sets the callee id.
+    pub fn set_callee_id(&mut self, callee_id: usize) {
+        self.callee_id = callee_id;
+    }
+
+    /// Returns the name of the callee.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     /// Sets the name of the called group.
     pub fn set_name(&mut self, name: String) {
         self.name = name;
@@ -173,6 +183,21 @@ impl<E> CallSite<E> {
                 .map(f)
                 .collect::<Result<Vec<_>, _>>()?,
         })
+    }
+
+    /// Returns the inputs of the call.
+    pub fn inputs(&self) -> &[E] {
+        &self.inputs
+    }
+
+    /// Returns the names of the outputs of the call.
+    pub fn output_vars(&self) -> &[FuncIO] {
+        &self.output_vars
+    }
+
+    /// Returns the outputs of the call.
+    pub fn outputs(&self) -> &[E] {
+        &self.outputs
     }
 }
 

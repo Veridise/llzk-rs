@@ -32,7 +32,22 @@ where
 {
     let syn = driver.synthesize(&circuit).unwrap();
     let unresolved = driver.generate_ir(&syn, params).unwrap();
-    unresolved.resolve().unwrap()
+    let (status, errs) = unresolved.validate();
+    if status.is_err() {
+        for err in errs {
+            log::error!("{err}");
+        }
+        panic!("Test failed due to validation errors");
+    }
+    let resolved = unresolved.resolve().unwrap();
+    let (status, errs) = resolved.validate();
+    if status.is_err() {
+        for err in errs {
+            log::error!("{err}");
+        }
+        panic!("Test failed due to validation errors");
+    }
+    resolved
 }
 
 #[allow(dead_code)]
@@ -50,7 +65,21 @@ pub fn picus_test<F, C>(
     let mut resolved = synthesize_and_generate_ir(&mut driver, circuit, ir_params);
     if canonicalize {
         resolved.constant_fold().unwrap();
+        let (status, errs) = resolved.validate();
+        if status.is_err() {
+            for err in errs {
+                log::error!("{err}");
+            }
+            panic!("Test failed due to validation errors");
+        }
         resolved.canonicalize();
+        let (status, errs) = resolved.validate();
+        if status.is_err() {
+            for err in errs {
+                log::error!("{err}");
+            }
+            panic!("Test failed due to validation errors");
+        }
     }
     check_picus(&driver, &resolved, params, expected);
 }
