@@ -32,12 +32,24 @@ pub fn lift_free_cells_to_inputs<F: Field>(
 ) -> Vec<FreeCells> {
     let mut result: Vec<_> = groups
         .iter()
-        .map(|g| FreeCells {
-            inputs: find_free_cells(g, groups, region_by_index, constraints)
+        .enumerate()
+        .map(|(id, g)| {
+            let fc = find_free_cells(g, groups, region_by_index, constraints)
                 .into_iter()
                 .filter_map(GroupCell::from_tuple)
-                .collect(),
-            callsites: vec![vec![]; g.children_count()],
+                .collect::<Vec<_>>();
+            if !fc.is_empty() {
+                log::debug!(
+                    "For group {} \"{}\" we found {} free cells",
+                    id,
+                    g.name(),
+                    fc.len()
+                );
+            }
+            FreeCells {
+                inputs: fc,
+                callsites: vec![vec![]; g.children_count()],
+            }
         })
         .collect();
 
@@ -68,7 +80,11 @@ pub fn lift_free_cells_to_inputs<F: Field>(
                         continue;
                     }
                 };
-                log::debug!("Group {caller_idx} calls {callee_idx}");
+                log::debug!(
+                    "Group {caller_idx} \"{}\" calls {callee_idx} \"{}\"",
+                    groups[caller_idx].name(),
+                    groups[callee_idx].name()
+                );
                 callsite.extend(inputs.clone());
             }
             // Check if by extending the callsite we would have new fresh variables
@@ -78,7 +94,7 @@ pub fn lift_free_cells_to_inputs<F: Field>(
                 .into_iter()
                 .filter(|c| !bounds.within_bounds(&c.col(), &c.row()))
                 .collect();
-            log::debug!("Out of bounds cells: {out_of_bounds:?}");
+            log::debug!("Out of bounds cells: {:?}", out_of_bounds);
             if out_of_bounds.is_empty() {
                 log::debug!("Empty");
                 continue;

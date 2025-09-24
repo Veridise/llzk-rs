@@ -75,6 +75,14 @@ impl GroupCell {
             .ok()
             .map(|col| Self::AdviceIO((col, row)))
     }
+
+    /// Returns true if the cell is from a Fixed column.
+    pub fn is_fixed(&self) -> bool {
+        match self {
+            GroupCell::Assigned(cell) => *cell.column.column_type() == Any::Fixed,
+            GroupCell::InstanceIO(_) | GroupCell::AdviceIO(_) => false,
+        }
+    }
 }
 
 impl From<Cell> for GroupCell {
@@ -424,13 +432,23 @@ impl GroupBuilder {
     }
 
     /// Adds a cell to the current group's list of inputs.
+    ///
+    /// If the cell is a fixed cell it is ignored.
     pub fn add_input(&mut self, cell: impl Into<GroupCell>) {
-        self.current_mut().inputs.push(cell.into())
+        let cell = cell.into();
+        if !cell.is_fixed() {
+            self.current_mut().inputs.push(cell)
+        }
     }
 
     /// Adds a cell to the current group's list of outputs.
+    ///
+    /// If the cell is a fixed cell it is ignored.
     pub fn add_output(&mut self, cell: impl Into<GroupCell>) {
-        self.current_mut().outputs.push(cell.into())
+        let cell = cell.into();
+        if !cell.is_fixed() {
+            self.current_mut().outputs.push(cell)
+        }
     }
 
     /// Adds a cell to the root group's list of inputs.
