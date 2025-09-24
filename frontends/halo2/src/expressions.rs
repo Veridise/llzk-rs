@@ -66,6 +66,12 @@ impl<'e, F: Clone> ExpressionInRow<'e, F> {
     }
 }
 
+impl<F: Clone> From<(usize, Expression<F>)> for ExpressionInRow<'_, F> {
+    fn from((row, expr): (usize, Expression<F>)) -> Self {
+        Self::new(row, expr)
+    }
+}
+
 /// Represents an expression associated to an scoped.
 ///
 /// The scope is represented by a [`ResolversProvider`] that returns
