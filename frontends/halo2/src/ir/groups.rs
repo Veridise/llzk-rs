@@ -243,6 +243,11 @@ fn try_relativize_advice_cell<'a>(
 }
 
 impl<E> GroupBody<E> {
+    /// Sets the id of the group.
+    pub fn set_id(&mut self, id: usize) {
+        self.id = id;
+    }
+
     /// Returns true if the group is the top-level.
     pub fn is_main(&self) -> bool {
         self.key.is_none()
@@ -301,6 +306,77 @@ impl<E> GroupBody<E> {
                 .collect::<Result<Vec<_>, _>>()?,
             generate_debug_comments: self.generate_debug_comments,
         })
+    }
+
+    fn validate_callsite(&self, callsite: &CallSite<E>, groups: &[GroupBody<E>]) -> Result<()> {
+        let callee_id = callsite.callee_id();
+        let callee = groups
+            .get(callee_id)
+            .ok_or_else(|| anyhow::anyhow!("Callee with id {callee_id} was not found"))?;
+        if callee.id() != callsite.callee_id() {
+            anyhow::bail!(
+                "Callsite points to \"{}\" ({}) but callee was \"{}\" ({})",
+                callsite.name(),
+                callsite.callee_id(),
+                callee.name(),
+                callee.id()
+            );
+        }
+        if callee.input_count != callsite.inputs().len() {
+            anyhow::bail!(
+                "Callee \"{}\" ({}) was expecting {} inputs but callsite has {}",
+                callee.name(),
+                callee.id(),
+                callee.input_count,
+                callsite.inputs().len()
+            );
+        }
+        if callee.output_count != callsite.outputs().len() {
+            anyhow::bail!(
+                "Callee \"{}\" ({}) was expecting {} outputs but callsite has {}",
+                callee.name(),
+                callee.id(),
+                callee.output_count,
+                callsite.outputs().len()
+            );
+        }
+        if callsite.outputs().len() != callsite.output_vars().len() {
+            anyhow::bail!(
+                "Call to \"{}\" ({}) has {} outputs but declared {} output variables",
+                callsite.name(),
+                callsite.callee_id(),
+                callsite.outputs().len(),
+                callsite.output_vars().len()
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Validates the IR in the group.
+    pub fn validate(&self, groups: &[GroupBody<E>]) -> (Result<()>, Vec<String>) {
+        let mut errors = vec![];
+
+        // Check 1. Consistency of callsites arity.
+        for (call_no, callsite) in self.callsites().iter().enumerate() {
+            if let Err(err) = self.validate_callsite(callsite, groups) {
+                errors.push(format!("On callsite {call_no}: {err}"));
+            }
+        }
+
+        // Return errors if any.
+        (
+            if errors.is_empty() {
+                Ok(())
+            } else {
+                Err(anyhow::anyhow!(
+                    "Validation of group {} failed with {} errors",
+                    self.name(),
+                    errors.len()
+                ))
+            },
+            errors,
+        )
     }
 }
 
