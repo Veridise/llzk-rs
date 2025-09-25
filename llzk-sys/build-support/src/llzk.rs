@@ -44,7 +44,7 @@ impl<'a> LlzkBuild<'a> {
                 .into_string()
                 .map_err(|orig| anyhow::anyhow!("Failed to convert {orig:?} into a String"))?;
             if let Some(lib) = name.strip_prefix("lib").and_then(|s| s.strip_suffix(".a")) {
-                println!("cargo:rustc-link-lib=static={lib}");
+                println!("cargo:rustc-link-lib=static:+whole-archive={lib}");
             }
         }
 
