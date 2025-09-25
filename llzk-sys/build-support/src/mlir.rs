@@ -3,9 +3,9 @@ use bindgen::Builder;
 use cc::Build;
 use cmake::Config;
 use std::borrow::Cow;
-use std::{env, path::Path};
+use std::path::Path;
 
-use super::config_traits::{BindgenConfig, CCConfig, CMakeConfig};
+use super::config::{bindgen::BindgenConfig, cc::CCConfig, cmake::CMakeConfig};
 
 pub struct MlirConfig<'a> {
     passes: &'a [&'a str],
@@ -26,20 +26,27 @@ impl<'a> MlirConfig<'a> {
         }
     }
 
-    pub fn mlir_path(&self) -> Result<Cow<'static, Path>> {
-        let path = Path::new(env!("MLIR_SYS_200_PREFIX"));
+    pub fn mlir_path(&self) -> Result<Option<Cow<'static, Path>>> {
+        let Some(path) = option_env!("MLIR_SYS_200_PREFIX").map(Path::new) else {
+            return Ok(None);
+        };
+
         if !path.is_dir() {
             bail!("MLIR prefix path {} is not a directory", path.display());
         }
-        Ok(Cow::Borrowed(path))
+        Ok(Some(Cow::Borrowed(path)))
     }
 
-    pub fn mlir_cmake_path(&self) -> Result<Cow<'static, Path>> {
-        let path = self.mlir_path()?.join("lib/cmake");
-        if !path.is_dir() {
-            bail!("MLIR cmake path {} is not a directory", path.display());
-        }
-        Ok(Cow::Owned(path))
+    pub fn mlir_cmake_path(&self) -> Result<Option<Cow<'static, Path>>> {
+        self.mlir_path()?
+            .map(|path| {
+                let path = path.join("lib/cmake");
+                if !path.is_dir() {
+                    bail!("MLIR cmake path {} is not a directory", path.display());
+                }
+                Ok(Cow::Owned(path))
+            })
+            .transpose()
     }
 
     pub fn wrapper(&self) -> &'static str {
@@ -65,12 +72,16 @@ impl<'a> MlirConfig<'a> {
     }
 
     fn cmake_flags_list(&self) -> Result<Vec<(&'static str, Cow<'static, Path>)>> {
-        Ok(vec![
-            ("LLVM_DIR", self.mlir_cmake_path()?),
-            ("MLIR_DIR", self.mlir_cmake_path()?),
-            ("LLVM_ROOT", self.mlir_path()?),
-            ("MLIR_ROOT", self.mlir_path()?),
-        ])
+        let mut list = Vec::with_capacity(4);
+        if let Some(path) = self.mlir_path()? {
+            list.push(("LLVM_ROOT", path.clone()));
+            list.push(("MLIR_ROOT", path));
+        }
+        if let Some(cmake_path) = self.mlir_cmake_path()? {
+            list.push(("LLVM_DIR", cmake_path.clone()));
+            list.push(("MLIR_DIR", cmake_path));
+        }
+        Ok(list)
     }
 
     pub fn cmake_flags(&self) -> Result<Vec<String>> {
@@ -94,18 +105,21 @@ impl CMakeConfig for MlirConfig<'_> {
 impl BindgenConfig for MlirConfig<'_> {
     fn apply(&self, bindgen: Builder) -> Result<Builder> {
         let path = self.mlir_path()?;
-        Ok(self.add_allowlist_patterns(
-            BindgenConfig::include_path(self, bindgen, &path)
-                .header(self.wrapper())
-                .parse_callbacks(Box::new(bindgen::CargoCallbacks::new())),
-        ))
+        Ok(self
+            .add_allowlist_patterns(match path {
+                Some(path) => BindgenConfig::include_path(self, bindgen, &path),
+                None => bindgen,
+            })
+            .header(self.wrapper())
+            .parse_callbacks(Box::new(bindgen::CargoCallbacks::new())))
     }
 }
 
 impl CCConfig for MlirConfig<'_> {
     fn apply(&self, cc: &mut Build) -> Result<()> {
-        let path = self.mlir_path()?;
-        CCConfig::include_path(self, cc, &path);
+        if let Some(path) = self.mlir_path()? {
+            CCConfig::include_path(self, cc, &path);
+        }
         Ok(())
     }
 }

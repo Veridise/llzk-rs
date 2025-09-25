@@ -1,12 +1,11 @@
-use anyhow::Result;
-use build_support::{
-    apply_bindgen_cfg, apply_cc_cfg, build_llzk, default::DefaultConfig,
+use anyhow::{Context, Result};
+use llzk_sys_build_support::{
+    build_llzk,
+    config::{bindgen::BindgenConfig, cc::CCConfig},
+    default::DefaultConfig,
     wrap_static_fns::WrapStaticFns,
 };
 use std::{env, path::Path};
-
-#[path = "src/build_support/mod.rs"]
-mod build_support;
 
 const DEFAULT_CFG: DefaultConfig<'static> = DefaultConfig::new(
     &[
@@ -34,15 +33,25 @@ const DEFAULT_CFG: DefaultConfig<'static> = DefaultConfig::new(
     ],
 );
 
-fn main() -> Result<()> {
-    let llzk = build_llzk(&DEFAULT_CFG)?;
-    let static_fns = WrapStaticFns::new()?;
-    apply_bindgen_cfg(bindgen::builder(), &[&DEFAULT_CFG, &llzk, &static_fns])?
-        .generate()?
-        .write_to_file(Path::new(&env::var("OUT_DIR")?).join("bindings.rs"))?;
+fn run() -> Result<()> {
+    let out_dir_var = env::var("OUT_DIR").with_context(|| "Loading OUT_DIR env variable failed")?;
+    let out_dir = Path::new(&out_dir_var);
+    let cfg = (
+        DEFAULT_CFG,
+        build_llzk(&DEFAULT_CFG).context("Failed to build LLZK")?,
+        WrapStaticFns::new(out_dir),
+    );
+    cfg.generate()
+        .context("Failed to generate Bindgen bindings")?
+        .write_to_file(out_dir.join("bindings.rs"))
+        .context("Failed to write bindings to file")?;
 
-    let mut cc = cc::Build::new();
-    apply_cc_cfg(&mut cc, &[&DEFAULT_CFG, &llzk, &static_fns])?;
-    cc.compile("llzk-sys-cc");
-    Ok(())
+    cfg.compile("llzk-sys-cc")
+        .context("Failed to build static functions")
+}
+
+fn main() {
+    if let Err(err) = run() {
+        println!("cargo::error={err:#}");
+    }
 }

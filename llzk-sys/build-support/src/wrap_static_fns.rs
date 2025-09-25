@@ -1,4 +1,4 @@
-use super::config_traits::{BindgenConfig, CCConfig};
+use super::config::{bindgen::BindgenConfig, cc::CCConfig};
 use anyhow::{bail, Result};
 use bindgen::Builder;
 use cc::Build;
@@ -12,10 +12,10 @@ pub struct WrapStaticFns {
 }
 
 impl WrapStaticFns {
-    pub fn new() -> Result<Self> {
-        Ok(Self {
-            dst: Path::new(&env::var("OUT_DIR")?).join("bindgen_wrap"),
-        })
+    pub fn new(out_dir: &Path) -> Self {
+        Self {
+            dst: out_dir.join("bindgen_wrap"),
+        }
     }
 
     pub fn source_file(&self) -> PathBuf {
