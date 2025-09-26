@@ -1,3 +1,5 @@
+//! Configuration for building static functions found by [`bindgen`].
+
 use super::config_traits::{BindgenConfig, CCConfig};
 use anyhow::{bail, Result};
 use bindgen::Builder;
@@ -7,17 +9,21 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// Configuration for building the library that include the implementation of static functions in
+/// LLZK's CAPI.
 pub struct WrapStaticFns {
     dst: PathBuf,
 }
 
 impl WrapStaticFns {
+    /// Creates a new configuration.
     pub fn new() -> Result<Self> {
         Ok(Self {
             dst: Path::new(&env::var("OUT_DIR")?).join("bindgen_wrap"),
         })
     }
 
+    /// Returns the name of the C source file.
     pub fn source_file(&self) -> PathBuf {
         let mut copy = self.dst.clone();
         copy.set_extension("c");
