@@ -2,15 +2,16 @@ name: Continuous Integration
 
 on:
   pull_request:
+  push:
     branches: 
       - main
-  push:
 
 env:
   # /opt/homebrew/opt/llvm@20/ is for macOS
   MLIR_SYS_200_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@20/
   TABLEGEN_200_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@20/
   RUSTFLAGS: '-L /home/linuxbrew/.linuxbrew/opt/llvm@20/lib'
+  LLZK_SYS_ENABLE_WHOLE_ARCHIVE: 1
 
 jobs:
   build:
@@ -18,7 +19,7 @@ jobs:
     strategy:
       matrix:
         BUILD_TARGET: 
-          # - release 
+          - release
           - dev
     steps:
       - uses: actions/checkout@v4
@@ -44,5 +45,5 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Build in "${{ matrix.BUILD_TARGET }}" mode
         run: cargo build --profile ${{ matrix.BUILD_TARGET }}
-#      - name: Run tests in "${{ matrix.BUILD_TARGET }}" mode
-#        run: cargo test --profile ${{ matrix.BUILD_TARGET }}
+      - name: Run tests in "${{ matrix.BUILD_TARGET }}" mode
+        run: cargo test --profile ${{ matrix.BUILD_TARGET }}
