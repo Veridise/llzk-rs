@@ -17,6 +17,9 @@ use crate::build_support::mlir::MlirConfig;
 
 use super::config_traits::{BindgenConfig, CCConfig, CMakeConfig};
 
+/// Location relative to CMake's output directory where libraries will be installed.
+pub const LIBDIR: &str = "lib";
+
 /// The result of building `llzk-lib` CMake project.
 pub struct LlzkBuild {
     path: PathBuf,

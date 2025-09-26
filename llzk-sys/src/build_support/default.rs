@@ -5,6 +5,8 @@ use bindgen::Builder;
 use cc::Build;
 use cmake::Config;
 
+use crate::build_support::llzk::LIBDIR;
+
 use super::{
     config_traits::{BindgenConfig, CCConfig, CMakeConfig},
     mlir::MlirConfig,
@@ -32,6 +34,10 @@ impl CMakeConfig for DefaultConfig<'_> {
     fn apply(&self, cmake: &mut Config) -> Result<()> {
         cmake
             .define("LLZK_BUILD_DEVTOOLS", "OFF")
+            .define("LLZK_ENABLE_BINDINGS_PYTHON", "OFF")
+            // Force the install lib directory for consistency between Linux distros
+            // See: https://stackoverflow.com/questions/76517286/how-does-cmake-decide-to-make-a-lib-or-lib64-directory-for-installations
+            .define("CMAKE_INSTALL_LIBDIR", LIBDIR)
             .define("BUILD_TESTING", "OFF");
         CMakeConfig::apply(&self.mlir, cmake)
     }
