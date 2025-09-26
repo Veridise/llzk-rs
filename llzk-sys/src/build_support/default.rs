@@ -1,3 +1,5 @@
+//! Implementation of the fundamenal configuration.
+
 use anyhow::Result;
 use bindgen::Builder;
 use cc::Build;
@@ -8,11 +10,13 @@ use super::{
     mlir::MlirConfig,
 };
 
+/// Fundamental configuration for the different build tasks.
 pub struct DefaultConfig<'a> {
     mlir: MlirConfig<'a>,
 }
 
 impl<'a> DefaultConfig<'a> {
+    /// Creates a new configuration.
     pub const fn new(
         passes: &'a [&'a str],
         mlir_functions: &'a [&'a str],

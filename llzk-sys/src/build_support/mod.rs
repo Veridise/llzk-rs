@@ -1,3 +1,5 @@
+//! Helper modules for building and linking LLZK and generating the Rust bindings.
+
 use anyhow::Result;
 use bindgen::Builder;
 use cc::Build;
@@ -25,6 +27,7 @@ pub fn apply_cc_cfg(cc: &mut Build, cfgs: &[&dyn CCConfig]) -> Result<()> {
     Ok(())
 }
 
+/// Builds LLZK with or without linking the compile commands db depending on user configuraiton.
 fn build_llzk_inner(default_cfg: &DefaultConfig) -> Result<LlzkBuild> {
     if let Some(comp_db) = CompileCommands::get() {
         let llzk = LlzkBuild::build(&[default_cfg, &comp_db])?;
@@ -34,6 +37,7 @@ fn build_llzk_inner(default_cfg: &DefaultConfig) -> Result<LlzkBuild> {
     LlzkBuild::build(&[default_cfg])
 }
 
+/// Builds `llzk-lib` and emits the cargo instructions to link against it.
 pub fn build_llzk(default_cfg: &DefaultConfig) -> Result<LlzkBuild> {
     let mut llzk = build_llzk_inner(default_cfg)?;
     for path in llzk.link_paths()? {

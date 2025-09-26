@@ -1,3 +1,5 @@
+//! Configuration and build steps related to building LLZK and other projects based on LLZK.
+
 use anyhow::{anyhow, bail, Result};
 use bindgen::Builder;
 use cc::Build;
@@ -15,6 +17,7 @@ use crate::build_support::mlir::MlirConfig;
 
 use super::config_traits::{BindgenConfig, CCConfig, CMakeConfig};
 
+/// The result of building `llzk-lib` CMake project.
 pub struct LlzkBuild {
     path: PathBuf,
     cached_libraries: Option<(Vec<PathBuf>, Vec<String>)>,
@@ -29,8 +32,10 @@ impl From<PathBuf> for LlzkBuild {
     }
 }
 
+/// Delete me.
 const DUMMY_CXX: &str = "int main() {}";
 
+/// Delete me.
 fn dummy_cmakelist(path: &Path) -> String {
     let content = format!(
         r#"
@@ -49,6 +54,7 @@ target_link_libraries(dummy PRIVATE LLZK::LLZKCAPI)
     content
 }
 
+/// Delete me.
 fn extract_libraries_from_dummy(path: &Path) -> Result<(Vec<PathBuf>, Vec<String>)> {
     let workdir = tempfile::tempdir()?;
     let dummy_cxx = workdir.path().join("dummy.cpp");
@@ -145,18 +151,24 @@ impl LlzkBuild {
             .unwrap())
     }
 
+    /// Returns the list of LLZK libraries that need to be linked.
     pub fn library_names(&mut self) -> Result<impl Iterator<Item = &str>> {
         Ok(self.libraries()?.1.into_iter())
     }
 
+    /// Returns the list of paths where to find the libraries.
     pub fn link_paths(&mut self) -> Result<impl Iterator<Item = &Path>> {
         Ok(self.libraries()?.0.into_iter())
     }
 
+    /// Build directory.
     pub fn path(&self) -> &Path {
         &self.path
     }
 
+    /// Builds `llzk-lib`'s CMake project using the given configuration.
+    ///
+    /// Emits cargo commands to avoid rerunning unless `llzk-lib` changes.
     pub fn build(cfgs: &[&dyn CMakeConfig]) -> Result<Self> {
         let mut cmake = Config::new(Self::src_path());
         for cfg in cfgs {
@@ -171,6 +183,7 @@ impl LlzkBuild {
         Ok(cmake.build().join("build").into())
     }
 
+    /// Returns the path, relative to `llzk-sys`'s build script, where LLZK is.
     pub fn src_path() -> &'static Path {
         Path::new("llzk-lib")
     }
