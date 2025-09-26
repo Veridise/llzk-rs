@@ -1,3 +1,5 @@
+//! Configuration related to MLIR and LLVM.
+
 use anyhow::{bail, Result};
 use bindgen::Builder;
 use cc::Build;
@@ -7,6 +9,7 @@ use std::path::Path;
 
 use super::config::{bindgen::BindgenConfig, cc::CCConfig, cmake::CMakeConfig};
 
+/// Configuration specific to linking MLIR and LLVM.
 pub struct MlirConfig<'a> {
     passes: &'a [&'a str],
     mlir_functions: &'a [&'a str],
@@ -14,6 +17,7 @@ pub struct MlirConfig<'a> {
 }
 
 impl<'a> MlirConfig<'a> {
+    /// Creates a new MLIR configuration.
     pub const fn new(
         passes: &'a [&'a str],
         mlir_functions: &'a [&'a str],
@@ -26,6 +30,9 @@ impl<'a> MlirConfig<'a> {
         }
     }
 
+    /// Returns the path configured by the `MLIR_SYS_200_PREFIX` environment variable.
+    ///
+    /// Returns [`Err`] if the path does not exists or is not a directory.
     pub fn mlir_path(&self) -> Result<Option<Cow<'static, Path>>> {
         let Some(path) = option_env!("MLIR_SYS_200_PREFIX").map(Path::new) else {
             return Ok(None);
@@ -37,6 +44,10 @@ impl<'a> MlirConfig<'a> {
         Ok(Some(Cow::Borrowed(path)))
     }
 
+    /// Returns the path `$MLIR_SYS_200_PREFIX/lib/cmake`.
+    ///
+    /// Returns [`Err`] if the path does not exists or is not a directory. Also if [`Self::mlir_path`]
+    /// fails
     pub fn mlir_cmake_path(&self) -> Result<Option<Cow<'static, Path>>> {
         self.mlir_path()?
             .map(|path| {
@@ -49,10 +60,16 @@ impl<'a> MlirConfig<'a> {
             .transpose()
     }
 
+    /// Name of the wrapper header file that includes all the exported headers.
+    ///
+    /// TODO: We should move this to DefaultConfig.
     pub fn wrapper(&self) -> &'static str {
         "wrapper.h"
     }
 
+    /// Configures the allow list of functions and types for LLZK and MLIR.
+    ///
+    /// TODO: We should move the LLZK stuff to DefaultConfig.
     fn add_allowlist_patterns(&self, bindgen: Builder) -> Builder {
         let bindgen = bindgen
             .allowlist_item("[Ll]lzk.*")
@@ -71,6 +88,7 @@ impl<'a> MlirConfig<'a> {
         })
     }
 
+    /// Returns the LLVM and MLIR directories for used by CMake to locate them.
     fn cmake_flags_list(&self) -> Result<Vec<(&'static str, Cow<'static, Path>)>> {
         let mut list = Vec::with_capacity(4);
         if let Some(path) = self.mlir_path()? {
@@ -84,6 +102,7 @@ impl<'a> MlirConfig<'a> {
         Ok(list)
     }
 
+    /// Returns the LLVM and MLIR directories for used by CMake to locate them in CLI argument form.
     pub fn cmake_flags(&self) -> Result<Vec<String>> {
         Ok(self
             .cmake_flags_list()?
@@ -110,6 +129,7 @@ impl BindgenConfig for MlirConfig<'_> {
                 Some(path) => BindgenConfig::include_path(self, bindgen, &path),
                 None => bindgen,
             })
+            // TODO: Methods below should be moved to DefaultConfig.
             .header(self.wrapper())
             .parse_callbacks(Box::new(bindgen::CargoCallbacks::new())))
     }

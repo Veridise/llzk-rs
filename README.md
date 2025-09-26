@@ -5,7 +5,7 @@ This repository is a collection of Rust crates that gives Rust developers access
 > [!warning]
 > These crates are under active development and things may change unexpectedly.
 
-## Usage 
+## Usage (pre v1 release)
 
 To use the llzk bindings add the crates to your Cargo.toml:
 
@@ -27,6 +27,8 @@ export CXX=clang++
 export CC=clang
 export RUSTFLAGS='-L /opt/homebrew/lib/'
 ```
+
+See [`llzk-sys`'s README](llzk-sys/README.md) for more details on setting up the build environment.
 
 If working on LLZK via the submodule you can enable dumping the compile commands when building with cargo. Assuming the current directory is where your editor will look for the compile commands you can link them setting the `LLZK_EMIT_COMPILE_COMMANDS` environment variable as follows.
 
