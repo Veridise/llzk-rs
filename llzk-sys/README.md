@@ -11,7 +11,7 @@ LLZK is maintained as a submodule and built in place when building the crate.
 cargo add llzk-sys
 ```
 
-For building set the environment variable `MLIR_SYS_200_PREFIX` with the path to a distribution of LLVM 20. For example, to use LLVM 20 installed via Homebrew in macOS (`brew install llvm@20`) set it to `/opt/homebrew/opt/llvm@20/`. This is the only required variable. The recommened environment for building is as follows.
+For building, set the environment variable `MLIR_SYS_200_PREFIX` with the path to a distribution of LLVM 20. For example, to use LLVM 20 installed via Homebrew in macOS (`brew install llvm@20`) set it to `/opt/homebrew/opt/llvm@20/`. This is the only required variable. The recommended environment for building is as follows.
 
 ```
 export MLIR_SYS_200_PREFIX=...
