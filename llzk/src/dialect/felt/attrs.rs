@@ -94,3 +94,23 @@ impl<'c> From<FeltConstAttribute<'c>> for Attribute<'c> {
         attr.inner
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::prelude::*;
+    use quickcheck_macros::quickcheck;
+
+    #[quickcheck]
+    fn felt_const_attr_new(value: u64) {
+        let ctx = LlzkContext::new();
+        let _ = FeltConstAttribute::new(&ctx, value);
+    }
+
+    #[quickcheck]
+    #[should_panic]
+    fn felt_const_attr_parse_from_u64(value: u64) {
+        let ctx = LlzkContext::new();
+        let _ = FeltConstAttribute::parse(&ctx, &value.to_string());
+    }
+}

@@ -721,7 +721,10 @@ dependencies = [
  "melior",
  "mlir-sys",
  "paste",
+ "quickcheck",
+ "quickcheck_macros",
  "rstest 0.25.0",
+ "simplelog",
 ]
 
 [[package]]

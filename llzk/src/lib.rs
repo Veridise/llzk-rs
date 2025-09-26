@@ -32,12 +32,19 @@ pub mod prelude {
         pub use crate::dialect::array::{extract, insert, new, read, write};
     }
     /// Exports functions that create operations
+    pub mod bool {
+        pub use crate::dialect::bool::{eq, ge, gt, le, lt, ne};
+    }
+    /// Exports functions that create operations
     pub mod constrain {
         pub use crate::dialect::constrain::{eq, r#in};
     }
     /// Exports functions that create operations
     pub mod felt {
-        pub use crate::dialect::felt::{add, constant, mul, neg, sub};
+        pub use crate::dialect::felt::{
+            add, bit_and, bit_not, bit_or, bit_xor, constant, div, inv, mul, neg, r#mod, shl, shr,
+            sub,
+        };
     }
     /// Exports functions that create operations
     pub mod function {
@@ -51,4 +58,10 @@ pub mod prelude {
     pub mod r#struct {
         pub use crate::dialect::r#struct::{def, field, new, readf, readf_with_offset, writef};
     }
+
+    // melior reexports of commonly used types.
+    pub use melior::ir::block::{Block, BlockLike};
+    pub use melior::ir::operation::OperationLike;
+    pub use melior::ir::operation::OperationMutLike;
+    pub use melior::ir::RegionLike;
 }
