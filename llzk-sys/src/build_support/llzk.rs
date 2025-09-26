@@ -15,6 +15,8 @@ use crate::build_support::mlir::MlirConfig;
 
 use super::config_traits::{BindgenConfig, CCConfig, CMakeConfig};
 
+pub const LIBDIR: &str = "lib";
+
 pub struct LlzkBuild {
     path: PathBuf,
     cached_libraries: Option<(Vec<PathBuf>, Vec<String>)>,
