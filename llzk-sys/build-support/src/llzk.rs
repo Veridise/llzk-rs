@@ -8,20 +8,28 @@ use super::config::{bindgen::BindgenConfig, cc::CCConfig, cmake::CMakeConfig};
 pub const LIBDIR: &'static str = "lib";
 
 pub struct LlzkBuild<'a> {
-    path: PathBuf,
+    dst_path: PathBuf,
     src_path: &'a Path,
 }
 
 impl<'a> LlzkBuild<'a> {
     fn new(src: &'a Path, dst: PathBuf) -> Self {
         Self {
-            path: dst,
+            dst_path: dst,
             src_path: src,
         }
     }
 
-    pub fn path(&self) -> &Path {
-        &self.path
+    pub fn dst_path(&self) -> &Path {
+        &self.dst_path
+    }
+
+    pub fn lib_path(&self) -> PathBuf {
+        self.dst_path.join(LIBDIR)
+    }
+
+    pub fn build_path(&self) -> PathBuf {
+        self.dst_path.join("build")
     }
 
     pub fn emit_cargo_instructions(&self) -> Result<()> {
@@ -31,7 +39,7 @@ impl<'a> LlzkBuild<'a> {
         );
         println!("cargo:rerun-if-changed={}/lib", self.src_path().display());
 
-        let lib_path = self.path.join(LIBDIR);
+        let lib_path = self.lib_path();
 
         println!("cargo:rustc-link-search=native={}", lib_path.display());
         // Adding the whole archive modifier is optional since only seems to be required for some GNU-like linkers.
@@ -72,14 +80,14 @@ impl BindgenConfig for LlzkBuild<'_> {
         Ok(BindgenConfig::include_paths(
             self,
             bindgen,
-            &[&self.path.join("build"), self.src_path],
+            &[&self.build_path(), self.src_path],
         ))
     }
 }
 
 impl CCConfig for LlzkBuild<'_> {
     fn apply(&self, cc: &mut Build) -> Result<()> {
-        CCConfig::include_paths(self, cc, &[&self.path.join("build"), self.src_path]);
+        CCConfig::include_paths(self, cc, &[&self.build_path(), self.src_path]);
         Ok(())
     }
 }
