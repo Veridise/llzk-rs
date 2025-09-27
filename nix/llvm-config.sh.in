@@ -1,0 +1,90 @@
+#!/bin/sh
+#
+# This is a tool like llvm-config for the standalone MLIR built by flake.nix
+# that is intended to support the uses in https://github.com/mlir-rs/mlir-sys
+# but may not support all uses that the normal llvm-config supports.
+#
+
+error_and_quit() {
+  echo "ERROR: $1" >&2
+  echo "WARNING: This is a minimal llvm-config replacement that allows the" \
+       "standalone MLIR built by https://github.com/Veridise/llzk-nix-pkgs" \
+       "to be used with https://github.com/mlir-rs/mlir-sys. It is not" \
+       "guaranteed to support anything beyond the specific option" \
+       "combinations used by mlir-sys." >&2
+  echo "Usage: llvm-config --link-static [options]" >&2
+  exit 1
+}
+
+# mlir-sys always uses '--link-static' as first argument
+if [ "$1" != "--link-static" ]; then
+  error_and_quit "Expected --link-static as first argument"
+fi
+
+case "$2" in
+  --version)
+    echo "@version@"
+    ;;
+  --prefix)
+    echo "@out@"
+    ;;
+  --bindir)
+    echo "@out@/bin"
+    ;;
+  --includedir)
+    echo "@out@/include"
+    ;;
+  --libdir)
+    echo "@out@/lib"
+    ;;
+  --cppflags)
+    error_and_quit "unsupported option '$2'"
+    ;;
+  --cxxflags)
+    error_and_quit "unsupported option '$2'"
+    ;;
+  --ldflags)
+    error_and_quit "unsupported option '$2'"
+    ;;
+  --system-libs)
+    echo "-lm -lz -lzstd -lxml2"
+    ;;
+  --libs)
+    # static library file names with -l prefix instead of lib*.a
+    find "@out@/lib" -name "lib*.a" | \
+    sed -e 's|.*/||' -e 's|\.a$||' -e 's|^lib|-l|' | \
+    tr '\n' ' '
+    echo
+    ;;
+  --libnames)
+    # Just the static library file names
+    find "@out@/lib" -name "lib*.a" | \
+    sed 's|.*/||' | \
+    tr '\n' ' '
+    echo
+    ;;
+  --shared-mode)
+    # mlir-sys always uses the '--link-static' option
+    echo "static"
+    ;;
+  --assertion-mode)
+    # per LLVM_ENABLE_ASSERTIONS=ON setting in llzk-nix-pkgs/packages/llzk_llvm/mlir/default.nix
+    echo "ON"
+    ;;
+  --has-rtti)
+    # per LLVM_ENABLE_RTTI=ON setting in llzk-nix-pkgs/packages/llzk_llvm/mlir/default.nix
+    echo "YES"
+    ;;
+  --build-mode)
+    echo "@cmakeBuildType@"
+    ;;
+  --targets-built)
+    error_and_quit "unsupported option '$2'"
+    ;;
+  --host-target)
+    error_and_quit "unsupported option '$2'"
+    ;;
+  *)
+    error_and_quit "unknown option: $2"
+    ;;
+esac
