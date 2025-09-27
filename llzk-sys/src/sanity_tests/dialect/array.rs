@@ -224,7 +224,6 @@ fn create_n_ops(ctx: MlirContext, n_ops: i64, elt_type: MlirType) -> Vec<MlirOpe
             .map(|n| {
                 let attr = mlirNamedAttributeGet(attr_name, mlirIntegerAttrGet(elt_type, n));
                 let mut op_state = mlirOperationStateGet(name, location);
-                mlirOperationStateAddResults(&mut op_state, 1, &elt_type);
                 mlirOperationStateAddAttributes(&mut op_state, 1, &attr);
                 mlirOperationStateEnableResultTypeInference(&mut op_state);
 
