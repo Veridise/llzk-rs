@@ -6,12 +6,11 @@ use crate::{
     sanity_tests::{context, load_llzk_dialects, TestContext},
 };
 use mlir_sys::{
-    mlirAttributeEqual, mlirIdentifierGet, mlirIndexTypeGet, mlirIntegerAttrGet,
-    mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate, mlirOperationDestroy,
-    mlirOperationGetResult, mlirOperationStateAddAttributes, mlirOperationStateAddResults,
+    MlirContext, MlirOperation, MlirType, mlirAttributeEqual, mlirIdentifierGet, mlirIndexTypeGet,
+    mlirIntegerAttrGet, mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate,
+    mlirOperationDestroy, mlirOperationGetResult, mlirOperationStateAddAttributes,
     mlirOperationStateEnableResultTypeInference, mlirOperationStateGet, mlirOperationVerify,
-    mlirStringRefCreateFromCString, mlirTypeEqual, MlirContext, MlirOperation,
-    MlirType,
+    mlirStringRefCreateFromCString, mlirTypeEqual,
 };
 use rstest::{fixture, rstest};
 use std::{
@@ -224,7 +223,6 @@ fn create_n_ops(ctx: MlirContext, n_ops: i64, elt_type: MlirType) -> Vec<MlirOpe
             .map(|n| {
                 let attr = mlirNamedAttributeGet(attr_name, mlirIntegerAttrGet(elt_type, n));
                 let mut op_state = mlirOperationStateGet(name, location);
-                mlirOperationStateAddResults(&mut op_state, 1, &elt_type);
                 mlirOperationStateAddAttributes(&mut op_state, 1, &attr);
                 mlirOperationStateEnableResultTypeInference(&mut op_state);
 
