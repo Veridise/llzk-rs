@@ -1,5 +1,6 @@
 {
   inputs = {
+    # TODO: After llzk-nix-pkgs is updated, drop "?ref=th/cleanup"
     llzk-pkgs.url = "github:Veridise/llzk-nix-pkgs?ref=th/cleanup";
 
     nixpkgs = {
@@ -13,6 +14,7 @@
     };
 
     llzk = {
+      # TODO: After llzk-lib is updated, drop "?ref=th/update_llzk_nix_pkgs"
       url = "github:Veridise/llzk-lib?ref=th/update_llzk_nix_pkgs";
       inputs = {
         nixpkgs.follows = "llzk-pkgs/nixpkgs";
