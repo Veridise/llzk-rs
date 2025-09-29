@@ -143,7 +143,10 @@ impl VarKind for VarKey {
 
     fn is_temp(&self) -> bool {
         match self {
-            VarKey::IO(func_io) => matches!(func_io, FuncIO::Advice(_) | FuncIO::CallOutput(_, _)),
+            VarKey::IO(func_io) => matches!(
+                func_io,
+                FuncIO::Advice(_) | FuncIO::CallOutput(_, _) | FuncIO::Temp(_)
+            ),
             VarKey::Temp => true,
             _ => false,
         }
