@@ -23,15 +23,6 @@ pub trait CCConfig {
         }
     }
 
-    /// Chains two configs together.
-    fn then<O>(self, other: O) -> (Self, O)
-    where
-        O: CCConfig,
-        Self: Sized,
-    {
-        (self, other)
-    }
-
     /// Applies itself to a fresh CMake [`Config`] and then runs it.
     ///
     /// Takes the source path as input and returns the path where CMake built the project.
