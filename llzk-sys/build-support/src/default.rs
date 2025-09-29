@@ -5,14 +5,14 @@ use bindgen::Builder;
 use cc::Build;
 use cmake::Config;
 
-use crate::build_support::llzk::LIBDIR;
-
-use super::{
-    config_traits::{BindgenConfig, CCConfig, CMakeConfig},
+use crate::{
+    config_traits::{bindgen::BindgenConfig, cc::CCConfig, cmake::CMakeConfig},
+    llzk::LIBDIR,
     mlir::MlirConfig,
 };
 
 /// Fundamental configuration for the different build tasks.
+#[derive(Debug, Copy, Clone)]
 pub struct DefaultConfig<'a> {
     mlir: MlirConfig<'a>,
 }
@@ -27,6 +27,11 @@ impl<'a> DefaultConfig<'a> {
         Self {
             mlir: MlirConfig::new(passes, mlir_functions, mlir_types),
         }
+    }
+
+    /// Name of the wrapper header file that includes all the exported headers.
+    pub fn wrapper(&self) -> &'static str {
+        "wrapper.h"
     }
 }
 
@@ -45,6 +50,12 @@ impl CMakeConfig for DefaultConfig<'_> {
 
 impl BindgenConfig for DefaultConfig<'_> {
     fn apply(&self, bindgen: Builder) -> Result<Builder> {
+        let bindgen = bindgen
+            .allowlist_item("[Ll]lzk.*")
+            .allowlist_var("LLZK_.*")
+            .allowlist_recursively(false)
+            .header(self.wrapper())
+            .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
         BindgenConfig::apply(&self.mlir, bindgen)
     }
 }
