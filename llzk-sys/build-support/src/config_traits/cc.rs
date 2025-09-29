@@ -23,9 +23,7 @@ pub trait CCConfig {
         }
     }
 
-    /// Applies itself to a fresh CMake [`Config`] and then runs it.
-    ///
-    /// Takes the source path as input and returns the path where CMake built the project.
+    /// Applies itself to a fresh CC [`Build`] and then runs it.
     fn try_compile(&self, name: &str) -> Result<()> {
         let mut cc = Build::new();
         self.apply(&mut cc)?;
