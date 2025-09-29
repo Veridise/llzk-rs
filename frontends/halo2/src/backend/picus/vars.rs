@@ -66,6 +66,7 @@ impl NamingConvention {
                     format!("lkp{id}_{col}_{row}_{idx}_{ridx}")
                 }
                 FuncIO::CallOutput(module, out) => format!("cout_{module}_{out}"),
+                FuncIO::Temp(temp) => format!("t{}", *temp),
             },
         }
     }

@@ -28,6 +28,7 @@ use crate::{
         regions::{RegionData, RegionRow, Row},
         CircuitSynthesis,
     },
+    temps::{ExprOrTemp, Temps},
     utils, GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
 };
 use anyhow::Result;
@@ -52,7 +53,7 @@ pub struct GroupBody<E> {
     generate_debug_comments: bool,
 }
 
-impl<'cb, 'syn, 'ctx, 'sco, F> GroupBody<ScopedExpression<'syn, 'sco, F>>
+impl<'cb, 'syn, 'ctx, 'sco, F> GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>
 where
     'cb: 'sco + 'syn,
     'syn: 'sco,
@@ -88,15 +89,19 @@ where
         };
 
         log::debug!("Lowering gates for group {:?}", group.name());
-        let gates = IRStmt::seq(lower_gates(
-            ctx.syn().gates(),
-            &group.regions(),
-            ctx.patterns(),
-            advice_io,
-            instance_io,
-            ctx.syn().fixed_query_resolver(),
-            ctx.generate_debug_comments(),
-        )?);
+        let gates = IRStmt::seq(
+            lower_gates(
+                ctx.syn().gates(),
+                &group.regions(),
+                ctx.patterns(),
+                advice_io,
+                instance_io,
+                ctx.syn().fixed_query_resolver(),
+                ctx.generate_debug_comments(),
+            )?
+            .into_iter()
+            .map(|stmt| stmt.map(&ExprOrTemp::Expr)),
+        );
         log::debug!("Gates IR: {gates:?}");
 
         log::debug!(
@@ -124,7 +129,11 @@ where
             ctx.regions_by_index(),
         );
         eq_constraints.extend(extra_eq_constraints);
-        let eq_constraints = IRStmt::seq(eq_constraints);
+        let eq_constraints = IRStmt::seq(
+            eq_constraints
+                .into_iter()
+                .map(|stmt| stmt.map(&ExprOrTemp::Expr)),
+        );
 
         log::debug!(
             "[{}] Equality constraints (lowered): {eq_constraints:?}",
@@ -163,11 +172,10 @@ where
         instance_io: &'ctx crate::io::InstanceIO,
         fqr: &'syn dyn FixedQueryResolver<F>,
     ) -> anyhow::Result<()> {
-        // TODO: See if there is a problem here on why the injected IR does not resolve the row
-        // properly. See the demo example for midnight.
-        self.injected.push(
-            ir.try_map(&|expr| expr.scoped_in_region_row(region, advice_io, instance_io, fqr))?,
-        );
+        self.injected.push(ir.try_map(&|expr| {
+            expr.scoped_in_region_row(region, advice_io, instance_io, fqr)
+                .map(ExprOrTemp::Expr)
+        })?);
         Ok(())
     }
 }
@@ -681,26 +689,29 @@ fn codegen_lookup_invocations<'sco, 'syn, 'ctx, 'cb, F>(
     region_rows: &[RegionRow<'syn, 'ctx, 'syn, F>],
     lookup_cb: &'cb dyn LookupCallbacks<F>,
     generate_debug_comments: bool,
-) -> Result<Vec<IRStmt<ScopedExpression<'syn, 'sco, F>>>>
+) -> Result<Vec<IRStmt<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>>>
 where
     'syn: 'sco,
     'ctx: 'sco + 'syn,
     'cb: 'sco + 'syn,
     F: Field,
 {
+    let mut temps = Temps::new();
     utils::product(syn.lookups(), region_rows)
         .map(|(lookup, rr)| {
             let table = LazyLookupTableGenerator::new(|| {
                 syn.tables_for_lookup(&lookup)
                     .map(|table| table.into_boxed_slice())
             });
-            lookup_cb.on_lookup(lookup, &table).map(|stmts| {
-                let comment = IRStmt::comment(format!("{lookup} @ {}", rr.header()));
-                let stmts = stmts
-                    .into_iter()
-                    .map(|stmt| stmt.map(&|e| ScopedExpression::from_cow(e, *rr)));
-                prepend_comment(stmts.collect(), comment, generate_debug_comments)
-            })
+            lookup_cb
+                .on_lookup(lookup, &table, &mut temps)
+                .map(|stmts| {
+                    let comment = IRStmt::comment(format!("{lookup} @ {}", rr.header()));
+                    let stmts = stmts
+                        .into_iter()
+                        .map(|stmt| stmt.map(&|e| e.map(|e| ScopedExpression::from_cow(e, *rr))));
+                    prepend_comment(stmts.collect(), comment, generate_debug_comments)
+                })
         })
         .collect()
 }
@@ -708,11 +719,11 @@ where
 /// If the given statement is not empty prepends a comment
 /// with contextual information.
 #[inline]
-fn prepend_comment<'a, F: Field>(
-    stmt: IRStmt<ScopedExpression<'a, 'a, F>>,
-    comment: IRStmt<ScopedExpression<'a, 'a, F>>,
+fn prepend_comment<E>(
+    stmt: IRStmt<E>,
+    comment: IRStmt<E>,
     generate_debug_comments: bool,
-) -> IRStmt<ScopedExpression<'a, 'a, F>> {
+) -> IRStmt<E> {
     if stmt.is_empty() || !generate_debug_comments {
         return stmt;
     }
