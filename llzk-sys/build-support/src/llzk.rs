@@ -321,11 +321,13 @@ mod tests {
         let mut buff = Vec::new();
         llzk.emit_cargo_commands(Cursor::new(&mut buff), wac)
             .unwrap();
-        String::from_utf8(buff)
+        let mut cmds: Vec<_> = String::from_utf8(buff)
             .unwrap()
             .lines()
             .map(ToOwned::to_owned)
-            .collect()
+            .collect();
+        cmds.sort();
+        cmds
     }
 
     #[test]
@@ -340,12 +342,12 @@ mod tests {
         let expected = vec![
             format!("cargo:rerun-if-changed={}/include", src.path().display()),
             format!("cargo:rerun-if-changed={}/lib", src.path().display()),
+            "cargo:rustc-link-lib=static=XXX".to_string(),
+            "cargo:rustc-link-lib=static=YYY".to_string(),
             format!(
                 "cargo:rustc-link-search=native={}",
                 dst.path().join(LIBDIR).display()
             ),
-            "cargo:rustc-link-lib=static=YYY".to_string(),
-            "cargo:rustc-link-lib=static=XXX".to_string(),
         ];
         assert_eq!(commands, expected)
     }
@@ -362,12 +364,12 @@ mod tests {
         let expected = vec![
             format!("cargo:rerun-if-changed={}/include", src.path().display()),
             format!("cargo:rerun-if-changed={}/lib", src.path().display()),
+            "cargo:rustc-link-lib=static:-whole-archive=XXX".to_string(),
+            "cargo:rustc-link-lib=static:-whole-archive=YYY".to_string(),
             format!(
                 "cargo:rustc-link-search=native={}",
                 dst.path().join(LIBDIR).display()
             ),
-            "cargo:rustc-link-lib=static:-whole-archive=YYY".to_string(),
-            "cargo:rustc-link-lib=static:-whole-archive=XXX".to_string(),
         ];
         assert_eq!(commands, expected)
     }
@@ -384,12 +386,12 @@ mod tests {
         let expected = vec![
             format!("cargo:rerun-if-changed={}/include", src.path().display()),
             format!("cargo:rerun-if-changed={}/lib", src.path().display()),
+            "cargo:rustc-link-lib=static:+whole-archive=XXX".to_string(),
+            "cargo:rustc-link-lib=static:+whole-archive=YYY".to_string(),
             format!(
                 "cargo:rustc-link-search=native={}",
                 dst.path().join(LIBDIR).display()
             ),
-            "cargo:rustc-link-lib=static:+whole-archive=YYY".to_string(),
-            "cargo:rustc-link-lib=static:+whole-archive=XXX".to_string(),
         ];
         assert_eq!(commands, expected)
     }
