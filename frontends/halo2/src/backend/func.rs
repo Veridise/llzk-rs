@@ -243,6 +243,7 @@ impl EqvRelation<FuncIO> for SymbolicEqv {
                 FuncIO::TableLookup(_, col1, row1, _, _),
             ) => col0 == col1 && row0 == row1,
             (FuncIO::CallOutput(_, o0), FuncIO::CallOutput(_, o1)) => o0 == o1,
+            (FuncIO::Temp(lhs), FuncIO::Temp(rhs)) => lhs == rhs,
             _ => false,
         }
     }
