@@ -373,3 +373,8 @@ impl<'c> ExprLowering for LlzkStructLowering<'c> {
         todo!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+}
