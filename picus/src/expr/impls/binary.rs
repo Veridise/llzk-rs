@@ -103,6 +103,23 @@ macro_rules! binary_expr_common {
                     }
                 }
             }
+
+            fn replaced_by_const(&self, map: &HashMap<VarStr, Felt>) -> Option<Expr> {
+                let lhs = self.lhs().replaced_by_const(map);
+                let rhs = self.rhs().replaced_by_const(map);
+                match (lhs, rhs) {
+                    // If arguments didn't change return None
+                    (None, None) => None,
+                    // If at least one of the arguments changed then we need to return a new
+                    // version of self to propagate the change downstream
+                    (lhs, rhs) => {
+                        // Extract or default to the prior value
+                        let lhs = lhs.unwrap_or_else(|| self.lhs());
+                        let rhs = rhs.unwrap_or_else(|| self.rhs());
+                        Some(Wrap::new(Self(self.0, lhs, rhs)))
+                    }
+                }
+            }
         }
 
         impl MaybeVarLike for BinaryExpr<$K> {

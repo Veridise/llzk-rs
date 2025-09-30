@@ -73,7 +73,8 @@ impl NamingConvention {
 
     fn format_temp(&self) -> String {
         match self {
-            NamingConvention::Short => "t",
+            // These temps are exclusive from the Picus backend so we use 'pt' for 'Picus temp'.
+            NamingConvention::Short => "pt",
         }
         .to_owned()
     }

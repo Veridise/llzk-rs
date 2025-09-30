@@ -14,7 +14,9 @@ use super::{
     vars::{NamingConvention, VarKey},
 };
 use picus::{
-    opt::passes::{ConsolidateVarNamesPass, EnsureMaxExprSizePass, FoldExprsPass},
+    opt::passes::{
+        ConsolidateVarNamesPass, EnsureMaxExprSizePass, FoldExprsPass, ReplaceKnownConstsPass,
+    },
     vars::VarStr,
 };
 
@@ -56,7 +58,9 @@ impl PicusCodegenInner {
         }
         let mut pipeline = PipelineBuilder::new()
             .add_pass::<FoldExprsPass>()
-            .add_pass::<ConsolidateVarNamesPass>();
+            .add_pass::<ConsolidateVarNamesPass>()
+            .add_pass::<ReplaceKnownConstsPass>()
+            .add_pass::<FoldExprsPass>();
         if let Some(expr_cutoff) = self.params.expr_cutoff() {
             pipeline = pipeline.add_pass_with_params::<EnsureMaxExprSizePass<NamingConvention>>((
                 expr_cutoff,

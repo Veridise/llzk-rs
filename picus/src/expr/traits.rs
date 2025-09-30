@@ -43,6 +43,9 @@ pub trait ConstantFolding {
     /// If the expression folded returns Some(expr), otherwise returns None
     fn fold(&self, prime: &Felt) -> Option<Expr>;
 
+    /// If the op matches one of the var names replaces if with the associated felt value.
+    fn replaced_by_const(&self, map: &HashMap<VarStr, Felt>) -> Option<Expr>;
+
     /// Returns true if the expression folds to a constant 1.
     fn is_one(&self) -> bool {
         if let Some(n) = self.as_const() {

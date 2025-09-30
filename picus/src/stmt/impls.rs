@@ -174,6 +174,10 @@ impl CallLike for CallStmt {
             .into(),
         )
     }
+
+    fn outputs(&self) -> &[VarStr] {
+        &self.outputs.0
+    }
 }
 
 impl MaybeCallLike for CallStmt {

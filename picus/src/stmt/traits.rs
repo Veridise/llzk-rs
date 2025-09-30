@@ -29,6 +29,8 @@ pub trait CallLike {
     fn callee(&self) -> &str;
 
     fn with_new_callee(&self, new_name: String) -> Stmt;
+
+    fn outputs(&self) -> &[VarStr];
 }
 
 pub trait StmtConstantFolding {
@@ -54,6 +56,10 @@ impl CallLike for CallLikeAdaptor<'_> {
 
     fn with_new_callee(&self, new_name: String) -> Stmt {
         self.0.with_new_callee(new_name)
+    }
+
+    fn outputs(&self) -> &[VarStr] {
+        self.0.outputs()
     }
 }
 
