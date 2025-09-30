@@ -56,6 +56,7 @@ pub mod prelude {
     }
     /// Exports functions that create operations
     pub mod r#struct {
+        pub use crate::dialect::r#struct::helpers;
         pub use crate::dialect::r#struct::{def, field, new, readf, readf_with_offset, writef};
     }
 

@@ -10,6 +10,7 @@ use mlir_sys::MlirType;
 
 use crate::utils::FromRaw;
 
+#[derive(Copy, Clone)]
 pub struct StructType<'c> {
     t: Type<'c>,
 }
@@ -27,6 +28,14 @@ impl<'c> StructType<'c> {
 
     pub fn from_str(context: &'c Context, name: &str) -> Self {
         Self::new(FlatSymbolRefAttribute::new(context, name), &[])
+    }
+
+    pub fn from_str_params(context: &'c Context, name: &str, params: &[&str]) -> Self {
+        let params: Vec<Attribute> = params
+            .iter()
+            .map(|param| FlatSymbolRefAttribute::new(context, param).into())
+            .collect();
+        Self::new(FlatSymbolRefAttribute::new(context, name), &params)
     }
 }
 

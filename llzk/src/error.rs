@@ -12,6 +12,8 @@ pub enum Error {
     BuildMthdFailed(&'static str),
     OutOfBoundsArgument(Option<String>, usize),
     OperationExpected(&'static str, String),
+    BlockExpected(usize),
+    EmptyBlock,
     Melior(MeliorError),
 }
 
@@ -50,6 +52,15 @@ impl Display for Error {
                 }
             }
             Error::BuildMthdFailed(mthd) => write!(f, "build method '{mthd}' failed"),
+            Error::BlockExpected(nth) => {
+                write!(
+                    f,
+                    "region was expected to have at least {} block{}",
+                    nth + 1,
+                    if *nth == 0 { "" } else { "s" }
+                )
+            }
+            Error::EmptyBlock => write!(f, "block was expected not to be empty"),
         }
     }
 }

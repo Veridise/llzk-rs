@@ -724,6 +724,7 @@ dependencies = [
  "quickcheck",
  "quickcheck_macros",
  "rstest 0.25.0",
+ "similar-asserts",
  "simplelog",
 ]
 

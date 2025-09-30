@@ -17,11 +17,10 @@ fn create_field<'c>(
     name: &str,
     public: bool,
 ) -> Result<FieldDefOp<'c>, LlzkError> {
-    let field_name = FlatSymbolRefAttribute::new(context, name);
     let filename = format!("struct {header} | field {name}");
     let loc = Location::new(context, &filename, 0, 0);
 
-    r#struct::field(loc, field_name, FeltType::new(context), false, public)
+    r#struct::field(loc, name, FeltType::new(context), false, public)
 }
 
 fn struct_type<'c>(context: &'c Context, name: &str) -> Type<'c> {
@@ -87,8 +86,19 @@ impl StructIO {
     field_iter!(private_outputs, ("out", false));
     field_iter!(public_outputs, ("out", true));
 
-    pub fn public_inputs<'c>(&self, ctx: &'c Context) -> impl IntoIterator<Item = Type<'c>> {
-        iter::repeat_with(|| FeltType::new(ctx).into()).take(self.public_inputs)
+    pub fn public_inputs<'c>(
+        &self,
+        ctx: &'c Context,
+        is_main: bool,
+    ) -> impl IntoIterator<Item = Type<'c>> {
+        iter::repeat_with(move || {
+            if is_main {
+                StructType::from_str(ctx, "Signal").into()
+            } else {
+                FeltType::new(ctx).into()
+            }
+        })
+        .take(self.public_inputs)
     }
 
     pub fn new_from_io(advice: &crate::io::AdviceIO, instance: &crate::io::InstanceIO) -> Self {
@@ -115,6 +125,7 @@ pub fn create_struct<'c>(
     struct_name: &str,
     idx: usize,
     io: StructIO,
+    is_main: bool,
 ) -> Result<StructDefOp<'c>, LlzkError> {
     log::debug!("context = {context:?}");
     let loc = struct_def_op_location(context, struct_name, idx);
@@ -126,26 +137,36 @@ pub fn create_struct<'c>(
             create_field(context, struct_name, field.name(), field.is_public()).map(Into::into)
         });
 
-    let func_args = [struct_type(context, struct_name)]
+    let func_args = io
+        .public_inputs(context, is_main)
         .into_iter()
-        .chain(io.public_inputs(context))
+        .enumerate()
+        .map(|(n, typ)| {
+            (
+                typ,
+                Location::new(
+                    context,
+                    format!("struct {struct_name} | public inputs").as_str(),
+                    n,
+                    0,
+                ),
+            )
+        })
         .collect::<Vec<_>>();
 
     log::debug!("Creating function with arguments: {func_args:?}");
-    let constrain = function::def(
-        loc,
-        "constrain",
-        FunctionType::new(context, &func_args, &[]),
-        &[],
-        None,
-    )
-    .inspect(|f| f.set_allow_constraint_attr(true));
+
+    let funcs = [
+        r#struct::helpers::compute_fn(loc, StructType::from_str(context, struct_name), &func_args)
+            .map(Into::into),
+        r#struct::helpers::constrain_fn(
+            loc,
+            StructType::from_str(context, struct_name),
+            &func_args,
+        )
+        .map(Into::into),
+    ];
 
     log::debug!("Creating constraint op");
-    r#struct::def(
-        loc,
-        FlatSymbolRefAttribute::new(context, struct_name),
-        &[],
-        fields.chain([constrain.map(Into::into)]),
-    )
+    r#struct::def(loc, struct_name, &[], fields.chain(funcs))
 }

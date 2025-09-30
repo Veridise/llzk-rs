@@ -59,11 +59,10 @@ impl<'c> LlzkStructLowering<'c> {
     fn get_temp_decl(&self, col: usize, row: usize) -> Result<FieldDefOpRef<'c, '_>> {
         let name = format!("adv_{col}_{row}");
         Ok(self.struct_op.get_or_create_field_def(&name, || {
-            let field_name = FlatSymbolRefAttribute::new(self.context(), &name);
             let filename = format!("struct {} | advice field", self.struct_name(),);
             let loc = Location::new(self.context(), &filename, col, row);
 
-            r#struct::field(loc, field_name, FeltType::new(self.context()), false, false)
+            r#struct::field(loc, &name, FeltType::new(self.context()), false, false)
         })?)
     }
 

@@ -20,3 +20,4 @@ rstest = "0.25.0"
 simplelog = {version = "0.12", features = ["test"] }
 quickcheck = "1"
 quickcheck_macros = "1"
+similar-asserts = "1.7"
