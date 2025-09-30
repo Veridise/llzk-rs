@@ -50,7 +50,7 @@ impl<'e, F: Clone> ExpressionInRow<'e, F> {
     where
         F: Field,
     {
-        // Rows in injected IR are relative offsets to the region RegionRow expects the absolute
+        // Rows in injected IR are relative offsets to the region but RegionRow expects the absolute
         // row number.
         let start = region.start().ok_or_else(|| {
             anyhow::anyhow!(
@@ -72,12 +72,12 @@ impl<F: Clone> From<(usize, Expression<F>)> for ExpressionInRow<'_, F> {
     }
 }
 
-/// Represents an expression associated to an scoped.
+/// Represents an expression associated to a scope.
 ///
 /// The scope is represented by a [`ResolversProvider`] that returns
 /// the resolvers required for lowering the expression.
 ///
-/// The expression can be both a reference or owned.
+/// The expression can be either a reference or owned.
 pub struct ScopedExpression<'e, 'r, F>
 where
     F: Field,
@@ -124,7 +124,8 @@ where
 
     /// Returns a factory method that creates scopes with always the same resolvers.
     ///
-    /// Use it when you can't create the resolvers when you need to create this.
+    /// Use it in situations where you can't create the resolvers when you need to create instances
+    /// of this struct.
     pub fn make_ctor<R>(resolvers: R) -> impl Fn(Expression<F>) -> Self + 'r
     where
         R: Clone + ResolversProvider<F> + 'r,

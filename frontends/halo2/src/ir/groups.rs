@@ -1,5 +1,7 @@
 //! Structs for handling the IR of groups of regions inside the circuit.
 
+use std::collections::HashMap;
+
 use crate::{
     backend::{
         func::{CellRef, FuncIO},
@@ -20,7 +22,7 @@ use crate::{
         stmt::IRStmt,
         CmpOp, IRCtx,
     },
-    lookups::callbacks::LazyLookupTableGenerator,
+    lookups::{callbacks::LazyLookupTableGenerator, Lookup},
     resolvers::FixedQueryResolver,
     synthesis::{
         constraint::EqConstraint,
@@ -697,16 +699,18 @@ where
     F: Field,
 {
     let mut temps = Temps::new();
+    let mut last_comment = LookupComment::new(generate_debug_comments);
     utils::product(syn.lookups(), region_rows)
         .map(|(lookup, rr)| {
             let table = LazyLookupTableGenerator::new(|| {
                 syn.tables_for_lookup(&lookup)
                     .map(|table| table.into_boxed_slice())
             });
+
+            let comment = IRStmt::seq(last_comment.get(lookup, rr));
             lookup_cb
                 .on_lookup(lookup, &table, &mut temps)
                 .map(|stmts| {
-                    let comment = IRStmt::comment(format!("{lookup} @ {}", rr.header()));
                     let stmts = stmts
                         .into_iter()
                         .map(|stmt| stmt.map(&|e| e.map(|e| ScopedExpression::from_cow(e, *rr))));
@@ -714,6 +718,80 @@ where
                 })
         })
         .collect()
+}
+
+/// Helper struct that keeps track of the last emitted comment during lookup IR emission.
+struct LookupComment {
+    lookup: Option<usize>,
+    region: Option<usize>,
+    generate_debug_comments: bool,
+}
+
+impl LookupComment {
+    pub fn new(generate_debug_comments: bool) -> Self {
+        Self {
+            lookup: None,
+            region: None,
+            generate_debug_comments,
+        }
+    }
+
+    /// If the lookup and region doesn't match the current one returns the comment. Otherwise returns
+    /// None.
+    pub fn get<'sco, 'syn, 'ctx, F: Field>(
+        &mut self,
+        lookup: Lookup<'syn, F>,
+        rr: &RegionRow<'syn, 'ctx, 'syn, F>,
+    ) -> Option<IRStmt<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>> {
+        // There's no point in creating the comment if its not going to be emitted anyway.
+        if !self.generate_debug_comments {
+            return None;
+        }
+
+        let Some(region_index) = rr.region_index() else {
+            // If the region does not have an index emit the comment regardless and reset the
+            // tracker.
+            self.lookup = None;
+            self.region = None;
+            return Some(self.mk_comment(lookup, rr));
+        };
+
+        match (self.lookup, self.region) {
+            // If nothing was initialized just set it.
+            (None, None) => self.update_and_emit(lookup, rr),
+            // If we changed lookup or region we set the tracker to the new ones.
+            (Some(cur_lookup), Some(cur_region))
+                if cur_lookup != lookup.idx() || cur_region != region_index =>
+            {
+                self.update_and_emit(lookup, rr)
+            }
+            // This shouldn't happen.
+            (None, Some(_)) | (Some(_), None) => unreachable!(),
+            // If nothing above matches we don't emit the comment.
+            _ => None,
+        }
+    }
+
+    fn update_and_emit<'sco, 'syn, 'ctx, F: Field>(
+        &mut self,
+        lookup: Lookup<'syn, F>,
+        rr: &RegionRow<'syn, 'ctx, 'syn, F>,
+    ) -> Option<IRStmt<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>> {
+        self.lookup = Some(lookup.idx());
+        self.region = Some(
+            rr.region_index()
+                .expect("We already checked that the index is not None"),
+        );
+        Some(self.mk_comment(lookup, rr))
+    }
+
+    fn mk_comment<'sco, 'syn, 'ctx, F: Field>(
+        &self,
+        lookup: Lookup<'syn, F>,
+        rr: &RegionRow<'syn, 'ctx, 'syn, F>,
+    ) -> IRStmt<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>> {
+        IRStmt::comment(format!("{lookup} @ {}", rr.header()))
+    }
 }
 
 /// If the given statement is not empty prepends a comment
