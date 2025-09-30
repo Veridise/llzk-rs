@@ -2,8 +2,10 @@
 members = [ 
   "frontends/halo2", 
   "llzk",
-  "llzk-sys"
-, "picus"]
+  "llzk-sys",
+  "llzk-sys/build-support",
+  "picus"
+]
 resolver = "2"
 
 [workspace.dependencies]

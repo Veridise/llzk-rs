@@ -1,6 +1,6 @@
 //! Configuration for building static functions found by [`bindgen`].
 
-use super::config_traits::{BindgenConfig, CCConfig};
+use super::config_traits::{bindgen::BindgenConfig, cc::CCConfig};
 use anyhow::{bail, Result};
 use bindgen::Builder;
 use cc::Build;
@@ -11,41 +11,45 @@ use std::{
 
 /// Configuration for building the library that include the implementation of static functions in
 /// LLZK's CAPI.
-pub struct WrapStaticFns {
-    dst: PathBuf,
+#[derive(Debug, Clone, Copy)]
+pub struct WrapStaticFns<'p> {
+    out_dir: &'p Path,
 }
 
-impl WrapStaticFns {
+impl<'p> WrapStaticFns<'p> {
     /// Creates a new configuration.
-    pub fn new() -> Result<Self> {
-        Ok(Self {
-            dst: Path::new(&env::var("OUT_DIR")?).join("bindgen_wrap"),
-        })
+    pub fn new(out_dir: &'p Path) -> Self {
+        Self { out_dir }
     }
 
     /// Returns the name of the C source file.
     pub fn source_file(&self) -> PathBuf {
-        let mut copy = self.dst.clone();
-        copy.set_extension("c");
-        copy
+        let mut p = self.dst();
+        p.set_extension("c");
+        p
+    }
+
+    fn dst(&self) -> PathBuf {
+        self.out_dir.join("bindgen_wrap")
     }
 }
 
-impl BindgenConfig for WrapStaticFns {
+impl BindgenConfig for WrapStaticFns<'_> {
     fn apply(&self, bindgen: Builder) -> Result<Builder> {
         Ok(bindgen
             .wrap_static_fns(true)
-            .wrap_static_fns_path(&self.dst))
+            .wrap_static_fns_path(self.dst()))
     }
 }
 
-impl CCConfig for WrapStaticFns {
+impl CCConfig for WrapStaticFns<'_> {
     fn apply(&self, cc: &mut Build) -> Result<()> {
-        if !self.source_file().is_file() {
-            bail!("Source file not found! {}", self.source_file().display());
+        let source_file = self.source_file();
+        if !source_file.is_file() {
+            bail!("Source file not found! {}", source_file.display());
         }
 
-        cc.file(self.source_file())
+        cc.file(source_file)
             .include(env::var("CARGO_MANIFEST_DIR")?);
         Ok(())
     }
