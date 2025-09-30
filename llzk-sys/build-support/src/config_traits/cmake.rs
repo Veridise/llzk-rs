@@ -12,8 +12,9 @@ pub trait CMakeConfig {
     /// Returns [`Err`] if any errors occur during configuration.
     fn apply(&self, cmake: &mut Config) -> Result<()>;
 
-    /// Chains two configs together.
-    fn then<O>(self, other: O) -> (Self, O)
+    /// Chains two configs together. The result is a tuple implementing [`CMakeConfig`] that
+    /// applies the two configurations in order.
+    fn and_then<O>(self, other: O) -> (Self, O)
     where
         O: CMakeConfig,
         Self: Sized,

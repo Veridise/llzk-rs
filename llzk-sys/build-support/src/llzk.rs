@@ -48,7 +48,7 @@ impl<'s> LlzkBuild<'s> {
     /// Emits cargo commands required for linking LLZK against a cargo project.
     ///
     /// Accepts any implementation of [`Write`] for flexibility while testing.
-    /// Withing a build script simply pass [`std::io::stdout`].
+    /// Within a build script simply pass [`std::io::stdout`].
     ///
     /// The `whole_archive_config` adds `+whole-archive` or `-whole-archive` to the link commands
     /// if it is `Some(true)` or `Some(false)` respectively.
@@ -89,7 +89,7 @@ impl<'s> LlzkBuild<'s> {
                             anyhow::anyhow!("Failed to convert {orig:?} into a String")
                         })
                     })
-                    // If conversion was succesfull try extract `XXX` from `libXXX.a`.
+                    // If conversion was succesful try to extract `XXX` from `libXXX.a`.
                     // Yield None if doesn't match.
                     .map(|name| {
                         name.strip_prefix("lib")

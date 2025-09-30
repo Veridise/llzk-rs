@@ -23,7 +23,7 @@ pub mod wrap_static_fns;
 /// Builds `llzk-lib` and emits the cargo instructions to link against it.
 pub fn build_llzk<'a>(src: &'a Path, cfg: impl CMakeConfig) -> Result<LlzkBuild<'a>> {
     let compile_commands = CompileCommands::get();
-    let llzk = LlzkBuild::new(src, cfg.then(compile_commands).build(src)?);
+    let llzk = LlzkBuild::new(src, cfg.and_then(compile_commands).build(src)?);
     if let Some(compile_commands) = compile_commands {
         compile_commands.link(&llzk)?;
     }
