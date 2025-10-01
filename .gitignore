@@ -21,3 +21,6 @@ target/
 # Ignored because is useful to symlink for working with LLZK's C++ codebase from this repo
 # but this is not a C++ codebase
 .clang-format 
+
+# Nix package build
+/result
