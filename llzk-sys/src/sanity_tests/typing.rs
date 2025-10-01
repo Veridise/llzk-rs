@@ -1,12 +1,12 @@
 use std::{
-    ffi::{c_void, CString},
+    ffi::{CString, c_void},
     ptr::{null, null_mut},
 };
 
 use mlir_sys::{
-    mlirArrayAttrGet, mlirAttributeEqual, mlirAttributeGetContext, mlirFlatSymbolRefAttrGet,
-    mlirIndexTypeGet, mlirIntegerAttrGet, mlirIntegerTypeGet, mlirStringRefCreateFromCString,
-    MlirOperation, MlirType,
+    MlirOperation, MlirType, mlirArrayAttrGet, mlirAttributeEqual, mlirAttributeGetContext,
+    mlirFlatSymbolRefAttrGet, mlirIndexTypeGet, mlirIntegerAttrGet, mlirIntegerTypeGet,
+    mlirLocationUnknownGet, mlirStringRefCreateFromCString,
 };
 use rstest::{fixture, rstest};
 
@@ -16,7 +16,7 @@ use crate::{
     llzkIsValidArrayElemType, llzkIsValidArrayType, llzkIsValidColumnType,
     llzkIsValidConstReadType, llzkIsValidEmitEqType, llzkIsValidGlobalType, llzkIsValidType,
     llzkTypeParamsUnify, llzkTypesUnify,
-    sanity_tests::{context, TestContext},
+    sanity_tests::{TestContext, context},
 };
 
 struct IndexType {
@@ -252,10 +252,11 @@ fn test_llzk_is_more_concrete_unification(index_type: IndexType) {
 }
 
 #[rstest]
-fn test_llzk_force_int_attr_type(i16_type: I16Type) {
+fn test_llzk_force_int_attr_type(context: TestContext, i16_type: I16Type) {
     unsafe {
+        let location = mlirLocationUnknownGet(context.ctx);
         let in_attr = mlirIntegerAttrGet(i16_type.t, 0);
-        let out_attr = llzkForceIntAttrType(in_attr);
+        let out_attr = llzkForceIntAttrType(in_attr, location);
         assert!(!mlirAttributeEqual(in_attr, out_attr));
     }
 }

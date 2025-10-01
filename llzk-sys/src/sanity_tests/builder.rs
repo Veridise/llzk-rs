@@ -1,12 +1,12 @@
 use std::{ffi::c_void, ptr::null_mut};
 
-use mlir_sys::{MlirBlock, MlirOperation};
+use mlir_sys::{MlirBlock, MlirOperation, MlirRegion};
 use rstest::rstest;
 
 use crate::{
-    mlirOpBuilderCreate, mlirOpBuilderCreateWithListener, mlirOpBuilderDestroy,
-    mlirOpBuilderListenerCreate, mlirOpBuilderListenerDestroy,
-    sanity_tests::{context, TestContext},
+    MlirOpBuilderInsertPoint, mlirOpBuilderCreate, mlirOpBuilderCreateWithListener,
+    mlirOpBuilderDestroy, mlirOpBuilderListenerCreate, mlirOpBuilderListenerDestroy,
+    sanity_tests::{TestContext, context},
 };
 
 #[rstest]
@@ -38,5 +38,6 @@ fn test_mlir_op_builder_listener_create() {
     }
 }
 
-unsafe extern "C" fn test_callback1(_: MlirOperation, _: *mut c_void) {}
-unsafe extern "C" fn test_callback2(_: MlirBlock, _: *mut c_void) {}
+unsafe extern "C" fn test_callback1(_: MlirOperation, _: MlirOpBuilderInsertPoint, _: *mut c_void) {
+}
+unsafe extern "C" fn test_callback2(_: MlirBlock, _: MlirRegion, _: MlirBlock, _: *mut c_void) {}
