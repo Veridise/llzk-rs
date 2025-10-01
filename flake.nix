@@ -133,6 +133,8 @@
             LIBCLANG_PATH = "${pkgs.llzk-llvmPackages.libclang.lib}/lib";
             RUSTFLAGS = "-L ${mlir-with-llvm}/lib/";
             RUST_BACKTRACE = 1;
+            # Fix _FORTIFY_SOURCE warning on Linux by ensuring build dependencies are optimized
+            CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_OPT_LEVEL = "2";
           };
 
         llzk-sys-rs = buildLlzkRustPackage "llzk-sys";
