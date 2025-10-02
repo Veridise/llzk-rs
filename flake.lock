@@ -16,7 +16,7 @@
         "type": "github"
       }
     },
-    "llzk": {
+    "llzk-lib": {
       "inputs": {
         "flake-utils": [
           "llzk-pkgs",
@@ -82,12 +82,12 @@
     "release-helpers": {
       "inputs": {
         "flake-utils": [
-          "llzk",
+          "llzk-lib",
           "llzk-pkgs",
           "flake-utils"
         ],
         "nixpkgs": [
-          "llzk",
+          "llzk-lib",
           "llzk-pkgs",
           "nixpkgs"
         ]
@@ -112,14 +112,14 @@
           "llzk-pkgs",
           "flake-utils"
         ],
-        "llzk": "llzk",
+        "llzk-lib": "llzk-lib",
         "llzk-pkgs": "llzk-pkgs",
         "nixpkgs": [
           "llzk-pkgs",
           "nixpkgs"
         ],
         "release-helpers": [
-          "llzk",
+          "llzk-lib",
           "release-helpers"
         ]
       }

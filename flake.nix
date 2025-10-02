@@ -3,7 +3,7 @@
     llzk-pkgs.url = "github:Veridise/llzk-nix-pkgs";
     nixpkgs.follows = "llzk-pkgs/nixpkgs";
     flake-utils.follows = "llzk-pkgs/flake-utils";
-    llzk = {
+    llzk-lib = {
       url = "github:Veridise/llzk-lib";
       inputs = {
         nixpkgs.follows = "llzk-pkgs/nixpkgs";
@@ -11,7 +11,7 @@
         llzk-pkgs.follows = "llzk-pkgs";
       };
     };
-    release-helpers.follows = "llzk/release-helpers";
+    release-helpers.follows = "llzk-lib/release-helpers";
   };
 
   # Custom colored bash prompt
@@ -24,7 +24,7 @@
       flake-utils,
       release-helpers,
       llzk-pkgs,
-      llzk,
+      llzk-lib,
     }:
     {
       # Overlay for downstream consumption
@@ -40,7 +40,7 @@
           overlays = [
             release-helpers.overlays.default
             llzk-pkgs.overlays.default
-            llzk.overlays.default
+            llzk-lib.overlays.default
           ];
         };
 
