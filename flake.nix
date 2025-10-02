@@ -71,7 +71,7 @@
             # Replace the MLIR dynamic library from the LLVM build with a dummy static library
             # to avoid duplicate symbol issues when linking with both LLVM and MLIR since the
             # MLIR build generated individual static libraries for each component.
-            rm -f "$out"/lib/libMLIR.dylib
+            rm -f "$out"/lib/libMLIR.${if pkgs.stdenv.isDarwin then "dylib" else "so"}
             ${pkgs.stdenv.cc}/bin/ar -r "$out"/lib/libMLIR.a
           '';
         };
@@ -133,8 +133,12 @@
             LIBCLANG_PATH = "${pkgs.llzk-llvmPackages.libclang.lib}/lib";
             RUSTFLAGS = "-L ${mlir-with-llvm}/lib/";
             RUST_BACKTRACE = 1;
+          }
+          // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
             # Fix _FORTIFY_SOURCE warning on Linux by ensuring build dependencies are optimized
-            CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_OPT_LEVEL = "2";
+            CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_OPT_LEVEL = 2;
+            # Fix for GNU-like linkers on Linux to avoid removing symbols
+            LLZK_SYS_ENABLE_WHOLE_ARCHIVE = 1;
           };
 
         llzk-sys-rs = buildLlzkRustPackage "llzk-sys";
