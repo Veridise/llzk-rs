@@ -1,9 +1,13 @@
 use std::{borrow::Cow, iter};
 
-use llzk::prelude::*;
+use llzk::{dialect::function::FuncDefOpMutLike as _, prelude::*};
 
 use melior::{
-    ir::{attribute::FlatSymbolRefAttribute, r#type::FunctionType, Location, Operation, Type},
+    ir::{
+        attribute::{ArrayAttribute, FlatSymbolRefAttribute},
+        r#type::FunctionType,
+        Attribute, AttributeLike as _, Identifier, Location, Operation, Type,
+    },
     Context,
 };
 
@@ -64,27 +68,24 @@ pub struct StructIO {
     public_outputs: usize,
 }
 
-macro_rules! field_iter {
-    ($name:ident, $base:expr) => {
-        fn $name(&self) -> impl Iterator<Item = Field> {
-            iter::repeat($base)
-                .map(Field::from)
-                .zip(0..self.$name)
-                .map(|(f, n)| f.renamed(|name| format!("{name}_{n}")))
-        }
-    };
-}
-
 impl StructIO {
     fn fields(&self) -> impl IntoIterator<Item = Field> {
-        self.private_inputs()
-            .chain(self.private_outputs())
-            .chain(self.public_outputs())
+        self.public_outputs().chain(self.private_outputs())
     }
 
-    field_iter!(private_inputs, ("in", false));
-    field_iter!(private_outputs, ("out", false));
-    field_iter!(public_outputs, ("out", true));
+    fn private_outputs(&self) -> impl Iterator<Item = Field> {
+        iter::repeat(("out", false))
+            .map(Field::from)
+            .zip((0..self.private_outputs).map(|n| n + self.public_outputs))
+            .map(|(f, n)| f.renamed(|name| format!("{name}_{n}")))
+    }
+
+    fn public_outputs(&self) -> impl Iterator<Item = Field> {
+        iter::repeat(("out", true))
+            .map(Field::from)
+            .zip(0..self.public_outputs)
+            .map(|(f, n)| f.renamed(|name| format!("{name}_{n}")))
+    }
 
     pub fn public_inputs<'c>(
         &self,
@@ -101,6 +102,64 @@ impl StructIO {
         .take(self.public_inputs)
     }
 
+    pub fn private_inputs<'c>(
+        &self,
+        ctx: &'c Context,
+        is_main: bool,
+    ) -> impl IntoIterator<Item = Type<'c>> {
+        iter::repeat_with(move || {
+            if is_main {
+                StructType::from_str(ctx, "Signal").into()
+            } else {
+                FeltType::new(ctx).into()
+            }
+        })
+        .take(self.private_inputs)
+    }
+
+    pub fn args<'c>(
+        &self,
+        ctx: &'c Context,
+        is_main: bool,
+        struct_name: &str,
+    ) -> Vec<(Type<'c>, Location<'c>)> {
+        self.public_inputs(ctx, is_main)
+            .into_iter()
+            .enumerate()
+            .map(|(n, typ)| {
+                (
+                    typ,
+                    Location::new(
+                        ctx,
+                        format!("struct {struct_name} | public inputs").as_str(),
+                        n,
+                        0,
+                    ),
+                )
+            })
+            .chain(
+                self.private_inputs(ctx, is_main)
+                    .into_iter()
+                    .enumerate()
+                    .map(|(n, typ)| {
+                        (
+                            typ,
+                            Location::new(
+                                ctx,
+                                format!("struct {struct_name} | private inputs").as_str(),
+                                n,
+                                0,
+                            ),
+                        )
+                    }),
+            )
+            .collect::<Vec<_>>()
+    }
+
+    pub fn arg_count(&self) -> usize {
+        self.public_inputs + self.private_inputs
+    }
+
     pub fn new_from_io(advice: &crate::io::AdviceIO, instance: &crate::io::InstanceIO) -> Self {
         Self {
             private_inputs: advice.inputs().len(),
@@ -112,8 +171,8 @@ impl StructIO {
 
     pub fn new_from_io_count(inputs: usize, outputs: usize) -> Self {
         Self {
-            private_inputs: 0,
-            public_inputs: inputs,
+            private_inputs: inputs,
+            public_inputs: 0,
             private_outputs: outputs,
             public_outputs: 0,
         }
@@ -137,32 +196,48 @@ pub fn create_struct<'c>(
             create_field(context, struct_name, field.name(), field.is_public()).map(Into::into)
         });
 
-    let func_args = io
-        .public_inputs(context, is_main)
-        .into_iter()
-        .enumerate()
-        .map(|(n, typ)| {
-            (
-                typ,
-                Location::new(
-                    context,
-                    format!("struct {struct_name} | public inputs").as_str(),
-                    n,
-                    0,
-                ),
-            )
-        })
-        .collect::<Vec<_>>();
+    let func_args = io.args(context, is_main, struct_name);
 
     log::debug!("Creating function with arguments: {func_args:?}");
 
+    let pub_attr = [(
+        Identifier::new(context, "llzk.pub"),
+        PublicAttribute::new(context).into(),
+    )];
+    let no_attr = [];
+    let compute_arg_attrs = (0..func_args.len())
+        .map(|n| {
+            if n < io.public_inputs {
+                &pub_attr as &[(Identifier<'c>, Attribute<'c>)]
+            } else {
+                &no_attr
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let constrain_arg_attrs = std::iter::once(&no_attr as &[(Identifier<'c>, Attribute<'c>)])
+        .chain((1..=func_args.len()).map(|n| {
+            if n <= io.public_inputs {
+                &pub_attr as &[(Identifier<'c>, Attribute<'c>)]
+            } else {
+                &no_attr
+            }
+        }))
+        .collect::<Vec<_>>();
+
     let funcs = [
-        r#struct::helpers::compute_fn(loc, StructType::from_str(context, struct_name), &func_args)
-            .map(Into::into),
+        r#struct::helpers::compute_fn(
+            loc,
+            StructType::from_str(context, struct_name),
+            &func_args,
+            Some(&compute_arg_attrs),
+        )
+        .map(Into::into),
         r#struct::helpers::constrain_fn(
             loc,
             StructType::from_str(context, struct_name),
             &func_args,
+            Some(&constrain_arg_attrs),
         )
         .map(Into::into),
     ];

@@ -9,7 +9,7 @@ use llzk_sys::{
 use melior::{
     ir::{
         attribute::{ArrayAttribute, FlatSymbolRefAttribute, StringAttribute, TypeAttribute},
-        operation::{OperationBuilder, OperationLike},
+        operation::{OperationBuilder, OperationLike, OperationMutLike},
         Attribute, AttributeLike, Block, BlockLike as _, Identifier, Location, Operation,
         OperationRef, Region, RegionLike as _, Type, TypeLike, Value, ValueLike,
     },
@@ -43,7 +43,7 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     /// Returns the name of the struct
     fn name(&'a self) -> &'c str {
         self.attribute("sym_name")
-            .and_then(FlatSymbolRefAttribute::try_from)
+            .and_then(StringAttribute::try_from)
             .map(|a| a.value())
             .unwrap()
     }
@@ -158,6 +158,11 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     }
 }
 
+pub trait StructDefOpMutLike<'c: 'a, 'a>:
+    StructDefOpLike<'c, 'a> + OperationMutLike<'c, 'a>
+{
+}
+
 //===----------------------------------------------------------------------===//
 // StructDefOp, StructDefOpRef, and StructDefOpRefMut
 //===----------------------------------------------------------------------===//
@@ -169,6 +174,10 @@ impl<'a, 'c: 'a> StructDefOpLike<'c, 'a> for StructDefOp<'c> {}
 impl<'a, 'c: 'a> StructDefOpLike<'c, 'a> for StructDefOpRef<'c, 'a> {}
 
 impl<'a, 'c: 'a> StructDefOpLike<'c, 'a> for StructDefOpRefMut<'c, 'a> {}
+
+impl<'a, 'c: 'a> StructDefOpMutLike<'c, 'a> for StructDefOp<'c> {}
+
+impl<'a, 'c: 'a> StructDefOpMutLike<'c, 'a> for StructDefOpRefMut<'c, 'a> {}
 
 //===----------------------------------------------------------------------===//
 // FieldDefOpLike
@@ -188,7 +197,7 @@ pub trait FieldDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
 
     fn field_name(&self) -> &'c str {
         self.attribute("sym_name")
-            .and_then(FlatSymbolRefAttribute::try_from)
+            .and_then(StringAttribute::try_from)
             .expect("malformed 'struct.field' op")
             .value()
     }

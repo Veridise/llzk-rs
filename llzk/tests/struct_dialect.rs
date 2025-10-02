@@ -20,8 +20,8 @@ fn empty_struct() {
 
     let s = r#struct::def(loc, "empty", &[], {
         [
-            r#struct::helpers::compute_fn(loc, typ, &[]).map(Into::into),
-            r#struct::helpers::constrain_fn(loc, typ, &[]).map(Into::into),
+            r#struct::helpers::compute_fn(loc, typ, &[], None).map(Into::into),
+            r#struct::helpers::constrain_fn(loc, typ, &[], None).map(Into::into),
         ]
     })
     .unwrap();
@@ -53,8 +53,8 @@ fn empty_struct_with_one_param() {
 
     let s = r#struct::def(loc, "empty", &["T"], {
         [
-            r#struct::helpers::compute_fn(loc, typ, &[]).map(Into::into),
-            r#struct::helpers::constrain_fn(loc, typ, &[]).map(Into::into),
+            r#struct::helpers::compute_fn(loc, typ, &[], None).map(Into::into),
+            r#struct::helpers::constrain_fn(loc, typ, &[], None).map(Into::into),
         ]
     })
     .unwrap();

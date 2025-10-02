@@ -4,6 +4,7 @@ pub mod constrain;
 pub mod felt;
 pub mod function;
 pub mod global;
+pub mod llzk;
 pub mod r#struct;
 
 pub mod module {

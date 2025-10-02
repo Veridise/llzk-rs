@@ -11,8 +11,9 @@ use llzk_sys::{
 };
 use melior::{
     ir::{
+        attribute::ArrayAttribute,
         block::BlockArgument,
-        operation::{OperationBuilder, OperationLike},
+        operation::{OperationBuilder, OperationLike, OperationMutLike},
         r#type::FunctionType,
         Attribute, AttributeLike, BlockLike as _, Identifier, Location, Operation, RegionLike as _,
         Type, TypeLike, Value,
@@ -119,7 +120,23 @@ pub trait FuncDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
             })
             .and_then(|block| block.argument(idx).map_err(Into::into))
     }
+
+    /// Looks for an attribute in the n-th argument of the function.
+    fn argument_attr(&self, idx: usize, name: &str) -> Result<Attribute<'c>, Error> {
+        let arg_attrs: ArrayAttribute = self.attribute("arg_attrs")?.try_into()?;
+        let arg = arg_attrs.element(idx)?;
+        let name_ref = StringRef::new(name);
+        unsafe {
+            Attribute::from_option_raw(mlir_sys::mlirDictionaryAttrGetElementByName(
+                arg.to_raw(),
+                name_ref.to_raw(),
+            ))
+        }
+        .ok_or_else(|| Error::AttributeNotFound(name.to_string()))
+    }
 }
+
+pub trait FuncDefOpMutLike<'c: 'a, 'a>: FuncDefOpLike<'c, 'a> + OperationMutLike<'c, 'a> {}
 
 //===----------------------------------------------------------------------===//
 // FuncDefOp, FuncDefOpRef, and FuncDefOpRefMut
@@ -132,6 +149,10 @@ impl<'a, 'c: 'a> FuncDefOpLike<'c, 'a> for FuncDefOp<'c> {}
 impl<'a, 'c: 'a> FuncDefOpLike<'c, 'a> for FuncDefOpRef<'c, 'a> {}
 
 impl<'a, 'c: 'a> FuncDefOpLike<'c, 'a> for FuncDefOpRefMut<'c, 'a> {}
+
+impl<'a, 'c: 'a> FuncDefOpMutLike<'c, 'a> for FuncDefOp<'c> {}
+
+impl<'a, 'c: 'a> FuncDefOpMutLike<'c, 'a> for FuncDefOpRefMut<'c, 'a> {}
 
 //===----------------------------------------------------------------------===//
 // CallOpLike

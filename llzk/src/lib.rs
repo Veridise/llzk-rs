@@ -23,6 +23,7 @@ pub mod prelude {
     pub use crate::dialect::array::prelude::*;
     pub use crate::dialect::felt::prelude::*;
     pub use crate::dialect::function::prelude::*;
+    pub use crate::dialect::llzk::prelude::*;
     pub use crate::dialect::module::llzk_module;
     pub use crate::dialect::r#struct::prelude::*;
     pub use crate::error::Error as LlzkError;
@@ -33,7 +34,7 @@ pub mod prelude {
     }
     /// Exports functions that create operations
     pub mod bool {
-        pub use crate::dialect::bool::{eq, ge, gt, le, lt, ne};
+        pub use crate::dialect::bool::{and, assert, eq, ge, gt, le, lt, ne, not, or, xor};
     }
     /// Exports functions that create operations
     pub mod constrain {

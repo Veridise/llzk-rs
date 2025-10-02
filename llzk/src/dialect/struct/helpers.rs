@@ -2,8 +2,8 @@
 
 use melior::{
     ir::{
-        operation::OperationLike as _, r#type::FunctionType, Block, BlockLike as _, Identifier,
-        Location, RegionLike as _, Type,
+        operation::OperationLike as _, r#type::FunctionType, Attribute, Block, BlockLike as _,
+        Identifier, Location, RegionLike as _, Type,
     },
     Context,
 };
@@ -21,6 +21,7 @@ pub fn compute_fn<'c>(
     loc: Location<'c>,
     struct_type: StructType<'c>,
     inputs: &[(Type<'c>, Location<'c>)],
+    arg_attrs: Option<&[&[(Identifier<'c>, Attribute<'c>)]]>,
 ) -> Result<FuncDefOp<'c>, Error> {
     let context = unsafe { loc.context().to_ref() };
     let input_types: Vec<Type<'c>> = inputs.iter().map(|(t, _)| *t).collect();
@@ -29,7 +30,7 @@ pub fn compute_fn<'c>(
         "compute",
         FunctionType::new(context, &input_types, &[struct_type.into()]),
         &[],
-        None,
+        arg_attrs,
     )
     .and_then(|f| {
         let block = Block::new(&inputs);
@@ -46,6 +47,7 @@ pub fn constrain_fn<'c>(
     loc: Location<'c>,
     struct_type: StructType<'c>,
     inputs: &[(Type<'c>, Location<'c>)],
+    arg_attrs: Option<&[&[(Identifier<'c>, Attribute<'c>)]]>,
 ) -> Result<FuncDefOp<'c>, Error> {
     let context = unsafe { loc.context().to_ref() };
     let mut input_types: Vec<Type<'c>> = vec![struct_type.into()];
@@ -57,7 +59,7 @@ pub fn constrain_fn<'c>(
         "constrain",
         FunctionType::new(context, &input_types, &[]),
         &[],
-        None,
+        arg_attrs,
     )
     .and_then(|f| {
         let block = Block::new(&all_inputs);
@@ -78,7 +80,7 @@ pub fn define_signal_struct<'c>(context: &'c Context) -> Result<StructDefOp<'c>,
     super::def(loc, "Signal", &[], {
         [
             super::field(loc, reg, FeltType::new(context), false, true).map(Into::into),
-            compute_fn(loc, typ, &[(FeltType::new(context).into(), loc)])
+            compute_fn(loc, typ, &[(FeltType::new(context).into(), loc)], None)
                 .and_then(|compute| {
                     let block = compute
                         .region(0)?
@@ -98,7 +100,7 @@ pub fn define_signal_struct<'c>(context: &'c Context) -> Result<StructDefOp<'c>,
                     Ok(compute)
                 })
                 .map(Into::into),
-            constrain_fn(loc, typ, &[(FeltType::new(context).into(), loc)]).map(Into::into),
+            constrain_fn(loc, typ, &[(FeltType::new(context).into(), loc)], None).map(Into::into),
         ]
     })
 }

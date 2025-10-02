@@ -21,13 +21,10 @@ pub struct LlzkCodegen<'c, 's> {
     struct_count: Counter,
 }
 
-impl<'c> LlzkCodegen<'c, '_> {
-    fn add_struct(&self, s: StructDefOp<'c>) -> Result<StructDefOpRef<'c, '_>> {
-        self.module
-            .body()
-            .append_operation(s.into())
-            .try_into()
-            .map_err(Into::into)
+impl<'c, 's> LlzkCodegen<'c, 's> {
+    fn add_struct(&self, s: StructDefOp<'c>) -> Result<StructDefOpRefMut<'c, 's>> {
+        let s: StructDefOpRef = self.module.body().append_operation(s.into()).try_into()?;
+        Ok(unsafe { StructDefOpRefMut::from_raw(s.to_raw()) })
     }
 
     fn context(&self) -> &'c Context {
@@ -36,7 +33,7 @@ impl<'c> LlzkCodegen<'c, '_> {
 }
 
 impl<'c: 's, 's> Codegen<'c, 's> for LlzkCodegen<'c, 's> {
-    type FuncOutput = LlzkStructLowering<'c>;
+    type FuncOutput = LlzkStructLowering<'c, 's>;
     type Output = LlzkOutput<'c>;
     type State = LlzkCodegenState<'c>;
 
@@ -69,7 +66,7 @@ impl<'c: 's, 's> Codegen<'c, 's> for LlzkCodegen<'c, 's> {
         )?;
         log::debug!("Created struct object {s:?}");
         //let regions = syn.regions_by_index();
-        Ok(LlzkStructLowering::new(self.context(), s))
+        Ok(LlzkStructLowering::new(self.context(), self.add_struct(s)?))
     }
 
     fn define_function(
@@ -85,11 +82,10 @@ impl<'c: 's, 's> Codegen<'c, 's> for LlzkCodegen<'c, 's> {
             StructIO::new_from_io_count(inputs, outputs),
             false,
         )?;
-        Ok(LlzkStructLowering::new(self.context(), s))
+        Ok(LlzkStructLowering::new(self.context(), self.add_struct(s)?))
     }
 
-    fn on_scope_end(&self, fo: Self::FuncOutput) -> Result<()> {
-        self.add_struct(fo.take_struct())?;
+    fn on_scope_end(&self, _: Self::FuncOutput) -> Result<()> {
         Ok(())
     }
 
@@ -250,11 +246,210 @@ mod tests {
     }
   }
   struct.def @Main<[]> {
+    function.def @compute(%arg0: !struct.type<@Signal<[]>> {llzk.pub = #llzk.pub}, %arg1: !struct.type<@Signal<[]>> {llzk.pub = #llzk.pub}, %arg2: !struct.type<@Signal<[]>> {llzk.pub = #llzk.pub}) -> !struct.type<@Main<[]>> attributes {function.allow_witness} {
+      %self = struct.new : <@Main<[]>>
+      function.return %self : !struct.type<@Main<[]>>
+    }
+    function.def @constrain(%arg0: !struct.type<@Main<[]>>, %arg1: !struct.type<@Signal<[]>> {llzk.pub = #llzk.pub}, %arg2: !struct.type<@Signal<[]>> {llzk.pub = #llzk.pub}, %arg3: !struct.type<@Signal<[]>> {llzk.pub = #llzk.pub}) attributes {function.allow_constraint} {
+      function.return
+    }
+  }
+}
+"#
+        );
+    }
+
+    #[rstest]
+    fn define_main_function_private_inputs(ctx: LlzkContext) {
+        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).build().into();
+        let codegen = LlzkCodegen::initialize(&state);
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let advice_col = cs.advice_column();
+        let advice_io = AdviceIO::new(&[(advice_col, &[0, 1, 2])], &[]);
+        let instance_io = InstanceIO::new(&[], &[]);
+        let main = codegen
+            .define_main_function(&advice_io, &instance_io)
+            .unwrap();
+        codegen.on_scope_end(main).unwrap();
+
+        let op = codegen.generate_output().unwrap();
+        assert!(
+            op.module().as_operation().verify(),
+            "Top level module failed verification"
+        );
+        let op_str = format!("{}", op);
+        similar_asserts::assert_eq!(
+            op_str,
+            r#"module attributes {veridise.lang = "llzk"} {
+  struct.def @Signal<[]> {
+    struct.field @reg : !felt.type {llzk.pub}
+    function.def @compute(%arg0: !felt.type) -> !struct.type<@Signal<[]>> attributes {function.allow_witness} {
+      %self = struct.new : <@Signal<[]>>
+      struct.writef %self[@reg] = %arg0 : <@Signal<[]>>, !felt.type
+      function.return %self : !struct.type<@Signal<[]>>
+    }
+    function.def @constrain(%arg0: !struct.type<@Signal<[]>>, %arg1: !felt.type) attributes {function.allow_constraint} {
+      function.return
+    }
+  }
+  struct.def @Main<[]> {
     function.def @compute(%arg0: !struct.type<@Signal<[]>>, %arg1: !struct.type<@Signal<[]>>, %arg2: !struct.type<@Signal<[]>>) -> !struct.type<@Main<[]>> attributes {function.allow_witness} {
       %self = struct.new : <@Main<[]>>
       function.return %self : !struct.type<@Main<[]>>
     }
     function.def @constrain(%arg0: !struct.type<@Main<[]>>, %arg1: !struct.type<@Signal<[]>>, %arg2: !struct.type<@Signal<[]>>, %arg3: !struct.type<@Signal<[]>>) attributes {function.allow_constraint} {
+      function.return
+    }
+  }
+}
+"#
+        );
+    }
+
+    #[rstest]
+    fn define_main_function_public_outputs(ctx: LlzkContext) {
+        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).build().into();
+        let codegen = LlzkCodegen::initialize(&state);
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let instance_col = cs.instance_column();
+        let advice_io = AdviceIO::empty();
+        let instance_io = InstanceIO::new(&[], &[(instance_col, &[0, 1, 2])]);
+        let main = codegen
+            .define_main_function(&advice_io, &instance_io)
+            .unwrap();
+        codegen.on_scope_end(main).unwrap();
+
+        let op = codegen.generate_output().unwrap();
+        assert!(
+            op.module().as_operation().verify(),
+            "Top level module failed verification"
+        );
+        let op_str = format!("{}", op);
+        similar_asserts::assert_eq!(
+            op_str,
+            r#"module attributes {veridise.lang = "llzk"} {
+  struct.def @Signal<[]> {
+    struct.field @reg : !felt.type {llzk.pub}
+    function.def @compute(%arg0: !felt.type) -> !struct.type<@Signal<[]>> attributes {function.allow_witness} {
+      %self = struct.new : <@Signal<[]>>
+      struct.writef %self[@reg] = %arg0 : <@Signal<[]>>, !felt.type
+      function.return %self : !struct.type<@Signal<[]>>
+    }
+    function.def @constrain(%arg0: !struct.type<@Signal<[]>>, %arg1: !felt.type) attributes {function.allow_constraint} {
+      function.return
+    }
+  }
+  struct.def @Main<[]> {
+    struct.field @out_0 : !felt.type {llzk.pub}
+    struct.field @out_1 : !felt.type {llzk.pub}
+    struct.field @out_2 : !felt.type {llzk.pub}
+    function.def @compute() -> !struct.type<@Main<[]>> attributes {function.allow_witness} {
+      %self = struct.new : <@Main<[]>>
+      function.return %self : !struct.type<@Main<[]>>
+    }
+    function.def @constrain(%arg0: !struct.type<@Main<[]>>) attributes {function.allow_constraint} {
+      function.return
+    }
+  }
+}
+"#
+        );
+    }
+
+    #[rstest]
+    fn define_main_function_private_outputs(ctx: LlzkContext) {
+        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).build().into();
+        let codegen = LlzkCodegen::initialize(&state);
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let advice_col = cs.advice_column();
+        let advice_io = AdviceIO::new(&[], &[(advice_col, &[0, 1, 2])]);
+        let instance_io = InstanceIO::new(&[], &[]);
+        let main = codegen
+            .define_main_function(&advice_io, &instance_io)
+            .unwrap();
+        codegen.on_scope_end(main).unwrap();
+
+        let op = codegen.generate_output().unwrap();
+        assert!(
+            op.module().as_operation().verify(),
+            "Top level module failed verification"
+        );
+        let op_str = format!("{}", op);
+        similar_asserts::assert_eq!(
+            op_str,
+            r#"module attributes {veridise.lang = "llzk"} {
+  struct.def @Signal<[]> {
+    struct.field @reg : !felt.type {llzk.pub}
+    function.def @compute(%arg0: !felt.type) -> !struct.type<@Signal<[]>> attributes {function.allow_witness} {
+      %self = struct.new : <@Signal<[]>>
+      struct.writef %self[@reg] = %arg0 : <@Signal<[]>>, !felt.type
+      function.return %self : !struct.type<@Signal<[]>>
+    }
+    function.def @constrain(%arg0: !struct.type<@Signal<[]>>, %arg1: !felt.type) attributes {function.allow_constraint} {
+      function.return
+    }
+  }
+  struct.def @Main<[]> {
+    struct.field @out_0 : !felt.type
+    struct.field @out_1 : !felt.type
+    struct.field @out_2 : !felt.type
+    function.def @compute() -> !struct.type<@Main<[]>> attributes {function.allow_witness} {
+      %self = struct.new : <@Main<[]>>
+      function.return %self : !struct.type<@Main<[]>>
+    }
+    function.def @constrain(%arg0: !struct.type<@Main<[]>>) attributes {function.allow_constraint} {
+      function.return
+    }
+  }
+}
+"#
+        );
+    }
+
+    #[rstest]
+    fn define_main_function_mixed_io(ctx: LlzkContext) {
+        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).build().into();
+        let codegen = LlzkCodegen::initialize(&state);
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let advice_col = cs.advice_column();
+        let instance_col = cs.instance_column();
+        let advice_io = AdviceIO::new(&[(advice_col, &[0, 1, 2])], &[(advice_col, &[3, 4])]);
+        let instance_io = InstanceIO::new(&[(instance_col, &[0, 1])], &[(instance_col, &[2, 3])]);
+        let main = codegen
+            .define_main_function(&advice_io, &instance_io)
+            .unwrap();
+        codegen.on_scope_end(main).unwrap();
+
+        let op = codegen.generate_output().unwrap();
+        assert!(
+            op.module().as_operation().verify(),
+            "Top level module failed verification"
+        );
+        let op_str = format!("{}", op);
+        similar_asserts::assert_eq!(
+            op_str,
+            r#"module attributes {veridise.lang = "llzk"} {
+  struct.def @Signal<[]> {
+    struct.field @reg : !felt.type {llzk.pub}
+    function.def @compute(%arg0: !felt.type) -> !struct.type<@Signal<[]>> attributes {function.allow_witness} {
+      %self = struct.new : <@Signal<[]>>
+      struct.writef %self[@reg] = %arg0 : <@Signal<[]>>, !felt.type
+      function.return %self : !struct.type<@Signal<[]>>
+    }
+    function.def @constrain(%arg0: !struct.type<@Signal<[]>>, %arg1: !felt.type) attributes {function.allow_constraint} {
+      function.return
+    }
+  }
+  struct.def @Main<[]> {
+    struct.field @out_0 : !felt.type {llzk.pub}
+    struct.field @out_1 : !felt.type {llzk.pub}
+    struct.field @out_2 : !felt.type
+    struct.field @out_3 : !felt.type
+    function.def @compute(%arg0: !struct.type<@Signal<[]>> {llzk.pub = #llzk.pub}, %arg1: !struct.type<@Signal<[]>> {llzk.pub = #llzk.pub}, %arg2: !struct.type<@Signal<[]>>, %arg3: !struct.type<@Signal<[]>>, %arg4: !struct.type<@Signal<[]>>) -> !struct.type<@Main<[]>> attributes {function.allow_witness} {
+      %self = struct.new : <@Main<[]>>
+      function.return %self : !struct.type<@Main<[]>>
+    }
+    function.def @constrain(%arg0: !struct.type<@Main<[]>>, %arg1: !struct.type<@Signal<[]>> {llzk.pub = #llzk.pub}, %arg2: !struct.type<@Signal<[]>> {llzk.pub = #llzk.pub}, %arg3: !struct.type<@Signal<[]>>, %arg4: !struct.type<@Signal<[]>>, %arg5: !struct.type<@Signal<[]>>) attributes {function.allow_constraint} {
       function.return
     }
   }

@@ -15,6 +15,7 @@ pub enum Error {
     BlockExpected(usize),
     EmptyBlock,
     Melior(MeliorError),
+    AttributeNotFound(String),
 }
 
 impl error::Error for Error {}
@@ -61,6 +62,7 @@ impl Display for Error {
                 )
             }
             Error::EmptyBlock => write!(f, "block was expected not to be empty"),
+            Error::AttributeNotFound(attr) => write!(f, "attribute was not found: {attr}"),
         }
     }
 }
