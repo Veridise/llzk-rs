@@ -100,14 +100,11 @@
         # Helper function to build Rust packages with common configuration
         buildLlzkRustPackage =
           packageName:
-          let
-            pname = "${packageName}-rs";
-          in
           pkgs.rustPlatform.buildRustPackage rec {
-            inherit pname;
+            pname = "${packageName}-rs";
             version = (pkgs.lib.importTOML ./${packageName}/Cargo.toml).package.version;
             # Note: for this source to include the `llzk-lib` submodule, the nix command line
-            # must use `.?submodules=1`. For example, `nix build '.?submodules=1#${pname}'`.
+            # must use `.?submodules=1`. For example, `nix build '.?submodules=1#llzk-rs'`.
             src = ./.;
 
             nativeBuildInputs = commonNativeBuildInputs;
