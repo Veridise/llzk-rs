@@ -92,6 +92,8 @@
             libxml2
             zlib
             zstd
+            z3.lib
+            mlir-with-llvm
           ]
         );
 
@@ -131,7 +133,7 @@
             MLIR_SYS_200_PREFIX = "${mlir-with-llvm}";
             TABLEGEN_200_PREFIX = "${mlir-with-llvm}";
             LIBCLANG_PATH = "${pkgs.llzk-llvmPackages.libclang.lib}/lib";
-            RUSTFLAGS = "-L ${mlir-with-llvm}/lib/";
+            RUSTFLAGS = "-lLLVM -L ${mlir-with-llvm}/lib/ -lz3 -L ${pkgs.z3.lib}/lib";
             RUST_BACKTRACE = 1;
             # Fix _FORTIFY_SOURCE warning on Linux by ensuring build dependencies are optimized
             CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_OPT_LEVEL = 2;
