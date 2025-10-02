@@ -60,19 +60,38 @@
             pkgs.llzk-llvmPackages.mlir.dev
             pkgs.llzk-llvmPackages.mlir.lib
           ];
+          nativeBuildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [
+            pkgs.rcodesign
+          ];
           postBuild = ''
+            out="${placeholder "out"}"
+            llvm_config="$out/bin/llvm-config"
+            llvm_config_original="$out/bin/llvm-config-native"
+
             echo "Creating merged package: $out"
-            mv "$out"/bin/llvm-config "$out"/bin/llvm-config-native
-            substitute ${./nix/llvm-config.sh.in} "$out"/bin/llvm-config \
-              --subst-var-by out "${placeholder "out"}" \
-              --subst-var-by cmakeBuildType "Release" \
-              --subst-var-by version "${mlirVersion}" 
-            chmod +x "$out"/bin/llvm-config
+
+            # Move the original `llvm-config` to a new name so we can replace it with a wrapper script.
+            # On Darwin, a straightforward `mv` will leave the binary unusable due to improper code
+            # signing, so we use `cp -L` to copy the symlinked file to a new file and then delete the
+            # original and sign the new file in place.
+            cp -L "$llvm_config" "$llvm_config_original"
+            rm "$llvm_config"
+            ${pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+              chmod +w "$llvm_config_original"
+              rcodesign sign "$llvm_config_original"
+            ''}
+
+            # Create a wrapper script for `llvm-config` that adds MLIR support to the original tool.
+            substitute ${./nix/llvm-config.sh.in} "$llvm_config" \
+              --subst-var-by out "$out" \
+              --subst-var-by originalTool "$llvm_config_original"
+            chmod +x "$llvm_config"
+
             # Replace the MLIR dynamic library from the LLVM build with a dummy static library
             # to avoid duplicate symbol issues when linking with both LLVM and MLIR since the
             # MLIR build generated individual static libraries for each component.
-            rm -f "$out"/lib/libMLIR.${if pkgs.stdenv.isDarwin then "dylib" else "so"}
-            ${pkgs.stdenv.cc}/bin/ar -r "$out"/lib/libMLIR.a
+            rm -f "$out/lib/libMLIR.${if pkgs.stdenv.isDarwin then "dylib" else "so"}"
+            ${pkgs.stdenv.cc}/bin/ar -r "$out/lib/libMLIR.a"
           '';
         };
 
@@ -130,7 +149,7 @@
             MLIR_SYS_200_PREFIX = "${mlir-with-llvm}";
             TABLEGEN_200_PREFIX = "${mlir-with-llvm}";
             LIBCLANG_PATH = "${pkgs.llzk-llvmPackages.libclang.lib}/lib";
-            RUSTFLAGS = "-lLLVM -L ${mlir-with-llvm}/lib/ -lz3 -L ${pkgs.z3.lib}/lib";
+            RUSTFLAGS = "-lLLVM -L ${mlir-with-llvm}/lib -lz3 -L ${pkgs.z3.lib}/lib";
             RUST_BACKTRACE = 1;
             # Fix _FORTIFY_SOURCE warning on Linux by ensuring build dependencies are optimized
             CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_OPT_LEVEL = 2;

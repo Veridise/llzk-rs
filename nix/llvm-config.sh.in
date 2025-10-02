@@ -12,7 +12,7 @@ error_and_quit() {
        "to be used with https://github.com/mlir-rs/mlir-sys. It is not" \
        "guaranteed to support anything beyond the specific option" \
        "combinations used by mlir-sys." >&2
-  echo "Usage: llvm-config --link-static [options]" >&2
+  echo "Usage: llvm-config --link-static [option]" >&2
   exit 1
 }
 
@@ -22,9 +22,6 @@ if [ "$1" != "--link-static" ]; then
 fi
 
 case "$2" in
-  --version)
-    echo "@version@"
-    ;;
   --prefix)
     echo "@out@"
     ;;
@@ -36,18 +33,6 @@ case "$2" in
     ;;
   --libdir)
     echo "@out@/lib"
-    ;;
-  --cppflags)
-    error_and_quit "unsupported option '$2'"
-    ;;
-  --cxxflags)
-    error_and_quit "unsupported option '$2'"
-    ;;
-  --ldflags)
-    error_and_quit "unsupported option '$2'"
-    ;;
-  --system-libs)
-    echo "-lm -lz -lzstd -lxml2"
     ;;
   --libs)
     # static library file names with -l prefix instead of lib*.a
@@ -63,28 +48,7 @@ case "$2" in
     tr '\n' ' '
     echo
     ;;
-  --shared-mode)
-    # mlir-sys always uses the '--link-static' option
-    echo "static"
-    ;;
-  --assertion-mode)
-    # per LLVM_ENABLE_ASSERTIONS=ON setting in llzk-nix-pkgs/packages/llzk_llvm/mlir/default.nix
-    echo "ON"
-    ;;
-  --has-rtti)
-    # per LLVM_ENABLE_RTTI=ON setting in llzk-nix-pkgs/packages/llzk_llvm/mlir/default.nix
-    echo "YES"
-    ;;
-  --build-mode)
-    echo "@cmakeBuildType@"
-    ;;
-  --targets-built)
-    error_and_quit "unsupported option '$2'"
-    ;;
-  --host-target)
-    error_and_quit "unsupported option '$2'"
-    ;;
   *)
-    error_and_quit "unknown option: $2"
+    @originalTool@ --link-static $2
     ;;
 esac
