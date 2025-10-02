@@ -104,18 +104,12 @@ where
             .into_iter()
             .map(|stmt| stmt.map(&ExprOrTemp::Expr)),
         );
-        log::debug!("Gates IR: {gates:?}");
 
         log::debug!(
             "Lowering inter region equality constraints for group {:?}",
             group.name()
         );
         let eq_constraints = select_equality_constraints(group, ctx, &free_cells.inputs);
-        log::debug!(
-            "[{}] Equality constraints: {:?}",
-            group.name(),
-            eq_constraints
-        );
 
         let mut eq_constraints = inter_region_constraints(
             eq_constraints,
@@ -135,11 +129,6 @@ where
             eq_constraints
                 .into_iter()
                 .map(|stmt| stmt.map(&ExprOrTemp::Expr)),
-        );
-
-        log::debug!(
-            "[{}] Equality constraints (lowered): {eq_constraints:?}",
-            group.name()
         );
 
         log::debug!("Lowering lookups for group {:?}", group.name());
