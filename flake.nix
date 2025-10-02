@@ -133,8 +133,6 @@
             LIBCLANG_PATH = "${pkgs.llzk-llvmPackages.libclang.lib}/lib";
             RUSTFLAGS = "-L ${mlir-with-llvm}/lib/";
             RUST_BACKTRACE = 1;
-          }
-          // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
             # Fix _FORTIFY_SOURCE warning on Linux by ensuring build dependencies are optimized
             CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_OPT_LEVEL = 2;
             # Fix for GNU-like linkers on Linux to avoid removing symbols
