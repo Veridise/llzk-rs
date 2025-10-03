@@ -1,11 +1,5 @@
 use llzk::prelude::*;
-use melior::{
-    ir::{
-        r#type::{FunctionType, IntegerType},
-        Location, Type,
-    },
-    Context,
-};
+use melior::ir::Location;
 
 mod common;
 

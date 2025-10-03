@@ -1,6 +1,6 @@
 use llzk::prelude::*;
 use melior::ir::{
-    r#type::{FunctionType, IntegerType},
+    r#type::FunctionType,
     Location, Type,
 };
 

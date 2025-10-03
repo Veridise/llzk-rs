@@ -1,8 +1,8 @@
-use crate::{dialect::bool::CmpPredicate, error::Error, ident};
+use crate::{error::Error, ident};
 
 use super::{FeltConstAttribute, FeltType};
 use melior::ir::{
-    operation::OperationBuilder, r#type::IntegerType, Identifier, Location, Operation, Value,
+    operation::OperationBuilder, Identifier, Location, Operation, Value,
 };
 
 fn build_op<'c>(

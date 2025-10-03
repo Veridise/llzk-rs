@@ -1,12 +1,10 @@
 use std::{borrow::Cow, iter};
 
-use llzk::{dialect::function::FuncDefOpMutLike as _, prelude::*};
+use llzk::prelude::*;
 
 use melior::{
     ir::{
-        attribute::{ArrayAttribute, FlatSymbolRefAttribute},
-        r#type::FunctionType,
-        Attribute, AttributeLike as _, Identifier, Location, Operation, Type,
+        Attribute, Identifier, Location, Operation, Type,
     },
     Context,
 };
