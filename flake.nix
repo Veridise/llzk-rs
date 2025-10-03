@@ -28,9 +28,153 @@
     }:
     {
       # Overlay for downstream consumption
-      overlays.default = final: prev: {
-        inherit (self.packages.${final.system}) mlir-with-llvm llzk-rs llzk-sys-rs;
-      };
+      overlays.default =
+        final: prev:
+        let
+          # Assert version match between LLVM and MLIR
+          mlirVersion = final.llzk-llvmPackages.mlir.version;
+          _ =
+            assert final.llzk-llvmPackages.libllvm.version == mlirVersion;
+            null;
+
+          # Create a merged LLVM + MLIR derivation so tools that use llvm-config (like mlir-sys)
+          # can correctly discover information about both LLVM and MLIR libraries.
+          mlir-with-llvm = final.symlinkJoin {
+            name = "mlir-with-llvm-${mlirVersion}";
+            paths = [
+              final.llzk-llvmPackages.libllvm.dev
+              final.llzk-llvmPackages.libllvm.lib
+              final.llzk-llvmPackages.mlir.dev
+              final.llzk-llvmPackages.mlir.lib
+            ];
+            nativeBuildInputs = final.lib.optionals final.stdenv.isDarwin [
+              final.rcodesign
+            ];
+            postBuild = ''
+              out="${placeholder "out"}"
+              llvm_config="$out/bin/llvm-config"
+              llvm_config_original="$out/bin/llvm-config-native"
+
+              echo "Creating merged package: $out"
+
+              # Move the original `llvm-config` to a new name so we can replace it with a wrapper script.
+              # On Darwin, a straightforward `mv` will leave the binary unusable due to improper code
+              # signing, so we use `cp -L` to copy the symlinked file to a new file and then delete the
+              # original and sign the new file in place.
+              cp -L "$llvm_config" "$llvm_config_original"
+              rm "$llvm_config"
+              ${final.lib.optionalString final.stdenv.isDarwin ''
+                chmod +w "$llvm_config_original"
+                rcodesign sign "$llvm_config_original"
+              ''}
+
+              # Create a wrapper script for `llvm-config` that adds MLIR support to the original tool.
+              substitute ${./nix/llvm-config.sh.in} "$llvm_config" \
+                --subst-var-by out "$out" \
+                --subst-var-by originalTool "$llvm_config_original"
+              chmod +x "$llvm_config"
+
+              # Replace the MLIR dynamic library from the LLVM build with a dummy static library
+              # to avoid duplicate symbol issues when linking with both LLVM and MLIR since the
+              # MLIR build generated individual static libraries for each component.
+              rm -f "$out/lib/libMLIR.${if final.stdenv.isDarwin then "dylib" else "so"}"
+              ${final.stdenv.cc}/bin/ar -r "$out/lib/libMLIR.a"
+            '';
+          };
+
+          # LLZK shared environment configuration
+          llzkSharedEnvironment = {
+            nativeBuildInputs = with final; [
+              cmake
+              rustc
+              cargo
+              clang
+            ];
+
+            buildInputs = with final; [
+              libxml2
+              zlib
+              zstd
+              z3.lib
+              mlir-with-llvm
+            ];
+
+            devBuildInputs =
+              with final;
+              [
+                git
+                rustfmt
+                rustPackages.clippy
+              ]
+              ++ llzkSharedEnvironment.buildInputs;
+
+            # Shared environment variables
+            env = {
+              CC = "clang";
+              CXX = "clang++";
+              MLIR_SYS_200_PREFIX = "${mlir-with-llvm}";
+              TABLEGEN_200_PREFIX = "${mlir-with-llvm}";
+              LIBCLANG_PATH = "${final.llzk-llvmPackages.libclang.lib}/lib";
+              RUST_BACKTRACE = "1";
+              CARGO_INCREMENTAL = "1"; # speed up rebuilds
+            };
+
+            # Shared settings for packages
+            pkgSettings = {
+              RUSTFLAGS = "-lLLVM -L ${mlir-with-llvm}/lib";
+              # Fix _FORTIFY_SOURCE warning on Linux by ensuring build dependencies are optimized
+              CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_OPT_LEVEL = "2";
+              # Fix for GNU-like linkers on Linux to avoid removing symbols
+              LLZK_SYS_ENABLE_WHOLE_ARCHIVE = "1";
+            };
+
+            # Shared settings for dev shells
+            devSettings = {
+              RUSTFLAGS = "-L ${mlir-with-llvm}/lib";
+              RUST_SRC_PATH = final.rustPlatform.rustLibSrc;
+              CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG = "true";
+            };
+          };
+
+          # Helper function for building LLZK Rust packages
+          buildLlzkRustPackage =
+            packageName:
+            final.rustPlatform.buildRustPackage (
+              rec {
+                pname = "${packageName}-rs";
+                version = (final.lib.importTOML (./. + "/${packageName}/Cargo.toml")).package.version;
+                # Note: for this source to include the `llzk-lib` submodule, the nix command line
+                # must use `.?submodules=1`. For example, `nix build '.?submodules=1#llzk-rs'`.
+                src = ./.;
+
+                nativeBuildInputs = final.llzkSharedEnvironment.nativeBuildInputs;
+                buildInputs = final.llzkSharedEnvironment.buildInputs;
+
+                cargoLock = {
+                  lockFile = ./Cargo.lock;
+                  allowBuiltinFetchGit = true;
+                };
+
+                cargoBuildFlags = [
+                  "--package"
+                  packageName
+                ];
+                cargoTestFlags = [
+                  "--package"
+                  packageName
+                ];
+              }
+              // final.llzkSharedEnvironment.env
+              // final.llzkSharedEnvironment.pkgSettings
+            );
+        in
+        {
+          inherit mlir-with-llvm llzkSharedEnvironment;
+
+          # LLZK Rust packages
+          llzk-sys-rs = buildLlzkRustPackage "llzk-sys";
+          llzk-rs = buildLlzkRustPackage "llzk";
+        };
     }
     // flake-utils.lib.eachDefaultSystem (
       system:
@@ -38,127 +182,12 @@
         pkgs = import nixpkgs {
           inherit system;
           overlays = [
-            release-helpers.overlays.default
+            self.overlays.default
             llzk-pkgs.overlays.default
             llzk-lib.overlays.default
+            release-helpers.overlays.default
           ];
         };
-
-        # Assert version match between LLVM and MLIR
-        mlirVersion = pkgs.llzk-llvmPackages.mlir.version;
-        _ =
-          assert pkgs.llzk-llvmPackages.libllvm.version == mlirVersion;
-          null;
-
-        # Create a merged LLVM + MLIR derivation so tools that use llvm-config (like mlir-sys)
-        # can correctly discover information about both LLVM and MLIR libraries.
-        mlir-with-llvm = pkgs.symlinkJoin {
-          name = "mlir-with-llvm-${mlirVersion}";
-          paths = [
-            pkgs.llzk-llvmPackages.libllvm.dev
-            pkgs.llzk-llvmPackages.libllvm.lib
-            pkgs.llzk-llvmPackages.mlir.dev
-            pkgs.llzk-llvmPackages.mlir.lib
-          ];
-          nativeBuildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [
-            pkgs.rcodesign
-          ];
-          postBuild = ''
-            out="${placeholder "out"}"
-            llvm_config="$out/bin/llvm-config"
-            llvm_config_original="$out/bin/llvm-config-native"
-
-            echo "Creating merged package: $out"
-
-            # Move the original `llvm-config` to a new name so we can replace it with a wrapper script.
-            # On Darwin, a straightforward `mv` will leave the binary unusable due to improper code
-            # signing, so we use `cp -L` to copy the symlinked file to a new file and then delete the
-            # original and sign the new file in place.
-            cp -L "$llvm_config" "$llvm_config_original"
-            rm "$llvm_config"
-            ${pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
-              chmod +w "$llvm_config_original"
-              rcodesign sign "$llvm_config_original"
-            ''}
-
-            # Create a wrapper script for `llvm-config` that adds MLIR support to the original tool.
-            substitute ${./nix/llvm-config.sh.in} "$llvm_config" \
-              --subst-var-by out "$out" \
-              --subst-var-by originalTool "$llvm_config_original"
-            chmod +x "$llvm_config"
-
-            # Replace the MLIR dynamic library from the LLVM build with a dummy static library
-            # to avoid duplicate symbol issues when linking with both LLVM and MLIR since the
-            # MLIR build generated individual static libraries for each component.
-            rm -f "$out/lib/libMLIR.${if pkgs.stdenv.isDarwin then "dylib" else "so"}"
-            ${pkgs.stdenv.cc}/bin/ar -r "$out/lib/libMLIR.a"
-          '';
-        };
-
-        commonNativeBuildInputs = (
-          with pkgs;
-          [
-            cmake
-            rustc
-            cargo
-            clang
-          ]
-        );
-
-        commonBuildInputs = (
-          with pkgs;
-          [
-            libxml2
-            zlib
-            zstd
-            z3.lib
-            mlir-with-llvm
-          ]
-        );
-
-        # Helper function to build Rust packages with common configuration
-        buildLlzkRustPackage =
-          packageName:
-          pkgs.rustPlatform.buildRustPackage rec {
-            pname = "${packageName}-rs";
-            version = (pkgs.lib.importTOML ./${packageName}/Cargo.toml).package.version;
-            # Note: for this source to include the `llzk-lib` submodule, the nix command line
-            # must use `.?submodules=1`. For example, `nix build '.?submodules=1#llzk-rs'`.
-            src = ./.;
-
-            nativeBuildInputs = commonNativeBuildInputs;
-            buildInputs = commonBuildInputs;
-
-            cargoLock = {
-              lockFile = ./Cargo.lock;
-              allowBuiltinFetchGit = true;
-            };
-
-            # Build only the specified package from the workspace
-            cargoBuildFlags = [
-              "--package"
-              packageName
-            ];
-            cargoTestFlags = [
-              "--package"
-              packageName
-            ];
-
-            CC = "clang";
-            CXX = "clang++";
-            MLIR_SYS_200_PREFIX = "${mlir-with-llvm}";
-            TABLEGEN_200_PREFIX = "${mlir-with-llvm}";
-            LIBCLANG_PATH = "${pkgs.llzk-llvmPackages.libclang.lib}/lib";
-            RUSTFLAGS = "-lLLVM -L ${mlir-with-llvm}/lib";
-            RUST_BACKTRACE = 1;
-            # Fix _FORTIFY_SOURCE warning on Linux by ensuring build dependencies are optimized
-            CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_OPT_LEVEL = 2;
-            # Fix for GNU-like linkers on Linux to avoid removing symbols
-            LLZK_SYS_ENABLE_WHOLE_ARCHIVE = 1;
-          };
-
-        llzk-sys-rs = buildLlzkRustPackage "llzk-sys";
-        llzk-rs = buildLlzkRustPackage "llzk";
       in
       {
         packages = flake-utils.lib.flattenTree {
@@ -170,30 +199,19 @@
           # different versions than the mlir from llzk-pkgs.
           inherit (pkgs.llzk-llvmPackages) libllvm llvm;
           # Add new packages created here
-          inherit mlir-with-llvm llzk-rs llzk-sys-rs;
-          default = llzk-rs;
+          inherit (pkgs) mlir-with-llvm llzk-rs llzk-sys-rs;
+          default = pkgs.llzk-rs;
         };
 
         devShells = flake-utils.lib.flattenTree {
-          default = pkgs.mkShell {
-            nativeBuildInputs = commonNativeBuildInputs;
-            buildInputs =
-              (with pkgs; [
-                git
-                rustfmt
-                rustPackages.clippy
-              ])
-              ++ commonBuildInputs;
-
-            CC = "clang";
-            CXX = "clang++";
-            MLIR_SYS_200_PREFIX = "${mlir-with-llvm}";
-            TABLEGEN_200_PREFIX = "${mlir-with-llvm}";
-            RUSTFLAGS = "-L ${mlir-with-llvm}/lib/";
-            RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc;
-            CARGO_INCREMENTAL = 1; # speed up rebuilds
-            RUST_BACKTRACE = 1; # enable backtraces
-          };
+          default = pkgs.mkShell (
+            {
+              nativeBuildInputs = pkgs.llzkSharedEnvironment.nativeBuildInputs;
+              buildInputs = pkgs.llzkSharedEnvironment.devBuildInputs;
+            }
+            // pkgs.llzkSharedEnvironment.env
+            // pkgs.llzkSharedEnvironment.devSettings
+          );
         };
       }
     );
