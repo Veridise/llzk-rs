@@ -3,14 +3,16 @@ name = "llzk"
 version = "0.1.0"
 edition = "2024"
 keywords = ["llzk", "mlir"]
-categories = ["external-ffi-bindings"]
+categories = ["api-bindings"]
 description = "Rust bindings to the LLZK C API."
 repository = "https://github.com/Veridise/llzk-rs"
 license = "Apache-2.0"
 
 [dependencies]
 llzk-sys = { path = "../llzk-sys/", version = "0.1.0"}
+llzk-macro = { path = "../llzk-macro", version = "0.1.0"}
 melior = { workspace = true }
+melior-macro = { workspace = true }
 mlir-sys = { workspace = true }
 log = "0.4"
 paste = "1"

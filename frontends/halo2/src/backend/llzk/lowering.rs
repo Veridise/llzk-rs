@@ -11,8 +11,8 @@ use melior::ir::r#type::IntegerType;
 use melior::ir::ValueLike;
 use melior::{
     ir::{
-        operation::OperationLike as _, BlockLike as _, Location,
-        Operation, OperationRef, RegionLike as _, Value,
+        operation::OperationLike as _, BlockLike as _, Location, Operation, OperationRef,
+        RegionLike as _, Value,
     },
     Context,
 };
@@ -733,6 +733,7 @@ mod tests {
         let context = LlzkContext::new();
         let state: LlzkCodegenState = LlzkParamsBuilder::new(&context)
             .with_top_level(cfg.struct_name)
+            .no_optimize()
             .build()
             .into();
         let codegen = LlzkCodegen::initialize(&state);

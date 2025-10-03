@@ -16,6 +16,7 @@ mod common;
 const EXPECTED_PICUS: &'static str = include_str!("expected/picus/mul_test.picus");
 const EXPECTED_OPT_PICUS: &'static str = include_str!("expected/picus/mul_test_opt.picus");
 const EXPECTED_LLZK: &'static str = include_str!("expected/llzk/mul_test.mlir");
+const EXPECTED_OPT_LLZK: &'static str = include_str!("expected/llzk/mul_test_opt.mlir");
 
 #[test]
 fn mul_circuit_picus() {
@@ -50,10 +51,23 @@ fn mul_circuit_llzk() {
     let context = LlzkContext::new();
     common::llzk_test(
         MulCircuit::<Fr>::default(),
-        LlzkParamsBuilder::new(&context).build(),
+        LlzkParamsBuilder::new(&context).no_optimize().build(),
         IRGenParamsBuilder::new().build(),
         EXPECTED_LLZK,
         false,
+    );
+}
+
+#[test]
+fn mul_opt_circuit_llzk() {
+    common::setup();
+    let context = LlzkContext::new();
+    common::llzk_test(
+        MulCircuit::<Fr>::default(),
+        LlzkParamsBuilder::new(&context).build(),
+        IRGenParamsBuilder::new().build(),
+        EXPECTED_OPT_LLZK,
+        true,
     );
 }
 

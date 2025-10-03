@@ -17,6 +17,11 @@ impl<'c> LlzkCodegenState<'c> {
     pub fn params(&self) -> &LlzkParams<'c> {
         &self.params
     }
+
+    /// Returns true if optimization is enabled.
+    pub fn optimize(&self) -> bool {
+        self.params.optimize()
+    }
 }
 
 impl<'c> From<LlzkParams<'c>> for LlzkCodegenState<'c> {

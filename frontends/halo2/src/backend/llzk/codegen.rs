@@ -4,8 +4,10 @@ use super::{counter::Counter, LlzkOutput};
 use anyhow::Result;
 
 use llzk::prelude::*;
-use melior::ir::{BlockLike as _, Location, Module};
-use melior::Context;
+use melior::{
+    ir::{Location, Module},
+    Context,
+};
 
 use crate::backend::llzk::factory::StructIO;
 use crate::io::{AdviceIO, InstanceIO};
@@ -89,11 +91,43 @@ impl<'c: 's, 's> Codegen<'c, 's> for LlzkCodegen<'c, 's> {
         Ok(())
     }
 
-    fn generate_output(self) -> Result<Self::Output> {
+    fn generate_output(mut self) -> Result<Self::Output> {
         let signal = r#struct::helpers::define_signal_struct(self.context())?;
         self.module.body().insert_operation(0, signal.into());
+        if !self.module.as_operation().verify() {
+            anyhow::bail!(
+                "Output module failed verification{}",
+                if self.state.optimize() {
+                    " (before optimization)"
+                } else {
+                    ""
+                }
+            );
+        }
+        if self.state.optimize() {
+            let pipeline = create_pipeline(self.context());
+            pipeline.run(&mut self.module)?;
+        }
+
         Ok(self.module.into())
     }
+}
+
+fn create_pipeline<'c>(context: &'c Context) -> PassManager<'c> {
+    let pm = PassManager::new(context);
+    pm.nested_under("builtin.module")
+        .nested_under("struct.def")
+        .add_pass(llzk_passes::create_field_write_validator_pass());
+    pm.add_pass(melior_passes::create_canonicalizer());
+    pm.add_pass(melior_passes::create_cse());
+    pm.add_pass(llzk_passes::create_redundant_read_and_write_elimination_pass());
+    pm.nested_under("builtin.module")
+        .nested_under("struct.def")
+        .add_pass(llzk_passes::create_field_write_validator_pass());
+
+    let opm = pm.as_operation_pass_manager();
+    log::debug!("Optimization pipeline: {opm}");
+    pm
 }
 
 #[cfg(test)]
@@ -122,7 +156,7 @@ mod tests {
 
     #[rstest]
     fn define_main_function_empty_io(ctx: LlzkContext) {
-        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).build().into();
+        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).no_optimize().build().into();
         let codegen = LlzkCodegen::initialize(&state);
         let advice_io = AdviceIO::empty();
         let instance_io = InstanceIO::empty();
@@ -167,7 +201,7 @@ mod tests {
 
     #[rstest]
     fn define_main_function_public_inputs(ctx: LlzkContext) {
-        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).build().into();
+        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).no_optimize().build().into();
         let codegen = LlzkCodegen::initialize(&state);
         let mut cs = ConstraintSystem::<Fr>::default();
         let instance_col = cs.instance_column();
@@ -214,7 +248,7 @@ mod tests {
 
     #[rstest]
     fn define_main_function_private_inputs(ctx: LlzkContext) {
-        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).build().into();
+        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).no_optimize().build().into();
         let codegen = LlzkCodegen::initialize(&state);
         let mut cs = ConstraintSystem::<Fr>::default();
         let advice_col = cs.advice_column();
@@ -261,7 +295,7 @@ mod tests {
 
     #[rstest]
     fn define_main_function_public_outputs(ctx: LlzkContext) {
-        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).build().into();
+        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).no_optimize().build().into();
         let codegen = LlzkCodegen::initialize(&state);
         let mut cs = ConstraintSystem::<Fr>::default();
         let instance_col = cs.instance_column();
@@ -311,7 +345,7 @@ mod tests {
 
     #[rstest]
     fn define_main_function_private_outputs(ctx: LlzkContext) {
-        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).build().into();
+        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).no_optimize().build().into();
         let codegen = LlzkCodegen::initialize(&state);
         let mut cs = ConstraintSystem::<Fr>::default();
         let advice_col = cs.advice_column();
@@ -361,7 +395,7 @@ mod tests {
 
     #[rstest]
     fn define_main_function_mixed_io(ctx: LlzkContext) {
-        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).build().into();
+        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).no_optimize().build().into();
         let codegen = LlzkCodegen::initialize(&state);
         let mut cs = ConstraintSystem::<Fr>::default();
         let advice_col = cs.advice_column();

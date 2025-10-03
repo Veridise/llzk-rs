@@ -11,7 +11,7 @@ use halo2_llzk_frontend::{
     CircuitCallbacks, LlzkParams, PicusParams,
 };
 use halo2_proofs::plonk::Expression;
-use llzk::prelude::OperationLike as _;
+use llzk::prelude::*;
 use log::LevelFilter;
 use melior::ir::Module;
 use simplelog::{Config, TestLogger};
@@ -165,7 +165,11 @@ pub fn llzk_test<F, C>(
 {
     let mut driver = Driver::default();
     let resolved = common_lowering(circuit, &mut driver, ir_params, canonicalize);
-    check_llzk(&driver, &resolved, params, expected)
+    log::info!("Completed IR lowering!");
+    log::logger().flush();
+    check_llzk(&driver, &resolved, params, expected);
+    log::info!("Completed transforming IR to LLZK!");
+    log::logger().flush();
 }
 
 #[allow(dead_code)]
