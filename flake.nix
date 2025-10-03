@@ -96,7 +96,6 @@
               zlib
               zstd
               z3.lib
-              mlir-with-llvm
             ];
 
             devBuildInputs =
