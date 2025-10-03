@@ -6,33 +6,16 @@ use halo2_proofs::plonk::{
 };
 use halo2_proofs::poly::Rotation;
 use halo2curves_070::bn256::Fr;
+use llzk::prelude::LlzkContext;
 use std::marker::PhantomData;
 
-use halo2_llzk_frontend::{CircuitCallbacks, CircuitIO, PicusParamsBuilder};
+use halo2_llzk_frontend::{CircuitCallbacks, CircuitIO, LlzkParamsBuilder, PicusParamsBuilder};
 
 mod common;
 
-const EXPECTED_PICUS: &'static str = r"
-(prime-number 21888242871839275222246405745257275088548364400416034343698204186575808495617)
-(begin-module Main)
-(input in_0)
-(output out_0)
-(assert (= (* 1 (+ (* 21888242871839275222246405745257275088548364400416034343698204186575808495616 adv_0_0) (- adv_1_0))) 0))
-(assert (= (* 1 (+ (* adv_0_0 adv_1_0) (- adv_2_0))) 0))
-(assert (= adv_0_0 in_0))
-(assert (= adv_2_0 out_0))
-(end-module)
-";
-
-const EXPECTED_OPT_PICUS: &'static str = r"
-(prime-number 21888242871839275222246405745257275088548364400416034343698204186575808495617)
-(begin-module Main)
-(input in_0)
-(output out_0)
-(assert (= (- in_0) adv_1_0))
-(assert (= (* in_0 adv_1_0) out_0))
-(end-module)
-";
+const EXPECTED_PICUS: &'static str = include_str!("expected/picus/mul_test.picus");
+const EXPECTED_OPT_PICUS: &'static str = include_str!("expected/picus/mul_test_opt.picus");
+const EXPECTED_LLZK: &'static str = include_str!("expected/llzk/mul_test.mlir");
 
 #[test]
 fn mul_circuit_picus() {
@@ -58,6 +41,19 @@ fn mul_opt_circuit_picus() {
         IRGenParamsBuilder::new().build(),
         EXPECTED_OPT_PICUS,
         true,
+    );
+}
+
+#[test]
+fn mul_circuit_llzk() {
+    common::setup();
+    let context = LlzkContext::new();
+    common::llzk_test(
+        MulCircuit::<Fr>::default(),
+        LlzkParamsBuilder::new(&context).build(),
+        IRGenParamsBuilder::new().build(),
+        EXPECTED_LLZK,
+        false,
     );
 }
 

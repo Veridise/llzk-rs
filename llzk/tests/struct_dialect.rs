@@ -13,7 +13,6 @@ mod common;
 fn empty_struct() {
     common::setup();
     let context = LlzkContext::new();
-    context.attach_diagnostic_handler(common::diag_logger);
     let module = llzk_module(Location::unknown(&context));
     let loc = Location::unknown(&context);
     let typ = StructType::from_str(&context, "empty");
@@ -46,7 +45,6 @@ fn empty_struct() {
 fn empty_struct_with_one_param() {
     common::setup();
     let context = LlzkContext::new();
-    context.attach_diagnostic_handler(common::diag_logger);
     let module = llzk_module(Location::unknown(&context));
     let loc = Location::unknown(&context);
     let typ = StructType::from_str_params(&context, "empty", &["T"]);
@@ -79,7 +77,6 @@ fn empty_struct_with_one_param() {
 fn signal_struct() {
     common::setup();
     let context = LlzkContext::new();
-    context.attach_diagnostic_handler(common::diag_logger);
     let module = llzk_module(Location::unknown(&context));
 
     let s = r#struct::helpers::define_signal_struct(&context).unwrap();

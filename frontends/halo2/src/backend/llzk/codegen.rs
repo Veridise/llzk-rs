@@ -47,7 +47,8 @@ impl<'c: 's, 's> Codegen<'c, 's> for LlzkCodegen<'c, 's> {
     }
 
     fn set_prime_field(&self, _prime: Felt) -> Result<()> {
-        todo!()
+        log::warn!("Setting the prime in the LLZK backend is a no-op");
+        Ok(())
     }
 
     fn define_main_function(
@@ -65,7 +66,6 @@ impl<'c: 's, 's> Codegen<'c, 's> for LlzkCodegen<'c, 's> {
             true,
         )?;
         log::debug!("Created struct object {s:?}");
-        //let regions = syn.regions_by_index();
         Ok(LlzkStructLowering::new(self.context(), self.add_struct(s)?))
     }
 
@@ -105,7 +105,6 @@ mod tests {
 
     use super::*;
     use log::LevelFilter;
-    use melior::diagnostic::{Diagnostic, DiagnosticSeverity};
     use rstest::{fixture, rstest};
     use simplelog::{Config, TestLogger};
 
@@ -114,56 +113,10 @@ mod tests {
         let _ = TestLogger::init(LevelFilter::Debug, Config::default());
     }
 
-    /// Diagnostics handler that writes the diagnostics to the [`log`].
-    pub fn diag_logger(diag: Diagnostic) -> bool {
-        fn log_msg(diag: &Diagnostic) {
-            match diag.severity() {
-                DiagnosticSeverity::Error => {
-                    log::error!("[{}] {}", diag.location(), diag.to_string())
-                }
-                DiagnosticSeverity::Note => {
-                    log::info!("[{}] note: {}", diag.location(), diag.to_string())
-                }
-                DiagnosticSeverity::Remark => {
-                    log::info!("[{}] remark: {}", diag.location(), diag.to_string())
-                }
-                DiagnosticSeverity::Warning => {
-                    log::warn!("[{}] {}", diag.location(), diag.to_string())
-                }
-            }
-        }
-        fn log_notes(diag: &Diagnostic) -> Result<(), bool> {
-            for note_no in 0..diag.note_count() {
-                let note = diag.note(note_no);
-                match note {
-                    Ok(note) => {
-                        log_msg(&note);
-                        log_notes(&note)?;
-                    }
-                    Err(err) => {
-                        log::error!("Error while obtaining note #{note_no}: {err}");
-                        return Err(false);
-                    }
-                };
-            }
-            Ok(())
-        }
-        log_msg(&diag);
-        if let Err(res) = log_notes(&diag) {
-            return res;
-        }
-
-        match diag.severity() {
-            DiagnosticSeverity::Error => false,
-            _ => true,
-        }
-    }
-
     #[fixture]
     #[allow(unused_variables)]
     fn ctx(common: ()) -> LlzkContext {
         let context = LlzkContext::new();
-        context.attach_diagnostic_handler(diag_logger);
         context
     }
 

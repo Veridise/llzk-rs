@@ -7,7 +7,6 @@ mod common;
 fn empty_function() {
     common::setup();
     let context = LlzkContext::new();
-    context.attach_diagnostic_handler(common::diag_logger);
     let module = llzk_module(Location::unknown(&context));
     let loc = Location::unknown(&context);
     let f = function::def(

@@ -1,6 +1,6 @@
 use llzk_sys::{
     llzkAttributeIsAFeltConstAttr, llzkFeltConstAttrGet, llzkFeltConstAttrGetFromParts,
-    llzkFeltConstAttrGetFromString,
+    llzkFeltConstAttrGetFromString, llzkFeltConstAttrGetWithBits,
 };
 use melior::{
     ir::{Attribute, AttributeLike},
@@ -54,6 +54,17 @@ impl<'c> FeltConstAttribute<'c> {
         unsafe { Self::from_raw(llzkFeltConstAttrGet(ctx.to_raw(), value as i64)) }
     }
 
+    /// Creates a [`FeltConstAttribute`] from a 64 bit value and a set bit width.
+    pub fn new_with_bitlen(ctx: &'c Context, bitlen: u32, value: u64) -> Self {
+        unsafe {
+            Self::from_raw(llzkFeltConstAttrGetWithBits(
+                ctx.to_raw(),
+                bitlen,
+                value as i64,
+            ))
+        }
+    }
+
     /// Creates a [`FeltConstAttribute`] from a base 10 string representation.
     pub fn parse(ctx: &'c Context, bitlen: u32, value: &str) -> Self {
         let value = StringRef::new(value);
@@ -72,6 +83,10 @@ impl<'c> FeltConstAttribute<'c> {
     /// than the minimum number of bits required to represent it. Otherwise the number will be
     /// interpreted as signed and may cause unexpected behaviors.
     pub fn from_parts(ctx: &'c Context, bitlen: u32, parts: &[u64]) -> Self {
+        // Special case for empty parts array
+        if parts.is_empty() {
+            return Self::new_with_bitlen(ctx, bitlen, 0);
+        }
         unsafe {
             Self::from_raw(llzkFeltConstAttrGetFromParts(
                 ctx.to_raw(),
@@ -134,19 +149,83 @@ impl<'c> From<FeltConstAttribute<'c>> for Attribute<'c> {
 
 #[cfg(test)]
 mod tests {
+    use std::ptr::null;
+
     use super::*;
     use crate::prelude::*;
+    use log::LevelFilter;
+    use melior::ir::{
+        attribute::{IntegerAttribute, StringAttribute},
+        r#type::IntegerType,
+    };
     use quickcheck_macros::quickcheck;
+    use simplelog::{Config, TestLogger};
 
     #[quickcheck]
     fn felt_const_attr_new(value: u64) {
+        let _ = TestLogger::init(LevelFilter::Debug, Config::default());
         let ctx = LlzkContext::new();
-        let _ = FeltConstAttribute::new(&ctx, value);
+        let f = FeltConstAttribute::new(&ctx, value);
+        assert_ne!(f.to_raw().ptr, null());
+    }
+
+    #[quickcheck]
+    fn felt_const_attr_conversion(value: u64) {
+        let _ = TestLogger::init(LevelFilter::Debug, Config::default());
+        let ctx = LlzkContext::new();
+        let f = FeltConstAttribute::new(&ctx, value);
+        let attr: Attribute = f.into();
+        let f: FeltConstAttribute = attr.try_into().unwrap();
+        assert_ne!(f.to_raw().ptr, null());
+    }
+
+    #[test]
+    fn felt_const_attr_fail() {
+        let _ = TestLogger::init(LevelFilter::Debug, Config::default());
+        let ctx = LlzkContext::new();
+        let attrs = [
+            Attribute::unit(&ctx),
+            StringAttribute::new(&ctx, "string").into(),
+            IntegerAttribute::new(IntegerType::new(&ctx, 32).into(), 1).into(),
+        ];
+        for attr in attrs {
+            let f: Result<FeltConstAttribute, _> = attr.try_into();
+            assert!(f.is_err());
+        }
     }
 
     #[quickcheck]
     fn felt_const_attr_parse_from_u64(value: u64) {
+        let _ = TestLogger::init(LevelFilter::Debug, Config::default());
         let ctx = LlzkContext::new();
-        let _ = FeltConstAttribute::parse(&ctx, 64, &value.to_string());
+        let f = FeltConstAttribute::parse(&ctx, 64, &value.to_string());
+        assert_ne!(f.to_raw().ptr, null());
+    }
+
+    #[cfg(feature = "bigint")]
+    mod bigint {
+        use std::str::FromStr as _;
+
+        use num_bigint::BigUint;
+        use rstest::rstest;
+
+        use crate::{context::LlzkContext, prelude::FeltConstAttribute};
+
+        #[rstest]
+        fn felt_const_attr_new_from_bigint(
+            #[values(BigUint::from(0u8), BigUint::from(1u8), BigUint::from_str("21888242871839275222246405745257275088548364400416034343698204186575808495616").unwrap())]
+            value: BigUint,
+        ) {
+            use std::ptr::null;
+
+            use log::LevelFilter;
+            use melior::ir::AttributeLike as _;
+            use simplelog::{Config, TestLogger};
+
+            let _ = TestLogger::init(LevelFilter::Debug, Config::default());
+            let ctx = LlzkContext::new();
+            let f = FeltConstAttribute::from_biguint(&ctx, &value);
+            assert_ne!(f.to_raw().ptr, null());
+        }
     }
 }

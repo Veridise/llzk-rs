@@ -64,11 +64,12 @@ pub trait Codegen<'c: 's, 's>: Sized + 's {
         stmts: impl IntoIterator<Item = L>,
     ) -> Result<()>
     where
-        L: LowerableStmt,
+        L: LowerableStmt + std::fmt::Debug,
     {
         let main = self.define_main_function(advice_io, instance_io)?;
         log::debug!("Defined main function");
         for stmt in stmts {
+            log::debug!("Lowering statement {stmt:?}");
             stmt.lower(&main)?;
         }
         log::debug!("Lowered function body");

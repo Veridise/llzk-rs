@@ -8,10 +8,12 @@ use halo2_llzk_frontend::{
         callbacks::{LookupCallbacks, LookupTableGenerator},
         Lookup,
     },
-    CircuitCallbacks, PicusParams,
+    CircuitCallbacks, LlzkParams, PicusParams,
 };
 use halo2_proofs::plonk::Expression;
+use llzk::prelude::OperationLike as _;
 use log::LevelFilter;
+use melior::ir::Module;
 use simplelog::{Config, TestLogger};
 
 pub fn setup() {
@@ -50,19 +52,17 @@ where
     resolved
 }
 
-#[allow(dead_code)]
-pub fn picus_test<F, C>(
+fn common_lowering<F, C>(
     circuit: C,
-    params: PicusParams,
+    driver: &mut Driver,
     ir_params: IRGenParams<F>,
-    expected: impl AsRef<str>,
     canonicalize: bool,
-) where
+) -> ResolvedIRCircuit
+where
     F: PrimeField,
     C: CircuitCallbacks<F>,
 {
-    let mut driver = Driver::default();
-    let mut resolved = synthesize_and_generate_ir(&mut driver, circuit, ir_params);
+    let mut resolved = synthesize_and_generate_ir(driver, circuit, ir_params);
     if canonicalize {
         resolved.constant_fold().unwrap();
         let (status, errs) = resolved.validate();
@@ -81,6 +81,22 @@ pub fn picus_test<F, C>(
             panic!("Test failed due to validation errors");
         }
     }
+    resolved
+}
+
+#[allow(dead_code)]
+pub fn picus_test<F, C>(
+    circuit: C,
+    params: PicusParams,
+    ir_params: IRGenParams<F>,
+    expected: impl AsRef<str>,
+    canonicalize: bool,
+) where
+    F: PrimeField,
+    C: CircuitCallbacks<F>,
+{
+    let mut driver = Driver::default();
+    let resolved = common_lowering(circuit, &mut driver, ir_params, canonicalize);
     check_picus(&driver, &resolved, params, expected);
 }
 
@@ -101,6 +117,22 @@ pub fn check_picus(
     similar_asserts::assert_eq!(expected, output);
 }
 
+pub fn check_llzk(
+    driver: &Driver,
+    circuit: &ResolvedIRCircuit,
+    params: LlzkParams,
+    expected: impl AsRef<str>,
+) {
+    let context = params.context();
+    let output = driver.llzk(&circuit, params).unwrap();
+    assert!(output.module().as_operation().verify());
+    let output_str = format!("{}", output.module().as_operation());
+    let expected =
+        Module::parse(context, expected.as_ref()).expect("Failed to parse expected test output!");
+    let expected_str = format!("{}", expected.as_operation());
+    similar_asserts::assert_eq!(expected_str, output_str);
+}
+
 fn clean_string(s: &str) -> String {
     let mut r = String::with_capacity(s.len());
     for line in s.lines() {
@@ -118,6 +150,22 @@ fn clean_string(s: &str) -> String {
         r.extend("\n".chars());
     }
     r
+}
+
+#[allow(dead_code)]
+pub fn llzk_test<F, C>(
+    circuit: C,
+    params: LlzkParams,
+    ir_params: IRGenParams<F>,
+    expected: impl AsRef<str>,
+    canonicalize: bool,
+) where
+    F: PrimeField,
+    C: CircuitCallbacks<F>,
+{
+    let mut driver = Driver::default();
+    let resolved = common_lowering(circuit, &mut driver, ir_params, canonicalize);
+    check_llzk(&driver, &resolved, params, expected)
 }
 
 #[allow(dead_code)]

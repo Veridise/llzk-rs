@@ -10,7 +10,6 @@ mod common;
 fn f_eq() {
     common::setup();
     let context = LlzkContext::new();
-    context.attach_diagnostic_handler(common::diag_logger);
     let module = llzk_module(Location::unknown(&context));
     let loc = Location::unknown(&context);
     let felt_type: Type = FeltType::new(&context).into();
@@ -56,7 +55,6 @@ fn f_eq() {
 fn f_ne() {
     common::setup();
     let context = LlzkContext::new();
-    context.attach_diagnostic_handler(common::diag_logger);
     let module = llzk_module(Location::unknown(&context));
     let loc = Location::unknown(&context);
     let felt_type: Type = FeltType::new(&context).into();
@@ -102,7 +100,6 @@ fn f_ne() {
 fn f_lt() {
     common::setup();
     let context = LlzkContext::new();
-    context.attach_diagnostic_handler(common::diag_logger);
     let module = llzk_module(Location::unknown(&context));
     let loc = Location::unknown(&context);
     let felt_type: Type = FeltType::new(&context).into();
@@ -148,7 +145,6 @@ fn f_lt() {
 fn f_le() {
     common::setup();
     let context = LlzkContext::new();
-    context.attach_diagnostic_handler(common::diag_logger);
     let module = llzk_module(Location::unknown(&context));
     let loc = Location::unknown(&context);
     let felt_type: Type = FeltType::new(&context).into();
@@ -194,7 +190,6 @@ fn f_le() {
 fn f_gt() {
     common::setup();
     let context = LlzkContext::new();
-    context.attach_diagnostic_handler(common::diag_logger);
     let module = llzk_module(Location::unknown(&context));
     let loc = Location::unknown(&context);
     let felt_type: Type = FeltType::new(&context).into();
@@ -240,7 +235,6 @@ fn f_gt() {
 fn f_ge() {
     common::setup();
     let context = LlzkContext::new();
-    context.attach_diagnostic_handler(common::diag_logger);
     let module = llzk_module(Location::unknown(&context));
     let loc = Location::unknown(&context);
     let felt_type: Type = FeltType::new(&context).into();

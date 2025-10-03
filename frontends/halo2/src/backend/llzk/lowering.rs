@@ -98,12 +98,14 @@ impl<'c, 's> LlzkStructLowering<'c, 's> {
             .region(0)?
             .first_block()
             .ok_or_else(|| anyhow!("Constraint function region is missing a block"))?;
-        Ok(block.insert_operation_before(
+        let op_ref = block.insert_operation_before(
             block
                 .terminator()
                 .ok_or_else(|| anyhow!("Constraint function is missing a terminator"))?,
             op.into(),
-        ))
+        );
+        log::debug!("Inserted operation {op_ref}");
+        Ok(op_ref)
     }
 
     /// Adds an operation at the end of the constrain function and returns the first resulf of the
@@ -732,7 +734,6 @@ mod tests {
     ) {
         let _ = TestLogger::init(LevelFilter::Debug, Config::default());
         let context = LlzkContext::new();
-        context.attach_diagnostic_handler(diag_logger);
         let state: LlzkCodegenState = LlzkParamsBuilder::new(&context)
             .with_top_level(cfg.struct_name)
             .build()
@@ -761,51 +762,6 @@ mod tests {
         let out_str = format!("{}", out.module().as_operation());
         let frag_str = format!("{}", fragment.as_operation());
         similar_asserts::assert_eq!(out_str, frag_str)
-    }
-
-    /// Diagnostics handler that writes the diagnostics to the [`log`].
-    pub fn diag_logger(diag: Diagnostic) -> bool {
-        fn log_msg(diag: &Diagnostic) {
-            match diag.severity() {
-                DiagnosticSeverity::Error => {
-                    log::error!("[{}] {}", diag.location(), diag.to_string())
-                }
-                DiagnosticSeverity::Note => {
-                    log::info!("[{}] note: {}", diag.location(), diag.to_string())
-                }
-                DiagnosticSeverity::Remark => {
-                    log::info!("[{}] remark: {}", diag.location(), diag.to_string())
-                }
-                DiagnosticSeverity::Warning => {
-                    log::warn!("[{}] {}", diag.location(), diag.to_string())
-                }
-            }
-        }
-        fn log_notes(diag: &Diagnostic) -> Result<(), bool> {
-            for note_no in 0..diag.note_count() {
-                let note = diag.note(note_no);
-                match note {
-                    Ok(note) => {
-                        log_msg(&note);
-                        log_notes(&note)?;
-                    }
-                    Err(err) => {
-                        log::error!("Error while obtaining note #{note_no}: {err}");
-                        return Err(false);
-                    }
-                };
-            }
-            Ok(())
-        }
-        log_msg(&diag);
-        if let Err(res) = log_notes(&diag) {
-            return res;
-        }
-
-        match diag.severity() {
-            DiagnosticSeverity::Error => false,
-            _ => true,
-        }
     }
 
     struct FragmentCfg {

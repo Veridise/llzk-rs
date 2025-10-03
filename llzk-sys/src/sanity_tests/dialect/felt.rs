@@ -5,8 +5,8 @@ use rstest::rstest;
 
 use crate::{
     llzkAttributeIsAFeltConstAttr, llzkFeltConstAttrGet, llzkFeltConstAttrGetFromParts,
-    llzkFeltConstAttrGetFromString, llzkFeltTypeGet, llzkTypeIsAFeltType,
-    mlirGetDialectHandle__llzk__felt__,
+    llzkFeltConstAttrGetFromString, llzkFeltConstAttrGetWithBits, llzkFeltTypeGet,
+    llzkTypeIsAFeltType, mlirGetDialectHandle__llzk__felt__,
     sanity_tests::{context, str_ref, TestContext},
 };
 
@@ -21,6 +21,14 @@ fn test_mlir_get_dialect_handle_llzk_felt() {
 fn test_llzk_felt_const_attr_get(context: TestContext) {
     unsafe {
         let attr = llzkFeltConstAttrGet(context.ctx, 0);
+        assert_ne!(attr.ptr, null());
+    };
+}
+
+#[rstest]
+fn test_llzk_felt_const_attr_get_with_bits(context: TestContext) {
+    unsafe {
+        let attr = llzkFeltConstAttrGetWithBits(context.ctx, 128, 0);
         assert_ne!(attr.ptr, null());
     };
 }
