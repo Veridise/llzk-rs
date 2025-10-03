@@ -14,7 +14,7 @@ rstest = "0.26"
 melior = { workspace = true }
 mlir-sys = { workspace = true }
 llzk-sys = { path = "../../llzk-sys/", version = "0.1.0"}
-llzk = { path = "../../llzk/", version = "0.1.0"}
+llzk = { path = "../../llzk/", version = "0.1.0", features =["bigint"]}
 picus = { path = "../../picus", version = "0.1.0", features=["bigint-felt"]}
 anyhow = "^1"
 group = "0.13"

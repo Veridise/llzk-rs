@@ -154,9 +154,7 @@ impl<'c, 's> LlzkStructLowering<'c, 's> {
     }
 
     fn lower_constant_impl(&self, f: Felt) -> Result<Value<'c, '_>> {
-        let repr = f.as_ref();
-        log::debug!("f as repr: {repr}");
-        let const_attr = FeltConstAttribute::parse(self.context(), repr.to_string().as_str());
+        let const_attr = FeltConstAttribute::from_biguint(self.context(), f.as_ref());
         self.append_expr(felt::constant(
             Location::unknown(self.context()),
             const_attr,
@@ -703,9 +701,8 @@ mod tests {
     }
 
     #[rstest]
-    #[should_panic]
     fn lower_constant(fragment_main: FragmentCfg) {
-        fragment_test(fragment_main, "%true = arith.constant true", |l| {
+        fragment_test(fragment_main, "%felt_const_1 = felt.const 1", |l| {
             // Loading a constant is not supported right now.
             l.lower_constant(Felt::new(crate::halo2::Fr::ONE))?;
             Ok(())

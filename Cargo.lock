@@ -720,6 +720,7 @@ dependencies = [
  "log",
  "melior",
  "mlir-sys",
+ "num-bigint",
  "paste",
  "quickcheck",
  "quickcheck_macros",

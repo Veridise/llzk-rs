@@ -1,4 +1,7 @@
-use llzk_sys::{llzkAttributeIsAFeltConstAttr, llzkFeltConstAttrGet};
+use llzk_sys::{
+    llzkAttributeIsAFeltConstAttr, llzkFeltConstAttrGet, llzkFeltConstAttrGetFromParts,
+    llzkFeltConstAttrGetFromString,
+};
 use melior::{
     ir::{Attribute, AttributeLike},
     Context, StringRef,
@@ -51,17 +54,43 @@ impl<'c> FeltConstAttribute<'c> {
         unsafe { Self::from_raw(llzkFeltConstAttrGet(ctx.to_raw(), value as i64)) }
     }
 
-    pub fn parse(_ctx: &'c Context, value: &str) -> Self {
-        let _value = StringRef::new(value);
-        todo!(
-            "Required C function llzkFeltConstAttrParseFromBase10Str is not available in main yet."
-        )
-        //unsafe {
-        //    Self::from_raw(llzkFeltConstAttrParseFromBase10Str(
-        //        ctx.to_raw(),
-        //        value.to_raw(),
-        //    ))
-        //}
+    /// Creates a [`FeltConstAttribute`] from a base 10 string representation.
+    pub fn parse(ctx: &'c Context, bitlen: u32, value: &str) -> Self {
+        let value = StringRef::new(value);
+        unsafe {
+            Self::from_raw(llzkFeltConstAttrGetFromString(
+                ctx.to_raw(),
+                bitlen,
+                value.to_raw(),
+            ))
+        }
+    }
+
+    /// Creates a [`FeltConstAttribute`] from a slice of bigint parts in LSB order.
+    ///
+    /// If the number represented by the parts is unsigned set the bit length to at least one more
+    /// than the minimum number of bits required to represent it. Otherwise the number will be
+    /// interpreted as signed and may cause unexpected behaviors.
+    pub fn from_parts(ctx: &'c Context, bitlen: u32, parts: &[u64]) -> Self {
+        unsafe {
+            Self::from_raw(llzkFeltConstAttrGetFromParts(
+                ctx.to_raw(),
+                bitlen,
+                parts.as_ptr(),
+                parts.len() as isize,
+            ))
+        }
+    }
+
+    /// Creates a [`FeltConstAttribute`] from a [`num_bigint::BigUint`].
+    ///
+    /// Panics if the number of bits required to represent the bigint plus one does not fit in 32 bits.
+    #[cfg(feature = "bigint")]
+    pub fn from_biguint(ctx: &'c Context, value: &num_bigint::BigUint) -> Self {
+        // Increase by one to ensure the value is kept unsigned.
+        let bitlen = value.bits() + 1;
+        let parts = value.to_u64_digits();
+        Self::from_parts(ctx, bitlen.try_into().unwrap(), &parts)
     }
 }
 
@@ -80,6 +109,14 @@ impl<'c> TryFrom<Attribute<'c>> for FeltConstAttribute<'c> {
         } else {
             Err(Self::Error::AttributeExpected("llzk felt", t.to_string()))
         }
+    }
+}
+
+impl<'c> std::fmt::Debug for FeltConstAttribute<'c> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "FeltConstAttribute(")?;
+        std::fmt::Display::fmt(&self.inner, f)?;
+        write!(f, ")")
     }
 }
 
@@ -108,9 +145,8 @@ mod tests {
     }
 
     #[quickcheck]
-    #[should_panic]
     fn felt_const_attr_parse_from_u64(value: u64) {
         let ctx = LlzkContext::new();
-        let _ = FeltConstAttribute::parse(&ctx, &value.to_string());
+        let _ = FeltConstAttribute::parse(&ctx, 64, &value.to_string());
     }
 }

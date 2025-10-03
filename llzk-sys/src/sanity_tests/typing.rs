@@ -5,8 +5,8 @@ use std::{
 
 use mlir_sys::{
     mlirArrayAttrGet, mlirAttributeEqual, mlirAttributeGetContext, mlirFlatSymbolRefAttrGet,
-    mlirIndexTypeGet, mlirIntegerAttrGet, mlirIntegerTypeGet, mlirStringRefCreateFromCString,
-    MlirOperation, MlirType,
+    mlirIndexTypeGet, mlirIntegerAttrGet, mlirIntegerTypeGet, mlirLocationUnknownGet,
+    mlirStringRefCreateFromCString, MlirOperation, MlirType,
 };
 use rstest::{fixture, rstest};
 
@@ -255,7 +255,8 @@ fn test_llzk_is_more_concrete_unification(index_type: IndexType) {
 fn test_llzk_force_int_attr_type(i16_type: I16Type) {
     unsafe {
         let in_attr = mlirIntegerAttrGet(i16_type.t, 0);
-        let out_attr = llzkForceIntAttrType(in_attr);
+        let loc = mlirLocationUnknownGet(i16_type.context.ctx);
+        let out_attr = llzkForceIntAttrType(in_attr, loc);
         assert!(!mlirAttributeEqual(in_attr, out_attr));
     }
 }
