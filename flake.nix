@@ -115,7 +115,6 @@
               TABLEGEN_200_PREFIX = "${mlir-with-llvm}";
               LIBCLANG_PATH = "${final.llzk-llvmPackages.libclang.lib}/lib";
               RUST_BACKTRACE = "1";
-              CARGO_INCREMENTAL = "1"; # speed up rebuilds
             };
 
             # Shared settings for packages
@@ -125,13 +124,14 @@
               CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_OPT_LEVEL = "2";
               # Fix for GNU-like linkers on Linux to avoid removing symbols
               LLZK_SYS_ENABLE_WHOLE_ARCHIVE = "1";
+              # Speed up cargo rebuilds
+              CARGO_INCREMENTAL = "1";
             };
 
             # Shared settings for dev shells
             devSettings = {
               RUSTFLAGS = "-L ${mlir-with-llvm}/lib";
               RUST_SRC_PATH = final.rustPlatform.rustLibSrc;
-              CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG = "true";
             };
           };
 
