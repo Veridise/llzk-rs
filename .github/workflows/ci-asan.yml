@@ -42,7 +42,7 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-asan-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Build in "${{ matrix.BUILD_TARGET }}" mode
-        run: cargo +nightly build --target=x86_64-unknown-linux-gnu
-      - name: Run tests in "${{ matrix.BUILD_TARGET }}" mode
-        run: cargo +nightly test --target=x86_64-unknown-linux-gnu
+      - name: Build in asan mode
+        run: cargo +nightly build --target=x86_64-unknown-linux-gnu --profile=dev
+      - name: Run tests in asan mode
+        run: cargo +nightly test --target=x86_64-unknown-linux-gnu --profile=dev
