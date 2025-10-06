@@ -725,9 +725,15 @@ dependencies = [
  "llzk-sys",
  "log",
  "melior",
+ "melior-macro",
  "mlir-sys",
+ "num-bigint",
  "paste",
+ "quickcheck",
+ "quickcheck_macros",
  "rstest 0.25.0",
+ "similar-asserts",
+ "simplelog",
 ]
 
 [[package]]

@@ -5,7 +5,9 @@ mod r#type;
 pub use attrs::{FeltConstAttribute, Radix};
 use llzk_sys::mlirGetDialectHandle__llzk__felt__;
 use melior::dialect::DialectHandle;
-pub use ops::{add, constant, mul, neg, sub};
+pub use ops::{
+    add, bit_and, bit_not, bit_or, bit_xor, constant, div, inv, mul, neg, r#mod, shl, shr, sub,
+};
 pub use r#type::FeltType;
 
 pub fn handle() -> DialectHandle {

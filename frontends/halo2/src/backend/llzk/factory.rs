@@ -17,11 +17,10 @@ fn create_field<'c>(
     name: &str,
     public: bool,
 ) -> Result<FieldDefOp<'c>, LlzkError> {
-    let field_name = FlatSymbolRefAttribute::new(context, name);
     let filename = format!("struct {header} | field {name}");
     let loc = Location::new(context, &filename, 0, 0);
 
-    r#struct::field(loc, field_name, FeltType::new(context), false, public)
+    r#struct::field(loc, name, FeltType::new(context), false, public)
 }
 
 fn struct_type<'c>(context: &'c Context, name: &str) -> Type<'c> {
@@ -144,7 +143,7 @@ pub fn create_struct<'c>(
     log::debug!("Creating constraint op");
     r#struct::def(
         loc,
-        FlatSymbolRefAttribute::new(context, struct_name),
+        struct_name,
         &[],
         fields.chain([constrain.map(Into::into)]),
     )

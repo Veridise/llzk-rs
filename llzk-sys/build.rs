@@ -45,7 +45,7 @@ const DEFAULT_CFG: DefaultConfig<'static> = DefaultConfig::new(
         "OpBuilder",
         "OpBuilderListener",
         "Notify(Operation|Block)Inserted",
-        "OpBuilderInsertPoint",
+        "(Op|Block)BuilderInsertPoint",
         "ValueRange",
     ],
 );

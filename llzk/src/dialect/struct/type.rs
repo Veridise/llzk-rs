@@ -10,6 +10,7 @@ use mlir_sys::MlirType;
 
 use crate::utils::FromRaw;
 
+#[derive(Copy, Clone)]
 pub struct StructType<'c> {
     t: Type<'c>,
 }
@@ -17,16 +18,23 @@ pub struct StructType<'c> {
 impl<'c> StructType<'c> {
     pub fn new(name: FlatSymbolRefAttribute<'c>, params: &[Attribute<'c>]) -> Self {
         unsafe {
-            let context = name.context().to_ref();
             Self::from_raw(llzkStructTypeGetWithArrayAttr(
                 name.to_raw(),
-                ArrayAttribute::new(context, params).to_raw(),
+                ArrayAttribute::new(name.context().to_ref(), params).to_raw(),
             ))
         }
     }
 
     pub fn from_str(context: &'c Context, name: &str) -> Self {
         Self::new(FlatSymbolRefAttribute::new(context, name), &[])
+    }
+
+    pub fn from_str_params(context: &'c Context, name: &str, params: &[&str]) -> Self {
+        let params: Vec<Attribute> = params
+            .iter()
+            .map(|param| FlatSymbolRefAttribute::new(context, param).into())
+            .collect();
+        Self::new(FlatSymbolRefAttribute::new(context, name), &params)
     }
 }
 

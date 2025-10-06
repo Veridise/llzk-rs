@@ -8,8 +8,8 @@ use llzk_sys::{
 };
 use melior::{
     ir::{
-        attribute::{ArrayAttribute, FlatSymbolRefAttribute, TypeAttribute},
-        operation::{OperationBuilder, OperationLike},
+        attribute::{ArrayAttribute, FlatSymbolRefAttribute, StringAttribute, TypeAttribute},
+        operation::{OperationBuilder, OperationLike, OperationMutLike},
         Attribute, AttributeLike, Block, BlockLike as _, Identifier, Location, Operation,
         OperationRef, Region, RegionLike as _, Type, TypeLike, Value, ValueLike,
     },
@@ -43,7 +43,7 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     /// Returns the name of the struct
     fn name(&'a self) -> &'c str {
         self.attribute("sym_name")
-            .and_then(FlatSymbolRefAttribute::try_from)
+            .and_then(StringAttribute::try_from)
             .map(|a| a.value())
             .unwrap()
     }
@@ -158,6 +158,11 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     }
 }
 
+pub trait StructDefOpMutLike<'c: 'a, 'a>:
+    StructDefOpLike<'c, 'a> + OperationMutLike<'c, 'a>
+{
+}
+
 //===----------------------------------------------------------------------===//
 // StructDefOp, StructDefOpRef, and StructDefOpRefMut
 //===----------------------------------------------------------------------===//
@@ -169,6 +174,10 @@ impl<'a, 'c: 'a> StructDefOpLike<'c, 'a> for StructDefOp<'c> {}
 impl<'a, 'c: 'a> StructDefOpLike<'c, 'a> for StructDefOpRef<'c, 'a> {}
 
 impl<'a, 'c: 'a> StructDefOpLike<'c, 'a> for StructDefOpRefMut<'c, 'a> {}
+
+impl<'a, 'c: 'a> StructDefOpMutLike<'c, 'a> for StructDefOp<'c> {}
+
+impl<'a, 'c: 'a> StructDefOpMutLike<'c, 'a> for StructDefOpRefMut<'c, 'a> {}
 
 //===----------------------------------------------------------------------===//
 // FieldDefOpLike
@@ -188,7 +197,7 @@ pub trait FieldDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
 
     fn field_name(&self) -> &'c str {
         self.attribute("sym_name")
-            .and_then(FlatSymbolRefAttribute::try_from)
+            .and_then(StringAttribute::try_from)
             .expect("malformed 'struct.field' op")
             .value()
     }
@@ -220,16 +229,18 @@ impl<'a, 'c: 'a> FieldDefOpLike<'c, 'a> for FieldDefOpRefMut<'c, 'a> {}
 /// Creates a 'struct.def' op
 pub fn def<'c, I>(
     location: Location<'c>,
-    name: FlatSymbolRefAttribute<'c>,
-    params: &[FlatSymbolRefAttribute<'c>],
+    name: &str,
+    params: &[&str],
     region_ops: I,
 ) -> Result<StructDefOp<'c>, Error>
 where
     I: IntoIterator<Item = Result<Operation<'c>, Error>>,
 {
     let ctx = location.context();
-    log::debug!("ctx = {ctx:?}");
-    let params: Vec<Attribute> = params.iter().map(|a| (*a).into()).collect();
+    let params: Vec<Attribute> = params
+        .iter()
+        .map(|a| FlatSymbolRefAttribute::new(unsafe { ctx.to_ref() }, a).into())
+        .collect();
     let params = ArrayAttribute::new(unsafe { ctx.to_ref() }, &params).into();
     let region = Region::new();
     let block = Block::new(&[]);
@@ -240,11 +251,17 @@ where
             Ok(())
         })?;
     region.append_block(block);
+    let name: Attribute = StringAttribute::new(unsafe { ctx.to_ref() }, name).into();
+    let attrs = [
+        (Identifier::new(unsafe { ctx.to_ref() }, "sym_name"), name),
+        (
+            Identifier::new(unsafe { ctx.to_ref() }, "const_params"),
+            params,
+        ),
+    ];
+
     OperationBuilder::new("struct.def", location)
-        .add_attributes(&[
-            (ident!(ctx, "sym_name"), name.into()),
-            (ident!(ctx, "const_param"), params),
-        ])
+        .add_attributes(&attrs)
         .add_regions([region])
         .build()
         .map_err(Into::into)
@@ -254,7 +271,7 @@ where
 /// Creates a 'struct.field' op
 pub fn field<'c, T>(
     location: Location<'c>,
-    name: FlatSymbolRefAttribute<'c>,
+    name: &str,
     r#type: T,
     is_column: bool,
     is_public: bool,
@@ -265,7 +282,10 @@ where
     let ctx = location.context();
     let r#type = TypeAttribute::new(r#type.into());
     let mut builder = OperationBuilder::new("struct.field", location).add_attributes(&[
-        (ident!(ctx, "sym_name"), name.into()),
+        (
+            ident!(ctx, "sym_name"),
+            StringAttribute::new(unsafe { ctx.to_ref() }, name).into(),
+        ),
         (ident!(ctx, "type"), r#type.into()),
     ]);
 
@@ -316,8 +336,23 @@ pub fn readf_with_offset<'c>() -> Operation<'c> {
 }
 
 /// Creates a 'struct.writef' op
-pub fn writef<'c>() -> Operation<'c> {
-    todo!()
+pub fn writef<'c>(
+    location: Location<'c>,
+    component: Value<'c, '_>,
+    field_name: &str,
+    value: Value<'c, '_>,
+) -> Result<Operation<'c>, Error> {
+    let context = location.context();
+    let field_name = FlatSymbolRefAttribute::new(unsafe { context.to_ref() }, field_name);
+    let attrs = [(
+        Identifier::new(unsafe { context.to_ref() }, "field_name"),
+        field_name.into(),
+    )];
+    OperationBuilder::new("struct.writef", location)
+        .add_operands(&[component, value])
+        .add_attributes(&attrs)
+        .build()
+        .map_err(Into::into)
 }
 
 /// Creates a 'struct.new' op
