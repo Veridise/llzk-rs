@@ -335,13 +335,10 @@ impl GroupTree {
         }
     }
 
-    /// Transforms the tree into a read-only flat representation.
-    pub fn flatten(self) -> Groups {
+    fn flatten_impl(self, groups: &mut Vec<Group>) {
         let mut child_indices = vec![];
-        let mut groups = vec![];
         for child in self.children {
-            let flat_child = child.flatten().0;
-            groups.extend(flat_child);
+            child.flatten_impl(groups);
             child_indices.push(groups.len() - 1);
         }
         groups.push(Group::new(
@@ -352,6 +349,12 @@ impl GroupTree {
             self.regions,
             child_indices,
         ));
+    }
+
+    /// Transforms the tree into a read-only flat representation.
+    pub fn flatten(self) -> Groups {
+        let mut groups = vec![];
+        self.flatten_impl(&mut groups);
         Groups(groups)
     }
 
