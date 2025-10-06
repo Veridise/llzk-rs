@@ -43,30 +43,35 @@ pub fn register_all_llzk_passes() {
 mod tests {
     //! Tests to make sure that the expected function were generated.
 
+    use melior::{pass::PassManager, Context};
+
     #[test]
     fn generated_pass_functions() {
+        let ctx = Context::new();
+        // Use a PassManager to manage the lifetime of the creates passes to avoid memory leaks.
+        let pm = PassManager::new(&ctx);
         super::register_llzk_transformation_passes();
         super::register_redundant_operation_elimination_pass();
         super::register_redundant_read_and_write_elimination_pass();
         super::register_unused_declaration_elimination_pass();
-        super::create_redundant_operation_elimination_pass();
-        super::create_redundant_read_and_write_elimination_pass();
-        super::create_unused_declaration_elimination_pass();
+        pm.add_pass(super::create_redundant_operation_elimination_pass());
+        pm.add_pass(super::create_redundant_read_and_write_elimination_pass());
+        pm.add_pass(super::create_unused_declaration_elimination_pass());
 
         super::register_llzk_array_transformation_passes();
         super::register_array_to_scalar_pass();
-        super::create_array_to_scalar_pass();
+        pm.add_pass(super::create_array_to_scalar_pass());
 
         super::register_llzk_include_transformation_passes();
         super::register_inline_includes_pass();
-        super::create_inline_includes_pass();
+        pm.add_pass(super::create_inline_includes_pass());
 
         super::register_llzk_polymorphic_transformation_passes();
         super::register_flattening_pass();
-        super::create_flattening_pass();
+        pm.add_pass(super::create_flattening_pass());
 
         super::register_llzk_validation_passes();
         super::register_field_write_validator_pass();
-        super::create_field_write_validator_pass();
+        pm.add_pass(super::create_field_write_validator_pass());
     }
 }

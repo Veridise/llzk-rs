@@ -13,7 +13,7 @@ use crate::{
     llzkApplyMapOpGetNumSymbolOperands, llzkApplyMapOpGetSymbolOperands,
     llzkOperationIsAApplyMapOp, llzkTypeIsATypeVarType, llzkTypeVarTypeGet,
     llzkTypeVarTypeGetFromAttr, llzkTypeVarTypeGetName, llzkTypeVarTypeGetNameRef,
-    mlirGetDialectHandle__llzk__polymorphic__, mlirOpBuilderCreate,
+    mlirGetDialectHandle__llzk__polymorphic__, mlirOpBuilderCreate, mlirOpBuilderDestroy,
     sanity_tests::{context, str_ref, TestContext},
     MlirValueRange,
 };
@@ -92,6 +92,7 @@ fn test_llzk_apply_map_op_build(context: TestContext) {
         assert_ne!(op.ptr, null_mut());
         assert!(mlirOperationVerify(op));
         mlirOperationDestroy(op);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -115,6 +116,7 @@ fn test_llzk_apply_map_op_build_with_affine_map(context: TestContext) {
         assert_ne!(op.ptr, null_mut());
         assert!(mlirOperationVerify(op));
         mlirOperationDestroy(op);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -136,6 +138,7 @@ fn test_llzk_apply_map_op_build_with_affine_expr(context: TestContext) {
         assert_ne!(op.ptr, null_mut());
         assert!(mlirOperationVerify(op));
         mlirOperationDestroy(op);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -158,6 +161,7 @@ fn test_llzk_op_is_a_apply_map_op(context: TestContext) {
         assert!(mlirOperationVerify(op));
         assert!(llzkOperationIsAApplyMapOp(op));
         mlirOperationDestroy(op);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -183,6 +187,7 @@ fn test_llzk_apply_map_op_get_affine_map(context: TestContext) {
         let out_affine_map = llzkApplyMapOpGetAffineMap(op);
         assert!(mlirAffineMapEqual(affine_map, out_affine_map));
         mlirOperationDestroy(op);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -214,6 +219,7 @@ fn test_llzk_apply_map_op_get_dim_operands(context: TestContext) {
         llzkApplyMapOpGetDimOperands(op, dims.as_mut_ptr());
         assert_eq!(dims.len(), 0);
         mlirOperationDestroy(op);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -241,5 +247,6 @@ fn test_llzk_apply_map_op_get_symbol_operands(context: TestContext) {
         llzkApplyMapOpGetSymbolOperands(op, syms.as_mut_ptr());
         assert_eq!(syms.len(), 0);
         mlirOperationDestroy(op);
+        mlirOpBuilderDestroy(builder);
     }
 }
