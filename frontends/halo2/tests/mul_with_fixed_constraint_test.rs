@@ -50,7 +50,6 @@ const EXPECTED_OPT_PICUS: &'static str = r"
 (output out_0)
 (assert (= (- in_0) adv_1_0))
 (assert (= (* in_0 adv_1_0) out_0))
-(assert (= 2 adv_3_0))
 (end-module)
 ";
 

@@ -3,11 +3,12 @@ members = [
   "frontends/halo2", 
   "llzk",
   "llzk-sys",
+  "llzk-sys/build-support",
   "llzk-macro"
 , "picus"]
 resolver = "2"
 
 [workspace.dependencies]
 melior-macro = "0.18.0"
-melior = {version = "0.25.0"}
+melior = "0.25.0"
 mlir-sys = "0.5.0"

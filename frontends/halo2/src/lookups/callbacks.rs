@@ -5,6 +5,7 @@ use std::{borrow::Cow, cell::LazyCell};
 use crate::{
     halo2::{Expression, Field},
     ir::stmt::IRStmt,
+    temps::{ExprOrTemp, Temps},
 };
 use anyhow::{Error, Result};
 
@@ -60,7 +61,8 @@ pub trait LookupCallbacks<F: Field> {
         &self,
         lookup: Lookup<'syn, F>,
         table: &dyn LookupTableGenerator<F>,
-    ) -> Result<IRStmt<Cow<'syn, Expression<F>>>>;
+        temps: &mut Temps,
+    ) -> Result<IRStmt<ExprOrTemp<Cow<'syn, Expression<F>>>>>;
 }
 
 pub(crate) struct DefaultLookupCallbacks;
@@ -71,7 +73,8 @@ impl<F: Field> LookupCallbacks<F> for DefaultLookupCallbacks {
         &self,
         lookup: Lookup<'syn, F>,
         table: &dyn LookupTableGenerator<F>,
-    ) -> Result<IRStmt<Cow<'syn, Expression<F>>>> {
+        temps: &mut Temps,
+    ) -> Result<IRStmt<ExprOrTemp<Cow<'syn, Expression<F>>>>> {
         panic!("Target circuit has lookups but their behaviour was not specified");
     }
 }

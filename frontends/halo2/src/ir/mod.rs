@@ -13,6 +13,7 @@ use crate::{
         groups::GroupBody,
     },
     synthesis::CircuitSynthesis,
+    temps::ExprOrTemp,
 };
 
 /// Comparison operators between arithmetic expressions.
@@ -70,7 +71,7 @@ where
     'ctx: 'sco + 'syn,
 {
     ctx: &'ctx IRCtx,
-    groups: Vec<GroupBody<ScopedExpression<'syn, 'sco, F>>>,
+    groups: Vec<GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>>,
     regions_to_groups: Vec<usize>,
 }
 
@@ -82,7 +83,7 @@ where
 {
     pub(crate) fn new(
         ctx: &'ctx IRCtx,
-        groups: Vec<GroupBody<ScopedExpression<'syn, 'sco, F>>>,
+        groups: Vec<GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>>,
         regions_to_groups: Vec<usize>,
     ) -> Self {
         Self {

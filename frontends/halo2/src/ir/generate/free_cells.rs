@@ -101,7 +101,9 @@ pub fn lift_free_cells_to_inputs<F: Field>(
             }
             result[caller_idx].inputs.extend(out_of_bounds);
             log::debug!("Modified");
-            worklist.push_back(caller_idx);
+            if !worklist.contains(&caller_idx) {
+                worklist.push_back(caller_idx);
+            }
         }
         log::debug!("Worklist after iteration: {worklist:?}");
     }

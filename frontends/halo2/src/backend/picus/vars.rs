@@ -66,13 +66,15 @@ impl NamingConvention {
                     format!("lkp{id}_{col}_{row}_{idx}_{ridx}")
                 }
                 FuncIO::CallOutput(module, out) => format!("cout_{module}_{out}"),
+                FuncIO::Temp(temp) => format!("t{}", *temp),
             },
         }
     }
 
     fn format_temp(&self) -> String {
         match self {
-            NamingConvention::Short => "t",
+            // These temps are exclusive from the Picus backend so we use 'pt' for 'Picus temp'.
+            NamingConvention::Short => "pt",
         }
         .to_owned()
     }
@@ -142,7 +144,10 @@ impl VarKind for VarKey {
 
     fn is_temp(&self) -> bool {
         match self {
-            VarKey::IO(func_io) => matches!(func_io, FuncIO::Advice(_) | FuncIO::CallOutput(_, _)),
+            VarKey::IO(func_io) => matches!(
+                func_io,
+                FuncIO::Advice(_) | FuncIO::CallOutput(_, _) | FuncIO::Temp(_)
+            ),
             VarKey::Temp => true,
             _ => false,
         }

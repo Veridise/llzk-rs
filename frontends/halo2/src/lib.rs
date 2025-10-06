@@ -15,6 +15,7 @@ pub mod ir;
 pub mod lookups;
 mod resolvers;
 mod synthesis;
+pub mod temps;
 mod utils;
 mod value;
 

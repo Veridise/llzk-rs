@@ -63,6 +63,10 @@ impl<T: ConstantFolding + ?Sized> ConstantFolding for Wrap<T> {
     fn fold(&self, prime: &Felt) -> Option<Expr> {
         self.as_ref().fold(prime)
     }
+
+    fn replaced_by_const(&self, map: &HashMap<VarStr, Felt>) -> Option<Expr> {
+        self.as_ref().replaced_by_const(map)
+    }
 }
 
 impl<T: MaybeVarLike + ?Sized> MaybeVarLike for Wrap<T> {

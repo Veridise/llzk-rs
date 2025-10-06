@@ -360,6 +360,7 @@ impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
             }
             FuncIO::TableLookup(_, _, _, _, _) => todo!(),
             FuncIO::CallOutput(_, _) => todo!(),
+            FuncIO::Temp(_) => todo!(),
         }
     }
 

@@ -91,6 +91,10 @@ impl ConstantFolding for ConstExpr {
     fn fold(&self, _: &Felt) -> Option<Expr> {
         None
     }
+
+    fn replaced_by_const(&self, _: &HashMap<VarStr, Felt>) -> Option<Expr> {
+        None
+    }
 }
 
 impl TextRepresentable for ConstExpr {
@@ -182,6 +186,10 @@ impl ConstantFolding for VarExpr {
 
     fn fold(&self, _: &Felt) -> Option<Expr> {
         None
+    }
+
+    fn replaced_by_const(&self, map: &HashMap<VarStr, Felt>) -> Option<Expr> {
+        map.get(&self.0).cloned().map(super::r#const)
     }
 }
 
@@ -290,6 +298,12 @@ impl ConstantFolding for NegExpr {
             .map(ConstExpr)
             .map(|e| -> Expr { Wrap::new(e) })
             .or_else(|| -> Option<Expr> { Some(Wrap::new(Self(inner))) })
+    }
+
+    fn replaced_by_const(&self, map: &HashMap<VarStr, Felt>) -> Option<Expr> {
+        self.0
+            .replaced_by_const(map)
+            .map(|inner| -> Expr { Wrap::new(Self(inner)) })
     }
 }
 
@@ -423,6 +437,12 @@ impl ConstantFolding for NotExpr {
     fn fold(&self, prime: &Felt) -> Option<Expr> {
         self.0
             .fold(prime)
+            .map(|inner| -> Expr { Wrap::new(Self(inner)) })
+    }
+
+    fn replaced_by_const(&self, map: &HashMap<VarStr, Felt>) -> Option<Expr> {
+        self.0
+            .replaced_by_const(map)
             .map(|inner| -> Expr { Wrap::new(Self(inner)) })
     }
 }

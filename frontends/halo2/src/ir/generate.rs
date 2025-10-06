@@ -9,6 +9,7 @@ use crate::{
     ir::{generate::patterns::load_patterns, groups::GroupBody, IRCtx},
     lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
     synthesis::{groups::Group, regions::RegionData, CircuitSynthesis},
+    temps::ExprOrTemp,
     GateCallbacks,
 };
 
@@ -124,7 +125,7 @@ pub fn generate_ir<'syn, 'ctx, 'cb, 'sco, F>(
     syn: &'syn CircuitSynthesis<F>,
     params: IRGenParams<'cb, '_, F>,
     ir_ctx: &'ctx IRCtx,
-) -> anyhow::Result<Vec<GroupBody<ScopedExpression<'syn, 'sco, F>>>>
+) -> anyhow::Result<Vec<GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>>>
 where
     F: PrimeField,
     'syn: 'sco,

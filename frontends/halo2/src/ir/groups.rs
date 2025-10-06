@@ -1,5 +1,7 @@
 //! Structs for handling the IR of groups of regions inside the circuit.
 
+use std::collections::HashMap;
+
 use crate::{
     backend::{
         func::{CellRef, FuncIO},
@@ -20,7 +22,7 @@ use crate::{
         stmt::IRStmt,
         CmpOp, IRCtx,
     },
-    lookups::callbacks::LazyLookupTableGenerator,
+    lookups::{callbacks::LazyLookupTableGenerator, Lookup},
     resolvers::FixedQueryResolver,
     synthesis::{
         constraint::EqConstraint,
@@ -28,6 +30,7 @@ use crate::{
         regions::{RegionData, RegionRow, Row},
         CircuitSynthesis,
     },
+    temps::{ExprOrTemp, Temps},
     utils, GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
 };
 use anyhow::Result;
@@ -52,7 +55,7 @@ pub struct GroupBody<E> {
     generate_debug_comments: bool,
 }
 
-impl<'cb, 'syn, 'ctx, 'sco, F> GroupBody<ScopedExpression<'syn, 'sco, F>>
+impl<'cb, 'syn, 'ctx, 'sco, F> GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>
 where
     'cb: 'sco + 'syn,
     'syn: 'sco,
@@ -88,27 +91,25 @@ where
         };
 
         log::debug!("Lowering gates for group {:?}", group.name());
-        let gates = IRStmt::seq(lower_gates(
-            ctx.syn().gates(),
-            &group.regions(),
-            ctx.patterns(),
-            advice_io,
-            instance_io,
-            ctx.syn().fixed_query_resolver(),
-            ctx.generate_debug_comments(),
-        )?);
-        log::debug!("Gates IR: {gates:?}");
+        let gates = IRStmt::seq(
+            lower_gates(
+                ctx.syn().gates(),
+                &group.regions(),
+                ctx.patterns(),
+                advice_io,
+                instance_io,
+                ctx.syn().fixed_query_resolver(),
+                ctx.generate_debug_comments(),
+            )?
+            .into_iter()
+            .map(|stmt| stmt.map(&ExprOrTemp::Expr)),
+        );
 
         log::debug!(
             "Lowering inter region equality constraints for group {:?}",
             group.name()
         );
         let eq_constraints = select_equality_constraints(group, ctx, &free_cells.inputs);
-        log::debug!(
-            "[{}] Equality constraints: {:?}",
-            group.name(),
-            eq_constraints
-        );
 
         let mut eq_constraints = inter_region_constraints(
             eq_constraints,
@@ -124,11 +125,10 @@ where
             ctx.regions_by_index(),
         );
         eq_constraints.extend(extra_eq_constraints);
-        let eq_constraints = IRStmt::seq(eq_constraints);
-
-        log::debug!(
-            "[{}] Equality constraints (lowered): {eq_constraints:?}",
-            group.name()
+        let eq_constraints = IRStmt::seq(
+            eq_constraints
+                .into_iter()
+                .map(|stmt| stmt.map(&ExprOrTemp::Expr)),
         );
 
         log::debug!("Lowering lookups for group {:?}", group.name());
@@ -163,11 +163,10 @@ where
         instance_io: &'ctx crate::io::InstanceIO,
         fqr: &'syn dyn FixedQueryResolver<F>,
     ) -> anyhow::Result<()> {
-        // TODO: See if there is a problem here on why the injected IR does not resolve the row
-        // properly. See the demo example for midnight.
-        self.injected.push(
-            ir.try_map(&|expr| expr.scoped_in_region_row(region, advice_io, instance_io, fqr))?,
-        );
+        self.injected.push(ir.try_map(&|expr| {
+            expr.scoped_in_region_row(region, advice_io, instance_io, fqr)
+                .map(ExprOrTemp::Expr)
+        })?);
         Ok(())
     }
 }
@@ -687,38 +686,117 @@ fn codegen_lookup_invocations<'sco, 'syn, 'ctx, 'cb, F>(
     region_rows: &[RegionRow<'syn, 'ctx, 'syn, F>],
     lookup_cb: &'cb dyn LookupCallbacks<F>,
     generate_debug_comments: bool,
-) -> Result<Vec<IRStmt<ScopedExpression<'syn, 'sco, F>>>>
+) -> Result<Vec<IRStmt<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>>>
 where
     'syn: 'sco,
     'ctx: 'sco + 'syn,
     'cb: 'sco + 'syn,
     F: Field,
 {
+    let mut temps = Temps::new();
+    let mut last_comment = LookupComment::new(generate_debug_comments);
     utils::product(syn.lookups(), region_rows)
         .map(|(lookup, rr)| {
             let table = LazyLookupTableGenerator::new(|| {
                 syn.tables_for_lookup(&lookup)
                     .map(|table| table.into_boxed_slice())
             });
-            lookup_cb.on_lookup(lookup, &table).map(|stmts| {
-                let comment = IRStmt::comment(format!("{lookup} @ {}", rr.header()));
-                let stmts = stmts
-                    .into_iter()
-                    .map(|stmt| stmt.map(&|e| ScopedExpression::from_cow(e, *rr)));
-                prepend_comment(stmts.collect(), comment, generate_debug_comments)
-            })
+
+            let comment = IRStmt::seq(last_comment.get(lookup, rr));
+            lookup_cb
+                .on_lookup(lookup, &table, &mut temps)
+                .map(|stmts| {
+                    let stmts = stmts
+                        .into_iter()
+                        .map(|stmt| stmt.map(&|e| e.map(|e| ScopedExpression::from_cow(e, *rr))));
+                    prepend_comment(stmts.collect(), comment, generate_debug_comments)
+                })
         })
         .collect()
+}
+
+/// Helper struct that keeps track of the last emitted comment during lookup IR emission.
+struct LookupComment {
+    lookup: Option<usize>,
+    region: Option<usize>,
+    generate_debug_comments: bool,
+}
+
+impl LookupComment {
+    pub fn new(generate_debug_comments: bool) -> Self {
+        Self {
+            lookup: None,
+            region: None,
+            generate_debug_comments,
+        }
+    }
+
+    /// If the lookup and region doesn't match the current one returns the comment. Otherwise returns
+    /// None.
+    pub fn get<'sco, 'syn, 'ctx, F: Field>(
+        &mut self,
+        lookup: Lookup<'syn, F>,
+        rr: &RegionRow<'syn, 'ctx, 'syn, F>,
+    ) -> Option<IRStmt<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>> {
+        // There's no point in creating the comment if its not going to be emitted anyway.
+        if !self.generate_debug_comments {
+            return None;
+        }
+
+        let Some(region_index) = rr.region_index() else {
+            // If the region does not have an index emit the comment regardless and reset the
+            // tracker.
+            self.lookup = None;
+            self.region = None;
+            return Some(self.mk_comment(lookup, rr));
+        };
+
+        match (self.lookup, self.region) {
+            // If nothing was initialized just set it.
+            (None, None) => self.update_and_emit(lookup, rr),
+            // If we changed lookup or region we set the tracker to the new ones.
+            (Some(cur_lookup), Some(cur_region))
+                if cur_lookup != lookup.idx() || cur_region != region_index =>
+            {
+                self.update_and_emit(lookup, rr)
+            }
+            // This shouldn't happen.
+            (None, Some(_)) | (Some(_), None) => unreachable!(),
+            // If nothing above matches we don't emit the comment.
+            _ => None,
+        }
+    }
+
+    fn update_and_emit<'sco, 'syn, 'ctx, F: Field>(
+        &mut self,
+        lookup: Lookup<'syn, F>,
+        rr: &RegionRow<'syn, 'ctx, 'syn, F>,
+    ) -> Option<IRStmt<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>> {
+        self.lookup = Some(lookup.idx());
+        self.region = Some(
+            rr.region_index()
+                .expect("We already checked that the index is not None"),
+        );
+        Some(self.mk_comment(lookup, rr))
+    }
+
+    fn mk_comment<'sco, 'syn, 'ctx, F: Field>(
+        &self,
+        lookup: Lookup<'syn, F>,
+        rr: &RegionRow<'syn, 'ctx, 'syn, F>,
+    ) -> IRStmt<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>> {
+        IRStmt::comment(format!("{lookup} @ {}", rr.header()))
+    }
 }
 
 /// If the given statement is not empty prepends a comment
 /// with contextual information.
 #[inline]
-fn prepend_comment<'a, F: Field>(
-    stmt: IRStmt<ScopedExpression<'a, 'a, F>>,
-    comment: IRStmt<ScopedExpression<'a, 'a, F>>,
+fn prepend_comment<E>(
+    stmt: IRStmt<E>,
+    comment: IRStmt<E>,
     generate_debug_comments: bool,
-) -> IRStmt<ScopedExpression<'a, 'a, F>> {
+) -> IRStmt<E> {
     if stmt.is_empty() || !generate_debug_comments {
         return stmt;
     }

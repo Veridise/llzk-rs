@@ -1,6 +1,9 @@
 use std::{fmt, ops::Deref};
 
-use crate::ir::equivalency::{EqvRelation, SymbolicEqv};
+use crate::{
+    ir::equivalency::{EqvRelation, SymbolicEqv},
+    temps::Temp,
+};
 
 /// Argument number of a function
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -195,10 +198,12 @@ pub enum FuncIO {
     Advice(CellRef),
     /// Points to a fixed cell.
     Fixed(CellRef),
-    // lookup id, column, row, idx, region_idx
+    /// lookup id, column, row, idx, region_idx
     TableLookup(u64, usize, usize, usize, usize),
-    // call output: (call #, output #)
+    /// call output: (call #, output #)
     CallOutput(usize, usize),
+    /// Temporary value
+    Temp(Temp),
 }
 
 impl FuncIO {
@@ -238,6 +243,7 @@ impl EqvRelation<FuncIO> for SymbolicEqv {
                 FuncIO::TableLookup(_, col1, row1, _, _),
             ) => col0 == col1 && row0 == row1,
             (FuncIO::CallOutput(_, o0), FuncIO::CallOutput(_, o1)) => o0 == o1,
+            (FuncIO::Temp(lhs), FuncIO::Temp(rhs)) => lhs == rhs,
             _ => false,
         }
     }
@@ -254,6 +260,7 @@ impl std::fmt::Debug for FuncIO {
                 write!(f, "lookup{id}[{col},{row}]@({idx},{region_idx})")
             }
             Self::CallOutput(call, out) => write!(f, "call{call}->{out}"),
+            Self::Temp(id) => write!(f, "t{}", **id),
         }
     }
 }
@@ -269,7 +276,14 @@ impl std::fmt::Display for FuncIO {
                 write!(f, "lookup{id}[{col},{row}]@({idx},{region_idx})")
             }
             Self::CallOutput(call, out) => write!(f, "call{call}->{out}"),
+            Self::Temp(id) => write!(f, "t{}", **id),
         }
+    }
+}
+
+impl From<Temp> for FuncIO {
+    fn from(value: Temp) -> Self {
+        Self::Temp(value)
     }
 }
 

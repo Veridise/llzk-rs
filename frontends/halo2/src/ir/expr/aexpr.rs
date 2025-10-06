@@ -11,6 +11,7 @@ use crate::{
     halo2::{Challenge, Expression, PrimeField},
     ir::equivalency::{EqvRelation, SymbolicEqv},
     resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
+    temps::ExprOrTemp,
 };
 
 use anyhow::Result;
@@ -326,6 +327,20 @@ where
             expr.selector_resolver(),
             expr.query_resolver(),
         )
+    }
+}
+
+impl<E> TryFrom<ExprOrTemp<E>> for IRAexpr
+where
+    IRAexpr: TryFrom<E>,
+{
+    type Error = <E as TryInto<IRAexpr>>::Error;
+
+    fn try_from(value: ExprOrTemp<E>) -> std::result::Result<Self, Self::Error> {
+        match value {
+            ExprOrTemp::Temp(temp) => Ok(IRAexpr::IO(temp.into())),
+            ExprOrTemp::Expr(e) => e.try_into(),
+        }
     }
 }
 

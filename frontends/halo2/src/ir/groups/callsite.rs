@@ -20,6 +20,7 @@ use crate::{
         groups::{Group, GroupCell},
         regions::{RegionData, RegionRow, Row},
     },
+    temps::ExprOrTemp,
 };
 use anyhow::Result;
 
@@ -40,7 +41,7 @@ fn cells_to_exprs<'e, 's, 'syn: 's, 'cb, 'io: 's, F: Field>(
     ctx: &super::GroupIRCtx<'cb, '_, 'syn, F>,
     advice_io: &'io crate::io::AdviceIO,
     instance_io: &'io crate::io::InstanceIO,
-) -> anyhow::Result<Vec<ScopedExpression<'e, 's, F>>> {
+) -> anyhow::Result<Vec<ExprOrTemp<ScopedExpression<'e, 's, F>>>> {
     cells
         .iter()
         .map(|cell| {
@@ -93,6 +94,7 @@ fn cells_to_exprs<'e, 's, 'syn: 's, 'cb, 'io: 's, F: Field>(
                 ),
             })
         })
+        .map(|e| e.map(ExprOrTemp::Expr))
         .collect()
 }
 
@@ -105,7 +107,7 @@ impl EqvRelation<CallSite<IRAexpr>> for SymbolicEqv {
     }
 }
 
-impl<'s, 'syn: 's, 'ctx: 's, F: Field> CallSite<ScopedExpression<'_, 's, F>> {
+impl<'s, 'syn: 's, 'ctx: 's, F: Field> CallSite<ExprOrTemp<ScopedExpression<'_, 's, F>>> {
     pub(super) fn new(
         callee: &Group,
         callee_id: usize,

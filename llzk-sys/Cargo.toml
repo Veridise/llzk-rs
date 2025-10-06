@@ -34,12 +34,8 @@ exclude = [
 mlir-sys = { workspace = true }
 
 [build-dependencies]
-bindgen = "0.71.1"
-cmake = "0.1.54"
-glob = "0.3.2"
-anyhow = "1.0.98"
-cc = "^1.1"
-tempfile = "3.20"
+llzk-sys-build-support = { version = "0.1.0", path = "./build-support/" }
+anyhow = "1"
 
 [dev-dependencies]
 rstest = "0.25.0"

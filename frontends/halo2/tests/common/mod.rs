@@ -8,6 +8,7 @@ use halo2_llzk_frontend::{
         callbacks::{LookupCallbacks, LookupTableGenerator},
         Lookup,
     },
+    temps::{ExprOrTemp, Temps},
     CircuitCallbacks, LlzkParams, PicusParams,
 };
 use halo2_proofs::plonk::Expression;
@@ -180,7 +181,8 @@ impl<F: Field> LookupCallbacks<F> for LookupCallbackHandler {
         &self,
         _lookup: Lookup<'a, F>,
         _table: &dyn LookupTableGenerator<F>,
-    ) -> anyhow::Result<IRStmt<Cow<'a, Expression<F>>>> {
+        _temps: &mut Temps,
+    ) -> anyhow::Result<IRStmt<ExprOrTemp<Cow<'a, Expression<F>>>>> {
         Ok(IRStmt::comment("Ignored lookup"))
     }
 }
