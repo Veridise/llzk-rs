@@ -55,7 +55,11 @@ impl TextRepresentable for VarStr {
 pub trait VarKind: Hash + Eq + PartialEq + fmt::Debug {
     fn is_input(&self) -> bool;
 
+    fn get_input_no(&self) -> Option<usize>;
+
     fn is_output(&self) -> bool;
+
+    fn get_output_no(&self) -> Option<usize>;
 
     fn is_temp(&self) -> bool;
 }
@@ -90,12 +94,28 @@ impl<K: VarKind> Vars<K> {
         self.0.iter().find(|(_, v)| **v == *var).map(|(k, _)| k)
     }
 
+    /// Returns the inputs in the environment sorted by their key (which matches declaration
+    /// order).
     pub fn inputs(&self) -> impl Iterator<Item = &str> {
-        self.filter(|k, _| k.is_input())
+        let mut inputs = self
+            .0
+            .iter()
+            .filter_map(|(k, v)| k.get_input_no().map(|no| (no, v)))
+            .collect::<Vec<_>>();
+        inputs.sort_by_key(|(k, _)| *k);
+        inputs.into_iter().map(|(_, v)| v.0.as_str())
     }
 
+    /// Returns the outputs in the environment sorted by their key (which matches declaration
+    /// order).
     pub fn outputs(&self) -> impl Iterator<Item = &str> {
-        self.filter(|k, _| k.is_output())
+        let mut outputs = self
+            .0
+            .iter()
+            .filter_map(|(k, v)| k.get_output_no().map(|no| (no, v)))
+            .collect::<Vec<_>>();
+        outputs.sort_by_key(|(k, _)| *k);
+        outputs.into_iter().map(|(_, v)| v.0.as_str())
     }
 
     pub fn temporaries(&self) -> impl Iterator<Item = &str> {

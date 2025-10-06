@@ -258,10 +258,8 @@ impl<K: VarKind + Default + Clone + fmt::Debug> ModuleWithVars<K> for Module<K> 
 impl<K: VarKind> TextRepresentable for Module<K> {
     fn to_repr(&self) -> TextRepresentation<'_> {
         let summary = self.summarize();
-        let mut sorted_inputs = self.vars.inputs().collect::<Vec<_>>();
-        sorted_inputs.sort();
-        let mut sorted_outputs = self.vars.outputs().collect::<Vec<_>>();
-        sorted_outputs.sort();
+        let sorted_inputs = self.vars.inputs().collect::<Vec<_>>();
+        let sorted_outputs = self.vars.outputs().collect::<Vec<_>>();
         owned_list!(&self.name)
             + [
                 format!("Number of inputs:      {}", summary.input_count),
