@@ -1,0 +1,48 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+  push:
+    branches: 
+      - main
+
+env:
+  # /opt/homebrew/opt/llvm@20/ is for macOS
+  MLIR_SYS_200_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@20/
+  TABLEGEN_200_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@20/
+  RUSTFLAGS: '-L /home/linuxbrew/.linuxbrew/opt/llvm@20/lib -Zsanitizer=address'
+  LLZK_SYS_ENABLE_WHOLE_ARCHIVE: 1
+
+jobs:
+  asan-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          large-packages: false
+      - uses: Homebrew/actions/setup-homebrew@master
+      - name: Cache homebrew downloads
+        uses: actions/cache@v4
+        with: 
+          path: ~/.cache/Homebrew/
+          # It's not the greatest key in the world but works
+          key: ${{ runner.os }}-homebrew-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install LLVM & MLIR
+        run: brew install llvm@20
+      - run: /home/linuxbrew/.linuxbrew/opt/llvm@20/bin/llvm-config --version
+      - name: Cache cargo crates
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-asan-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build in "${{ matrix.BUILD_TARGET }}" mode
+        run: cargo +nightly build --target=x86_64-unknown-linux-gnu
+      - name: Run tests in "${{ matrix.BUILD_TARGET }}" mode
+        run: cargo +nightly test --target=x86_64-unknown-linux-gnu
