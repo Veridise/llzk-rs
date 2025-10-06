@@ -13,4 +13,4 @@
 set -e
 
 git submodule update --remote llzk-sys/llzk-lib
-nix flake update llzk
+nix flake update llzk-lib
