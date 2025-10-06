@@ -236,12 +236,12 @@ pub fn def<'c, I>(
 where
     I: IntoIterator<Item = Result<Operation<'c>, Error>>,
 {
-    let ctx = unsafe { location.context().to_ref() };
+    let ctx = location.context();
     let params: Vec<Attribute> = params
         .iter()
-        .map(|a| FlatSymbolRefAttribute::new(ctx, a).into())
+        .map(|a| FlatSymbolRefAttribute::new(unsafe { ctx.to_ref() }, a).into())
         .collect();
-    let params = ArrayAttribute::new(ctx, &params).into();
+    let params = ArrayAttribute::new(unsafe { ctx.to_ref() }, &params).into();
     let region = Region::new();
     let block = Block::new(&[]);
     region_ops
@@ -251,10 +251,13 @@ where
             Ok(())
         })?;
     region.append_block(block);
-    let name: Attribute = StringAttribute::new(ctx, name).into();
+    let name: Attribute = StringAttribute::new(unsafe { ctx.to_ref() }, name).into();
     let attrs = [
-        (Identifier::new(ctx, "sym_name"), name),
-        (Identifier::new(ctx, "const_params"), params),
+        (Identifier::new(unsafe { ctx.to_ref() }, "sym_name"), name),
+        (
+            Identifier::new(unsafe { ctx.to_ref() }, "const_params"),
+            params,
+        ),
     ];
 
     OperationBuilder::new("struct.def", location)
@@ -339,9 +342,12 @@ pub fn writef<'c>(
     field_name: &str,
     value: Value<'c, '_>,
 ) -> Result<Operation<'c>, Error> {
-    let context = unsafe { location.context().to_ref() };
-    let field_name = FlatSymbolRefAttribute::new(context, field_name);
-    let attrs = [(Identifier::new(context, "field_name"), field_name.into())];
+    let context = location.context();
+    let field_name = FlatSymbolRefAttribute::new(unsafe { context.to_ref() }, field_name);
+    let attrs = [(
+        Identifier::new(unsafe { context.to_ref() }, "field_name"),
+        field_name.into(),
+    )];
     OperationBuilder::new("struct.writef", location)
         .add_operands(&[component, value])
         .add_attributes(&attrs)

@@ -3,9 +3,7 @@ use std::{borrow::Borrow, ops::Deref};
 use log::Log;
 use melior::{diagnostic::DiagnosticHandlerId, dialect::DialectRegistry, Context};
 
-use crate::{
-    diagnostics::log_diagnostic, passes::register_all_llzk_passes, register_all_llzk_dialects,
-};
+use crate::{diagnostics::log_diagnostic, register_all_llzk_dialects};
 
 /// A batteries-included MLIR context that automatically loads all the LLZK dialects.
 pub struct LlzkContext {
@@ -35,7 +33,6 @@ impl LlzkContext {
         register_all_llzk_dialects(&registry);
         ctx.append_dialect_registry(&registry);
         ctx.load_all_available_dialects();
-        register_all_llzk_passes();
         Self {
             ctx,
             diagnostics_handler: None,

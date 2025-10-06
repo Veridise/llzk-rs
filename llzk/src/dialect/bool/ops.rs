@@ -13,13 +13,13 @@ fn build_cmp_op<'c>(
     location: Location<'c>,
     operands: &[Value<'c, '_>],
 ) -> Result<Operation<'c>, Error> {
-    let ctx = unsafe { location.context().to_ref() };
+    let ctx = location.context();
     OperationBuilder::new(format!("bool.cmp").as_str(), location)
-        .add_results(&[IntegerType::new(ctx, 1).into()])
+        .add_results(&[IntegerType::new(unsafe { ctx.to_ref() }, 1).into()])
         .add_operands(operands)
         .add_attributes(&[(
-            Identifier::new(ctx, "predicate"),
-            CmpPredicateAttribute::new(ctx, pred).into(),
+            Identifier::new(unsafe { ctx.to_ref() }, "predicate"),
+            CmpPredicateAttribute::new(unsafe { ctx.to_ref() }, pred).into(),
         )])
         .build()
         .map_err(Into::into)

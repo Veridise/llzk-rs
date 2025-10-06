@@ -18,10 +18,9 @@ pub struct StructType<'c> {
 impl<'c> StructType<'c> {
     pub fn new(name: FlatSymbolRefAttribute<'c>, params: &[Attribute<'c>]) -> Self {
         unsafe {
-            let context = name.context().to_ref();
             Self::from_raw(llzkStructTypeGetWithArrayAttr(
                 name.to_raw(),
-                ArrayAttribute::new(context, params).to_raw(),
+                ArrayAttribute::new(name.context().to_ref(), params).to_raw(),
             ))
         }
     }
