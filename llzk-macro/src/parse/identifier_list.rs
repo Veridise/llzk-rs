@@ -1,4 +1,6 @@
-//! List of identifiers. Based on melior's.
+//! List of identifiers. Based on [melior]'s.
+//!
+//! [melior]: https://github.com/mlir-rs/melior/blob/main/macro/src/parse/identifier_list.rs.
 
 use proc_macro2::Ident;
 use syn::{
@@ -7,6 +9,7 @@ use syn::{
     Result, Token,
 };
 
+/// Represents a comma-separated list of identifiers. Used as the DSL for the [`crate::conversion_passes`] macro.
 pub struct IdentifierList {
     identifiers: Vec<Ident>,
 }

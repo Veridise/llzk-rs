@@ -10,6 +10,12 @@ use syn::LitStr;
 
 const CREATE_FUNCTION_PREFIX: &str = "mlirCreate";
 
+/// General implementation for the pass related macros.
+///
+/// Generates creation and registration functions for each identifier (the name of the CAPI create
+/// function= and, if given, a registration
+/// function for the whole family. Requires a callback that extracts the name of the actual pass
+/// from the name.
 pub fn generate(
     names: &[Ident],
     family: Option<&LitStr>,

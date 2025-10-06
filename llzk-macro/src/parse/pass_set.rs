@@ -1,4 +1,6 @@
-//! Type representing a set of passes. Based on melior's.
+//! Type representing a set of passes. Based on [melior]'s.
+//!
+//! [melior]: https://github.com/mlir-rs/melior/blob/main/macro/src/parse/pass_set.rs.
 
 use super::IdentifierList;
 use proc_macro2::Ident;
@@ -8,6 +10,10 @@ use syn::{
     LitStr, Result, Token,
 };
 
+/// Struct representing the small DSL used by the [`crate::passes`] macro.
+///
+/// Accepts a literal string (the name of the pass family), followed by a comma and then
+/// a bracketed list of identifiers (the names of the passes).
 pub struct PassSet {
     prefix: LitStr,
     identifiers: IdentifierList,

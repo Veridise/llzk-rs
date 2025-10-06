@@ -6,7 +6,7 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Error)]
 pub enum Error {
-    #[error("Failed to strip prefix on pass {name} (prefixes: {prefixes:?})")]
+    #[error("Failed to strip prefix on pass {name} (tried prefixes: {prefixes:?})")]
     FailedToStripPassPrefix {
         prefixes: Vec<Cow<'static, str>>,
         name: String,
