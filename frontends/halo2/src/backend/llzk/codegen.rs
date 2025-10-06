@@ -48,11 +48,6 @@ impl<'c: 's, 's> Codegen<'c, 's> for LlzkCodegen<'c, 's> {
         }
     }
 
-    fn set_prime_field(&self, _prime: Felt) -> Result<()> {
-        log::warn!("Setting the prime in the LLZK backend is a no-op");
-        Ok(())
-    }
-
     fn define_main_function(
         &self,
         advice_io: &AdviceIO,

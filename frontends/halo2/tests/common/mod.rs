@@ -122,14 +122,14 @@ pub fn check_llzk(
     driver: &Driver,
     circuit: &ResolvedIRCircuit,
     params: LlzkParams,
-    expected: impl AsRef<str>,
+    expected_llzk: impl AsRef<str>,
 ) {
     let context = params.context();
     let output = driver.llzk(&circuit, params).unwrap();
     assert!(output.module().as_operation().verify());
     let output_str = format!("{}", output.module().as_operation());
-    let expected =
-        Module::parse(context, expected.as_ref()).expect("Failed to parse expected test output!");
+    let expected = Module::parse(context, expected_llzk.as_ref())
+        .expect("Failed to parse expected test output!");
     let expected_str = format!("{}", expected.as_operation());
     similar_asserts::assert_eq!(expected_str, output_str);
 }
@@ -158,7 +158,7 @@ pub fn llzk_test<F, C>(
     circuit: C,
     params: LlzkParams,
     ir_params: IRGenParams<F>,
-    expected: impl AsRef<str>,
+    expected_llzk: impl AsRef<str>,
     canonicalize: bool,
 ) where
     F: PrimeField,
@@ -168,7 +168,7 @@ pub fn llzk_test<F, C>(
     let resolved = common_lowering(circuit, &mut driver, ir_params, canonicalize);
     log::info!("Completed IR lowering!");
     log::logger().flush();
-    check_llzk(&driver, &resolved, params, expected);
+    check_llzk(&driver, &resolved, params, expected_llzk);
     log::info!("Completed transforming IR to LLZK!");
     log::logger().flush();
 }

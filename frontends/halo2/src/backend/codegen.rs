@@ -20,7 +20,12 @@ pub trait Codegen<'c: 's, 's>: Sized + 's {
     fn initialize(state: &'s Self::State) -> Self;
 
     /// Sets the prime field used by the circuit.
-    fn set_prime_field(&self, prime: Felt) -> Result<()>;
+    ///
+    /// By default does nothing.
+    #[allow(unused_variables)]
+    fn set_prime_field(&self, prime: Felt) -> Result<()> {
+        Ok(())
+    }
 
     fn define_function(
         &self,
