@@ -221,7 +221,7 @@ macro_rules! llzk_op_type {
 
             // Mutable reference type
 
-            /// A mutable reference to an operation.
+            #[doc = concat!("Represents a non-owned mutable reference to a '", $opname, "' op.")]
             #[derive(Clone, Copy)]
             pub struct [<$type RefMut>]<'c, 'a> {
                 raw: mlir_sys::MlirOperation,
