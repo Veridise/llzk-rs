@@ -56,6 +56,22 @@ impl<F, FN: FnOnce() -> LookupTableBox<F>> std::fmt::Debug for LazyLookupTableGe
 
 /// Callback trait for defering to the client how to handle the logic of a lookup.
 pub trait LookupCallbacks<F: Field> {
+    /// Called on the list of lookups the circuit defines.
+    ///
+    /// By default loops over the lookups and calls [`LookupCallbacks::on_lookup`] on each.
+    fn on_lookups<'syn>(
+        &self,
+        lookups: &[Lookup<'syn, F>],
+        tables: &[&dyn LookupTableGenerator<F>],
+        temps: &mut Temps,
+    ) -> Result<IRStmt<ExprOrTemp<Cow<'syn, Expression<F>>>>> {
+        lookups
+            .iter()
+            .zip(tables.iter())
+            .map(|(lookup, table)| self.on_lookup(*lookup, *table, temps))
+            .collect()
+    }
+
     /// Called on each lookup the circuit defines.
     fn on_lookup<'syn>(
         &self,
