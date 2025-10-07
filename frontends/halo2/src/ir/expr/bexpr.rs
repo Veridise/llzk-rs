@@ -367,7 +367,7 @@ impl<T> From<bool> for IRBexpr<T> {
     }
 }
 
-/// IRBexpr transilitively inherits any equivalence relation.
+/// IRBexpr transitively inherits any equivalence relation.
 impl<L, R, E: EqvRelation<L, R>> EqvRelation<IRBexpr<L>, IRBexpr<R>> for E {
     /// Two boolean expressions are equivalent if they are structurally equal and their inner entities
     /// are equivalent.

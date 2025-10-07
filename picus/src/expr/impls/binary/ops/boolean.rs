@@ -43,13 +43,14 @@ impl OpFolder for Boolean {
     }
 
     fn commutative(&self) -> bool {
-        true
+        !matches!(self, Boolean::Implies)
     }
 
     fn flip(&self, lhs: &Expr, rhs: &Expr) -> Option<BinaryExpr<Self>> {
         match self {
             Boolean::And => Some(BinaryExpr::new(Self::And, rhs.clone(), lhs.clone())),
             Boolean::Or => Some(BinaryExpr::new(Self::Or, rhs.clone(), lhs.clone())),
+            Boolean::Iff => Some(BinaryExpr::new(Self::Iff, rhs.clone(), lhs.clone())),
             _ => None,
         }
     }
