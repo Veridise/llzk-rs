@@ -28,6 +28,12 @@ pub enum IRBexpr<A> {
     Or(Vec<IRBexpr<A>>),
     /// Represents the negation of the inner expression.
     Not(Box<IRBexpr<A>>),
+    /// Declares that the inner arithmetic expression needs to be proven deterministic
+    Det(A),
+    /// Logical implication operator.
+    Implies(Box<IRBexpr<A>>, Box<IRBexpr<A>>),
+    /// Logical double-implication operator.
+    Iff(Box<IRBexpr<A>>, Box<IRBexpr<A>>),
 }
 
 impl<T> IRBexpr<T> {
@@ -40,6 +46,11 @@ impl<T> IRBexpr<T> {
             IRBexpr::Not(expr) => IRBexpr::Not(Box::new(expr.map(f))),
             IRBexpr::True => IRBexpr::True,
             IRBexpr::False => IRBexpr::False,
+            IRBexpr::Det(expr) => IRBexpr::Det(f(expr)),
+            IRBexpr::Implies(lhs, rhs) => {
+                IRBexpr::Implies(Box::new(lhs.map(f)), Box::new(rhs.map(f)))
+            }
+            IRBexpr::Iff(lhs, rhs) => IRBexpr::Iff(Box::new(lhs.map(f)), Box::new(rhs.map(f))),
         }
     }
 
@@ -52,6 +63,13 @@ impl<T> IRBexpr<T> {
             IRBexpr::Not(expr) => IRBexpr::Not(Box::new(expr.map_into(f))),
             IRBexpr::True => IRBexpr::True,
             IRBexpr::False => IRBexpr::False,
+            IRBexpr::Det(expr) => IRBexpr::Det(f(expr)),
+            IRBexpr::Implies(lhs, rhs) => {
+                IRBexpr::Implies(Box::new(lhs.map_into(f)), Box::new(rhs.map_into(f)))
+            }
+            IRBexpr::Iff(lhs, rhs) => {
+                IRBexpr::Iff(Box::new(lhs.map_into(f)), Box::new(rhs.map_into(f)))
+            }
         }
     }
 
@@ -74,6 +92,13 @@ impl<T> IRBexpr<T> {
             IRBexpr::Not(expr) => IRBexpr::Not(Box::new(expr.try_map(f)?)),
             IRBexpr::True => IRBexpr::True,
             IRBexpr::False => IRBexpr::False,
+            IRBexpr::Det(expr) => IRBexpr::Det(f(expr)?),
+            IRBexpr::Implies(lhs, rhs) => {
+                IRBexpr::Implies(Box::new(lhs.try_map(f)?), Box::new(rhs.try_map(f)?))
+            }
+            IRBexpr::Iff(lhs, rhs) => {
+                IRBexpr::Iff(Box::new(lhs.try_map(f)?), Box::new(rhs.try_map(f)?))
+            }
         })
     }
 
@@ -99,6 +124,15 @@ impl<T> IRBexpr<T> {
             IRBexpr::Not(expr) => expr.try_map_inplace(f),
             IRBexpr::True => Ok(()),
             IRBexpr::False => Ok(()),
+            IRBexpr::Det(expr) => f(expr),
+            IRBexpr::Implies(lhs, rhs) => {
+                lhs.try_map_inplace(f)?;
+                rhs.try_map_inplace(f)
+            }
+            IRBexpr::Iff(lhs, rhs) => {
+                lhs.try_map_inplace(f)?;
+                rhs.try_map_inplace(f)
+            }
         }
     }
 }
@@ -241,6 +275,21 @@ impl IRBexpr<IRAexpr> {
                 }
                 log.log(self);
             }
+            IRBexpr::Det(expr) => expr.constant_fold(prime),
+            IRBexpr::Implies(lhs, rhs) => {
+                lhs.constant_fold_impl(prime, ident + 2);
+                rhs.constant_fold_impl(prime, ident + 2);
+                if let Some((lhs, rhs)) = lhs.const_value().zip(rhs.const_value()) {
+                    *self = (!(lhs && !rhs)).into();
+                }
+            }
+            IRBexpr::Iff(lhs, rhs) => {
+                lhs.constant_fold_impl(prime, ident + 2);
+                rhs.constant_fold_impl(prime, ident + 2);
+                if let Some((lhs, rhs)) = lhs.const_value().zip(rhs.const_value()) {
+                    *self = (lhs == rhs).into();
+                }
+            }
         }
     }
 
@@ -295,6 +344,15 @@ impl IRBexpr<IRAexpr> {
                     _ => {}
                 }
             }
+            IRBexpr::Det(_) => {}
+            IRBexpr::Implies(lhs, rhs) => {
+                lhs.canonicalize();
+                rhs.canonicalize();
+            }
+            IRBexpr::Iff(lhs, rhs) => {
+                lhs.canonicalize();
+                rhs.canonicalize();
+            }
         }
     }
 }
@@ -326,6 +384,16 @@ impl<L, R, E: EqvRelation<L, R>> EqvRelation<IRBexpr<L>, IRBexpr<R>> for E {
             }
             (IRBexpr::Not(lhs), IRBexpr::Not(rhs)) => {
                 <E as EqvRelation<Box<IRBexpr<L>>, Box<IRBexpr<R>>>>::equivalent(lhs, rhs)
+            }
+            (IRBexpr::Det(lhs), IRBexpr::Det(rhs)) => E::equivalent(lhs, rhs),
+            (IRBexpr::Implies(lhs1, rhs1), IRBexpr::Implies(lhs2, rhs2)) => {
+                <E as EqvRelation<Box<IRBexpr<L>>, Box<IRBexpr<R>>>>::equivalent(lhs1, lhs2)
+                    && <E as EqvRelation<Box<IRBexpr<L>>, Box<IRBexpr<R>>>>::equivalent(rhs1, rhs2)
+            }
+
+            (IRBexpr::Iff(lhs1, rhs1), IRBexpr::Iff(lhs2, rhs2)) => {
+                <E as EqvRelation<Box<IRBexpr<L>>, Box<IRBexpr<R>>>>::equivalent(lhs1, lhs2)
+                    && <E as EqvRelation<Box<IRBexpr<L>>, Box<IRBexpr<R>>>>::equivalent(rhs1, rhs2)
             }
             _ => false,
         }
@@ -386,6 +454,9 @@ impl<T: std::fmt::Debug> std::fmt::Debug for IRBexpr<T> {
             IRBexpr::Not(expr) => write!(f, "(! {expr:?})"),
             IRBexpr::True => write!(f, "(true)"),
             IRBexpr::False => write!(f, "(false)"),
+            IRBexpr::Det(expr) => write!(f, "(det {expr:?})"),
+            IRBexpr::Implies(lhs, rhs) => write!(f, "(=> {lhs:?} {rhs:?})"),
+            IRBexpr::Iff(lhs, rhs) => write!(f, "(<=> {lhs:?} {rhs:?})"),
         }
     }
 }
@@ -399,6 +470,9 @@ impl<T: Clone> Clone for IRBexpr<T> {
             IRBexpr::Not(expr) => IRBexpr::Not(expr.clone()),
             IRBexpr::True => IRBexpr::True,
             IRBexpr::False => IRBexpr::False,
+            IRBexpr::Det(expr) => IRBexpr::Det(expr.clone()),
+            IRBexpr::Implies(lhs, rhs) => IRBexpr::Implies(lhs.clone(), rhs.clone()),
+            IRBexpr::Iff(lhs, rhs) => IRBexpr::Iff(lhs.clone(), rhs.clone()),
         }
     }
 }
@@ -414,6 +488,11 @@ impl<T: PartialEq> PartialEq for IRBexpr<T> {
             (IRBexpr::Not(lhs), IRBexpr::Not(rhs)) => lhs == rhs,
             (IRBexpr::True, IRBexpr::True) => true,
             (IRBexpr::False, IRBexpr::False) => false,
+            (IRBexpr::Det(lhs), IRBexpr::Det(rhs)) => lhs == rhs,
+            (IRBexpr::Implies(lhs1, rhs1), IRBexpr::Implies(lhs2, rhs2)) => {
+                lhs1 == lhs2 && rhs1 == rhs2
+            }
+            (IRBexpr::Iff(lhs1, rhs1), IRBexpr::Iff(lhs2, rhs2)) => lhs1 == lhs2 && rhs1 == rhs2,
             _ => false,
         }
     }
@@ -461,6 +540,17 @@ impl<A: LowerableExpr> LowerableExpr for IRBexpr<A> {
             IRBexpr::Not(expr) => expr.lower(l).and_then(|e| l.lower_not(&e)),
             IRBexpr::True => l.lower_true(),
             IRBexpr::False => l.lower_false(),
+            IRBexpr::Det(expr) => expr.lower(l).and_then(|e| l.lower_det(&e)),
+            IRBexpr::Implies(lhs, rhs) => {
+                let lhs = lhs.lower(l)?;
+                let rhs = rhs.lower(l)?;
+                l.lower_implies(&lhs, &rhs)
+            }
+            IRBexpr::Iff(lhs, rhs) => {
+                let lhs = lhs.lower(l)?;
+                let rhs = rhs.lower(l)?;
+                l.lower_iff(&lhs, &rhs)
+            }
         }
     }
 }

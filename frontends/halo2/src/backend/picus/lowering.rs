@@ -192,4 +192,24 @@ impl ExprLowering for PicusModuleLowering {
     fn lower_false(&self) -> Result<Self::CellOutput> {
         Ok(expr::eq(&expr::r#const(0), &expr::r#const(1)))
     }
+
+    fn lower_det(&self, expr: &Self::CellOutput) -> Result<Self::CellOutput> {
+        Ok(expr::det(expr))
+    }
+
+    fn lower_implies(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        Ok(expr::implies(lhs, rhs))
+    }
+
+    fn lower_iff(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        Ok(expr::iff(lhs, rhs))
+    }
 }

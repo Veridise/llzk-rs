@@ -220,6 +220,8 @@ impl ConstraintExpr for BinaryExpr<Boolean> {
             match self.op() {
                 Boolean::And => lhs && rhs,
                 Boolean::Or => lhs || rhs,
+                Boolean::Implies => lhs && rhs,
+                Boolean::Iff => lhs && rhs,
             }
         })
     }
@@ -231,6 +233,8 @@ impl ConstraintExpr for BinaryExpr<Boolean> {
             match self.op() {
                 Boolean::And => lhs || rhs,
                 Boolean::Or => lhs && rhs,
+                Boolean::Implies => false,
+                Boolean::Iff => lhs && rhs,
             }
         })
     }
