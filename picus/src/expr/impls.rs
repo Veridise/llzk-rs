@@ -500,6 +500,10 @@ impl ExprLike for NotExpr {}
 //===----------------------------------------------------------------------===//
 
 #[derive(Clone, Debug)]
+/// `DetExpr` is the logical predicate `(det e)` in the Picus constraint language and
+/// it denotes that the value of `e` is a deterministic. This is useful for specifying
+/// axioms to Picus when there are built-in assumptions to ZK constructs that are infeasible to encode
+/// as constraints i.e, lookups.
 pub struct DetExpr(Expr);
 
 impl DetExpr {
