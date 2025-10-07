@@ -280,7 +280,7 @@ impl IRBexpr<IRAexpr> {
                 lhs.constant_fold_impl(prime, ident + 2);
                 rhs.constant_fold_impl(prime, ident + 2);
                 if let Some((lhs, rhs)) = lhs.const_value().zip(rhs.const_value()) {
-                    *self = (!(lhs && !rhs)).into();
+                    *self = (!lhs || rhs).into();
                 }
             }
             IRBexpr::Iff(lhs, rhs) => {
