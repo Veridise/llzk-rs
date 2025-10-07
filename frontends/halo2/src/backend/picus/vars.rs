@@ -152,6 +152,20 @@ impl VarKind for VarKey {
             _ => false,
         }
     }
+
+    fn get_input_no(&self) -> Option<usize> {
+        match self {
+            VarKey::IO(FuncIO::Arg(n)) => Some(**n),
+            _ => None,
+        }
+    }
+
+    fn get_output_no(&self) -> Option<usize> {
+        match self {
+            VarKey::IO(FuncIO::Field(n)) => Some(**n),
+            _ => None,
+        }
+    }
 }
 
 //impl<'a> From<(FuncIO, Option<Cow<'a, FQN>>)> for VarKeySeedInner {

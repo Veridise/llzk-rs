@@ -57,7 +57,6 @@ impl<'c, 's> LlzkStructLowering<'c, 's> {
         Ok(self.struct_op.get_or_create_field_def(&name, || {
             let filename = format!("struct {} | advice cell", self.struct_name(),);
             let loc = Location::new(self.context(), &filename, col, row);
-
             r#struct::field(loc, &name, FeltType::new(self.context()), false, false)
         })?)
     }

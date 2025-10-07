@@ -3,9 +3,7 @@ use std::{borrow::Cow, iter};
 use llzk::prelude::*;
 
 use melior::{
-    ir::{
-        Attribute, Identifier, Location, Operation, Type,
-    },
+    ir::{Attribute, Identifier, Location, Operation, Type},
     Context,
 };
 
