@@ -38,7 +38,7 @@ macro_rules! llzk_op_type {
             ///
             /// A raw object must be valid.
             pub fn from_option_raw(raw: mlir_sys::MlirOperation) -> Option<Self> {
-                if raw.ptr.is_null() && unsafe { $isa(raw) } {
+                if raw.ptr.is_null() || unsafe { !$isa(raw) } {
                     None
                 } else {
                    unsafe { Some(Self::from_raw(raw)) }
@@ -156,7 +156,7 @@ macro_rules! llzk_op_type {
                 /// # Safety
                 ///
                 #[doc = concat!("The MLIR operation must be a valid pointer of type ", stringify!([<$type Ref>]) ,".")]
-                pub  fn from_option_raw(raw: mlir_sys::MlirOperation) -> Option<Self> {
+                pub fn from_option_raw(raw: mlir_sys::MlirOperation) -> Option<Self> {
                     if raw.ptr.is_null() || unsafe { !$isa(raw) } {
                         None
                     } else {
@@ -251,8 +251,8 @@ macro_rules! llzk_op_type {
                 /// # Safety
                 ///
                 /// A raw object must be valid.
-                pub  fn from_option_raw(raw: mlir_sys::MlirOperation) -> Option<Self> {
-                    if raw.ptr.is_null() || unsafe { $isa(raw) } {
+                pub fn from_option_raw(raw: mlir_sys::MlirOperation) -> Option<Self> {
+                    if raw.ptr.is_null() || unsafe { !$isa(raw) } {
                         None
                     } else {
                        unsafe { Some(Self::from_raw(raw)) }
