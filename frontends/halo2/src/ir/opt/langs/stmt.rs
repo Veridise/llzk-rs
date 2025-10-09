@@ -1,10 +1,5 @@
-use egg::{Id, LanguageChildren as _};
 
-use crate::{
-    backend::func::FuncIO,
-    halo2::Challenge,
-    ir::{expr::Felt, opt::langs::bexpr::BexprLang, CmpOp},
-};
+use crate::ir::{opt::langs::bexpr::BexprLang, CmpOp};
 
 #[allow(dead_code)]
 pub enum Stmt<A>

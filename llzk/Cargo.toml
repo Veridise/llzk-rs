@@ -10,6 +10,7 @@ license = "Apache-2.0"
 
 [dependencies]
 llzk-sys = { path = "../llzk-sys/", version = "0.1.0"}
+llzk-macro = { path = "../llzk-macro", version = "0.1.0"}
 melior = { workspace = true }
 melior-macro = { workspace = true }
 mlir-sys = { workspace = true }

@@ -4,9 +4,10 @@ use mlir_sys::{MlirBlock, MlirOperation, MlirRegion};
 use rstest::rstest;
 
 use crate::{
-    MlirOpBuilderInsertPoint, mlirOpBuilderCreate, mlirOpBuilderCreateWithListener,
-    mlirOpBuilderDestroy, mlirOpBuilderListenerCreate, mlirOpBuilderListenerDestroy,
-    sanity_tests::{TestContext, context},
+    mlirOpBuilderCreate, mlirOpBuilderCreateWithListener, mlirOpBuilderDestroy,
+    mlirOpBuilderListenerCreate, mlirOpBuilderListenerDestroy,
+    sanity_tests::{context, TestContext},
+    MlirOpBuilderInsertPoint,
 };
 
 #[rstest]
@@ -38,6 +39,8 @@ fn test_mlir_op_builder_listener_create() {
     }
 }
 
+// Empty functions for passing a valid function pointer as the listeners of a
+// [`MlirOpBuilder`] instance. They don't do anything, they just need to exists.
 unsafe extern "C" fn test_callback1(_: MlirOperation, _: MlirOpBuilderInsertPoint, _: *mut c_void) {
 }
 unsafe extern "C" fn test_callback2(_: MlirBlock, _: MlirRegion, _: MlirBlock, _: *mut c_void) {}

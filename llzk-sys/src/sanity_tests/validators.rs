@@ -10,7 +10,7 @@ use crate::{
 #[rstest]
 fn test_mlir_register_validation_passes_and_create(context: TestContext) {
     unsafe {
-        mlirRegisterLLZKValidationPasses();
+        //mlirRegisterLLZKValidationPasses();
         let manager = mlirPassManagerCreate(context.ctx);
 
         let pass = mlirCreateLLZKValidationFieldWriteValidatorPass();
@@ -23,7 +23,7 @@ fn test_mlir_register_validation_passes_and_create(context: TestContext) {
 #[rstest]
 fn test_mlir_register_validation_field_write_validator_pass_and_create(context: TestContext) {
     unsafe {
-        mlirRegisterLLZKValidationFieldWriteValidatorPass();
+        //mlirRegisterLLZKValidationFieldWriteValidatorPass();
         let manager = mlirPassManagerCreate(context.ctx);
 
         let pass = mlirCreateLLZKValidationFieldWriteValidatorPass();

@@ -136,6 +136,8 @@ pub trait FuncDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     }
 }
 
+pub trait FuncDefOpMutLike<'c: 'a, 'a>: FuncDefOpLike<'c, 'a> + OperationMutLike<'c, 'a> {}
+
 //===----------------------------------------------------------------------===//
 // FuncDefOp, FuncDefOpRef, and FuncDefOpRefMut
 //===----------------------------------------------------------------------===//
@@ -147,6 +149,10 @@ impl<'a, 'c: 'a> FuncDefOpLike<'c, 'a> for FuncDefOp<'c> {}
 impl<'a, 'c: 'a> FuncDefOpLike<'c, 'a> for FuncDefOpRef<'c, 'a> {}
 
 impl<'a, 'c: 'a> FuncDefOpLike<'c, 'a> for FuncDefOpRefMut<'c, 'a> {}
+
+impl<'a, 'c: 'a> FuncDefOpMutLike<'c, 'a> for FuncDefOp<'c> {}
+
+impl<'a, 'c: 'a> FuncDefOpMutLike<'c, 'a> for FuncDefOpRefMut<'c, 'a> {}
 
 //===----------------------------------------------------------------------===//
 // CallOpLike
