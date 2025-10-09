@@ -565,7 +565,7 @@ impl TextRepresentable for DetExpr {
     }
 
     fn width_hint(&self) -> usize {
-        5 + self.0.width_hint()
+        6 + self.0.width_hint()
     }
 }
 
