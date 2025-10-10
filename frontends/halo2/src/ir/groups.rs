@@ -751,14 +751,24 @@ where
         .collect::<Vec<_>>();
     let mut temps = Temps::new();
     let ir = lookup_cb.on_lookups(&lookups, &tables, &mut temps)?;
-
     Ok(region_rows
         .iter()
-        .map(|rr| {
-            let region_ir = ir
+        .enumerate()
+        .map(|(n, rr)| {
+            let mut region_ir = ir
                 .clone()
                 .map(&|e| e.map(|e| ScopedExpression::from_cow(e, *rr)));
-            let comment = IRStmt::comment(format!("Lookups @ {}", rr.header()));
+            if n > 0 {
+                let mut local_temps = HashMap::new();
+                region_ir.rebase_temps(&mut |temp| {
+                    *local_temps
+                        .entry(temp)
+                        .or_insert_with(|| temps.next().unwrap())
+                });
+            }
+
+            let comment =
+                IRStmt::comment(format!("Lookups @ {} @ {}", rr.header(), rr.row_number()));
             prepend_comment(region_ir, comment, generate_debug_comments)
         })
         .collect())
