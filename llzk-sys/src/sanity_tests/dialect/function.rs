@@ -11,14 +11,14 @@ use crate::{
     llzkFuncDefOpGetNameIsCompute, llzkFuncDefOpGetNameIsConstrain,
     llzkFuncDefOpGetSingleResultTypeOfCompute, llzkFuncDefOpSetAllowConstraintAttr,
     llzkFuncDefOpSetAllowWitnessAttr, llzkOperationIsACallOp, llzkOperationIsAFuncDefOp,
-    mlirGetDialectHandle__llzk__function__, mlirOpBuilderCreate,
+    mlirGetDialectHandle__llzk__function__, mlirOpBuilderCreate, mlirOpBuilderDestroy,
     sanity_tests::{context, str_ref, TestContext},
 };
 use mlir_sys::{
-    mlirDenseI32ArrayGet, mlirDictionaryAttrGet, mlirFlatSymbolRefAttrGet,
-    mlirFunctionTypeGet, mlirIndexTypeGet, mlirLocationUnknownGet, mlirOperationDestroy,
-    mlirOperationGetContext, mlirOperationVerify, mlirStringRefCreateFromCString, mlirTypeEqual,
-    MlirAttribute, MlirContext, MlirNamedAttribute, MlirOperation, MlirType,
+    mlirDenseI32ArrayGet, mlirDictionaryAttrGet, mlirFlatSymbolRefAttrGet, mlirFunctionTypeGet,
+    mlirIndexTypeGet, mlirLocationUnknownGet, mlirOperationDestroy, mlirOperationGetContext,
+    mlirOperationVerify, mlirStringRefCreateFromCString, mlirTypeEqual, MlirAttribute, MlirContext,
+    MlirNamedAttribute, MlirOperation, MlirType,
 };
 use rstest::{fixture, rstest};
 use std::{
@@ -272,6 +272,7 @@ fn test_llzk_call_op_build(test_function0: TestFuncDefOp) {
         );
         assert!(mlirOperationVerify(call));
         mlirOperationDestroy(call);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -284,6 +285,7 @@ fn test_llzk_call_op_build_to_callee(test_function0: TestFuncDefOp) {
         let call = llzkCallOpBuildToCallee(builder, location, test_function0.op, 0, null());
         assert!(mlirOperationVerify(call));
         mlirOperationDestroy(call);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -310,6 +312,7 @@ fn llzk_call_op_build_with_map_operands(test_function0: TestFuncDefOp) {
         );
         assert!(mlirOperationVerify(call));
         mlirOperationDestroy(call);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -336,6 +339,7 @@ fn llzk_call_op_build_with_map_operands_and_dims(test_function0: TestFuncDefOp) 
         );
         assert!(mlirOperationVerify(call));
         mlirOperationDestroy(call);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -358,6 +362,7 @@ fn llzk_call_op_build_to_callee_with_map_operands(test_function0: TestFuncDefOp)
         );
         assert!(mlirOperationVerify(call));
         mlirOperationDestroy(call);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -380,6 +385,7 @@ fn llzk_call_op_build_to_callee_with_map_operands_and_dims(test_function0: TestF
         );
         assert!(mlirOperationVerify(call));
         mlirOperationDestroy(call);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -395,6 +401,7 @@ macro_rules! call_pred_test {
 
                 assert_eq!($func(call), $expected);
                 mlirOperationDestroy(call);
+                mlirOpBuilderDestroy(builder);
             }
         }
     };
@@ -419,6 +426,7 @@ fn test_llzk_call_op_get_callee_type(test_function0: TestFuncDefOp) {
         assert!(mlirTypeEqual(func_type, out_type));
 
         mlirOperationDestroy(call);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -458,5 +466,6 @@ fn test_llzk_call_op_get_single_result_type_of_compute(test_function0: TestFuncD
         }
 
         mlirOperationDestroy(call);
+        mlirOpBuilderDestroy(builder);
     }
 }

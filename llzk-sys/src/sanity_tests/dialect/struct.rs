@@ -8,8 +8,7 @@ use mlir_sys::{
     mlirFlatSymbolRefAttrGet, mlirIdentifierGet, mlirIndexTypeGet, mlirIntegerAttrGet,
     mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate, mlirOperationDestroy,
     mlirOperationGetContext, mlirOperationGetResult, mlirOperationStateAddAttributes,
-    mlirOperationStateAddResults,
-    mlirOperationStateGet, mlirStringRefCreateFromCString,
+    mlirOperationStateAddResults, mlirOperationStateGet, mlirStringRefCreateFromCString,
     MlirOperation,
 };
 use rstest::{fixture, rstest};
@@ -27,6 +26,7 @@ use crate::{
     llzkStructDefOpGetTypeWithParams, llzkStructTypeGet, llzkStructTypeGetName,
     llzkStructTypeGetParams, llzkStructTypeGetWithArrayAttr, llzkStructTypeGetWithAttrs,
     llzkTypeIsAStructType, mlirGetDialectHandle__llzk__component__, mlirOpBuilderCreate,
+    mlirOpBuilderDestroy,
     sanity_tests::{context, str_ref, TestContext},
     MlirValueRange,
 };
@@ -226,15 +226,16 @@ fn test_llzk_struct_def_op_get_constrain_func_op(test_op: TestOp) {
 fn test_llzk_struct_def_op_get_header_string(test_op: TestOp) {
     unsafe {
         if llzkOperationIsAStructDefOp(test_op.op) {
-            extern "C" fn allocator(size: usize) -> *mut i8 {
-                let layout = Layout::array::<i8>(size).expect("failed to define string layout");
-                unsafe { alloc(layout) as *mut i8 }
+            use core::ffi::c_char;
+            extern "C" fn allocator(size: usize) -> *mut c_char {
+                let layout = Layout::array::<c_char>(size).expect("failed to define string layout");
+                unsafe { alloc(layout) as *mut c_char }
             }
             let mut size = 0;
 
             let str = llzkStructDefOpGetHeaderString(test_op.op, &mut size, Some(allocator));
             let layout =
-                Layout::array::<i8>(size as usize).expect("failed to define string layout");
+                Layout::array::<c_char>(size as usize).expect("failed to define string layout");
             dealloc(str as *mut u8, layout);
         }
     }
@@ -319,6 +320,7 @@ fn test_llzk_field_read_op_build(context: TestContext) {
 
         mlirOperationDestroy(op);
         mlirOperationDestroy(r#struct);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -351,6 +353,7 @@ fn test_llzk_field_read_op_build_with_affine_map_distance(context: TestContext) 
 
         mlirOperationDestroy(op);
         mlirOperationDestroy(r#struct);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -374,6 +377,7 @@ fn test_llzk_field_read_op_builder_with_const_param_distance(context: TestContex
 
         mlirOperationDestroy(op);
         mlirOperationDestroy(r#struct);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -397,5 +401,6 @@ fn test_llzk_field_read_op_build_with_literal_distance(context: TestContext) {
 
         mlirOperationDestroy(op);
         mlirOperationDestroy(r#struct);
+        mlirOpBuilderDestroy(builder);
     }
 }

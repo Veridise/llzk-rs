@@ -94,7 +94,7 @@ pub fn load_llzk_dialects<Ctx: AsRef<MlirContext>>(ctx: &Ctx) {
 
 pub fn str_ref(s: &'static str) -> MlirStringRef {
     MlirStringRef {
-        data: (s.as_ptr() as *const i8),
+        data: (s.as_ptr() as *const ::core::ffi::c_char),
         length: s.len(),
     }
 }
