@@ -59,6 +59,26 @@ impl<T> Call<T> {
         }
         Ok(())
     }
+
+    pub fn callee(&self) -> &str {
+        &self.callee
+    }
+
+    pub fn inputs(&self) -> &[T] {
+        &self.inputs
+    }
+
+    pub fn outputs(&self) -> &[FuncIO] {
+        &self.outputs
+    }
+
+    pub fn inputs_mut(&mut self) -> &mut Vec<T> {
+        &mut self.inputs
+    }
+
+    pub fn outputs_mut(&mut self) -> &mut Vec<FuncIO> {
+        &mut self.outputs
+    }
 }
 
 impl Call<IRAexpr> {

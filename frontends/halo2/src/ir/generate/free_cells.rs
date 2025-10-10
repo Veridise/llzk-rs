@@ -12,10 +12,33 @@ use crate::{
 use std::collections::VecDeque;
 
 /// List of free cells that need to be binded in a group.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct FreeCells {
     pub inputs: Vec<GroupCell>,
     pub callsites: Vec<Vec<GroupCell>>,
+}
+
+impl FreeCells {
+    pub fn empty(g: &Group) -> Self {
+        Self {
+            inputs: vec![],
+            callsites: vec![vec![]; g.children_count()],
+        }
+    }
+
+    fn new<F: Field>(
+        g: &Group,
+        groups: &[Group],
+        region_by_index: &RegionByIndex,
+        constraints: &EqConstraintGraph<F>,
+    ) -> Self {
+        let mut fc = Self::empty(g);
+        fc.inputs = find_free_cells(g, groups, region_by_index, constraints)
+            .into_iter()
+            .filter_map(GroupCell::from_tuple)
+            .collect::<Vec<_>>();
+        fc
+    }
 }
 
 /// Check for cells in the equality constraints that are not bounded by IO and are not part of
@@ -34,22 +57,16 @@ pub fn lift_free_cells_to_inputs<F: Field>(
         .iter()
         .enumerate()
         .map(|(id, g)| {
-            let fc = find_free_cells(g, groups, region_by_index, constraints)
-                .into_iter()
-                .filter_map(GroupCell::from_tuple)
-                .collect::<Vec<_>>();
-            if !fc.is_empty() {
+            let fc = FreeCells::new(g, groups, region_by_index, constraints);
+            if !fc.inputs.is_empty() {
                 log::debug!(
                     "For group {} \"{}\" we found {} free cells",
                     id,
                     g.name(),
-                    fc.len()
+                    fc.inputs.len()
                 );
             }
-            FreeCells {
-                inputs: fc,
-                callsites: vec![vec![]; g.children_count()],
-            }
+            fc
         })
         .collect();
 

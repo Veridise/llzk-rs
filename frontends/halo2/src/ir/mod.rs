@@ -11,6 +11,7 @@ use crate::{
         expr::{Felt, IRAexpr},
         generate::region_data,
         groups::GroupBody,
+        printer::IRPrinter,
     },
     synthesis::CircuitSynthesis,
     temps::ExprOrTemp,
@@ -57,6 +58,7 @@ pub mod expr;
 pub mod generate;
 pub mod groups;
 mod opt;
+pub mod printer;
 pub mod stmt;
 
 pub use ctx::IRCtx;
@@ -176,6 +178,11 @@ impl ResolvedIRCircuit {
     /// Returns the context associated with this circuit.
     pub fn ctx(&self) -> &IRCtx {
         &self.ctx
+    }
+
+    /// Returns a printer of the circuit.
+    pub fn display<'a>(&'a self) -> IRPrinter<'a> {
+        IRPrinter::from_circuit(self)
     }
 
     /// Returns the main group.
