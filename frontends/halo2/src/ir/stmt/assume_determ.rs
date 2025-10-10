@@ -18,6 +18,10 @@ impl AssumeDeterministic {
     pub fn value(&self) -> FuncIO {
         self.0
     }
+
+    pub fn value_mut(&mut self) -> &mut FuncIO {
+        &mut self.0
+    }
 }
 
 impl LowerableStmt for AssumeDeterministic {

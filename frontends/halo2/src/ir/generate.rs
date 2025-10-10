@@ -19,6 +19,7 @@ mod patterns;
 /// Configuration parameters for IR generation.
 pub struct IRGenParams<'lc, 'gc, F: Field> {
     debug_comments: bool,
+    link_eq_constraints: bool,
     lookup_cb: Option<&'lc dyn LookupCallbacks<F>>,
     gate_cb: Option<&'gc dyn GateCallbacks<F>>,
 }
@@ -27,6 +28,7 @@ impl<'lc, 'gc, F: Field> IRGenParams<'lc, 'gc, F> {
     fn new() -> Self {
         Self {
             debug_comments: false,
+            link_eq_constraints: false,
             lookup_cb: None,
             gate_cb: None,
         }
@@ -35,6 +37,11 @@ impl<'lc, 'gc, F: Field> IRGenParams<'lc, 'gc, F> {
     /// Returns wether debug comments are enabled or not.
     pub fn debug_comments(&self) -> bool {
         self.debug_comments
+    }
+
+    /// Returns wether equality constraints need to be relinked.
+    pub fn link_eq_constraints(&self) -> bool {
+        self.link_eq_constraints
     }
 }
 

@@ -22,10 +22,13 @@ pub struct IRCtx {
 }
 
 impl IRCtx {
-    pub(crate) fn new<F: Field>(syn: &CircuitSynthesis<F>) -> Self {
+    pub(crate) fn new<F: Field>(syn: &CircuitSynthesis<F>, lift_free_cells: bool) -> Self {
         let regions_by_index = region_data(syn);
-        let free_cells =
-            lift_free_cells_to_inputs(syn.groups(), &regions_by_index, syn.constraints());
+        let free_cells = if lift_free_cells {
+            lift_free_cells_to_inputs(syn.groups(), &regions_by_index, syn.constraints())
+        } else {
+            syn.groups().iter().map(FreeCells::empty).collect()
+        };
 
         let mut groups_advice_io: HashMap<usize, crate::io::AdviceIO> = Default::default();
         let mut groups_instance_io: HashMap<usize, crate::io::InstanceIO> = Default::default();
