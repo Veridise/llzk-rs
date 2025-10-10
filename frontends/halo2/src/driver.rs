@@ -58,7 +58,7 @@ impl Driver {
         'drv: 'sco + 'syn,
         'cb: 'sco + 'syn,
     {
-        let ctx = self.get_or_create_ir_ctx(syn);
+        let ctx = self.get_or_create_ir_ctx(syn, &params);
         let ir = generate_ir(syn, params, ctx)?;
         let enumerated_groups = syn.groups().iter().enumerate().collect::<Vec<_>>();
         let mut regions_to_groups = vec![];
@@ -84,10 +84,11 @@ impl Driver {
     fn get_or_create_ir_ctx<'drv, F: PrimeField>(
         &'drv mut self,
         syn: &CircuitSynthesis<F>,
+        params: &IRGenParams<'_, '_, F>,
     ) -> &'drv IRCtx {
         self.ir_ctxs
             .entry(syn.id())
-            .or_insert_with(|| IRCtx::new(syn))
+            .or_insert_with(|| IRCtx::new(syn, params.link_eq_constraints()))
     }
 
     /// Creates a picus program from the circuit synthesis.

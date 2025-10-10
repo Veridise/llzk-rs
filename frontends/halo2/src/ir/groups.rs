@@ -37,6 +37,7 @@ use crate::{
     utils, GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
 };
 use anyhow::Result;
+use halo2_proofs::plonk::{Any, Column};
 
 pub mod bounds;
 pub mod callsite;
@@ -485,7 +486,35 @@ fn select_equality_constraints<F: Field>(
         Some(free_inputs),
     );
 
-    ctx.syn()
+    #[inline]
+    fn log_intergroup_eq(
+        name: &str,
+        (within_col, within_row): (Column<Any>, usize),
+        (outside_col, outside_row): (Column<Any>, usize),
+        ignore: bool,
+    ) {
+        fn col_type(t: &Any) -> &'static str {
+            match t {
+                Any::Advice(_) => "Advice",
+                Any::Fixed => "Fixed",
+                Any::Instance => "Instance",
+            }
+        }
+
+        let within_col_type = col_type(&within_col.column_type());
+        let outside_col_type = col_type(&outside_col.column_type());
+        let within_col_no = within_col.index();
+        let outside_col_no = outside_col.index();
+        log::debug!(
+            "Detected inter-group copy constraint in group \"{name}\": {within_col_type}[{within_col_no}]@{within_row} (inside) == {outside_col_type}[{outside_col_no}]@{outside_row} (outside). The constraint was {}",
+            if ignore { "ignored" } else { "included" }
+        );
+    }
+
+    let ignore_intergroups = !group.is_top_level();
+    let mut intergroup_eqs = 0;
+    let eqs = ctx
+        .syn()
         .constraints()
         .edges()
         .into_iter()
@@ -509,12 +538,20 @@ fn select_equality_constraints<F: Field>(
                     (Bound::Outside, Bound::IO) => false,
                     (Bound::Within, Bound::Outside) => match r.0.column_type() {
                         crate::halo2::Any::Fixed => true,
-                        _ => unreachable!("Within {l:?} | Outside {r:?}"),
+                        _ => {
+                            log_intergroup_eq(group.name(), l, r, ignore_intergroups);
+                            intergroup_eqs += 1;
+                            !ignore_intergroups
+                        }
                     },
 
                     (Bound::Outside, Bound::Within) => match l.0.column_type() {
                         crate::halo2::Any::Fixed => true,
-                        _ => unreachable!("Outside {l:?} | Within {r:?}"),
+                        _ => {
+                            log_intergroup_eq(group.name(), r, l, ignore_intergroups);
+                            intergroup_eqs += 1;
+                            !ignore_intergroups
+                        }
                     },
                 },
                 EqConstraintCheck::FixedToConst(bound) => match bound {
@@ -523,7 +560,14 @@ fn select_equality_constraints<F: Field>(
                 },
             }
         })
-        .collect()
+        .collect();
+    if intergroup_eqs > 0 {
+        log::warn!(
+            "Detected {intergroup_eqs} inter-group equalities in group '{}'",
+            group.name()
+        );
+    }
+    eqs
 }
 
 /// Generates constraint expressions for the equality constraints.
