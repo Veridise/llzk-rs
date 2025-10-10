@@ -11,6 +11,8 @@ use super::{OpFolder, OpLike};
 pub enum Boolean {
     And,
     Or,
+    Implies,
+    Iff,
 }
 
 impl Boolean {
@@ -41,13 +43,15 @@ impl OpFolder for Boolean {
     }
 
     fn commutative(&self) -> bool {
-        true
+        !matches!(self, Boolean::Implies)
     }
 
     fn flip(&self, lhs: &Expr, rhs: &Expr) -> Option<BinaryExpr<Self>> {
         match self {
             Boolean::And => Some(BinaryExpr::new(Self::And, rhs.clone(), lhs.clone())),
             Boolean::Or => Some(BinaryExpr::new(Self::Or, rhs.clone(), lhs.clone())),
+            Boolean::Iff => Some(BinaryExpr::new(Self::Iff, rhs.clone(), lhs.clone())),
+            _ => None,
         }
     }
 }
@@ -57,6 +61,8 @@ impl TextRepresentable for Boolean {
         TextRepresentation::atom(match self {
             Boolean::And => "&&",
             Boolean::Or => "||",
+            Boolean::Implies => "=>",
+            Boolean::Iff => "<=>",
         })
     }
 
@@ -64,6 +70,8 @@ impl TextRepresentable for Boolean {
         match self {
             Boolean::And => 2,
             Boolean::Or => 2,
+            Boolean::Implies => 2,
+            Boolean::Iff => 3,
         }
     }
 }
