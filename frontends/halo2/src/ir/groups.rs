@@ -467,8 +467,7 @@ fn select_equality_constraints<F: Field>(
 ) -> Vec<EqConstraint<F>> {
     let bounds = GroupBounds::new(group, ctx.groups(), ctx.regions_by_index());
 
-    let eqs = ctx
-        .syn()
+    ctx.syn()
         .constraints()
         .edges()
         .into_iter()
@@ -505,9 +504,7 @@ fn select_equality_constraints<F: Field>(
                 },
             }
         })
-        .collect();
-
-    eqs
+        .collect()
 }
 
 /// Generates constraint expressions for the equality constraints.
