@@ -494,3 +494,115 @@ impl GetExprHash for NotExpr {
 }
 
 impl ExprLike for NotExpr {}
+
+//===----------------------------------------------------------------------===//
+// DetExpr
+//===----------------------------------------------------------------------===//
+
+#[derive(Clone, Debug)]
+/// `DetExpr` is the logical predicate `(det e)` in the Picus constraint language and
+/// it denotes that the value of `e` is a deterministic. This is useful for specifying
+/// axioms to Picus when there are built-in assumptions to ZK constructs that are infeasible to encode
+/// as constraints i.e, lookups.
+pub struct DetExpr(Expr);
+
+impl DetExpr {
+    pub fn new(e: Expr) -> Self {
+        Self(e)
+    }
+}
+
+impl WrappedExpr for DetExpr {
+    fn wrap(&self) -> Expr {
+        Wrap::new(self.clone())
+    }
+}
+
+impl ExprSize for DetExpr {
+    fn size(&self) -> usize {
+        self.0.size() + 1
+    }
+
+    fn extraible(&self) -> bool {
+        true
+    }
+
+    fn args(&self) -> Vec<Expr> {
+        vec![self.0.clone()]
+    }
+
+    fn replace_args(&self, args: &[Option<Expr>]) -> Result<Option<Expr>> {
+        Ok(match args {
+            [None] => None,
+            [Some(expr)] => Some(expr),
+            _ => bail!("DetExpr expects 1 argument"),
+        }
+        .map(|expr| -> Expr { Wrap::new(Self(expr.clone())) }))
+    }
+}
+
+impl ConstantFolding for DetExpr {
+    fn as_const(&self) -> Option<Felt> {
+        None
+    }
+
+    fn fold(&self, prime: &Felt) -> Option<Expr> {
+        self.0
+            .fold(prime)
+            .map(|inner| -> Expr { Wrap::new(Self(inner)) })
+    }
+
+    fn replaced_by_const(&self, map: &HashMap<VarStr, Felt>) -> Option<Expr> {
+        self.0
+            .replaced_by_const(map)
+            .map(|inner| -> Expr { Wrap::new(Self(inner)) })
+    }
+}
+
+impl TextRepresentable for DetExpr {
+    fn to_repr(&self) -> TextRepresentation<'_> {
+        owned_list!("det", &self.0)
+    }
+
+    fn width_hint(&self) -> usize {
+        6 + self.0.width_hint()
+    }
+}
+
+impl MaybeVarLike for DetExpr {
+    fn var_name(&self) -> Option<&VarStr> {
+        None
+    }
+
+    fn renamed(&self, map: &HashMap<VarStr, VarStr>) -> Option<Expr> {
+        self.0.renamed(map).map(|e| -> Expr { Wrap::new(Self(e)) })
+    }
+
+    fn free_vars(&self) -> HashSet<&VarStr> {
+        self.0.free_vars()
+    }
+}
+
+impl ConstraintLike for DetExpr {
+    fn is_constraint(&self) -> bool {
+        false
+    }
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
+        None
+    }
+}
+
+impl PartialEq for DetExpr {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == *other.0
+    }
+}
+
+impl GetExprHash for DetExpr {
+    fn hash(&self) -> ExprHash {
+        hash!("det", self.0.hash())
+    }
+}
+
+impl ExprLike for DetExpr {}

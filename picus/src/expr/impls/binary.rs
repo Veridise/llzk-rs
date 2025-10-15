@@ -214,23 +214,27 @@ impl ConstraintExpr for BinaryExpr<Boolean> {
     }
 
     fn is_constant_true(&self) -> bool {
-        map_cexpr(&self.1, &self.2, |lhs, rhs| {
-            let lhs = lhs.is_constant_true();
-            let rhs = rhs.is_constant_true();
-            match self.op() {
-                Boolean::And => lhs && rhs,
-                Boolean::Or => lhs || rhs,
+        map_cexpr(&self.1, &self.2, |lhs, rhs| match self.op() {
+            Boolean::And => lhs.is_constant_true() && rhs.is_constant_true(),
+            Boolean::Or => lhs.is_constant_true() || rhs.is_constant_true(),
+            Boolean::Implies => {
+                lhs.is_constant_false() || (lhs.is_constant_true() && rhs.is_constant_true())
+            }
+            Boolean::Iff => {
+                (lhs.is_constant_false() && rhs.is_constant_false())
+                    || (lhs.is_constant_true() && rhs.is_constant_true())
             }
         })
     }
 
     fn is_constant_false(&self) -> bool {
-        map_cexpr(&self.1, &self.2, |lhs, rhs| {
-            let lhs = lhs.is_constant_false();
-            let rhs = rhs.is_constant_false();
-            match self.op() {
-                Boolean::And => lhs || rhs,
-                Boolean::Or => lhs && rhs,
+        map_cexpr(&self.1, &self.2, |lhs, rhs| match self.op() {
+            Boolean::And => lhs.is_constant_false() || rhs.is_constant_false(),
+            Boolean::Or => lhs.is_constant_false() && rhs.is_constant_false(),
+            Boolean::Implies => lhs.is_constant_true() && rhs.is_constant_false(),
+            Boolean::Iff => {
+                (lhs.is_constant_true() && rhs.is_constant_false())
+                    || (lhs.is_constant_false() && rhs.is_constant_true())
             }
         })
     }

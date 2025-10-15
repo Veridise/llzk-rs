@@ -11,6 +11,7 @@ use traits::{
 
 use crate::{
     display::TextRepresentable,
+    expr::impls::DetExpr,
     felt::Felt,
     stmt::traits::ConstraintLike,
     vars::{VarAllocator, VarStr},
@@ -209,6 +210,18 @@ pub fn and(lhs: &Expr, rhs: &Expr) -> Expr {
 
 pub fn or(lhs: &Expr, rhs: &Expr) -> Expr {
     boolean(Boolean::Or, lhs, rhs)
+}
+
+pub fn implies(lhs: &Expr, rhs: &Expr) -> Expr {
+    boolean(Boolean::Implies, lhs, rhs)
+}
+
+pub fn iff(lhs: &Expr, rhs: &Expr) -> Expr {
+    boolean(Boolean::Iff, lhs, rhs)
+}
+
+pub fn det(expr: &Expr) -> Expr {
+    Wrap::new(DetExpr::new(expr.clone()))
 }
 
 pub fn not(expr: &Expr) -> Expr {
