@@ -29,7 +29,6 @@ use crate::{
     llzkTypeIsAStructType, mlirGetDialectHandle__llzk__component__, mlirOpBuilderCreate,
     mlirOpBuilderDestroy,
     sanity_tests::{context, str_ref, TestContext},
-    MlirValueRange,
 };
 
 #[test]
