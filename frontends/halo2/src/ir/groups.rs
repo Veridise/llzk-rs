@@ -14,7 +14,7 @@ use crate::{
         ctx::AdviceCells,
         equivalency::{EqvRelation, SymbolicEqv},
         expr::{Felt, IRAexpr},
-        generate::{free_cells::FreeCells, GroupIRCtx, RegionByIndex},
+        generate::{GroupIRCtx, RegionByIndex},
         groups::{
             bounds::{Bound, EqConstraintCheck, GroupBounds},
             callsite::CallSite,
@@ -70,7 +70,6 @@ where
         group: &'syn Group,
         id: usize,
         ctx: &GroupIRCtx<'cb, '_, 'syn, F>,
-        free_cells: &'ctx FreeCells,
         advice_io: &'ctx crate::io::AdviceIO,
         instance_io: &'ctx crate::io::InstanceIO,
     ) -> anyhow::Result<Self> {
@@ -81,15 +80,7 @@ where
                 .into_iter()
                 .enumerate()
                 .map(|(call_no, (callee_id, callee))| {
-                    CallSite::new(
-                        callee,
-                        callee_id,
-                        ctx,
-                        call_no,
-                        advice_io,
-                        instance_io,
-                        &free_cells.callsites[call_no],
-                    )
+                    CallSite::new(callee, callee_id, ctx, call_no, advice_io, instance_io)
                 })
                 .collect::<Result<Vec<_>, _>>()?
         };
@@ -113,7 +104,7 @@ where
             "Lowering inter region equality constraints for group {:?}",
             group.name()
         );
-        let eq_constraints = select_equality_constraints(group, ctx, &free_cells.inputs);
+        let eq_constraints = select_equality_constraints(group, ctx);
 
         let mut eq_constraints = inter_region_constraints(
             eq_constraints,
@@ -477,14 +468,8 @@ impl<E: Clone> Clone for GroupBody<E> {
 fn select_equality_constraints<F: Field>(
     group: &Group,
     ctx: &GroupIRCtx<'_, '_, '_, F>,
-    free_inputs: &[GroupCell],
 ) -> Vec<EqConstraint<F>> {
-    let bounds = GroupBounds::new_with_extra(
-        group,
-        ctx.groups(),
-        ctx.regions_by_index(),
-        Some(free_inputs),
-    );
+    let bounds = GroupBounds::new(group, ctx.groups(), ctx.regions_by_index());
 
     #[inline]
     fn log_intergroup_eq(

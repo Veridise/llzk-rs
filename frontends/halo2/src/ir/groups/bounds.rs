@@ -32,18 +32,7 @@ pub struct GroupBounds<'a> {
 
 impl<'a> GroupBounds<'a> {
     /// Creates a new bound for the group.
-    pub fn new(group: &'a Group, groups: &'a [Group], regions_by_index: &RegionByIndex) -> Self {
-        Self::new_with_extra(group, groups, regions_by_index, None)
-    }
-
-    /// Creates a new bound for the group, optionally adding more cells that have to be considered
-    /// within bounds.
-    pub fn new_with_extra(
-        group: &'a Group,
-        groups: &'a [Group],
-        region_by_index: &RegionByIndex,
-        extra_inputs: Option<&[GroupCell]>,
-    ) -> Self {
+    pub fn new(group: &'a Group, groups: &'a [Group], region_by_index: &RegionByIndex) -> Self {
         let mut region_indices = HashSet::new();
         let mut cols_and_rows = vec![];
         let mut foreign_io = HashSet::new();
@@ -54,12 +43,7 @@ impl<'a> GroupBounds<'a> {
             cols_and_rows.push((region.columns(), region.rows()));
         }
 
-        for cell in group
-            .inputs()
-            .iter()
-            .chain(group.outputs())
-            .chain(extra_inputs.iter().flat_map(|i| *i))
-        {
+        for cell in group.inputs().iter().chain(group.outputs()) {
             match cell {
                 GroupCell::Assigned(cell) => {
                     // Copy constraints use absolute rows but the labels have relative
