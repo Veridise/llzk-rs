@@ -1,19 +1,20 @@
 use llzk_sys::{
     llzkFieldDefOpGetHasPublicAttr, llzkFieldDefOpSetPublicAttr, llzkFieldReadOpBuild,
-    llzkOperationIsAFieldDefOp, llzkOperationIsAStructDefOp, llzkStructDefOpGetComputeFuncOp,
+    llzkOperationIsAFieldDefOp, llzkOperationIsAStructDefOp, llzkStructDefOpGetBody,
+    llzkStructDefOpGetBodyRegion, llzkStructDefOpGetComputeFuncOp,
     llzkStructDefOpGetConstrainFuncOp, llzkStructDefOpGetFieldDef, llzkStructDefOpGetFieldDefs,
     llzkStructDefOpGetHasColumns, llzkStructDefOpGetHasParamName,
     llzkStructDefOpGetIsMainComponent, llzkStructDefOpGetNumFieldDefs, llzkStructDefOpGetType,
     llzkStructDefOpGetTypeWithParams,
 };
 use melior::{
+    StringRef,
     ir::{
+        Attribute, AttributeLike, Block, BlockLike as _, BlockRef, Identifier, Location, Operation,
+        OperationRef, Region, RegionLike as _, RegionRef, Type, TypeLike, Value, ValueLike,
         attribute::{ArrayAttribute, FlatSymbolRefAttribute, StringAttribute, TypeAttribute},
         operation::{OperationBuilder, OperationLike, OperationMutLike},
-        Attribute, AttributeLike, Block, BlockLike as _, Identifier, Location, Operation,
-        OperationRef, Region, RegionLike as _, Type, TypeLike, Value, ValueLike,
     },
-    StringRef,
 };
 use mlir_sys::MlirOperation;
 
@@ -46,6 +47,16 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
             .and_then(StringAttribute::try_from)
             .map(|a| a.value())
             .unwrap()
+    }
+
+    /// Returns the single body Region of the StructDefOp.
+    fn body_region(&self) -> RegionRef<'c, 'a> {
+        unsafe { RegionRef::from_raw(llzkStructDefOpGetBodyRegion(self.to_raw())) }
+    }
+
+    /// Returns the single body Block within the StructDefOp's Region.
+    fn body(&self) -> BlockRef<'c, 'a> {
+        unsafe { BlockRef::from_raw(llzkStructDefOpGetBody(self.to_raw())) }
     }
 
     /// Returns the associated StructType to this op using the given const params instead of the

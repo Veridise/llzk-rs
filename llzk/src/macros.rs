@@ -304,6 +304,12 @@ macro_rules! llzk_op_type {
                 }
             }
 
+            impl<'c, 'a> From<[<$type Ref>]<'c, 'a>> for [<$type RefMut>]<'c, 'a> {
+                fn from(op: [<$type Ref>]<'c, 'a>) -> Self {
+                    unsafe { Self::from_raw(op.to_raw()) }
+                }
+            }
+
             impl<'c,'a> From<[<$type RefMut>]<'c, 'a>> for melior::ir::operation::OperationRefMut<'c,'a> {
                 fn from(op: [<$type RefMut>]<'c,'a>) -> Self {
                     unsafe { Self::from_raw(op.to_raw()) }
