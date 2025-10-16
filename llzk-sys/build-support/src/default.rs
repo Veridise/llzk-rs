@@ -54,6 +54,7 @@ impl BindgenConfig for DefaultConfig<'_> {
             .allowlist_item("[Ll]lzk.*")
             .allowlist_var("LLZK_.*")
             .allowlist_recursively(false)
+            .impl_debug(true)
             .header(self.wrapper())
             .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
         BindgenConfig::apply(&self.mlir, bindgen)
