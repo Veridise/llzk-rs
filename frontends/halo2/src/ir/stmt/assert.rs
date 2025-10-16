@@ -19,6 +19,14 @@ impl<T> Assert<T> {
         Self(cond)
     }
 
+    pub fn cond(&self) -> &IRBexpr<T> {
+        &self.0
+    }
+
+    pub fn cond_mut(&mut self) -> &mut IRBexpr<T> {
+        &mut self.0
+    }
+
     pub fn map<O>(self, f: &impl Fn(T) -> O) -> Assert<O> {
         Assert::new(self.0.map(f))
     }

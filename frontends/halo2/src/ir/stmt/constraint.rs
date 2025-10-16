@@ -41,6 +41,26 @@ impl<T> Constraint<T> {
         f(&mut self.lhs)?;
         f(&mut self.rhs)
     }
+
+    pub fn op(&self) -> CmpOp {
+        self.op
+    }
+
+    pub fn lhs(&self) -> &T {
+        &self.lhs
+    }
+
+    pub fn rhs(&self) -> &T {
+        &self.rhs
+    }
+
+    pub fn rhs_mut(&mut self) -> &mut T {
+        &mut self.rhs
+    }
+
+    pub fn lhs_mut(&mut self) -> &mut T {
+        &mut self.lhs
+    }
 }
 
 impl Constraint<IRAexpr> {

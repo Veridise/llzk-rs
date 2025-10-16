@@ -10,17 +10,17 @@ use llzk_sys::{
     llzkOperationIsAFuncDefOp,
 };
 use melior::{
+    Context, StringRef,
     ir::{
+        Attribute, AttributeLike, BlockLike as _, Identifier, Location, Operation, RegionLike as _,
+        Type, TypeLike, Value,
         attribute::ArrayAttribute,
         block::BlockArgument,
         operation::{OperationBuilder, OperationLike, OperationMutLike},
         r#type::FunctionType,
-        Attribute, AttributeLike, BlockLike as _, Identifier, Location, Operation, RegionLike as _,
-        Type, TypeLike, Value,
     },
-    Context, StringRef,
 };
-use mlir_sys::{mlirDictionaryAttrGet, mlirNamedAttributeGet, MlirAttribute, MlirNamedAttribute};
+use mlir_sys::{MlirAttribute, MlirNamedAttribute, mlirDictionaryAttrGet, mlirNamedAttributeGet};
 
 use crate::{
     dialect::r#struct::StructType, error::Error, macros::llzk_op_type,

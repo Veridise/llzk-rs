@@ -33,8 +33,6 @@ const EXPECTED_PICUS: &'static str = r"
 (call [cout_1_0] test_group [adv_2_1])
 (assert (= adv_2_2 cout_1_0))
 (assert (= adv_0_0 in_0))
-(assert (= adv_0_0 adv_0_1))
-(assert (= adv_2_1 adv_0_2))
 (assert (= adv_2_2 adv_2_3))
 (assert (= adv_2_3 out_0))
 (end-module)

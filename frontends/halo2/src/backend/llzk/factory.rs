@@ -3,8 +3,8 @@ use std::{borrow::Cow, iter};
 use llzk::prelude::*;
 
 use melior::{
-    ir::{Attribute, Identifier, Location, Operation, Type},
     Context,
+    ir::{Attribute, Identifier, Location, Operation, Type, r#type::FunctionType},
 };
 
 fn struct_def_op_location<'c>(context: &'c Context, name: &str, index: usize) -> Location<'c> {

@@ -2,19 +2,19 @@ use std::rc::Rc;
 
 use crate::backend::lowering::ExprLowering;
 use crate::halo2::Challenge;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use llzk::builder::OpBuilder;
 use llzk::prelude::*;
 use melior::dialect::arith;
+use melior::ir::ValueLike;
 use melior::ir::attribute::IntegerAttribute;
 use melior::ir::r#type::IntegerType;
-use melior::ir::ValueLike;
 use melior::{
-    ir::{
-        operation::OperationLike as _, BlockLike as _, Location, Operation, OperationRef,
-        RegionLike as _, Value,
-    },
     Context,
+    ir::{
+        BlockLike as _, Location, Operation, OperationRef, RegionLike as _, Type, Value,
+        operation::OperationLike as _,
+    },
 };
 use mlir_sys::MlirValue;
 
@@ -23,8 +23,8 @@ use crate::backend::{
     func::{ArgNo, FuncIO},
     lowering::Lowering,
 };
-use crate::ir::expr::Felt;
 use crate::ir::CmpOp;
+use crate::ir::expr::Felt;
 
 use super::counter::Counter;
 use super::extras::{block_list, operations_list};
@@ -489,12 +489,12 @@ mod tests {
     use simplelog::{Config, TestLogger};
 
     use crate::{
+        LlzkParamsBuilder,
         backend::{
             codegen::Codegen as _,
             llzk::{LlzkCodegen, LlzkCodegenState},
         },
         io::{AdviceIO, InstanceIO},
-        LlzkParamsBuilder,
     };
 
     use super::*;

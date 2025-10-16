@@ -55,13 +55,9 @@ const EXPECTED_PICUS: &'static str = r"
 (call [cout_0_0] mul_many2 [adv_0_0 adv_0_1 adv_0_2 adv_0_3])
 (assert (= adv_2_6 cout_0_0))
 (assert (= adv_0_0 in_0))
-(assert (= adv_0_0 adv_0_6))
 (assert (= adv_0_1 in_1))
-(assert (= adv_0_1 adv_0_5))
 (assert (= adv_0_2 in_2))
-(assert (= adv_0_2 adv_0_4))
 (assert (= adv_0_3 in_3))
-(assert (= adv_0_3 adv_1_4))
 (assert (= adv_2_6 out_0))
 (end-module)
 ";

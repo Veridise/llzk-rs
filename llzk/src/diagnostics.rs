@@ -4,16 +4,16 @@ use melior::diagnostic::{Diagnostic, DiagnosticSeverity};
 fn log_msg(diag: &Diagnostic, logger: &dyn Log) {
     match diag.severity() {
         DiagnosticSeverity::Error => {
-            log::error!(logger: logger, "[{}] {}", diag.location(), diag.to_string())
+            log::error!(logger: logger, "[{}] {}", diag.location(), diag)
         }
         DiagnosticSeverity::Note => {
-            log::info!(logger: logger, "[{}] note: {}", diag.location(), diag.to_string())
+            log::info!(logger: logger, "[{}] note: {}", diag.location(), diag)
         }
         DiagnosticSeverity::Remark => {
-            log::info!(logger: logger, "[{}] remark: {}", diag.location(), diag.to_string())
+            log::info!(logger: logger, "[{}] remark: {}", diag.location(), diag)
         }
         DiagnosticSeverity::Warning => {
-            log::warn!(logger: logger, "[{}] {}", diag.location(), diag.to_string())
+            log::warn!(logger: logger, "[{}] {}", diag.location(), diag)
         }
     }
 }

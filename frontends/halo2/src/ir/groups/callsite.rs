@@ -115,18 +115,12 @@ impl<'s, 'syn: 's, 'ctx: 's, F: Field> CallSite<ExprOrTemp<ScopedExpression<'_, 
         call_no: usize,
         advice_io: &'ctx crate::io::AdviceIO,
         instance_io: &'ctx crate::io::InstanceIO,
-        free_cells: &'ctx [GroupCell],
     ) -> anyhow::Result<Self> {
         let callee_key = callee
             .key()
             .ok_or_else(|| anyhow::anyhow!("Top level cannot be called by other group"))?;
 
-        let inputs = cells_to_exprs(
-            &[callee.inputs(), free_cells].concat(),
-            ctx,
-            advice_io,
-            instance_io,
-        )?;
+        let inputs = cells_to_exprs(callee.inputs(), ctx, advice_io, instance_io)?;
         let outputs = cells_to_exprs(callee.outputs(), ctx, advice_io, instance_io)?;
         let output_vars: Vec<_> = callee
             .outputs()

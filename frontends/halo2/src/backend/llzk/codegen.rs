@@ -1,12 +1,12 @@
 use super::lowering::LlzkStructLowering;
 use super::state::LlzkCodegenState;
-use super::{counter::Counter, LlzkOutput};
+use super::{LlzkOutput, counter::Counter};
 use anyhow::{Context as _, Result};
 
 use llzk::prelude::*;
 use melior::{
-    ir::{Location, Module},
     Context,
+    ir::{Location, Module},
 };
 
 use crate::backend::llzk::factory::StructIO;
@@ -129,8 +129,8 @@ fn create_pipeline<'c>(context: &'c Context) -> PassManager<'c> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        halo2::{ConstraintSystem, Fr},
         LlzkParamsBuilder,
+        halo2::{ConstraintSystem, Fr},
     };
 
     use super::*;
