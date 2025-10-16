@@ -1,38 +1,40 @@
 //! Structs for handling the IR of groups of regions inside the circuit.
 
 use crate::{
+    GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
     backend::{
         func::{CellRef, FuncIO},
-        lowering::{lowerable::LowerableStmt, Lowering},
+        lowering::{Lowering, lowerable::LowerableStmt},
     },
     expressions::{ExpressionInRow, ScopedExpression},
     gates::RewritePatternSet,
-    halo2::{groups::GroupKeyInstance, Expression, Field, Gate, Rotation},
+    halo2::{Expression, Field, Gate, Rotation, groups::GroupKeyInstance},
     ir::{
+        CmpOp, IRCtx,
         ctx::AdviceCells,
         equivalency::{EqvRelation, SymbolicEqv},
         expr::{Felt, IRAexpr},
-        generate::{free_cells::FreeCells, GroupIRCtx, RegionByIndex},
+        generate::{GroupIRCtx, RegionByIndex, free_cells::FreeCells},
         groups::{
             bounds::{Bound, EqConstraintCheck, GroupBounds},
             callsite::CallSite,
         },
         stmt::IRStmt,
-        CmpOp, IRCtx,
     },
     lookups::callbacks::{LazyLookupTableGenerator, LookupTableGenerator},
     resolvers::FixedQueryResolver,
     synthesis::{
+        CircuitSynthesis,
         constraint::EqConstraint,
         groups::{Group, GroupCell},
         regions::{RegionData, RegionRow, Row},
-        CircuitSynthesis,
     },
     temps::{ExprOrTemp, Temps},
-    utils, GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
+    utils,
 };
 use anyhow::Result;
 use halo2_proofs::plonk::{Any, Column};
+use std::collections::HashMap;
 
 pub mod bounds;
 pub mod callsite;
