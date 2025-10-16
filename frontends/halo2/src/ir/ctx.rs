@@ -1,15 +1,14 @@
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 
+use crate::CircuitIO;
 use crate::halo2::{Advice, Any, Column, Instance};
 use crate::halo2::{Field, RegionIndex};
 use crate::io::IOCell;
-use crate::ir::generate::free_cells::{lift_free_cells_to_inputs, FreeCells};
 use crate::ir::generate::region_data;
-use crate::synthesis::groups::{Group, GroupCell};
-use crate::synthesis::regions::RegionData;
 use crate::synthesis::CircuitSynthesis;
-use crate::CircuitIO;
+use crate::synthesis::groups::GroupCell;
+use crate::synthesis::regions::RegionData;
 
 /// Contains information related to the IR of a circuit. Is used by the driver to lower the
 /// circuit.
@@ -18,26 +17,17 @@ pub struct IRCtx {
     groups_advice_io: HashMap<usize, crate::io::AdviceIO>,
     groups_instance_io: HashMap<usize, crate::io::InstanceIO>,
     advice_cells: HashMap<RegionIndex, AdviceCells>,
-    free_cells: Vec<FreeCells>,
 }
 
 impl IRCtx {
-    pub(crate) fn new<F: Field>(syn: &CircuitSynthesis<F>, lift_free_cells: bool) -> Self {
-        let regions_by_index = region_data(syn);
-        let free_cells = if lift_free_cells {
-            lift_free_cells_to_inputs(syn.groups(), &regions_by_index, syn.constraints())
-        } else {
-            syn.groups().iter().map(FreeCells::empty).collect()
-        };
-
+    pub(crate) fn new<F: Field>(syn: &CircuitSynthesis<F>) -> Self {
         let mut groups_advice_io: HashMap<usize, crate::io::AdviceIO> = Default::default();
         let mut groups_instance_io: HashMap<usize, crate::io::InstanceIO> = Default::default();
 
         let regions = syn.groups().region_starts();
         for (idx, group) in syn.groups().iter().enumerate() {
-            let mut advice_io = mk_advice_io(group.inputs(), group.outputs(), &regions);
-            let mut instance_io = mk_instance_io(group.inputs(), group.outputs(), &regions);
-            update_io(&mut advice_io, &mut instance_io, group, &free_cells[idx]);
+            let advice_io = mk_advice_io(group.inputs(), group.outputs(), &regions);
+            let instance_io = mk_instance_io(group.inputs(), group.outputs(), &regions);
 
             groups_advice_io.insert(idx, advice_io);
             groups_instance_io.insert(idx, instance_io);
@@ -50,7 +40,6 @@ impl IRCtx {
                 .into_iter()
                 .map(|(k, r)| (k, AdviceCells::new(r)))
                 .collect(),
-            free_cells,
         }
     }
 
@@ -60,10 +49,6 @@ impl IRCtx {
 
     pub(crate) fn instance_io_of_group(&self, idx: usize) -> &crate::io::InstanceIO {
         &self.groups_instance_io[&idx]
-    }
-
-    pub(crate) fn free_cells(&self, idx: usize) -> &FreeCells {
-        &self.free_cells[idx]
     }
 
     pub(crate) fn advice_cells(&self) -> &HashMap<RegionIndex, AdviceCells> {
@@ -103,28 +88,6 @@ impl AdviceCells {
     /// Returns the start of the region.
     pub fn start(&self) -> Option<usize> {
         self.start
-    }
-}
-
-/// If the group has free cells that need to be bounded and is not the top level group
-/// makes a copy of its IO and adds the cells as inputs.
-fn update_io(
-    advice_io: &mut crate::io::AdviceIO,
-    instance_io: &mut crate::io::InstanceIO,
-    group: &Group,
-    free_cells: &FreeCells,
-) {
-    // Do not update the IO if it's main.
-    if group.is_top_level() {
-        return;
-    }
-
-    for cell in &free_cells.inputs {
-        match cell {
-            GroupCell::InstanceIO(cell) => instance_io.add_input(*cell),
-            GroupCell::AdviceIO(cell) => advice_io.add_input(*cell),
-            GroupCell::Assigned(_) => unreachable!(),
-        }
     }
 }
 

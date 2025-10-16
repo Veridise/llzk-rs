@@ -3,23 +3,21 @@
 use std::collections::HashMap;
 
 use crate::{
+    GateCallbacks,
     expressions::ScopedExpression,
     gates::{DefaultGateCallbacks, RewritePatternSet},
     halo2::{Field, PrimeField, RegionIndex},
-    ir::{generate::patterns::load_patterns, groups::GroupBody, IRCtx},
+    ir::{IRCtx, generate::patterns::load_patterns, groups::GroupBody},
     lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
-    synthesis::{groups::Group, regions::RegionData, CircuitSynthesis},
+    synthesis::{CircuitSynthesis, groups::Group, regions::RegionData},
     temps::ExprOrTemp,
-    GateCallbacks,
 };
 
-pub(super) mod free_cells;
 mod patterns;
 
 /// Configuration parameters for IR generation.
 pub struct IRGenParams<'lc, 'gc, F: Field> {
     debug_comments: bool,
-    link_eq_constraints: bool,
     lookup_cb: Option<&'lc dyn LookupCallbacks<F>>,
     gate_cb: Option<&'gc dyn GateCallbacks<F>>,
 }
@@ -28,7 +26,6 @@ impl<'lc, 'gc, F: Field> IRGenParams<'lc, 'gc, F> {
     fn new() -> Self {
         Self {
             debug_comments: false,
-            link_eq_constraints: false,
             lookup_cb: None,
             gate_cb: None,
         }
@@ -37,11 +34,6 @@ impl<'lc, 'gc, F: Field> IRGenParams<'lc, 'gc, F> {
     /// Returns wether debug comments are enabled or not.
     pub fn debug_comments(&self) -> bool {
         self.debug_comments
-    }
-
-    /// Returns wether equality constraints need to be relinked.
-    pub fn link_eq_constraints(&self) -> bool {
-        self.link_eq_constraints
     }
 }
 
@@ -160,7 +152,6 @@ where
                 g,
                 id,
                 &ctx,
-                ir_ctx.free_cells(id),
                 ir_ctx.advice_io_of_group(id),
                 ir_ctx.instance_io_of_group(id),
             )

@@ -1,5 +1,7 @@
 //! Structs for handling the IR of groups of regions inside the circuit.
 
+use std::collections::HashMap;
+
 use crate::{
     GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
     backend::{
@@ -14,7 +16,7 @@ use crate::{
         ctx::AdviceCells,
         equivalency::{EqvRelation, SymbolicEqv},
         expr::{Felt, IRAexpr},
-        generate::{GroupIRCtx, RegionByIndex, free_cells::FreeCells},
+        generate::{GroupIRCtx, RegionByIndex},
         groups::{
             bounds::{Bound, EqConstraintCheck, GroupBounds},
             callsite::CallSite,
@@ -33,8 +35,6 @@ use crate::{
     utils,
 };
 use anyhow::Result;
-use halo2_proofs::plonk::{Any, Column};
-use std::collections::HashMap;
 
 pub mod bounds;
 pub mod callsite;
@@ -67,7 +67,6 @@ where
         group: &'syn Group,
         id: usize,
         ctx: &GroupIRCtx<'cb, '_, 'syn, F>,
-        free_cells: &'ctx FreeCells,
         advice_io: &'ctx crate::io::AdviceIO,
         instance_io: &'ctx crate::io::InstanceIO,
     ) -> anyhow::Result<Self> {
@@ -78,15 +77,7 @@ where
                 .into_iter()
                 .enumerate()
                 .map(|(call_no, (callee_id, callee))| {
-                    CallSite::new(
-                        callee,
-                        callee_id,
-                        ctx,
-                        call_no,
-                        advice_io,
-                        instance_io,
-                        &free_cells.callsites[call_no],
-                    )
+                    CallSite::new(callee, callee_id, ctx, call_no, advice_io, instance_io)
                 })
                 .collect::<Result<Vec<_>, _>>()?
         };
@@ -110,7 +101,7 @@ where
             "Lowering inter region equality constraints for group {:?}",
             group.name()
         );
-        let eq_constraints = select_equality_constraints(group, ctx, &free_cells.inputs);
+        let eq_constraints = select_equality_constraints(group, ctx);
 
         let mut eq_constraints = inter_region_constraints(
             eq_constraints,
@@ -493,44 +484,10 @@ impl<E: Clone> Clone for GroupBody<E> {
 fn select_equality_constraints<F: Field>(
     group: &Group,
     ctx: &GroupIRCtx<'_, '_, '_, F>,
-    free_inputs: &[GroupCell],
 ) -> Vec<EqConstraint<F>> {
-    let bounds = GroupBounds::new_with_extra(
-        group,
-        ctx.groups(),
-        ctx.regions_by_index(),
-        Some(free_inputs),
-    );
+    let bounds = GroupBounds::new(group, ctx.groups(), ctx.regions_by_index());
 
-    #[inline]
-    fn log_intergroup_eq(
-        name: &str,
-        (within_col, within_row): (Column<Any>, usize),
-        (outside_col, outside_row): (Column<Any>, usize),
-        ignore: bool,
-    ) {
-        fn col_type(t: &Any) -> &'static str {
-            match t {
-                Any::Advice(_) => "Advice",
-                Any::Fixed => "Fixed",
-                Any::Instance => "Instance",
-            }
-        }
-
-        let within_col_type = col_type(&within_col.column_type());
-        let outside_col_type = col_type(&outside_col.column_type());
-        let within_col_no = within_col.index();
-        let outside_col_no = outside_col.index();
-        log::debug!(
-            "Detected inter-group copy constraint in group \"{name}\": {within_col_type}[{within_col_no}]@{within_row} (inside) == {outside_col_type}[{outside_col_no}]@{outside_row} (outside). The constraint was {}",
-            if ignore { "ignored" } else { "included" }
-        );
-    }
-
-    let ignore_intergroups = !group.is_top_level();
-    let mut intergroup_eqs = 0;
-    let eqs = ctx
-        .syn()
+    ctx.syn()
         .constraints()
         .edges()
         .into_iter()
@@ -554,20 +511,11 @@ fn select_equality_constraints<F: Field>(
                     (Bound::Outside, Bound::IO) => false,
                     (Bound::Within, Bound::Outside) => match r.0.column_type() {
                         crate::halo2::Any::Fixed => true,
-                        _ => {
-                            log_intergroup_eq(group.name(), l, r, ignore_intergroups);
-                            intergroup_eqs += 1;
-                            !ignore_intergroups
-                        }
+                        _ => false,
                     },
-
                     (Bound::Outside, Bound::Within) => match l.0.column_type() {
                         crate::halo2::Any::Fixed => true,
-                        _ => {
-                            log_intergroup_eq(group.name(), r, l, ignore_intergroups);
-                            intergroup_eqs += 1;
-                            !ignore_intergroups
-                        }
+                        _ => false,
                     },
                 },
                 EqConstraintCheck::FixedToConst(bound) => match bound {
@@ -576,14 +524,7 @@ fn select_equality_constraints<F: Field>(
                 },
             }
         })
-        .collect();
-    if intergroup_eqs > 0 {
-        log::warn!(
-            "Detected {intergroup_eqs} inter-group equalities in group '{}'",
-            group.name()
-        );
-    }
-    eqs
+        .collect()
 }
 
 /// Generates constraint expressions for the equality constraints.
@@ -774,6 +715,18 @@ where
             let mut region_ir = ir
                 .clone()
                 .map(&|e| e.map(|e| ScopedExpression::from_cow(e, *rr)));
+            // The IR representing the lookup is generated only once, with a sequence of temps
+            // 0,1,...
+            // When the IR is cloned under the scope of a region row the temporaries
+            // have the same ids as the original. This causes collissions between the variable
+            // names of the temporaries across the region rows.
+            //
+            // To avoid this, starting from region row #1, the temporaries are renamed to a fresh
+            // new set. The `rebase_temps` method accepts a closure representing the mapping
+            // between the original name and the new name, which is implemented with a HashMap
+            // that creates a fresh temporary every time a new temporary is encountered. All
+            // temporaries are created from the same `Temps` instance and thus will be unique
+            // across the body of the group.
             if n > 0 {
                 let mut local_temps = HashMap::new();
                 region_ir.rebase_temps(&mut |temp| {

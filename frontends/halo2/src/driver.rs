@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use crate::{
+    CircuitCallbacks,
     backend::{
         llzk::{LlzkBackend, LlzkOutput, LlzkParams},
         picus::{PicusBackend, PicusOutput, PicusParams},
@@ -10,11 +11,10 @@ use crate::{
     halo2::PrimeField,
     io::{AdviceIO, AdviceIOValidator, InstanceIO, InstanceIOValidator},
     ir::{
-        generate::{generate_ir, IRGenParams},
         IRCtx, ResolvedIRCircuit, UnresolvedIRCircuit,
+        generate::{IRGenParams, generate_ir},
     },
     synthesis::{CircuitSynthesis, Synthesizer},
-    CircuitCallbacks,
 };
 
 /// Controls the different lowering stages of circuits.
@@ -58,7 +58,7 @@ impl Driver {
         'drv: 'sco + 'syn,
         'cb: 'sco + 'syn,
     {
-        let ctx = self.get_or_create_ir_ctx(syn, &params);
+        let ctx = self.get_or_create_ir_ctx(syn);
         let ir = generate_ir(syn, params, ctx)?;
         let enumerated_groups = syn.groups().iter().enumerate().collect::<Vec<_>>();
         let mut regions_to_groups = vec![];
@@ -69,10 +69,12 @@ impl Driver {
             }
         }
         regions_to_groups.sort_by_key(|(ri, _)| **ri);
-        debug_assert!(regions_to_groups
-            .iter()
-            .enumerate()
-            .all(|(n, (ri, _))| n == **ri));
+        debug_assert!(
+            regions_to_groups
+                .iter()
+                .enumerate()
+                .all(|(n, (ri, _))| n == **ri)
+        );
         let regions_to_groups = regions_to_groups
             .into_iter()
             .map(|(_, gidx)| gidx)
@@ -84,11 +86,10 @@ impl Driver {
     fn get_or_create_ir_ctx<'drv, F: PrimeField>(
         &'drv mut self,
         syn: &CircuitSynthesis<F>,
-        params: &IRGenParams<'_, '_, F>,
     ) -> &'drv IRCtx {
         self.ir_ctxs
             .entry(syn.id())
-            .or_insert_with(|| IRCtx::new(syn, params.link_eq_constraints()))
+            .or_insert_with(|| IRCtx::new(syn))
     }
 
     /// Creates a picus program from the circuit synthesis.
