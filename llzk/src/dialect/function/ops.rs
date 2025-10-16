@@ -13,7 +13,7 @@ use melior::{
     ir::{
         attribute::ArrayAttribute,
         block::BlockArgument,
-        operation::{OperationBuilder, OperationLike, OperationMutLike},
+        operation::{OperationBuilder, OperationLike},
         r#type::FunctionType,
         Attribute, AttributeLike, BlockLike as _, Identifier, Location, Operation, RegionLike as _,
         Type, TypeLike, Value,
