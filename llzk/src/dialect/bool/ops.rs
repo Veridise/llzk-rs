@@ -14,7 +14,7 @@ fn build_cmp_op<'c>(
     operands: &[Value<'c, '_>],
 ) -> Result<Operation<'c>, Error> {
     let ctx = location.context();
-    OperationBuilder::new(format!("bool.cmp").as_str(), location)
+    OperationBuilder::new("bool.cmp", location)
         .add_results(&[IntegerType::new(unsafe { ctx.to_ref() }, 1).into()])
         .add_operands(operands)
         .add_attributes(&[(

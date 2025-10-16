@@ -37,7 +37,7 @@ pub fn compute_fn<'c>(
         arg_attrs,
     )
     .and_then(|f| {
-        let block = Block::new(&inputs);
+        let block = Block::new(inputs);
         let new_struct = block.append_operation(super::new(loc, struct_type));
         block.append_operation(function::r#return(loc, &[new_struct.result(0)?.into()]));
         f.set_allow_witness_attr(true);
@@ -89,8 +89,8 @@ pub fn define_signal_struct<'c>(context: &'c Context) -> Result<StructDefOp<'c>,
                     let block = compute
                         .region(0)?
                         .first_block()
-                        .ok_or_else(|| Error::BlockExpected(0))?;
-                    let fst = block.first_operation().ok_or_else(|| Error::EmptyBlock)?;
+                        .ok_or(Error::BlockExpected(0))?;
+                    let fst = block.first_operation().ok_or(Error::EmptyBlock)?;
                     if fst.name() != Identifier::new(context, "struct.new") {
                         return Err(Error::OperationExpected(
                             "struct.new",
