@@ -10,6 +10,7 @@ use crate::{
         },
     },
     ir::expr::{Felt, IRAexpr},
+    temps::{ExprOrTemp, Temp},
 };
 use anyhow::Result;
 
@@ -211,6 +212,81 @@ impl<T> IRStmt<T> {
     /// Returns an iterator of mutable references to the statements.
     pub fn iter_mut<'a>(&'a mut self) -> IRStmtRefMutIter<'a, T> {
         IRStmtRefMutIter { stack: vec![self] }
+    }
+}
+
+impl<T> IRStmt<ExprOrTemp<T>> {
+    /// Renames all temporaries in call outputs and [`ExprOrTemp::Temp`] to a fresh new set.
+    ///
+    /// It doesn't go inside `T` so it won't rename temporaries inside it.
+    pub(crate) fn rebase_temps(&mut self, renaming_fn: &mut impl FnMut(Temp) -> Temp) {
+        match self {
+            IRStmt::ConstraintCall(call) => {
+                for input in call.inputs_mut() {
+                    if let ExprOrTemp::Temp(temp) = input {
+                        *temp = renaming_fn(*temp);
+                    }
+                }
+                for output in call.outputs_mut() {
+                    if let FuncIO::Temp(temp) = output {
+                        *temp = renaming_fn(*temp);
+                    }
+                }
+            }
+            IRStmt::Constraint(constraint) => {
+                if let ExprOrTemp::Temp(temp) = constraint.lhs_mut() {
+                    *temp = renaming_fn(*temp);
+                }
+                if let ExprOrTemp::Temp(temp) = constraint.rhs_mut() {
+                    *temp = renaming_fn(*temp);
+                }
+            }
+            IRStmt::Comment(_) => todo!(),
+            IRStmt::AssumeDeterministic(assume_deterministic) => {
+                if let FuncIO::Temp(temp) = assume_deterministic.value_mut() {
+                    *temp = renaming_fn(*temp);
+                }
+            }
+            IRStmt::Assert(assert) => {
+                fn rebase_bexpr<T>(
+                    expr: &mut IRBexpr<ExprOrTemp<T>>,
+                    renaming_fn: &mut impl FnMut(Temp) -> Temp,
+                ) {
+                    match expr {
+                        IRBexpr::True | IRBexpr::False => {}
+                        IRBexpr::Cmp(_, lhs, rhs) => {
+                            if let ExprOrTemp::Temp(temp) = lhs {
+                                *temp = renaming_fn(*temp);
+                            }
+                            if let ExprOrTemp::Temp(temp) = rhs {
+                                *temp = renaming_fn(*temp);
+                            }
+                        }
+                        IRBexpr::And(exprs) | IRBexpr::Or(exprs) => {
+                            for expr in exprs {
+                                rebase_bexpr(expr, renaming_fn)
+                            }
+                        }
+                        IRBexpr::Not(expr) => rebase_bexpr(expr, renaming_fn),
+                        IRBexpr::Det(expr) => {
+                            if let ExprOrTemp::Temp(temp) = expr {
+                                *temp = renaming_fn(*temp);
+                            }
+                        }
+                        IRBexpr::Implies(lhs, rhs) | IRBexpr::Iff(lhs, rhs) => {
+                            rebase_bexpr(lhs, renaming_fn);
+                            rebase_bexpr(rhs, renaming_fn);
+                        }
+                    }
+                }
+                rebase_bexpr(assert.cond_mut(), renaming_fn);
+            }
+            IRStmt::Seq(seq) => {
+                for stmt in seq.iter_mut() {
+                    stmt.rebase_temps(renaming_fn)
+                }
+            }
+        }
     }
 }
 
