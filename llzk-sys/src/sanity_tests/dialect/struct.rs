@@ -18,10 +18,10 @@ use crate::{
     llzkFieldDefOpGetHasPublicAttr, llzkFieldDefOpSetPublicAttr, llzkFieldReadOpBuild,
     llzkFieldReadOpBuildWithAffineMapDistance, llzkFieldReadOpBuildWithConstParamDistance,
     llzkFieldReadOpBuildWithLiteralDistance, llzkOperationIsAFieldDefOp,
-    llzkOperationIsAStructDefOp, llzkStructDefOpGetComputeFuncOp,
-    llzkStructDefOpGetConstrainFuncOp, llzkStructDefOpGetFieldDef, llzkStructDefOpGetFieldDefs,
-    llzkStructDefOpGetFullyQualifiedName, llzkStructDefOpGetHasColumns,
-    llzkStructDefOpGetHasParamName, llzkStructDefOpGetHeaderString,
+    llzkOperationIsAStructDefOp, llzkStructDefOpGetBody, llzkStructDefOpGetBodyRegion,
+    llzkStructDefOpGetComputeFuncOp, llzkStructDefOpGetConstrainFuncOp, llzkStructDefOpGetFieldDef,
+    llzkStructDefOpGetFieldDefs, llzkStructDefOpGetFullyQualifiedName,
+    llzkStructDefOpGetHasColumns, llzkStructDefOpGetHasParamName, llzkStructDefOpGetHeaderString,
     llzkStructDefOpGetIsMainComponent, llzkStructDefOpGetNumFieldDefs, llzkStructDefOpGetType,
     llzkStructDefOpGetTypeWithParams, llzkStructTypeGet, llzkStructTypeGetName,
     llzkStructTypeGetParams, llzkStructTypeGetWithArrayAttr, llzkStructTypeGetWithAttrs,
@@ -145,6 +145,24 @@ fn test_op(context: TestContext) -> TestOp {
 fn test_llzk_operation_is_a_struct_def_op(test_op: TestOp) {
     unsafe {
         assert!(!llzkOperationIsAStructDefOp(test_op.op));
+    }
+}
+
+#[rstest]
+fn test_llzk_struct_def_op_get_body_region(test_op: TestOp) {
+    unsafe {
+        if llzkOperationIsAStructDefOp(test_op.op) {
+            llzkStructDefOpGetBodyRegion(test_op.op);
+        }
+    }
+}
+
+#[rstest]
+fn test_llzk_struct_def_op_get_body(test_op: TestOp) {
+    unsafe {
+        if llzkOperationIsAStructDefOp(test_op.op) {
+            llzkStructDefOpGetBody(test_op.op);
+        }
     }
 }
 

@@ -79,6 +79,14 @@ pub trait ExprLowering {
     fn lower_not(&self, value: &Self::CellOutput) -> Result<Self::CellOutput>;
     fn lower_true(&self) -> Result<Self::CellOutput>;
     fn lower_false(&self) -> Result<Self::CellOutput>;
+    fn lower_det(&self, expr: &Self::CellOutput) -> Result<Self::CellOutput>;
+    fn lower_implies(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput>;
+    fn lower_iff(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput)
+        -> Result<Self::CellOutput>;
 
     fn lower_function_input(&self, i: usize) -> FuncIO;
     fn lower_function_output(&self, o: usize) -> FuncIO;

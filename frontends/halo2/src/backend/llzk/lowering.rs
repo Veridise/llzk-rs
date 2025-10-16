@@ -889,4 +889,24 @@ mod tests {
         );
         Module::parse(ctx, src.as_str()).unwrap_or_else(|| panic!("Failed to parse check: {src}"))
     }
+
+    fn lower_det(&self, _expr: &Self::CellOutput) -> Result<Self::CellOutput> {
+        todo!()
+    }
+
+    fn lower_implies(
+        &self,
+        _lhs: &Self::CellOutput,
+        _rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        todo!()
+    }
+
+    fn lower_iff(
+        &self,
+        _lhs: &Self::CellOutput,
+        _rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        todo!()
+    }
 }
