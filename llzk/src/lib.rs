@@ -7,6 +7,7 @@ mod diagnostics;
 pub mod dialect;
 pub mod error;
 mod macros;
+pub mod operation;
 pub mod passes;
 pub mod prelude;
 pub mod symbol_ref;
