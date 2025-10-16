@@ -3,14 +3,16 @@
 use std::collections::HashMap;
 
 use crate::{
+    GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
     backend::{
         func::{CellRef, FuncIO},
-        lowering::{lowerable::LowerableStmt, Lowering},
+        lowering::{Lowering, lowerable::LowerableStmt},
     },
     expressions::{ExpressionInRow, ScopedExpression},
     gates::RewritePatternSet,
-    halo2::{groups::GroupKeyInstance, Expression, Field, Gate, Rotation},
+    halo2::{Expression, Field, Gate, Rotation, groups::GroupKeyInstance},
     ir::{
+        CmpOp, IRCtx,
         ctx::AdviceCells,
         equivalency::{EqvRelation, SymbolicEqv},
         expr::{Felt, IRAexpr},
@@ -20,18 +22,17 @@ use crate::{
             callsite::CallSite,
         },
         stmt::IRStmt,
-        CmpOp, IRCtx,
     },
     lookups::callbacks::{LazyLookupTableGenerator, LookupTableGenerator},
     resolvers::FixedQueryResolver,
     synthesis::{
+        CircuitSynthesis,
         constraint::EqConstraint,
         groups::{Group, GroupCell},
         regions::{RegionData, RegionRow, Row},
-        CircuitSynthesis,
     },
     temps::{ExprOrTemp, Temps},
-    utils, GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
+    utils,
 };
 use anyhow::Result;
 
@@ -695,6 +696,18 @@ where
             let mut region_ir = ir
                 .clone()
                 .map(&|e| e.map(|e| ScopedExpression::from_cow(e, *rr)));
+            // The IR representing the lookup is generated only once, with a sequence of temps
+            // 0,1,...
+            // When the IR is cloned under the scope of a region row the temporaries
+            // have the same ids as the original. This causes collissions between the variable
+            // names of the temporaries across the region rows.
+            //
+            // To avoid this, starting from region row #1, the temporaries are renamed to a fresh
+            // new set. The `rebase_temps` method accepts a closure representing the mapping
+            // between the original name and the new name, which is implemented with a HashMap
+            // that creates a fresh temporary every time a new temporary is encountered. All
+            // temporaries are created from the same `Temps` instance and thus will be unique
+            // across the body of the group.
             if n > 0 {
                 let mut local_temps = HashMap::new();
                 region_ir.rebase_temps(&mut |temp| {
