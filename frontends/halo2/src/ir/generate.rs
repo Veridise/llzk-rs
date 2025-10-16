@@ -13,7 +13,6 @@ use crate::{
     GateCallbacks,
 };
 
-pub(super) mod free_cells;
 mod patterns;
 
 /// Configuration parameters for IR generation.
@@ -153,7 +152,6 @@ where
                 g,
                 id,
                 &ctx,
-                ir_ctx.free_cells(id),
                 ir_ctx.advice_io_of_group(id),
                 ir_ctx.instance_io_of_group(id),
             )

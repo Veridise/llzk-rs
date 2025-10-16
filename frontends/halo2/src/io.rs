@@ -35,10 +35,6 @@ impl<C: ColumnType> CircuitIO<C> {
         }
     }
 
-    pub(crate) fn add_input(&mut self, cell: IOCell<C>) {
-        self.inputs.push(cell)
-    }
-
     /// Creates a CircuitIO with the given columns and each row that is either an input or an
     /// output.
     pub fn new(inputs: &[(Column<C>, &[usize])], outputs: &[(Column<C>, &[usize])]) -> Self {

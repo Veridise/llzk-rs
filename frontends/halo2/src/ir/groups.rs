@@ -1,35 +1,38 @@
 //! Structs for handling the IR of groups of regions inside the circuit.
 
+use std::collections::HashMap;
+
 use crate::{
+    GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
     backend::{
         func::{CellRef, FuncIO},
-        lowering::{lowerable::LowerableStmt, Lowering},
+        lowering::{Lowering, lowerable::LowerableStmt},
     },
     expressions::{ExpressionInRow, ScopedExpression},
     gates::RewritePatternSet,
-    halo2::{groups::GroupKeyInstance, Expression, Field, Gate, Rotation},
+    halo2::{Expression, Field, Gate, Rotation, groups::GroupKeyInstance},
     ir::{
+        CmpOp, IRCtx,
         ctx::AdviceCells,
         equivalency::{EqvRelation, SymbolicEqv},
         expr::{Felt, IRAexpr},
-        generate::{free_cells::FreeCells, GroupIRCtx, RegionByIndex},
+        generate::{GroupIRCtx, RegionByIndex},
         groups::{
             bounds::{Bound, EqConstraintCheck, GroupBounds},
             callsite::CallSite,
         },
         stmt::IRStmt,
-        CmpOp, IRCtx,
     },
     lookups::callbacks::{LazyLookupTableGenerator, LookupTableGenerator},
     resolvers::FixedQueryResolver,
     synthesis::{
+        CircuitSynthesis,
         constraint::EqConstraint,
         groups::{Group, GroupCell},
         regions::{RegionData, RegionRow, Row},
-        CircuitSynthesis,
     },
     temps::{ExprOrTemp, Temps},
-    utils, GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
+    utils,
 };
 use anyhow::Result;
 
@@ -64,7 +67,6 @@ where
         group: &'syn Group,
         id: usize,
         ctx: &GroupIRCtx<'cb, '_, 'syn, F>,
-        free_cells: &'ctx FreeCells,
         advice_io: &'ctx crate::io::AdviceIO,
         instance_io: &'ctx crate::io::InstanceIO,
     ) -> anyhow::Result<Self> {
@@ -75,15 +77,7 @@ where
                 .into_iter()
                 .enumerate()
                 .map(|(call_no, (callee_id, callee))| {
-                    CallSite::new(
-                        callee,
-                        callee_id,
-                        ctx,
-                        call_no,
-                        advice_io,
-                        instance_io,
-                        &free_cells.callsites[call_no],
-                    )
+                    CallSite::new(callee, callee_id, ctx, call_no, advice_io, instance_io)
                 })
                 .collect::<Result<Vec<_>, _>>()?
         };
@@ -107,7 +101,7 @@ where
             "Lowering inter region equality constraints for group {:?}",
             group.name()
         );
-        let eq_constraints = select_equality_constraints(group, ctx, &free_cells.inputs);
+        let eq_constraints = select_equality_constraints(group, ctx);
 
         let mut eq_constraints = inter_region_constraints(
             eq_constraints,
@@ -471,14 +465,8 @@ impl<E: Clone> Clone for GroupBody<E> {
 fn select_equality_constraints<F: Field>(
     group: &Group,
     ctx: &GroupIRCtx<'_, '_, '_, F>,
-    free_inputs: &[GroupCell],
 ) -> Vec<EqConstraint<F>> {
-    let bounds = GroupBounds::new_with_extra(
-        group,
-        ctx.groups(),
-        ctx.regions_by_index(),
-        Some(free_inputs),
-    );
+    let bounds = GroupBounds::new(group, ctx.groups(), ctx.regions_by_index());
 
     ctx.syn()
         .constraints()
@@ -504,12 +492,11 @@ fn select_equality_constraints<F: Field>(
                     (Bound::Outside, Bound::IO) => false,
                     (Bound::Within, Bound::Outside) => match r.0.column_type() {
                         crate::halo2::Any::Fixed => true,
-                        _ => unreachable!("Within {l:?} | Outside {r:?}"),
+                        _ => false,
                     },
-
                     (Bound::Outside, Bound::Within) => match l.0.column_type() {
                         crate::halo2::Any::Fixed => true,
-                        _ => unreachable!("Outside {l:?} | Within {r:?}"),
+                        _ => false,
                     },
                 },
                 EqConstraintCheck::FixedToConst(bound) => match bound {
@@ -702,14 +689,36 @@ where
         .collect::<Vec<_>>();
     let mut temps = Temps::new();
     let ir = lookup_cb.on_lookups(&lookups, &tables, &mut temps)?;
-
     Ok(region_rows
         .iter()
-        .map(|rr| {
-            let region_ir = ir
+        .enumerate()
+        .map(|(n, rr)| {
+            let mut region_ir = ir
                 .clone()
                 .map(&|e| e.map(|e| ScopedExpression::from_cow(e, *rr)));
-            let comment = IRStmt::comment(format!("Lookups @ {}", rr.header()));
+            // The IR representing the lookup is generated only once, with a sequence of temps
+            // 0,1,...
+            // When the IR is cloned under the scope of a region row the temporaries
+            // have the same ids as the original. This causes collissions between the variable
+            // names of the temporaries across the region rows.
+            //
+            // To avoid this, starting from region row #1, the temporaries are renamed to a fresh
+            // new set. The `rebase_temps` method accepts a closure representing the mapping
+            // between the original name and the new name, which is implemented with a HashMap
+            // that creates a fresh temporary every time a new temporary is encountered. All
+            // temporaries are created from the same `Temps` instance and thus will be unique
+            // across the body of the group.
+            if n > 0 {
+                let mut local_temps = HashMap::new();
+                region_ir.rebase_temps(&mut |temp| {
+                    *local_temps
+                        .entry(temp)
+                        .or_insert_with(|| temps.next().unwrap())
+                });
+            }
+
+            let comment =
+                IRStmt::comment(format!("Lookups @ {} @ {}", rr.header(), rr.row_number()));
             prepend_comment(region_ir, comment, generate_debug_comments)
         })
         .collect())
