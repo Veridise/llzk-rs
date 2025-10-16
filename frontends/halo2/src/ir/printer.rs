@@ -17,8 +17,8 @@ enum IRPrinterCapture<'a> {
     Circuit(&'a ResolvedIRCircuit),
     Group(&'a GroupBody<IRAexpr>),
     Stmt(&'a IRStmt<IRAexpr>),
-    IRBexpr(&'a IRBexpr<IRAexpr>),
-    IRAexpr(&'a IRAexpr),
+    Bexpr(&'a IRBexpr<IRAexpr>),
+    Aexpr(&'a IRAexpr),
 }
 
 /// Prints a human-friendly representation of the IR meant for debugging.
@@ -43,12 +43,12 @@ impl<'a> IRPrinter<'a> {
 
     /// Creates a printer from a [`IRBexpr`].
     pub fn from_bexpr(c: &'a IRBexpr<IRAexpr>) -> Self {
-        Self(IRPrinterCapture::IRBexpr(c))
+        Self(IRPrinterCapture::Bexpr(c))
     }
 
     /// Creates a printer from a [`IRAexpr`].
     pub fn from_aexpr(c: &'a IRAexpr) -> Self {
-        Self(IRPrinterCapture::IRAexpr(c))
+        Self(IRPrinterCapture::Aexpr(c))
     }
 
     fn fmt_circuit(&self, circuit: &ResolvedIRCircuit, ctx: &mut IRPrinterCtx) -> FmtResult {
@@ -363,8 +363,8 @@ impl Display for IRPrinter<'_> {
             IRPrinterCapture::Circuit(circuit) => self.fmt_circuit(circuit, &mut ctx),
             IRPrinterCapture::Group(group) => self.fmt_group(group, &mut ctx),
             IRPrinterCapture::Stmt(stmt) => self.fmt_stmt(stmt, &mut ctx),
-            IRPrinterCapture::IRBexpr(bexpr) => self.fmt_bexpr(bexpr, &mut ctx),
-            IRPrinterCapture::IRAexpr(aexpr) => self.fmt_aexpr(aexpr, &mut ctx),
+            IRPrinterCapture::Bexpr(bexpr) => self.fmt_bexpr(bexpr, &mut ctx),
+            IRPrinterCapture::Aexpr(aexpr) => self.fmt_aexpr(aexpr, &mut ctx),
         }
     }
 }
