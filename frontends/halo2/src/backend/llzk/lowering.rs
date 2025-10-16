@@ -422,6 +422,63 @@ impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
             Location::unknown(self.context())
         )))
     }
+
+    fn lower_det(&self, _expr: &Self::CellOutput) -> Result<Self::CellOutput> {
+        unimplemented!("the determinism predicate is not supported by the LLZK backend")
+    }
+
+    fn lower_implies(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        let i1: Type = IntegerType::new(self.context(), 1).into();
+        let lhs: Value = lhs.into();
+        let rhs: Value = rhs.into();
+        if lhs.r#type() != i1 {
+            anyhow::bail!(
+                "failed to lower implies expression: was expecting type i1 but lhs has type {}",
+                lhs.r#type()
+            );
+        }
+        if rhs.r#type() != i1 {
+            anyhow::bail!(
+                "failed to lower implies expression: was expecting type i1 but rhs has type {}",
+                rhs.r#type()
+            );
+        }
+        let lhs = self.append_expr(bool::not(Location::unknown(self.context()), lhs)?)?;
+        wrap!(self.append_expr(bool::or(Location::unknown(self.context()), lhs, rhs)?))
+    }
+
+    fn lower_iff(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> Result<Self::CellOutput> {
+        let i1: Type = IntegerType::new(self.context(), 1).into();
+        let lhs: Value = lhs.into();
+        let rhs: Value = rhs.into();
+        if lhs.r#type() != i1 {
+            anyhow::bail!(
+                "failed to lower iff expression: was expecting type i1 but lhs has type {}",
+                lhs.r#type()
+            );
+        }
+        if rhs.r#type() != i1 {
+            anyhow::bail!(
+                "failed to lower iff expression: was expecting type i1 but rhs has type {}",
+                rhs.r#type()
+            );
+        }
+        wrap!(self.append_expr(arith::cmpi(
+            self.context(),
+            arith::CmpiPredicate::Eq,
+            lhs,
+            rhs,
+            Location::unknown(self.context())
+        )))
+    }
 }
 
 #[cfg(test)]
@@ -637,9 +694,10 @@ mod tests {
     }
 
     #[rstest]
-    #[should_panic]
+    #[should_panic(
+        expected = "'bool.and' op only valid within a 'function.def' with 'function.allow_witness' attribute"
+    )]
     fn lower_and(fragment_main: FragmentCfg) {
-        // bool.and is not allowed in the constrain function.
         fragment_test(
             fragment_main,
             r"%true = arith.constant true
@@ -653,9 +711,10 @@ mod tests {
     }
 
     #[rstest]
-    #[should_panic]
+    #[should_panic(
+        expected = "'bool.or' op only valid within a 'function.def' with 'function.allow_witness' attribute"
+    )]
     fn lower_or(fragment_main: FragmentCfg) {
-        // bool.or is not allowed in the constrain function.
         fragment_test(
             fragment_main,
             r"%true = arith.constant true
@@ -666,6 +725,90 @@ mod tests {
                 Ok(())
             },
         )
+    }
+
+    #[rstest]
+    #[should_panic(
+        expected = "'bool.not' op only valid within a 'function.def' with 'function.allow_witness' attribute"
+    )]
+    fn lower_implies(fragment_main: FragmentCfg) {
+        fragment_test(
+            fragment_main,
+            r"%true = arith.constant true
+              %0 = bool.not %true
+              %1 = bool.or %0, %true",
+            |l| {
+                let t = l.lower_true()?;
+                l.lower_implies(&t, &t)?;
+                Ok(())
+            },
+        )
+    }
+
+    #[rstest]
+    #[should_panic(
+        expected = "failed to lower implies expression: was expecting type i1 but lhs has type !felt.type"
+    )]
+    fn lower_implies_wrong_lhs(fragment_main: FragmentCfg) {
+        fragment_test(fragment_main, r"", |l| {
+            let arg = l.lower_funcio(l.lower_function_input(0))?;
+            let t = l.lower_true()?;
+            l.lower_implies(&arg, &t)?;
+            Ok(())
+        })
+    }
+
+    #[rstest]
+    #[should_panic(
+        expected = "failed to lower implies expression: was expecting type i1 but rhs has type !felt.type"
+    )]
+    fn lower_implies_wrong_rhs(fragment_main: FragmentCfg) {
+        fragment_test(fragment_main, r"", |l| {
+            let arg = l.lower_funcio(l.lower_function_input(0))?;
+            let t = l.lower_true()?;
+            l.lower_implies(&t, &arg)?;
+            Ok(())
+        })
+    }
+
+    #[rstest]
+    fn lower_iff(fragment_main: FragmentCfg) {
+        fragment_test(
+            fragment_main,
+            r"%true = arith.constant true
+              %0 = arith.cmpi eq, %true, %true : i1",
+            |l| {
+                let t = l.lower_true()?;
+                l.lower_iff(&t, &t)?;
+                Ok(())
+            },
+        )
+    }
+
+    #[rstest]
+    #[should_panic(
+        expected = "failed to lower iff expression: was expecting type i1 but lhs has type !felt.type"
+    )]
+    fn lower_iff_wrong_lhs(fragment_main: FragmentCfg) {
+        fragment_test(fragment_main, r"", |l| {
+            let arg = l.lower_funcio(l.lower_function_input(0))?;
+            let t = l.lower_true()?;
+            l.lower_iff(&arg, &t)?;
+            Ok(())
+        })
+    }
+
+    #[rstest]
+    #[should_panic(
+        expected = "failed to lower iff expression: was expecting type i1 but rhs has type !felt.type"
+    )]
+    fn lower_iff_wrong_rhs(fragment_main: FragmentCfg) {
+        fragment_test(fragment_main, r"", |l| {
+            let arg = l.lower_funcio(l.lower_function_input(0))?;
+            let t = l.lower_true()?;
+            l.lower_iff(&t, &arg)?;
+            Ok(())
+        })
     }
 
     #[rstest]
@@ -685,9 +828,10 @@ mod tests {
     }
 
     #[rstest]
-    #[should_panic]
+    #[should_panic(
+        expected = "'bool.not' op only valid within a 'function.def' with 'function.allow_witness' attribute"
+    )]
     fn lower_not(fragment_main: FragmentCfg) {
-        // bool.not is not allowed in the constrain function.
         fragment_test(
             fragment_main,
             "%true = arith.constant true\n%0 = bool.not %true",
@@ -700,9 +844,18 @@ mod tests {
     }
 
     #[rstest]
+    #[should_panic(expected = "the determinism predicate is not supported by the LLZK backend")]
+    fn lower_det(fragment_main: FragmentCfg) {
+        fragment_test(fragment_main, "", |l| {
+            let t = l.lower_true()?;
+            l.lower_det(&t)?;
+            Ok(())
+        })
+    }
+
+    #[rstest]
     fn lower_constant(fragment_main: FragmentCfg) {
         fragment_test(fragment_main, "%felt_const_1 = felt.const 1", |l| {
-            // Loading a constant is not supported right now.
             l.lower_constant(Felt::new(crate::halo2::Fr::ONE))?;
             Ok(())
         })
@@ -751,10 +904,7 @@ mod tests {
         codegen.on_scope_end(s).unwrap();
 
         let out = codegen.generate_output().unwrap();
-        assert!(
-            out.module().as_operation().verify(),
-            "Top level module failed verification"
-        );
+        verify_operation_with_diags(&out.module().as_operation()).unwrap();
 
         let fragment = expected_fragment(&context, &cfg, frag);
         let out_str = format!("{}", out.module().as_operation());
@@ -888,25 +1038,5 @@ mod tests {
             cells = cfg.cells()
         );
         Module::parse(ctx, src.as_str()).unwrap_or_else(|| panic!("Failed to parse check: {src}"))
-    }
-
-    fn lower_det(&self, _expr: &Self::CellOutput) -> Result<Self::CellOutput> {
-        todo!()
-    }
-
-    fn lower_implies(
-        &self,
-        _lhs: &Self::CellOutput,
-        _rhs: &Self::CellOutput,
-    ) -> Result<Self::CellOutput> {
-        todo!()
-    }
-
-    fn lower_iff(
-        &self,
-        _lhs: &Self::CellOutput,
-        _rhs: &Self::CellOutput,
-    ) -> Result<Self::CellOutput> {
-        todo!()
     }
 }
