@@ -9,6 +9,7 @@ similar-asserts = "1.7"
 quickcheck = "1"
 quickcheck_macros = "1"
 rstest = "0.26"
+group = "0.13"
 
 [dependencies]
 melior = { workspace = true }
