@@ -3,20 +3,18 @@ use crate::{
     llzkArrayTypeGetWithNumericDims, llzkCreateArrayOpBuildWithMapOperands,
     llzkCreateArrayOpBuildWithMapOperandsAndDims, llzkCreateArrayOpBuildWithValues,
     llzkTypeIsAArrayType, mlirGetDialectHandle__llzk__array__, mlirOpBuilderCreate,
+    mlirOpBuilderDestroy,
     sanity_tests::{context, load_llzk_dialects, TestContext},
 };
 use mlir_sys::{
-    MlirContext, MlirOperation, MlirType, mlirAttributeEqual, mlirIdentifierGet, mlirIndexTypeGet,
+    mlirAttributeEqual, mlirDenseI32ArrayGet, mlirIdentifierGet, mlirIndexTypeGet,
     mlirIntegerAttrGet, mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate,
     mlirOperationDestroy, mlirOperationGetResult, mlirOperationStateAddAttributes,
     mlirOperationStateEnableResultTypeInference, mlirOperationStateGet, mlirOperationVerify,
-    mlirStringRefCreateFromCString, mlirTypeEqual,
+    mlirStringRefCreateFromCString, mlirTypeEqual, MlirContext, MlirOperation, MlirType,
 };
 use rstest::{fixture, rstest};
-use std::{
-    ffi::CString,
-    ptr::null,
-};
+use std::{ffi::CString, ptr::null};
 
 #[test]
 fn test_mlir_get_dialect_handle_llzk_array() {
@@ -129,6 +127,7 @@ fn test_llzk_create_array_op_build_with_values(context: TestContext, #[values(&[
         for op in ops {
             mlirOperationDestroy(op);
         }
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -137,8 +136,6 @@ fn test_llzk_create_array_op_build_with_map_operands(
     context: TestContext,
     #[values(&[1])] dims: &[i64],
 ) {
-    use mlir_sys::mlirDenseI32ArrayGet;
-
     load_llzk_dialects(&context);
     unsafe {
         let elt_type = mlirIndexTypeGet(context.ctx);
@@ -158,7 +155,8 @@ fn test_llzk_create_array_op_build_with_map_operands(
         );
 
         assert!(mlirOperationVerify(op));
-        mlirOperationDestroy(op)
+        mlirOperationDestroy(op);
+        mlirOpBuilderDestroy(builder);
     }
 }
 
@@ -186,7 +184,9 @@ fn test_llzk_create_array_op_build_with_map_operands_and_dims(
         );
 
         assert!(mlirOperationVerify(op));
-        mlirOperationDestroy(op)
+        mlirOperationDestroy(op);
+
+        mlirOpBuilderDestroy(builder);
     }
 }
 
