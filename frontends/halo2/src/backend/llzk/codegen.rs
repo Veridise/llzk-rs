@@ -4,7 +4,7 @@ use super::{counter::Counter, LlzkOutput};
 use anyhow::Result;
 
 use llzk::prelude::*;
-use melior::ir::{BlockLike as _, Location, Module};
+use melior::ir::{Location, Module};
 use melior::Context;
 
 use crate::backend::llzk::factory::StructIO;

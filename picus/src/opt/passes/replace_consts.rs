@@ -47,9 +47,7 @@ impl<'m, K: VarKind + Copy> PassImpl<'m, K> {
         call_output_vars: &HashSet<VarStr>,
     ) -> Option<(VarStr, Felt)> {
         // This is the least likely and least expensive check so do it first.
-        let Some(f) = rhs.as_const() else {
-            return None;
-        };
+        let f = rhs.as_const()?;
         lhs.var_name()
             .filter(|var| {
                 self.module

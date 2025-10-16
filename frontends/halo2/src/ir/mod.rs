@@ -57,7 +57,6 @@ pub mod equivalency;
 pub mod expr;
 pub mod generate;
 pub mod groups;
-mod opt;
 pub mod printer;
 pub mod stmt;
 

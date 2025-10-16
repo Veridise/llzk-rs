@@ -1,7 +1,5 @@
 //! Structs for handling the IR of groups of regions inside the circuit.
 
-use std::collections::HashMap;
-
 use crate::{
     backend::{
         func::{CellRef, FuncIO},
@@ -22,10 +20,7 @@ use crate::{
         stmt::IRStmt,
         CmpOp, IRCtx,
     },
-    lookups::{
-        callbacks::{LazyLookupTableGenerator, LookupTableGenerator},
-        Lookup,
-    },
+    lookups::callbacks::{LazyLookupTableGenerator, LookupTableGenerator},
     resolvers::FixedQueryResolver,
     synthesis::{
         constraint::EqConstraint,

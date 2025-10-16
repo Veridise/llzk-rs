@@ -111,7 +111,7 @@ pub fn lift_free_cells_to_inputs<F: Field>(
                 .into_iter()
                 .filter(|c| !bounds.within_bounds(&c.col(), &c.row()))
                 .collect();
-            log::debug!("Out of bounds cells: {:?}", out_of_bounds);
+            log::debug!("Out of bounds cells: {out_of_bounds:?}");
             if out_of_bounds.is_empty() {
                 log::debug!("Empty");
                 continue;

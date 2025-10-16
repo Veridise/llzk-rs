@@ -7,10 +7,7 @@ use llzk::builder::OpBuilder;
 use llzk::prelude::*;
 use melior::ir::ValueLike;
 use melior::{
-    ir::{
-        attribute::FlatSymbolRefAttribute, operation::OperationLike as _, BlockLike as _, Location,
-        Operation, OperationRef, RegionLike as _, Type, Value,
-    },
+    ir::{Location, Operation, OperationRef, Type, Value},
     Context,
 };
 use mlir_sys::MlirValue;

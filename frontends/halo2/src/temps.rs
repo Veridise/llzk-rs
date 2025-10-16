@@ -50,7 +50,7 @@ impl<E: std::fmt::Debug> std::fmt::Debug for ExprOrTemp<E> {
 impl<E: Clone> Clone for ExprOrTemp<E> {
     fn clone(&self) -> Self {
         match self {
-            Self::Temp(arg0) => Self::Temp(arg0.clone()),
+            Self::Temp(arg0) => Self::Temp(*arg0),
             Self::Expr(arg0) => Self::Expr(arg0.clone()),
         }
     }
