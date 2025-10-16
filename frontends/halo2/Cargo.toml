@@ -17,19 +17,12 @@ llzk-sys = { path = "../../llzk-sys/", version = "0.1.0"}
 llzk = { path = "../../llzk/", version = "0.1.0", features =["bigint"]}
 picus = { path = "../../picus", version = "0.1.0", features=["bigint-felt"]}
 anyhow = "^1"
-group = "0.13"
 ff = "0.13"
 num-bigint = "0.4"
-rand = "0.8.5"
-subtle = "2.6.1"
-lazy_static = "1.5"
-serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 disjoint = "0.8"
-ouroboros = "0.18"
 paste = "1.0"
 internment = "0.8.6"
-egg = "0.10"
 # halo2_proofs = {version = "*", default-features = false, features = [ "cost-estimator", "circuit-params", "committed-instances"]}
 
 # Different halo2 implementations
