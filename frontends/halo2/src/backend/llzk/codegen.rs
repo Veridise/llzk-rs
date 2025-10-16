@@ -1,7 +1,7 @@
 use super::lowering::LlzkStructLowering;
 use super::state::LlzkCodegenState;
 use super::{counter::Counter, LlzkOutput};
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 
 use llzk::prelude::*;
 use melior::{
@@ -89,16 +89,17 @@ impl<'c: 's, 's> Codegen<'c, 's> for LlzkCodegen<'c, 's> {
     fn generate_output(mut self) -> Result<Self::Output> {
         let signal = r#struct::helpers::define_signal_struct(self.context())?;
         self.module.body().insert_operation(0, signal.into());
-        if !self.module.as_operation().verify() {
-            anyhow::bail!(
+        verify_operation_with_diags(&self.module.as_operation()).with_context(|| {
+            format!(
                 "Output module failed verification{}",
                 if self.state.optimize() {
                     " (before optimization)"
                 } else {
                     ""
                 }
-            );
-        }
+            )
+        })?;
+
         if self.state.optimize() {
             let pipeline = create_pipeline(self.context());
             pipeline.run(&mut self.module)?;
