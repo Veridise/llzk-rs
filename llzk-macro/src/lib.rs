@@ -3,6 +3,10 @@
 //! They are heavily inspired by melior's proc macros with appropriate changes on the import names
 //! to adapt them to llzk.
 
+#![deny(rustdoc::broken_intra_doc_links)]
+#![deny(missing_debug_implementations)]
+#![deny(missing_docs)]
+
 use error::Error;
 use parse::*;
 use proc_macro::TokenStream;
