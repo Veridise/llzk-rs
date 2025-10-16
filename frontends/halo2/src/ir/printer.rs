@@ -5,10 +5,10 @@ use std::fmt::{Display, Formatter, Result as FmtResult, Write};
 use crate::{
     backend::func::FuncIO,
     ir::{
+        ResolvedIRCircuit,
         expr::{IRAexpr, IRBexpr},
         groups::GroupBody,
         stmt::IRStmt,
-        ResolvedIRCircuit,
     },
 };
 
@@ -22,6 +22,10 @@ enum IRPrinterCapture<'a> {
 }
 
 /// Prints a human-friendly representation of the IR meant for debugging.
+///
+/// The structure of the output emitted by the printer is never considered stable and shouldn't be
+/// relied upon as it may change unexpectedly. The purpose of the printer is to be a debugging aid
+/// for inspecting the shape of the IR and not a serialization/deserialization format.
 #[derive(Debug, Copy, Clone)]
 pub struct IRPrinter<'a>(IRPrinterCapture<'a>);
 
@@ -286,6 +290,9 @@ impl<'a> IRPrinter<'a> {
         }
     }
 
+    /// Returns the depth of the boolean expression.
+    ///
+    /// The depth is used for the heuristic used for deciding when to indentate or not.
     fn bexpr_depth(&self, bexpr: &IRBexpr<IRAexpr>) -> usize {
         match bexpr {
             IRBexpr::True | IRBexpr::False => 1,
@@ -307,6 +314,9 @@ impl<'a> IRPrinter<'a> {
         }
     }
 
+    /// Returns the depth of the arithmetic expression.
+    ///
+    /// The depth is used for the heuristic used for deciding when to indentate or not.
     fn aexpr_depth(&self, aexpr: &IRAexpr) -> usize {
         match aexpr {
             IRAexpr::Constant(_) | IRAexpr::IO(_) | IRAexpr::Challenge(_) => 1,
