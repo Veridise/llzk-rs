@@ -30,7 +30,7 @@ fn test_mlir_register_transformation_passes_and_create(context: TestContext) {
 }
 
 #[rstest]
-fn test_mlir_register_redudant_operation_elimination_pass_and_create(context: TestContext) {
+fn test_mlir_register_redundant_operation_elimination_pass_and_create(context: TestContext) {
     unsafe {
         mlirRegisterLLZKTransformationRedundantOperationEliminationPass();
         let manager = mlirPassManagerCreate(context.ctx);
