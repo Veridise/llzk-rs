@@ -7,8 +7,8 @@
 #![allow(non_snake_case)]
 #![warn(rustdoc::broken_intra_doc_links)]
 #![deny(missing_debug_implementations)]
-// This lint should never set to deny since it depends on code written in the llzk-lib repository.
-// Its set to warn as a reminder for the CAPI maintainers to add missing documenting.
+// This lint should never set to deny since the functions here depend on code written in the llzk-lib repository.
+// Its set to warn as a reminder for the CAPI maintainers to add missing documentation.
 #![warn(missing_docs)]
 
 use mlir_sys::{
