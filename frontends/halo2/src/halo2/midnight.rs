@@ -5,8 +5,7 @@ pub use halo2_proofs::{
     circuit::{Cell, RegionIndex, RegionStart, Value, groups},
     plonk::{
         Advice, AdviceQuery, Any, Assignment, Column, ColumnType, Constraints, Error, Expression,
-        FirstPhase, Fixed, FixedQuery, FloorPlanner, Gate, Instance, InstanceQuery, Phase,
-        Selector,
+        FirstPhase, Fixed, FixedQuery, FloorPlanner, Instance, InstanceQuery, Phase, Selector,
     },
     poly::Rotation,
     utils::rational::Rational as Assigned,

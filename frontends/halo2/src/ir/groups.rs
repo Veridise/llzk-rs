@@ -4,13 +4,14 @@ use std::collections::HashMap;
 
 use crate::{
     GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
+    adaptors::GateAdaptor,
     backend::{
         func::{CellRef, FuncIO},
         lowering::{Lowering, lowerable::LowerableStmt},
     },
     expressions::{ExpressionInRow, ScopedExpression},
     gates::RewritePatternSet,
-    halo2::{Expression, Field, Gate, Rotation, groups::GroupKeyInstance},
+    halo2::{Expression, Field, Rotation, groups::GroupKeyInstance},
     ir::{
         CmpOp, IRCtx,
         ctx::AdviceCells,
@@ -614,7 +615,7 @@ where
 
 /// Uses the given rewrite patterns to lower the gates on each region.
 fn lower_gates<'sco, 'syn, 'io, F>(
-    gates: &'syn [Gate<F>],
+    gates: Vec<&'syn dyn GateAdaptor<F>>,
     regions: &[RegionData<'syn>],
     patterns: &RewritePatternSet<F>,
     advice_io: &'io crate::io::AdviceIO,

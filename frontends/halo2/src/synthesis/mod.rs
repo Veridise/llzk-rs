@@ -9,7 +9,7 @@ use regions::{FixedData, RegionIndexToStart, TableData};
 
 use crate::{
     CircuitIO,
-    adaptors::{CSA, ConstraintSystemAdaptor},
+    adaptors::{CSA, ConstraintSystemAdaptor, GateAdaptor},
     gates::AnyQuery,
     halo2::{
         Field,
@@ -44,7 +44,7 @@ where
     F: Field,
 {
     /// Returns the list of gates in the constraint system.
-    pub fn gates(&self) -> &[Gate<F>] {
+    pub fn gates(&self) -> Vec<&dyn GateAdaptor<F>> {
         self.cs.gates()
     }
 
