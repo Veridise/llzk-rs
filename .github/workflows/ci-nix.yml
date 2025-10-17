@@ -34,3 +34,30 @@ jobs:
           authToken: '${{ secrets.CACHIX_PUBLIC_TOKEN }}'
       - name: Build and test ${{ matrix.derivation }}
         run: nix --print-build-logs build '.?submodules=1#${{ matrix.derivation }}'
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
+        with:
+          install_url: https://releases.nixos.org/nix/nix-2.31.2/install
+          github_access_token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Set Git credentials
+        run: |
+          git config --global 'url.https://api@github.com/'.insteadOf 'https://github.com/'
+          git config --global 'url.https://ssh@github.com/'.insteadOf 'ssh://git@github.com/'
+          git config --global 'url.https://git@github.com/'.insteadOf 'git@github.com:'
+      - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
+        with:
+          name: veridise-public
+          authToken: '${{ secrets.CACHIX_PUBLIC_TOKEN }}'
+      - name: Set nix environment
+        uses: nicknovitski/nix-develop@v1
+        env:
+          CI_BOT_PAT: "${{ secrets.CI_BUILD_TOKEN }}"
+      - name: Run clippy
+        run: cargo clippy -- --no-deps
