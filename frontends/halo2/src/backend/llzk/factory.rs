@@ -1,60 +1,12 @@
-use std::{borrow::Cow, iter};
-
-use llzk::prelude::*;
+use llzk::{attributes::NamedAttribute, prelude::*};
 
 use melior::{
     Context,
-    ir::{Attribute, Identifier, Location, Operation, Type, r#type::FunctionType},
+    ir::{Identifier, Location, Operation, Type},
 };
 
 fn struct_def_op_location<'c>(context: &'c Context, name: &str, index: usize) -> Location<'c> {
     Location::new(context, format!("struct {name}").as_str(), index, 0)
-}
-
-fn create_field<'c>(
-    context: &'c Context,
-    header: &str,
-    name: &str,
-    public: bool,
-) -> Result<FieldDefOp<'c>, LlzkError> {
-    let filename = format!("struct {header} | field {name}");
-    let loc = Location::new(context, &filename, 0, 0);
-
-    r#struct::field(loc, name, FeltType::new(context), false, public)
-}
-
-fn struct_type<'c>(context: &'c Context, name: &str) -> Type<'c> {
-    StructType::from_str(context, name).into()
-}
-
-struct Field {
-    name: Cow<'static, str>,
-    public: bool,
-}
-
-impl From<(&'static str, bool)> for Field {
-    fn from(value: (&'static str, bool)) -> Self {
-        Self {
-            name: Cow::Borrowed(value.0),
-            public: value.1,
-        }
-    }
-}
-
-impl Field {
-    pub fn renamed(mut self, f: impl FnOnce(&str) -> String) -> Self {
-        let new = f(self.name.as_ref());
-        self.name = Cow::Owned(new);
-        self
-    }
-
-    pub fn name(&self) -> &str {
-        self.name.as_ref()
-    }
-
-    pub fn is_public(&self) -> bool {
-        self.public
-    }
 }
 
 pub struct StructIO {
@@ -65,52 +17,29 @@ pub struct StructIO {
 }
 
 impl StructIO {
-    fn fields(&self) -> impl IntoIterator<Item = Field> {
-        self.public_outputs().chain(self.private_outputs())
-    }
-
-    fn private_outputs(&self) -> impl Iterator<Item = Field> {
-        iter::repeat(("out", false))
-            .map(Field::from)
-            .zip((0..self.private_outputs).map(|n| n + self.public_outputs))
-            .map(|(f, n)| f.renamed(|name| format!("{name}_{n}")))
-    }
-
-    fn public_outputs(&self) -> impl Iterator<Item = Field> {
-        iter::repeat(("out", true))
-            .map(Field::from)
-            .zip(0..self.public_outputs)
-            .map(|(f, n)| f.renamed(|name| format!("{name}_{n}")))
-    }
-
-    pub fn public_inputs<'c>(
+    fn fields<'c>(
         &self,
-        ctx: &'c Context,
-        is_main: bool,
-    ) -> impl IntoIterator<Item = Type<'c>> {
-        iter::repeat_with(move || {
-            if is_main {
-                StructType::from_str(ctx, "Signal").into()
-            } else {
-                FeltType::new(ctx).into()
-            }
-        })
-        .take(self.public_inputs)
-    }
-
-    pub fn private_inputs<'c>(
-        &self,
-        ctx: &'c Context,
-        is_main: bool,
-    ) -> impl IntoIterator<Item = Type<'c>> {
-        iter::repeat_with(move || {
-            if is_main {
-                StructType::from_str(ctx, "Signal").into()
-            } else {
-                FeltType::new(ctx).into()
-            }
-        })
-        .take(self.private_inputs)
+        context: &'c Context,
+        header: &str,
+    ) -> impl Iterator<Item = Result<FieldDefOp<'c>, LlzkError>> {
+        let public_filename = format!("struct {header} | public outputs");
+        let private_filename = format!("struct {header} | private outputs");
+        std::iter::repeat_n(true, self.public_outputs)
+            .enumerate()
+            .chain(std::iter::repeat_n(false, self.private_outputs).enumerate())
+            .map(move |(n, public)| {
+                let filename = if public {
+                    &public_filename
+                } else {
+                    &private_filename
+                };
+                (public, Location::new(context, filename, n, 0))
+            })
+            .enumerate()
+            .map(|(n, (public, loc))| {
+                let name = format!("out_{n}");
+                r#struct::field(loc, &name, FeltType::new(context), false, public)
+            })
     }
 
     pub fn args<'c>(
@@ -119,44 +48,44 @@ impl StructIO {
         is_main: bool,
         struct_name: &str,
     ) -> Vec<(Type<'c>, Location<'c>)> {
-        self.public_inputs(ctx, is_main)
-            .into_iter()
+        let public_filename = format!("struct {struct_name} | public inputs");
+        let private_filename = format!("struct {struct_name} | private inputs");
+        let public_locs = std::iter::repeat(&public_filename)
             .enumerate()
-            .map(|(n, typ)| {
-                (
-                    typ,
-                    Location::new(
-                        ctx,
-                        format!("struct {struct_name} | public inputs").as_str(),
-                        n,
-                        0,
-                    ),
-                )
-            })
-            .chain(
-                self.private_inputs(ctx, is_main)
-                    .into_iter()
-                    .enumerate()
-                    .map(|(n, typ)| {
-                        (
-                            typ,
-                            Location::new(
-                                ctx,
-                                format!("struct {struct_name} | private inputs").as_str(),
-                                n,
-                                0,
-                            ),
-                        )
-                    }),
-            )
-            .collect::<Vec<_>>()
+            .take(self.public_inputs);
+        let private_locs = std::iter::repeat(&private_filename)
+            .enumerate()
+            .take(self.private_inputs);
+        let locs = public_locs
+            .chain(private_locs)
+            .map(|(n, filename)| Location::new(ctx, filename, n, 0));
+
+        let ty: Type<'c> = if is_main {
+            StructType::from_str(ctx, "Signal").into()
+        } else {
+            FeltType::new(ctx).into()
+        };
+        let types = std::iter::repeat(ty).take(self.public_inputs + self.private_inputs);
+
+        std::iter::zip(types, locs).collect()
     }
 
-    pub fn arg_count(&self) -> usize {
-        self.public_inputs + self.private_inputs
+    /// Returns the list of argument attributes for the struct's functions.
+    ///
+    /// Element #0 is the attribute for the self argument in `@constrain`. if using the output of
+    /// this method to create the `@compute` function read the slice from element #1 `[1..]`.
+    pub fn arg_attrs<'c>(&self, ctx: &'c Context) -> Vec<Vec<NamedAttribute<'c>>> {
+        let pub_attr = (
+            Identifier::new(ctx, "llzk.pub"),
+            PublicAttribute::new(ctx).into(),
+        );
+        std::iter::once(vec![])
+            .chain(std::iter::repeat_n(vec![pub_attr], self.public_inputs))
+            .chain(std::iter::repeat_n(vec![], self.private_inputs))
+            .collect()
     }
 
-    pub fn new_from_io(advice: &crate::io::AdviceIO, instance: &crate::io::InstanceIO) -> Self {
+    pub fn from_io(advice: &crate::io::AdviceIO, instance: &crate::io::InstanceIO) -> Self {
         Self {
             private_inputs: advice.inputs().len(),
             public_inputs: instance.inputs().len(),
@@ -165,7 +94,7 @@ impl StructIO {
         }
     }
 
-    pub fn new_from_io_count(inputs: usize, outputs: usize) -> Self {
+    pub fn from_io_count(inputs: usize, outputs: usize) -> Self {
         Self {
             private_inputs: inputs,
             public_inputs: 0,
@@ -186,58 +115,30 @@ pub fn create_struct<'c>(
     let loc = struct_def_op_location(context, struct_name, idx);
     log::debug!("Struct location: {loc:?}");
     let fields = io
-        .fields()
-        .into_iter()
-        .map(|field| -> Result<Operation<'c>, LlzkError> {
-            create_field(context, struct_name, field.name(), field.is_public()).map(Into::into)
-        });
+        .fields(context, struct_name)
+        .map(|r| r.map(Operation::from));
 
     let func_args = io.args(context, is_main, struct_name);
+    let arg_attrs = io.arg_attrs(context);
 
     log::debug!("Creating function with arguments: {func_args:?}");
-
-    let pub_attr = [(
-        Identifier::new(context, "llzk.pub"),
-        PublicAttribute::new(context).into(),
-    )];
-    let no_attr = [];
-    let compute_arg_attrs = (0..func_args.len())
-        .map(|n| {
-            if n < io.public_inputs {
-                &pub_attr as &[(Identifier<'c>, Attribute<'c>)]
-            } else {
-                &no_attr
-            }
-        })
-        .collect::<Vec<_>>();
-
-    let constrain_arg_attrs = std::iter::once(&no_attr as &[(Identifier<'c>, Attribute<'c>)])
-        .chain((1..=func_args.len()).map(|n| {
-            if n <= io.public_inputs {
-                &pub_attr as &[(Identifier<'c>, Attribute<'c>)]
-            } else {
-                &no_attr
-            }
-        }))
-        .collect::<Vec<_>>();
 
     let funcs = [
         r#struct::helpers::compute_fn(
             loc,
             StructType::from_str(context, struct_name),
             &func_args,
-            Some(&compute_arg_attrs),
+            Some(&arg_attrs[1..]),
         )
-        .map(Into::into),
+        .map(Operation::from),
         r#struct::helpers::constrain_fn(
             loc,
             StructType::from_str(context, struct_name),
             &func_args,
-            Some(&constrain_arg_attrs),
+            Some(&arg_attrs),
         )
-        .map(Into::into),
+        .map(Operation::from),
     ];
 
-    log::debug!("Creating constraint op");
     r#struct::def(loc, struct_name, &[], fields.chain(funcs))
 }

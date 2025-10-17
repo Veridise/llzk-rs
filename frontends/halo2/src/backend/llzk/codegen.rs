@@ -13,7 +13,6 @@ use crate::backend::llzk::factory::StructIO;
 use crate::io::{AdviceIO, InstanceIO};
 
 use crate::backend::codegen::Codegen;
-use crate::ir::expr::Felt;
 
 use super::factory;
 
@@ -27,6 +26,17 @@ impl<'c, 's> LlzkCodegen<'c, 's> {
     fn add_struct(&self, s: StructDefOp<'c>) -> Result<StructDefOpRefMut<'c, 's>> {
         let s: StructDefOpRef = self.module.body().append_operation(s.into()).try_into()?;
         Ok(unsafe { StructDefOpRefMut::from_raw(s.to_raw()) })
+    }
+
+    fn create_lowering_scope(
+        &self,
+        name: &str,
+        io: StructIO,
+        is_main: bool,
+    ) -> Result<LlzkStructLowering<'c, 's>> {
+        let s =
+            factory::create_struct(self.context(), name, self.struct_count.next(), io, is_main)?;
+        Ok(LlzkStructLowering::new(self.context(), self.add_struct(s)?))
     }
 
     fn context(&self) -> &'c Context {
@@ -53,17 +63,9 @@ impl<'c: 's, 's> Codegen<'c, 's> for LlzkCodegen<'c, 's> {
         advice_io: &AdviceIO,
         instance_io: &InstanceIO,
     ) -> Result<Self::FuncOutput> {
-        let struct_name = self.state.params().top_level().unwrap_or("Main");
-        log::debug!("Creating struct with name '{struct_name}'");
-        let s = factory::create_struct(
-            self.context(),
-            struct_name,
-            self.struct_count.next(),
-            StructIO::new_from_io(advice_io, instance_io),
-            true,
-        )?;
-        log::debug!("Created struct object {s:?}");
-        Ok(LlzkStructLowering::new(self.context(), self.add_struct(s)?))
+        let name = self.state.params().top_level().unwrap_or("Main");
+        log::debug!("Creating Main struct with name '{name}'");
+        self.create_lowering_scope(name, StructIO::from_io(advice_io, instance_io), true)
     }
 
     fn define_function(
@@ -72,14 +74,7 @@ impl<'c: 's, 's> Codegen<'c, 's> for LlzkCodegen<'c, 's> {
         inputs: usize,
         outputs: usize,
     ) -> Result<Self::FuncOutput> {
-        let s = factory::create_struct(
-            self.context(),
-            name,
-            self.struct_count.next(),
-            StructIO::new_from_io_count(inputs, outputs),
-            false,
-        )?;
-        Ok(LlzkStructLowering::new(self.context(), self.add_struct(s)?))
+        self.create_lowering_scope(name, StructIO::from_io_count(inputs, outputs), false)
     }
 
     fn on_scope_end(&self, _: Self::FuncOutput) -> Result<()> {

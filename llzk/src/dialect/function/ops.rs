@@ -23,7 +23,7 @@ use melior::{
 use mlir_sys::{MlirAttribute, MlirNamedAttribute, mlirDictionaryAttrGet, mlirNamedAttributeGet};
 
 use crate::{
-    dialect::r#struct::StructType, error::Error, macros::llzk_op_type,
+    attributes::NamedAttribute, dialect::r#struct::StructType, error::Error, macros::llzk_op_type,
     symbol_ref::SymbolRefAttribute,
 };
 
@@ -177,37 +177,34 @@ impl<'a, 'c: 'a> CallOpLike<'c, 'a> for CallOpRefMut<'c, 'a> {}
 // operation factories
 //===----------------------------------------------------------------------===//
 
-fn tuple_to_named_attr(t: &(Identifier, Attribute)) -> MlirNamedAttribute {
-    unsafe { mlirNamedAttributeGet(t.0.to_raw(), t.1.to_raw()) }
+fn tuple_to_named_attr((name, attr): &NamedAttribute) -> MlirNamedAttribute {
+    unsafe { mlirNamedAttributeGet(name.to_raw(), attr.to_raw()) }
 }
 
 fn prepare_arg_attrs<'c>(
-    arg_attrs: Option<&[&[(Identifier<'c>, Attribute<'c>)]]>,
+    arg_attrs: Option<&[Vec<NamedAttribute<'c>>]>,
     input_count: usize,
     ctx: &'c Context,
 ) -> Vec<MlirAttribute> {
     log::debug!("prepare_arg_attrs(\n{arg_attrs:?},\n{input_count},\n{ctx:?})");
-    if let Some(arg_attrs) = arg_attrs {
-        assert_eq!(arg_attrs.len(), input_count);
-        arg_attrs
-            .iter()
-            .map(|arg_attr| {
-                let named_attrs = arg_attr.iter().map(tuple_to_named_attr).collect::<Vec<_>>();
-                unsafe {
-                    mlirDictionaryAttrGet(
-                        ctx.to_raw(),
-                        named_attrs.len() as isize,
-                        named_attrs.as_ptr(),
-                    )
-                }
-            })
-            .collect()
-    } else {
-        (0..input_count)
-            .map(|_| unsafe { mlirDictionaryAttrGet(ctx.to_raw(), 0, null()) })
-            .inspect(|a| log::debug!("attribute = {a:?}"))
-            .collect()
-    }
+    let Some(arg_attrs) = arg_attrs else {
+        return vec![unsafe { mlirDictionaryAttrGet(ctx.to_raw(), 0, null()) }; input_count];
+    };
+
+    assert_eq!(arg_attrs.len(), input_count);
+    arg_attrs
+        .iter()
+        .map(|arg_attr| {
+            let named_attrs = Vec::from_iter(arg_attr.iter().map(tuple_to_named_attr));
+            unsafe {
+                mlirDictionaryAttrGet(
+                    ctx.to_raw(),
+                    named_attrs.len() as isize,
+                    named_attrs.as_ptr(),
+                )
+            }
+        })
+        .collect()
 }
 
 /// Creates a 'function.def' operation. If the arg_attrs parameter is None creates as many empty argument
@@ -217,8 +214,8 @@ pub fn def<'c>(
     location: Location<'c>,
     name: &str,
     r#type: FunctionType<'c>,
-    attrs: &[(Identifier<'c>, Attribute<'c>)],
-    arg_attrs: Option<&[&[(Identifier<'c>, Attribute<'c>)]]>,
+    attrs: &[NamedAttribute<'c>],
+    arg_attrs: Option<&[Vec<NamedAttribute<'c>>]>,
 ) -> Result<FuncDefOp<'c>, Error> {
     let ctx = location.context();
     let name = StringRef::new(name);
