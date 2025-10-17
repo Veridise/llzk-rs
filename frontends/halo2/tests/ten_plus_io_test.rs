@@ -254,12 +254,23 @@ impl<F: Field> Circuit<F> for MulCircuit<F> {
 }
 
 impl<F: Field> CircuitCallbacks<F> for MulCircuit<F> {
-    type Config = MulConfig;
     type Circuit = Self;
+    type Config = MulConfig;
+
+    type CS = ConstraintSystem<F>;
+
+    type Error = halo2_proofs::plonk::Error;
+
+    fn circuit(&self) -> &Self::Circuit {
+        self
+    }
+    fn configure(cs: &mut Self::CS) -> Self::Config {
+        <Self as Circuit<F>>::configure(cs)
+    }
+
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }
-
     fn instance_io(config: &<Self as Circuit<F>>::Config) -> CircuitIO<Instance> {
         let inputs = Vec::from_iter(0..=10);
         let outputs = Vec::from_iter(11..=21);
@@ -267,5 +278,13 @@ impl<F: Field> CircuitCallbacks<F> for MulCircuit<F> {
             &[(config.instance, &inputs)],
             &[(config.instance, &outputs)],
         )
+    }
+    fn synthesize(
+        circuit: &Self::Circuit,
+        config: Self::Config,
+        synthesizer: &mut halo2_llzk_frontend::Synthesizer<F>,
+        cs: &Self::CS,
+    ) -> Result<(), Self::Error> {
+        common::SynthesizerAssignment::synthesize(circuit, config, synthesizer, cs)
     }
 }

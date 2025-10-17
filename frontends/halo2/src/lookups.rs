@@ -3,9 +3,10 @@
 use std::ops::Index;
 
 use crate::{
+    adaptors::ConstraintSystemAdaptor,
     backend::codegen::lookup::query_from_table_expr,
     gates::AnyQuery,
-    halo2::{ConstraintSystem, Expression, Field, FixedQuery},
+    halo2::{Expression, Field, FixedQuery},
 };
 use anyhow::Result;
 
@@ -26,19 +27,15 @@ impl<F: Field> std::fmt::Display for Lookup<'_, F> {
     }
 }
 
-/// A heavier representation of the lookup
-#[derive(Clone, Debug)]
-pub struct LookupData {
-    table_queries: Vec<AnyQuery>,
-}
-
-impl<'syn, F: Field> TryFrom<Lookup<'syn, F>> for LookupData {
-    type Error = anyhow::Error;
-
-    fn try_from(lookup: Lookup<'syn, F>) -> std::result::Result<Self, Self::Error> {
-        let table_queries = compute_table_cells(lookup.table.iter())?;
-        Ok(LookupData { table_queries })
-    }
+/// Data required for building a lookup.
+#[derive(Debug, Copy, Clone)]
+pub struct LookupData<'syn, F> {
+    /// Name of the lookup.
+    pub name: &'syn str,
+    /// Expressions representing the arguments of the lookup.
+    pub inputs: &'syn [Expression<F>],
+    /// Expressions representing the columns of the table.
+    pub table: &'syn [Expression<F>],
 }
 
 fn compute_table_cells<'syn, F: Field>(
@@ -52,11 +49,11 @@ fn compute_table_cells<'syn, F: Field>(
 
 impl<'syn, F: Field> Lookup<'syn, F> {
     /// Returns the list of lookups defined in the constraint system.
-    pub fn load(cs: &'syn ConstraintSystem<F>) -> Vec<Self> {
+    pub fn load(cs: &'syn dyn ConstraintSystemAdaptor<F>) -> Vec<Self> {
         cs.lookups()
             .iter()
             .enumerate()
-            .map(|(idx, a)| Self::new(idx, a.name(), a.input_expressions(), a.table_expressions()))
+            .map(|(idx, a)| Self::new(idx, a.name, a.inputs, a.table))
             .collect()
     }
 
@@ -109,13 +106,6 @@ impl<'syn, F: Field> Lookup<'syn, F> {
             .find(|(_, q)| q.column_index() == col)
             .ok_or_else(|| anyhow::anyhow!("Column {col} not found"))
             .map(|(idx, _)| &self.inputs[idx])
-    }
-}
-
-impl LookupData {
-    /// Returns the list of queries.
-    pub fn output_queries(&self) -> &[AnyQuery] {
-        &self.table_queries
     }
 }
 

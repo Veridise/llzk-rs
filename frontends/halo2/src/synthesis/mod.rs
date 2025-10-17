@@ -9,6 +9,7 @@ use regions::{FixedData, RegionIndexToStart, TableData};
 
 use crate::{
     CircuitIO,
+    adaptors::{CSA, ConstraintSystemAdaptor},
     gates::AnyQuery,
     halo2::{
         Field,
@@ -18,7 +19,6 @@ use crate::{
     io::{AdviceIO, IOCell, InstanceIO},
     lookups::{Lookup, LookupTableRow},
     resolvers::FixedQueryResolver,
-    to_plonk_error,
     value::steal,
 };
 
@@ -27,30 +27,30 @@ pub mod groups;
 pub mod regions;
 
 /// Result of synthesizing a circuit.
-#[derive(Debug)]
-pub struct CircuitSynthesis<F: Field> {
+pub struct CircuitSynthesis<F>
+where
+    F: Field,
+{
     id: usize,
-    cs: ConstraintSystem<F>,
+    cs: CSA<F>,
     eq_constraints: EqConstraintGraph<F>,
     fixed: FixedData<F>,
     tables: Vec<TableData<F>>,
     groups: Groups,
 }
 
-impl<F: Field> CircuitSynthesis<F> {
+impl<F> CircuitSynthesis<F>
+where
+    F: Field,
+{
     /// Returns the list of gates in the constraint system.
     pub fn gates(&self) -> &[Gate<F>] {
         self.cs.gates()
     }
 
-    /// Returns a reference to the constraint system.
-    pub fn cs(&self) -> &ConstraintSystem<F> {
-        &self.cs
-    }
-
     /// Returns the lookups declared during synthesis.
     pub fn lookups<'a>(&'a self) -> Vec<Lookup<'a, F>> {
-        Lookup::load(&self.cs)
+        Lookup::load(&*self.cs)
     }
 
     /// Finds the table that corresponds to the query set.
@@ -135,9 +135,20 @@ impl<F: Field> CircuitSynthesis<F> {
     }
 }
 
+impl<F: Field> std::fmt::Debug for CircuitSynthesis<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CircuitSynthesis")
+            .field("id", &self.id)
+            .field("eq_constraints", &self.eq_constraints)
+            .field("fixed", &self.fixed)
+            .field("tables", &self.tables)
+            .field("groups", &self.groups)
+            .finish()
+    }
+}
+
 /// Collects the information from the synthesis.
 pub struct Synthesizer<F: Field> {
-    cs: ConstraintSystem<F>,
     id: usize,
     groups: GroupBuilder,
     fixed: FixedData<F>,
@@ -151,21 +162,12 @@ impl<F: Field> Synthesizer<F> {
     pub(crate) fn new(id: usize) -> Self {
         Self {
             id,
-            cs: Default::default(),
             groups: Default::default(),
             fixed: Default::default(),
             eq_constraints: Default::default(),
             tables: Default::default(),
             next_index: Box::new((0..).map(RegionIndex::from)),
         }
-    }
-
-    pub fn cs(&self) -> &ConstraintSystem<F> {
-        &self.cs
-    }
-
-    pub fn cs_mut(&mut self) -> &mut ConstraintSystem<F> {
-        &mut self.cs
     }
 
     /// Configures the IO of the circuit.
@@ -175,12 +177,15 @@ impl<F: Field> Synthesizer<F> {
     }
 
     /// Builds a [`CircuitSynthesis`] with the information recollected about the circuit.
-    pub(crate) fn build(mut self) -> Result<CircuitSynthesis<F>> {
+    pub(crate) fn build<CS>(mut self, cs: CS) -> Result<CircuitSynthesis<F>>
+    where
+        CS: ConstraintSystemAdaptor<F> + 'static,
+    {
         add_fixed_to_const_constraints(&mut self.eq_constraints, &self.fixed)?;
 
         Ok(CircuitSynthesis {
             id: self.id,
-            cs: self.cs,
+            cs: Box::new(cs),
             eq_constraints: self.eq_constraints,
             tables: fill_tables(self.tables, &self.fixed)?,
             fixed: self.fixed,
@@ -188,28 +193,37 @@ impl<F: Field> Synthesizer<F> {
         })
     }
 
+    /// Enters a new region of the circuit.
+    ///
+    /// Panics if the synthesizer entered a region already and didn't exit.
     pub fn enter_region(&mut self, region_name: String) {
         self.groups
             .regions_mut()
             .push(|| region_name, &mut self.next_index, &mut self.tables);
     }
 
+    /// Exits the current region of the circuit.
+    ///
+    /// Panics if the synthesizer didn't entered a region prior.
     pub fn exit_region(&mut self) {
         self.groups.regions_mut().commit();
     }
 
+    /// Marks the given selector as enabled for the table row.
     pub fn enable_selector(&mut self, selector: &Selector, row: usize) {
         self.groups.regions_mut().edit(|region| {
             region.enable_selector(*selector, row);
         });
     }
 
+    /// Process that inside the entered region the circuit assigned a value to an advice cell.
     pub fn on_advice_assigned(&mut self, advice: Column<Advice>, row: usize) {
         self.groups.regions_mut().edit(|region| {
             region.update_extent(advice.into(), row);
         });
     }
 
+    /// Process that inside the entered region the circuit assigned a value to a fixed cell.
     pub fn on_fixed_assigned(&mut self, fixed: Column<Fixed>, row: usize, value: F) {
         // Assignments to fixed cells can happen outside a region so we write those on the last
         // region if available
@@ -219,11 +233,13 @@ impl<F: Field> Synthesizer<F> {
         self.fixed.assign_fixed(fixed, row, Value::known(value));
     }
 
+    /// Annotates that the two given cells have a copy constraint between them.
     pub fn copy(&mut self, from: Column<Any>, from_row: usize, to: Column<Any>, to_row: usize) {
         self.eq_constraints
             .add(EqConstraint::AnyToAny(from, from_row, to, to_row));
     }
 
+    /// Annotates that starting from the given row the given fixed column has that value.
     pub fn fill_from_row(&mut self, column: Column<Fixed>, row: usize, value: F) {
         log::debug!("fill_from_row{:?}", (column, row, value));
         self.fixed.blanket_fill(column, row, Value::known(value));
@@ -232,18 +248,23 @@ impl<F: Field> Synthesizer<F> {
         r.mark_region();
     }
 
+    /// Pushes a new namespace.
     pub fn push_namespace(&mut self, name: String) {
         self.groups
             .regions_mut()
             .edit(|region| region.push_namespace(|| name));
     }
 
+    /// Pops the most recent namespace.
     pub fn pop_namespace(&mut self, name: Option<String>) {
         self.groups
             .regions_mut()
             .edit(|region| region.pop_namespace(name));
     }
 
+    /// Enters a new group, pushing it to the top of the stack.
+    ///
+    /// This group is then the new active group.
     pub fn enter_group<K>(&mut self, name: String, key: K)
     where
         K: GroupKey,
@@ -252,6 +273,11 @@ impl<F: Field> Synthesizer<F> {
         self.groups.push(|| name, key)
     }
 
+    /// Pops the active group from the stack and marks it as a children of the next group.
+    ///
+    /// The next group becomes the new active group.
+    ///
+    /// Panics if attempted to pop a group without pushing one prior.
     pub fn exit_group(&mut self, meta: RegionsGroup) {
         for input in meta.inputs() {
             self.groups.add_input(input);
@@ -267,7 +293,6 @@ impl<F: Field> Synthesizer<F> {
 impl<F: Field> std::fmt::Debug for Synthesizer<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Synthesizer")
-            .field("cs", &self.cs)
             .field("id", &self.id)
             .field("groups", &self.groups)
             .field("fixed", &self.fixed)
@@ -323,162 +348,5 @@ where
 
     for c in io.outputs() {
         groups.add_root_output(*c);
-    }
-}
-
-/// Temporary implementation of Assignment that records the information required to create the circuit
-/// synthesis.
-pub(crate) struct SynthesizerAssignment<'a, F: Field> {
-    synthetizer: &'a mut Synthesizer<F>,
-}
-
-impl<'a, F: Field> SynthesizerAssignment<'a, F> {
-    pub fn new(synthetizer: &'a mut Synthesizer<F>) -> Self {
-        Self { synthetizer }
-    }
-    pub fn synthesize<C: Circuit<F>>(&mut self, circuit: &C, config: C::Config) -> Result<()> {
-        let constants = self.synthetizer.cs.constants().clone();
-        C::FloorPlanner::synthesize(self, circuit, config, constants)?;
-
-        Ok(())
-    }
-}
-
-impl<F: Field> Assignment<F> for SynthesizerAssignment<'_, F> {
-    fn enter_region<NR, N>(&mut self, region_name: N)
-    where
-        NR: Into<String>,
-        N: FnOnce() -> NR,
-    {
-        self.synthetizer.enter_region(region_name().into());
-    }
-
-    fn exit_region(&mut self) {
-        self.synthetizer.exit_region();
-    }
-
-    fn enable_selector<A, AR>(&mut self, _: A, selector: &Selector, row: usize) -> Result<(), Error>
-    where
-        AR: Into<String>,
-        A: FnOnce() -> AR,
-    {
-        self.synthetizer.enable_selector(selector, row);
-        Ok(())
-    }
-
-    fn query_instance(&self, _column: Column<Instance>, _row: usize) -> Result<Value<F>, Error> {
-        Ok(Value::unknown())
-    }
-
-    fn assign_advice<V, VR, A, AR>(
-        &mut self,
-        _name: A,
-        advice: Column<Advice>,
-        row: usize,
-        _value: V,
-    ) -> Result<(), Error>
-    where
-        VR: Into<Assigned<F>>,
-        AR: Into<String>,
-        V: FnOnce() -> Value<VR>,
-        A: FnOnce() -> AR,
-    {
-        self.synthetizer.on_advice_assigned(advice, row);
-        Ok(())
-    }
-
-    fn assign_fixed<V, VR, A, AR>(
-        &mut self,
-        _: A,
-        fixed: Column<Fixed>,
-        row: usize,
-        value: V,
-    ) -> Result<(), Error>
-    where
-        VR: Into<Assigned<F>>,
-        AR: Into<String>,
-        V: FnOnce() -> Value<VR>,
-        A: FnOnce() -> AR,
-    {
-        let value = value().map(|f| f.into().evaluate());
-        self.synthetizer.on_fixed_assigned(
-            fixed,
-            row,
-            steal(&value).ok_or_else(|| {
-                to_plonk_error(anyhow::anyhow!(
-                    "Unknown value in fixed cell ({}, {row})",
-                    fixed.index()
-                ))
-            })?,
-        );
-        Ok(())
-    }
-
-    fn copy(
-        &mut self,
-        from: Column<Any>,
-        from_row: usize,
-        to: Column<Any>,
-        to_row: usize,
-    ) -> Result<(), Error> {
-        self.synthetizer.copy(from, from_row, to, to_row);
-        Ok(())
-    }
-
-    fn fill_from_row(
-        &mut self,
-        column: Column<Fixed>,
-        row: usize,
-        value: Value<Assigned<F>>,
-    ) -> Result<(), Error> {
-        self.synthetizer.fill_from_row(
-            column,
-            row,
-            steal(&value.map(|f| f.evaluate())).ok_or_else(|| {
-                to_plonk_error(anyhow::anyhow!(
-                    "Unknown value in fixed cell ({}, {row})",
-                    column.index()
-                ))
-            })?,
-        );
-        Ok(())
-    }
-
-    fn push_namespace<NR, N>(&mut self, name: N)
-    where
-        NR: Into<String>,
-        N: FnOnce() -> NR,
-    {
-        self.synthetizer.push_namespace(name().into());
-    }
-
-    fn pop_namespace(&mut self, name: Option<String>) {
-        self.synthetizer.pop_namespace(name);
-    }
-
-    #[cfg(feature = "annotate-column")]
-    fn annotate_column<A, AR>(&mut self, _: A, _: Column<Any>)
-    where
-        AR: Into<String>,
-        A: FnOnce() -> AR,
-    {
-    }
-
-    #[cfg(feature = "get-challenge")]
-    fn get_challenge(&self, _: Challenge) -> Value<F> {
-        Value::unknown()
-    }
-
-    fn enter_group<NR, N, K>(&mut self, name: N, key: K)
-    where
-        NR: Into<String>,
-        N: FnOnce() -> NR,
-        K: GroupKey,
-    {
-        self.synthetizer.enter_group(name().into(), key);
-    }
-
-    fn exit_group(&mut self, meta: RegionsGroup) {
-        self.synthetizer.exit_group(meta)
     }
 }

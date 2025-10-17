@@ -281,6 +281,16 @@ impl<F: Field> Circuit<F> for FibonacciCircuit<F> {
 impl<F: Field> CircuitCallbacks<F> for FibonacciCircuit<F> {
     type Circuit = Self;
     type Config = FibonacciConfig;
+    type CS = ConstraintSystem<F>;
+    type Error = halo2_proofs::plonk::Error;
+
+    fn circuit(&self) -> &Self::Circuit {
+        self
+    }
+
+    fn configure(cs: &mut Self::CS) -> Self::Config {
+        <Self as Circuit<F>>::configure(cs)
+    }
 
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
@@ -288,5 +298,14 @@ impl<F: Field> CircuitCallbacks<F> for FibonacciCircuit<F> {
 
     fn instance_io(config: &<Self as Circuit<F>>::Config) -> CircuitIO<Instance> {
         CircuitIO::new(&[(config.instance, &[0, 1])], &[(config.instance, &[2, 3])])
+    }
+
+    fn synthesize(
+        circuit: &Self::Circuit,
+        config: Self::Config,
+        synthesizer: &mut halo2_llzk_frontend::Synthesizer<F>,
+        cs: &Self::CS,
+    ) -> Result<(), Self::Error> {
+        common::SynthesizerAssignment::synthesize(circuit, config, synthesizer, cs)
     }
 }

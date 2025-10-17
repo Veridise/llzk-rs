@@ -1,8 +1,8 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, cell::RefCell};
 
 use ff::{Field, PrimeField};
 use halo2_llzk_frontend::{
-    CircuitCallbacks, PicusParams,
+    CircuitCallbacks, PicusParams, Synthesizer,
     driver::Driver,
     ir::{ResolvedIRCircuit, generate::IRGenParams, stmt::IRStmt},
     lookups::{
@@ -10,8 +10,23 @@ use halo2_llzk_frontend::{
         callbacks::{LookupCallbacks, LookupTableGenerator},
     },
     temps::{ExprOrTemp, Temps},
+    to_plonk_error,
 };
-use halo2_proofs::plonk::{Circuit, Expression};
+#[cfg(feature = "get-challenge")]
+use halo2_proofs::plonk::Challenge;
+use halo2_proofs::plonk::FloorPlanner;
+#[cfg(feature = "annotate-column")]
+use halo2_proofs::plonk::{Any, Column};
+use halo2_proofs::{
+    circuit::{
+        Value,
+        groups::{GroupKey, RegionsGroup},
+    },
+    plonk::{
+        Advice, Assignment, Circuit, ConstraintSystem, Error, Expression, Fixed, Instance, Selector,
+    },
+    utils::rational::Rational,
+};
 use log::LevelFilter;
 use simplelog::{Config, TestLogger};
 
@@ -29,7 +44,7 @@ pub fn synthesize_and_generate_ir<'drv, F, C>(
 ) -> ResolvedIRCircuit
 where
     F: PrimeField,
-    C: CircuitCallbacks<F, Circuit = C> + Circuit<F, Config = <C as CircuitCallbacks<F>>::Config>,
+    C: CircuitCallbacks<F>,
 {
     let syn = driver.synthesize(&circuit).unwrap();
     let unresolved = driver.generate_ir(&syn, params).unwrap();
@@ -60,7 +75,7 @@ pub fn picus_test<F, C>(
     canonicalize: bool,
 ) where
     F: PrimeField,
-    C: CircuitCallbacks<F, Circuit = C> + Circuit<F, Config = <C as CircuitCallbacks<F>>::Config>,
+    C: CircuitCallbacks<F>,
 {
     let mut driver = Driver::default();
     let mut resolved = synthesize_and_generate_ir(&mut driver, circuit, ir_params);
@@ -133,4 +148,186 @@ impl<F: Field> LookupCallbacks<F> for LookupCallbackHandler {
     ) -> anyhow::Result<IRStmt<ExprOrTemp<Cow<'a, Expression<F>>>>> {
         Ok(IRStmt::comment("Ignored lookup"))
     }
+}
+
+/// Implementation of Assignment for testing.
+pub struct SynthesizerAssignment<'a, F: Field> {
+    synthetizer: &'a mut Synthesizer<F>,
+}
+
+impl<'a, F: Field> SynthesizerAssignment<'a, F> {
+    pub fn synthesize<C: Circuit<F>>(
+        circuit: &C,
+        config: C::Config,
+        synthetizer: &'a mut Synthesizer<F>,
+        cs: &ConstraintSystem<F>,
+    ) -> Result<(), Error> {
+        let mut assign = Self { synthetizer };
+        let constants = cs.constants().clone();
+        C::FloorPlanner::synthesize(&mut assign, circuit, config, constants)?;
+
+        Ok(())
+    }
+}
+
+impl<F: Field> Assignment<F> for SynthesizerAssignment<'_, F> {
+    fn enter_region<NR, N>(&mut self, region_name: N)
+    where
+        NR: Into<String>,
+        N: FnOnce() -> NR,
+    {
+        self.synthetizer.enter_region(region_name().into());
+    }
+
+    fn exit_region(&mut self) {
+        self.synthetizer.exit_region();
+    }
+
+    fn enable_selector<A, AR>(&mut self, _: A, selector: &Selector, row: usize) -> Result<(), Error>
+    where
+        AR: Into<String>,
+        A: FnOnce() -> AR,
+    {
+        self.synthetizer.enable_selector(selector, row);
+        Ok(())
+    }
+
+    fn query_instance(&self, _column: Column<Instance>, _row: usize) -> Result<Value<F>, Error> {
+        Ok(Value::unknown())
+    }
+
+    fn assign_advice<V, VR, A, AR>(
+        &mut self,
+        _name: A,
+        advice: Column<Advice>,
+        row: usize,
+        _value: V,
+    ) -> Result<(), Error>
+    where
+        VR: Into<Rational<F>>,
+        AR: Into<String>,
+        V: FnOnce() -> Value<VR>,
+        A: FnOnce() -> AR,
+    {
+        self.synthetizer.on_advice_assigned(advice, row);
+        Ok(())
+    }
+
+    fn assign_fixed<V, VR, A, AR>(
+        &mut self,
+        _: A,
+        fixed: Column<Fixed>,
+        row: usize,
+        value: V,
+    ) -> Result<(), Error>
+    where
+        VR: Into<Rational<F>>,
+        AR: Into<String>,
+        V: FnOnce() -> Value<VR>,
+        A: FnOnce() -> AR,
+    {
+        let value = value().map(|f| f.into().evaluate());
+        self.synthetizer.on_fixed_assigned(
+            fixed,
+            row,
+            steal(&value).ok_or_else(|| {
+                to_plonk_error(anyhow::anyhow!(
+                    "Unknown value in fixed cell ({}, {row})",
+                    fixed.index()
+                ))
+            })?,
+        );
+        Ok(())
+    }
+
+    fn copy(
+        &mut self,
+        from: Column<Any>,
+        from_row: usize,
+        to: Column<Any>,
+        to_row: usize,
+    ) -> Result<(), Error> {
+        self.synthetizer.copy(from, from_row, to, to_row);
+        Ok(())
+    }
+
+    fn fill_from_row(
+        &mut self,
+        column: Column<Fixed>,
+        row: usize,
+        value: Value<Rational<F>>,
+    ) -> Result<(), Error> {
+        self.synthetizer.fill_from_row(
+            column,
+            row,
+            steal(&value.map(|f| f.evaluate())).ok_or_else(|| {
+                to_plonk_error(anyhow::anyhow!(
+                    "Unknown value in fixed cell ({}, {row})",
+                    column.index()
+                ))
+            })?,
+        );
+        Ok(())
+    }
+
+    fn push_namespace<NR, N>(&mut self, name: N)
+    where
+        NR: Into<String>,
+        N: FnOnce() -> NR,
+    {
+        self.synthetizer.push_namespace(name().into());
+    }
+
+    fn pop_namespace(&mut self, name: Option<String>) {
+        self.synthetizer.pop_namespace(name);
+    }
+
+    #[cfg(feature = "annotate-column")]
+    fn annotate_column<A, AR>(&mut self, _: A, _: Column<Any>)
+    where
+        AR: Into<String>,
+        A: FnOnce() -> AR,
+    {
+    }
+
+    #[cfg(feature = "get-challenge")]
+    fn get_challenge(&self, _: Challenge) -> Value<F> {
+        Value::unknown()
+    }
+
+    fn enter_group<NR, N, K>(&mut self, name: N, key: K)
+    where
+        NR: Into<String>,
+        N: FnOnce() -> NR,
+        K: GroupKey,
+    {
+        self.synthetizer.enter_group(name().into(), key);
+    }
+
+    fn exit_group(&mut self, meta: RegionsGroup) {
+        self.synthetizer.exit_group(meta)
+    }
+}
+
+struct ValueStealer<T> {
+    data: RefCell<Option<T>>,
+}
+
+impl<T: Clone> ValueStealer<T> {
+    fn new() -> Self {
+        Self {
+            data: RefCell::new(None),
+        }
+    }
+
+    fn steal(&self, value: Value<T>) -> Option<T> {
+        value.map(|t| self.data.replace(Some(t)));
+        self.data.replace(None)
+    }
+}
+
+/// Transforms a [`Value`] into an [`Option`], returning None if the value is unknown.
+pub fn steal<T: Clone>(value: &Value<T>) -> Option<T> {
+    let stealer = ValueStealer::<T>::new();
+    stealer.steal(value.clone())
 }

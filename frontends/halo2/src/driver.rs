@@ -28,23 +28,23 @@ impl Driver {
     /// Synthesizes a circuit .
     pub fn synthesize<F, C>(&mut self, circuit: &C) -> anyhow::Result<CircuitSynthesis<F>>
     where
-        C: CircuitCallbacks<F, Circuit = C>
-            + crate::halo2::Circuit<F, Config = <C as CircuitCallbacks<F>>::Config>,
+        C: CircuitCallbacks<F>,
         F: PrimeField,
     {
+        let mut cs = C::CS::default();
         let mut syn = Synthesizer::new(self.next_id());
-        let config = C::configure(syn.cs_mut());
+        let config = C::configure(&mut cs);
 
         let advice_io: AdviceIO = C::advice_io(&config);
         let instance_io: InstanceIO = C::instance_io(&config);
         log::debug!("Validating io hints");
         advice_io.validate(&AdviceIOValidator)?;
-        instance_io.validate(&InstanceIOValidator::new(syn.cs()))?;
+        instance_io.validate(&InstanceIOValidator)?;
 
         syn.configure_io(advice_io, instance_io);
         log::debug!("Starting synthesis");
-        <C as CircuitCallbacks<F>>::synthesize(circuit, config, &mut syn)?;
-        let synthesis = syn.build()?;
+        C::synthesize(circuit.circuit(), config, &mut syn, &cs)?;
+        let synthesis = syn.build(cs)?;
         log::debug!("Synthesis completed successfuly");
         Ok(synthesis)
     }
@@ -86,10 +86,10 @@ impl Driver {
     }
 
     /// Creates the IR context for the synthesized circuit.
-    fn get_or_create_ir_ctx<'drv, F: PrimeField>(
-        &'drv mut self,
-        syn: &CircuitSynthesis<F>,
-    ) -> &'drv IRCtx {
+    fn get_or_create_ir_ctx<'drv, F>(&'drv mut self, syn: &CircuitSynthesis<F>) -> &'drv IRCtx
+    where
+        F: PrimeField,
+    {
         self.ir_ctxs
             .entry(syn.id())
             .or_insert_with(|| IRCtx::new(syn))

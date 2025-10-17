@@ -244,13 +244,32 @@ impl<F: Field> Circuit<F> for Lookup2x3ZeroSelCircuit<F> {
 }
 
 impl<F: Field> CircuitCallbacks<F> for Lookup2x3ZeroSelCircuit<F> {
-    type Config = Lookup2x3ZeroSelConfig;
     type Circuit = Self;
+    type Config = Lookup2x3ZeroSelConfig;
+
+    type CS = ConstraintSystem<F>;
+
+    type Error = halo2_proofs::plonk::Error;
+
+    fn circuit(&self) -> &Self::Circuit {
+        self
+    }
+    fn configure(cs: &mut Self::CS) -> Self::Config {
+        <Self as Circuit<F>>::configure(cs)
+    }
+
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }
-
     fn instance_io(config: &<Self as Circuit<F>>::Config) -> CircuitIO<Instance> {
         CircuitIO::new(&[(config.instance, &[0])], &[(config.instance, &[1])])
+    }
+    fn synthesize(
+        circuit: &Self::Circuit,
+        config: Self::Config,
+        synthesizer: &mut halo2_llzk_frontend::Synthesizer<F>,
+        cs: &Self::CS,
+    ) -> Result<(), Self::Error> {
+        common::SynthesizerAssignment::synthesize(circuit, config, synthesizer, cs)
     }
 }
