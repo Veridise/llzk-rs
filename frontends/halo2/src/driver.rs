@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use crate::{
+    CircuitCallbacks,
     backend::{
         llzk::{LlzkBackend, LlzkOutput, LlzkParams},
         picus::{PicusBackend, PicusOutput, PicusParams},
@@ -10,11 +11,10 @@ use crate::{
     halo2::PrimeField,
     io::{AdviceIO, AdviceIOValidator, InstanceIO, InstanceIOValidator},
     ir::{
-        generate::{generate_ir, IRGenParams},
         IRCtx, ResolvedIRCircuit, UnresolvedIRCircuit,
+        generate::{IRGenParams, generate_ir},
     },
     synthesis::{CircuitSynthesis, Synthesizer},
-    CircuitCallbacks,
 };
 
 /// Controls the different lowering stages of circuits.
@@ -69,10 +69,12 @@ impl Driver {
             }
         }
         regions_to_groups.sort_by_key(|(ri, _)| **ri);
-        debug_assert!(regions_to_groups
-            .iter()
-            .enumerate()
-            .all(|(n, (ri, _))| n == **ri));
+        debug_assert!(
+            regions_to_groups
+                .iter()
+                .enumerate()
+                .all(|(n, (ri, _))| n == **ri)
+        );
         let regions_to_groups = regions_to_groups
             .into_iter()
             .map(|(_, gidx)| gidx)

@@ -1,14 +1,14 @@
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 
+use crate::CircuitIO;
 use crate::halo2::{Advice, Any, Column, Instance};
 use crate::halo2::{Field, RegionIndex};
 use crate::io::IOCell;
 use crate::ir::generate::region_data;
+use crate::synthesis::CircuitSynthesis;
 use crate::synthesis::groups::GroupCell;
 use crate::synthesis::regions::RegionData;
-use crate::synthesis::CircuitSynthesis;
-use crate::CircuitIO;
 
 /// Contains information related to the IR of a circuit. Is used by the driver to lower the
 /// circuit.

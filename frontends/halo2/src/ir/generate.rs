@@ -3,14 +3,14 @@
 use std::collections::HashMap;
 
 use crate::{
+    GateCallbacks,
     expressions::ScopedExpression,
     gates::{DefaultGateCallbacks, RewritePatternSet},
     halo2::{Field, PrimeField, RegionIndex},
-    ir::{generate::patterns::load_patterns, groups::GroupBody, IRCtx},
+    ir::{IRCtx, generate::patterns::load_patterns, groups::GroupBody},
     lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
-    synthesis::{groups::Group, regions::RegionData, CircuitSynthesis},
+    synthesis::{CircuitSynthesis, groups::Group, regions::RegionData},
     temps::ExprOrTemp,
-    GateCallbacks,
 };
 
 mod patterns;

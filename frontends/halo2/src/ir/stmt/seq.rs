@@ -37,6 +37,10 @@ impl<T> Seq<T> {
     pub fn iter_mut<'a>(&'a mut self) -> std::slice::IterMut<'a, IRStmt<T>> {
         self.0.iter_mut()
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 impl Seq<IRAexpr> {
