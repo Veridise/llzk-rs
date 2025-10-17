@@ -1,11 +1,11 @@
 //! Convenience functions for creating common operation patterns.
 
 use melior::{
-    ir::{
-        operation::OperationLike as _, r#type::FunctionType, Attribute, Block, BlockLike as _,
-        Identifier, Location, RegionLike as _, Type,
-    },
     Context,
+    ir::{
+        Attribute, Block, BlockLike as _, Identifier, Location, RegionLike as _, Type,
+        operation::OperationLike as _, r#type::FunctionType,
+    },
 };
 
 use crate::{
@@ -58,12 +58,17 @@ pub fn constrain_fn<'c>(
     input_types.extend(inputs.iter().map(|(t, _)| *t));
     let mut all_inputs = vec![(struct_type.into(), loc)];
     all_inputs.extend(inputs);
+    let all_arg_attrs = arg_attrs.map(|original| {
+        let mut result: Vec<&[(Identifier<'_>, Attribute<'_>)]> = vec![&[]];
+        result.extend(original);
+        result
+    });
     function::def(
         loc,
         "constrain",
         FunctionType::new(unsafe { context.to_ref() }, &input_types, &[]),
         &[],
-        arg_attrs,
+        all_arg_attrs.as_ref().map(Vec::as_slice),
     )
     .and_then(|f| {
         let block = Block::new(&all_inputs);
