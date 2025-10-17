@@ -1,0 +1,4 @@
+# Suppressions for known issues reported by ASAN
+# We should only add lines here if we are absolute certain the reported issue is not our fault.
+leak:registerPass
+leak:buildDefaultRegistryFn
