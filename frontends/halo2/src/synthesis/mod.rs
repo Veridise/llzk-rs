@@ -168,28 +168,10 @@ impl<F: Field> Synthesizer<F> {
         &mut self.cs
     }
 
+    /// Configures the IO of the circuit.
     pub(crate) fn configure_io(&mut self, advice_io: AdviceIO, instance_io: InstanceIO) {
         add_root_io(&mut self.groups, &advice_io);
         add_root_io(&mut self.groups, &instance_io);
-    }
-
-    /// Records the synthetizes of the circuit. and returns the collected information.
-    ///
-    /// This method consumes the synthetizer.
-    pub fn synthesize<C: Circuit<F>>(
-        mut self,
-        circuit: &C,
-        config: C::Config,
-    ) -> Result<CircuitSynthesis<F>> {
-        {
-            let mut inner = SynthesizerAssignment {
-                synthetizer: &mut self,
-            };
-
-            inner.synthesize(circuit, config)?;
-        };
-
-        self.build()
     }
 
     /// Builds a [`CircuitSynthesis`] with the information recollected about the circuit.
