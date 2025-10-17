@@ -1,6 +1,6 @@
 use group::ff::Field;
-use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
 use halo2_llzk_frontend::PicusParamsBuilder;
+use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
 use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Error, Expression, Fixed, Instance, Selector,
@@ -236,6 +236,8 @@ impl<F: Field> Circuit<F> for MulWithFixedConstraintCircuit<F> {
 }
 
 impl<F: Field> CircuitCallbacks<F> for MulWithFixedConstraintCircuit<F> {
+    type Config = MulWithFixedConstraintConfig;
+    type Circuit = Self;
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }

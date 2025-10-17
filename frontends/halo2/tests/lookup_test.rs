@@ -246,6 +246,8 @@ impl<F: Field> Circuit<F> for LookupCircuit<F> {
 }
 
 impl<F: Field> CircuitCallbacks<F> for LookupCircuit<F> {
+    type Config = LookupConfig;
+    type Circuit = Self;
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }

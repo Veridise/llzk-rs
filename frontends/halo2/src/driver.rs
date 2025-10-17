@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use crate::{
+    CircuitCallbacks,
     backend::{
         llzk::{LlzkBackend, LlzkOutput, LlzkParams},
         picus::{PicusBackend, PicusOutput, PicusParams},
@@ -10,11 +11,10 @@ use crate::{
     halo2::PrimeField,
     io::{AdviceIO, AdviceIOValidator, InstanceIO, InstanceIOValidator},
     ir::{
-        generate::{generate_ir, IRGenParams},
         IRCtx, ResolvedIRCircuit, UnresolvedIRCircuit,
+        generate::{IRGenParams, generate_ir},
     },
     synthesis::{CircuitSynthesis, Synthesizer},
-    CircuitCallbacks,
 };
 
 /// Controls the different lowering stages of circuits.
@@ -28,7 +28,8 @@ impl Driver {
     /// Synthesizes a circuit .
     pub fn synthesize<F, C>(&mut self, circuit: &C) -> anyhow::Result<CircuitSynthesis<F>>
     where
-        C: CircuitCallbacks<F>,
+        C: CircuitCallbacks<F, Circuit = C>
+            + crate::halo2::Circuit<F, Config = <C as CircuitCallbacks<F>>::Config>,
         F: PrimeField,
     {
         let mut syn = Synthesizer::new(self.next_id());
@@ -40,8 +41,10 @@ impl Driver {
         advice_io.validate(&AdviceIOValidator)?;
         instance_io.validate(&InstanceIOValidator::new(syn.cs()))?;
 
+        syn.configure_io(advice_io, instance_io);
         log::debug!("Starting synthesis");
-        let synthesis = syn.synthesize(circuit, config, advice_io, instance_io)?;
+        <C as CircuitCallbacks<F>>::synthesize(circuit, config, &mut syn)?;
+        let synthesis = syn.build()?;
         log::debug!("Synthesis completed successfuly");
         Ok(synthesis)
     }
@@ -69,10 +72,12 @@ impl Driver {
             }
         }
         regions_to_groups.sort_by_key(|(ri, _)| **ri);
-        debug_assert!(regions_to_groups
-            .iter()
-            .enumerate()
-            .all(|(n, (ri, _))| n == **ri));
+        debug_assert!(
+            regions_to_groups
+                .iter()
+                .enumerate()
+                .all(|(n, (ri, _))| n == **ri)
+        );
         let regions_to_groups = regions_to_groups
             .into_iter()
             .map(|(_, gidx)| gidx)

@@ -2,9 +2,9 @@ use std::{borrow::Borrow, collections::HashMap, ops::Deref};
 
 use crate::{
     halo2::{
-        groups::{GroupKey, GroupKeyInstance},
         Advice, Any, Cell, Column, ColumnType, Expression, Field, Gate, Instance, RegionIndex,
         Rotation,
+        groups::{GroupKey, GroupKeyInstance},
     },
     io::{AdviceIO, IOCell, InstanceIO},
     lookups::Lookup,
@@ -371,6 +371,7 @@ impl GroupTree {
 /// Once completed they get added to the list of children of the next group in the stack.
 ///
 /// The root group owned by the builder is always a top-level block.
+#[derive(Debug)]
 pub struct GroupBuilder {
     root: GroupTree,
     stack: Vec<GroupTree>,
@@ -473,5 +474,11 @@ impl GroupBuilder {
     /// Returns a mutable reference to the regions in the current group.
     pub fn regions_mut(&mut self) -> &mut Regions {
         &mut self.current_mut().regions
+    }
+}
+
+impl Default for GroupBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }

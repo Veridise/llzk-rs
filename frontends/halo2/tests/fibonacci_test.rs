@@ -259,6 +259,8 @@ impl<F: Field> Circuit<F> for FibonacciCircuit<F> {
 }
 
 impl<F: Field> CircuitCallbacks<F> for FibonacciCircuit<F> {
+    type Config = FibonacciConfig;
+    type Circuit = Self;
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }

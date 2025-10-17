@@ -2,16 +2,16 @@ use std::borrow::Cow;
 
 use ff::{Field, PrimeField};
 use halo2_llzk_frontend::{
+    CircuitCallbacks, PicusParams,
     driver::Driver,
-    ir::{generate::IRGenParams, stmt::IRStmt, ResolvedIRCircuit},
+    ir::{ResolvedIRCircuit, generate::IRGenParams, stmt::IRStmt},
     lookups::{
-        callbacks::{LookupCallbacks, LookupTableGenerator},
         Lookup,
+        callbacks::{LookupCallbacks, LookupTableGenerator},
     },
     temps::{ExprOrTemp, Temps},
-    CircuitCallbacks, PicusParams,
 };
-use halo2_proofs::plonk::Expression;
+use halo2_proofs::plonk::{Circuit, Expression};
 use log::LevelFilter;
 use simplelog::{Config, TestLogger};
 
@@ -29,7 +29,7 @@ pub fn synthesize_and_generate_ir<'drv, F, C>(
 ) -> ResolvedIRCircuit
 where
     F: PrimeField,
-    C: CircuitCallbacks<F>,
+    C: CircuitCallbacks<F, Circuit = C> + Circuit<F, Config = <C as CircuitCallbacks<F>>::Config>,
 {
     let syn = driver.synthesize(&circuit).unwrap();
     let unresolved = driver.generate_ir(&syn, params).unwrap();
@@ -60,7 +60,7 @@ pub fn picus_test<F, C>(
     canonicalize: bool,
 ) where
     F: PrimeField,
-    C: CircuitCallbacks<F>,
+    C: CircuitCallbacks<F, Circuit = C> + Circuit<F, Config = <C as CircuitCallbacks<F>>::Config>,
 {
     let mut driver = Driver::default();
     let mut resolved = synthesize_and_generate_ir(&mut driver, circuit, ir_params);

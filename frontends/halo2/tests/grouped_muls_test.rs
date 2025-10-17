@@ -227,6 +227,8 @@ impl<F: Field> Circuit<F> for MulCircuit<F> {
 }
 
 impl<F: Field> CircuitCallbacks<F> for MulCircuit<F> {
+    type Config = MulConfig;
+    type Circuit = Self;
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }
