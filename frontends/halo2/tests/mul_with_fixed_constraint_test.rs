@@ -1,6 +1,6 @@
 use group::ff::Field;
-use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
 use halo2_llzk_frontend::PicusParamsBuilder;
+use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
 use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Error, Expression, Fixed, Instance, Selector,
@@ -236,11 +236,32 @@ impl<F: Field> Circuit<F> for MulWithFixedConstraintCircuit<F> {
 }
 
 impl<F: Field> CircuitCallbacks<F> for MulWithFixedConstraintCircuit<F> {
+    type Circuit = Self;
+    type Config = MulWithFixedConstraintConfig;
+
+    type CS = ConstraintSystem<F>;
+
+    type Error = halo2_proofs::plonk::Error;
+
+    fn circuit(&self) -> &Self::Circuit {
+        self
+    }
+    fn configure(cs: &mut Self::CS) -> Self::Config {
+        <Self as Circuit<F>>::configure(cs)
+    }
+
     fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
         CircuitIO::empty()
     }
-
     fn instance_io(config: &<Self as Circuit<F>>::Config) -> CircuitIO<Instance> {
         CircuitIO::new(&[(config.instance, &[0])], &[(config.instance, &[1])])
+    }
+    fn synthesize(
+        circuit: &Self::Circuit,
+        config: Self::Config,
+        synthesizer: &mut halo2_llzk_frontend::Synthesizer<F>,
+        cs: &Self::CS,
+    ) -> Result<(), Self::Error> {
+        common::SynthesizerAssignment::synthesize(circuit, config, synthesizer, cs)
     }
 }

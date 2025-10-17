@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use crate::{
+    CircuitCallbacks,
     backend::{
         llzk::{LlzkBackend, LlzkOutput, LlzkParams},
         picus::{PicusBackend, PicusOutput, PicusParams},
@@ -10,11 +11,10 @@ use crate::{
     halo2::PrimeField,
     io::{AdviceIO, AdviceIOValidator, InstanceIO, InstanceIOValidator},
     ir::{
-        generate::{generate_ir, IRGenParams},
         IRCtx, ResolvedIRCircuit, UnresolvedIRCircuit,
+        generate::{IRGenParams, generate_ir},
     },
     synthesis::{CircuitSynthesis, Synthesizer},
-    CircuitCallbacks,
 };
 
 /// Controls the different lowering stages of circuits.
@@ -31,17 +31,20 @@ impl Driver {
         C: CircuitCallbacks<F>,
         F: PrimeField,
     {
+        let mut cs = C::CS::default();
         let mut syn = Synthesizer::new(self.next_id());
-        let config = C::configure(syn.cs_mut());
+        let config = C::configure(&mut cs);
 
         let advice_io: AdviceIO = C::advice_io(&config);
         let instance_io: InstanceIO = C::instance_io(&config);
         log::debug!("Validating io hints");
         advice_io.validate(&AdviceIOValidator)?;
-        instance_io.validate(&InstanceIOValidator::new(syn.cs()))?;
+        instance_io.validate(&InstanceIOValidator)?;
 
+        syn.configure_io(advice_io, instance_io);
         log::debug!("Starting synthesis");
-        let synthesis = syn.synthesize(circuit, config, advice_io, instance_io)?;
+        C::synthesize(circuit.circuit(), config, &mut syn, &cs)?;
+        let synthesis = syn.build(cs)?;
         log::debug!("Synthesis completed successfuly");
         Ok(synthesis)
     }
@@ -69,10 +72,12 @@ impl Driver {
             }
         }
         regions_to_groups.sort_by_key(|(ri, _)| **ri);
-        debug_assert!(regions_to_groups
-            .iter()
-            .enumerate()
-            .all(|(n, (ri, _))| n == **ri));
+        debug_assert!(
+            regions_to_groups
+                .iter()
+                .enumerate()
+                .all(|(n, (ri, _))| n == **ri)
+        );
         let regions_to_groups = regions_to_groups
             .into_iter()
             .map(|(_, gidx)| gidx)
@@ -81,10 +86,10 @@ impl Driver {
     }
 
     /// Creates the IR context for the synthesized circuit.
-    fn get_or_create_ir_ctx<'drv, F: PrimeField>(
-        &'drv mut self,
-        syn: &CircuitSynthesis<F>,
-    ) -> &'drv IRCtx {
+    fn get_or_create_ir_ctx<'drv, F>(&'drv mut self, syn: &CircuitSynthesis<F>) -> &'drv IRCtx
+    where
+        F: PrimeField,
+    {
         self.ir_ctxs
             .entry(syn.id())
             .or_insert_with(|| IRCtx::new(syn))

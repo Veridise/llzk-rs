@@ -1,5 +1,5 @@
-use crate::halo2::{Advice, Column, ColumnType, ConstraintSystem, Field, Instance};
-use anyhow::{bail, Result};
+use crate::halo2::{Advice, Column, ColumnType, Instance};
+use anyhow::{Result, bail};
 use std::collections::HashSet;
 use std::hash::Hash;
 
@@ -131,15 +131,9 @@ impl IOValidator for AdviceIOValidator {
     }
 }
 
-pub(crate) struct InstanceIOValidator<'a, F: Field>(#[allow(dead_code)] &'a ConstraintSystem<F>);
+pub(crate) struct InstanceIOValidator;
 
-impl<'a, F: Field> InstanceIOValidator<'a, F> {
-    pub fn new(cs: &'a ConstraintSystem<F>) -> Self {
-        Self(cs)
-    }
-}
-
-impl<F: Field> IOValidator for InstanceIOValidator<'_, F> {
+impl IOValidator for InstanceIOValidator {
     type C = Instance;
 
     /// The instance IO specification is valid iff the set of inputs and outputs is disjoint and their
