@@ -3,12 +3,13 @@ use crate::{
     llzkArrayTypeGetWithNumericDims, llzkCreateArrayOpBuildWithMapOperands,
     llzkCreateArrayOpBuildWithMapOperandsAndDims, llzkCreateArrayOpBuildWithValues,
     llzkTypeIsAArrayType, mlirGetDialectHandle__llzk__array__, mlirOpBuilderCreate,
+    mlirOpBuilderDestroy,
     sanity_tests::{context, load_llzk_dialects, TestContext},
 };
 use mlir_sys::{
-    mlirAttributeEqual, mlirIdentifierGet, mlirIndexTypeGet, mlirIntegerAttrGet,
-    mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate, mlirOperationDestroy,
-    mlirOperationGetResult, mlirOperationStateAddAttributes,
+    mlirAttributeEqual, mlirDenseI32ArrayGet, mlirIdentifierGet, mlirIndexTypeGet,
+    mlirIntegerAttrGet, mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate,
+    mlirOperationDestroy, mlirOperationGetResult, mlirOperationStateAddAttributes,
     mlirOperationStateEnableResultTypeInference, mlirOperationStateGet, mlirOperationVerify,
     mlirStringRefCreateFromCString, mlirTypeEqual, MlirContext, MlirOperation, MlirType,
 };
@@ -137,8 +138,6 @@ fn test_llzk_create_array_op_build_with_map_operands(
     context: TestContext,
     #[values(&[1])] dims: &[i64],
 ) {
-    use mlir_sys::mlirDenseI32ArrayGet;
-
     load_llzk_dialects(&context);
     unsafe {
         use crate::mlirOpBuilderDestroy;

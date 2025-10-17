@@ -7,6 +7,6 @@ if [ $(uname) == "Darwin" ]; then
 fi
  
 export ASAN_OPTIONS="debug=true:detect_leaks=1:symbolize=1"
-export ASAN_SYMBOLIZER_PATH="$MLIR_SYS_200_PREFIX/llvm-symbolizer"
+export ASAN_SYMBOLIZER_PATH="$MLIR_SYS_200_PREFIX/bin/llvm-symbolizer"
 
 cargo +nightly test --target=aarch64-apple-darwin $@
