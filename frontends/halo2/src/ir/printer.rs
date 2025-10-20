@@ -137,9 +137,9 @@ impl<'a> IRPrinter<'a> {
             FuncIO::Arg(arg_no) => write!(ctx, "(input {arg_no})"),
             FuncIO::Field(field_id) => write!(ctx, "(output {field_id})"),
             FuncIO::Advice(cell_ref) => {
-                write!(ctx, "(advice {})", cell_ref)
+                write!(ctx, "(advice {cell_ref})")
             }
-            FuncIO::Fixed(cell_ref) => write!(ctx, "(fixed {})", cell_ref),
+            FuncIO::Fixed(cell_ref) => write!(ctx, "(fixed {cell_ref})"),
             FuncIO::TableLookup(id, col, row, idx, region) => {
                 write!(ctx, "(lookup {id} {col} {row} {idx} {region})")
             }
