@@ -9,6 +9,7 @@ use melior::{
 };
 
 use crate::{
+    attributes::NamedAttribute,
     dialect::function::{self, FuncDefOp},
     error::Error,
     prelude::{FeltType, FuncDefOpLike as _, StructDefOp},
@@ -21,7 +22,7 @@ pub fn compute_fn<'c>(
     loc: Location<'c>,
     struct_type: StructType<'c>,
     inputs: &[(Type<'c>, Location<'c>)],
-    arg_attrs: Option<&[&[(Identifier<'c>, Attribute<'c>)]]>,
+    arg_attrs: Option<&[Vec<NamedAttribute<'c>>]>,
 ) -> Result<FuncDefOp<'c>, Error> {
     let context = loc.context();
     let input_types: Vec<Type<'c>> = inputs.iter().map(|(t, _)| *t).collect();
@@ -47,14 +48,18 @@ pub fn compute_fn<'c>(
 }
 
 /// Creates an empty `@constrain` function with the configuration expected by `struct.def`.
+///
+/// If `arg_attrs` is `Some` it must have `inputs.len() + 1` elements and element #0 is the
+/// argument attributes of the self argument.
 pub fn constrain_fn<'c>(
     loc: Location<'c>,
     struct_type: StructType<'c>,
     inputs: &[(Type<'c>, Location<'c>)],
-    arg_attrs: Option<&[&[(Identifier<'c>, Attribute<'c>)]]>,
+    arg_attrs: Option<&[Vec<NamedAttribute<'c>>]>,
 ) -> Result<FuncDefOp<'c>, Error> {
     let context = loc.context();
-    let mut input_types: Vec<Type<'c>> = vec![struct_type.into()];
+    let mut input_types: Vec<Type<'c>> = Vec::with_capacity(inputs.len() + 1);
+    input_types.push(struct_type.into());
     input_types.extend(inputs.iter().map(|(t, _)| *t));
     let mut all_inputs = vec![(struct_type.into(), loc)];
     all_inputs.extend(inputs);

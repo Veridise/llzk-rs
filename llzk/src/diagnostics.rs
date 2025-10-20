@@ -42,5 +42,5 @@ pub fn log_diagnostic(diag: Diagnostic, logger: &dyn Log) -> bool {
         return res;
     }
 
-    !matches!(diag.severity(), DiagnosticSeverity::Error)
+    true
 }

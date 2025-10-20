@@ -668,6 +668,7 @@ checksum = "df1d3c3b53da64cf5760482273a98e575c651a67eec7f77df96b5b642de8f039"
 name = "llzk"
 version = "0.1.0"
 dependencies = [
+ "llzk-macro",
  "llzk-sys",
  "log",
  "melior",
@@ -680,6 +681,17 @@ dependencies = [
  "rstest 0.25.0",
  "similar-asserts",
  "simplelog",
+]
+
+[[package]]
+name = "llzk-macro"
+version = "0.1.0"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
+ "thiserror",
 ]
 
 [[package]]

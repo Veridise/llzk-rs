@@ -101,6 +101,8 @@ fn test_llzk_array_type_get_dim(index_type: IndexType) {
 #[rstest]
 fn test_llzk_create_array_op_build_with_values(context: TestContext, #[values(&[1])] dims: &[i64]) {
     unsafe {
+        use crate::mlirOpBuilderDestroy;
+
         let elt_type = mlirIndexTypeGet(context.ctx);
         let test_type = test_array(elt_type, &dims);
         let n_elements: i64 = dims.iter().product();
@@ -138,6 +140,8 @@ fn test_llzk_create_array_op_build_with_map_operands(
 ) {
     load_llzk_dialects(&context);
     unsafe {
+        use crate::mlirOpBuilderDestroy;
+
         let elt_type = mlirIndexTypeGet(context.ctx);
         let test_type = test_array(elt_type, &dims);
 
@@ -167,6 +171,8 @@ fn test_llzk_create_array_op_build_with_map_operands_and_dims(
 ) {
     load_llzk_dialects(&context);
     unsafe {
+        use crate::mlirOpBuilderDestroy;
+
         let elt_type = mlirIndexTypeGet(context.ctx);
         let test_type = test_array(elt_type, &dims);
 

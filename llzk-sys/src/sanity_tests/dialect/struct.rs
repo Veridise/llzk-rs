@@ -12,23 +12,23 @@ use mlir_sys::{
     MlirOperation,
 };
 use rstest::{fixture, rstest};
-use std::alloc::{Layout, alloc, dealloc};
+use std::alloc::{alloc, dealloc, Layout};
 
 use crate::{
-    MlirValueRange, llzkFieldDefOpGetHasPublicAttr, llzkFieldDefOpSetPublicAttr,
-    llzkFieldReadOpBuild, llzkFieldReadOpBuildWithAffineMapDistance,
-    llzkFieldReadOpBuildWithConstParamDistance, llzkFieldReadOpBuildWithLiteralDistance,
-    llzkOperationIsAFieldDefOp, llzkOperationIsAStructDefOp, llzkStructDefOpGetBody,
-    llzkStructDefOpGetBodyRegion, llzkStructDefOpGetComputeFuncOp,
-    llzkStructDefOpGetConstrainFuncOp, llzkStructDefOpGetFieldDef, llzkStructDefOpGetFieldDefs,
-    llzkStructDefOpGetFullyQualifiedName, llzkStructDefOpGetHasColumns,
-    llzkStructDefOpGetHasParamName, llzkStructDefOpGetHeaderString,
+    llzkFieldDefOpGetHasPublicAttr, llzkFieldDefOpSetPublicAttr, llzkFieldReadOpBuild,
+    llzkFieldReadOpBuildWithAffineMapDistance, llzkFieldReadOpBuildWithConstParamDistance,
+    llzkFieldReadOpBuildWithLiteralDistance, llzkOperationIsAFieldDefOp,
+    llzkOperationIsAStructDefOp, llzkStructDefOpGetBody, llzkStructDefOpGetBodyRegion,
+    llzkStructDefOpGetComputeFuncOp, llzkStructDefOpGetConstrainFuncOp, llzkStructDefOpGetFieldDef,
+    llzkStructDefOpGetFieldDefs, llzkStructDefOpGetFullyQualifiedName,
+    llzkStructDefOpGetHasColumns, llzkStructDefOpGetHasParamName, llzkStructDefOpGetHeaderString,
     llzkStructDefOpGetIsMainComponent, llzkStructDefOpGetNumFieldDefs, llzkStructDefOpGetType,
     llzkStructDefOpGetTypeWithParams, llzkStructTypeGet, llzkStructTypeGetName,
     llzkStructTypeGetParams, llzkStructTypeGetWithArrayAttr, llzkStructTypeGetWithAttrs,
     llzkTypeIsAStructType, mlirGetDialectHandle__llzk__component__, mlirOpBuilderCreate,
     mlirOpBuilderDestroy,
     sanity_tests::{context, str_ref, TestContext},
+    MlirValueRange,
 };
 
 #[test]

@@ -13,6 +13,7 @@ env:
   RUSTFLAGS: '-L /home/linuxbrew/.linuxbrew/opt/llvm@20/lib -Zsanitizer=address'
   LLZK_SYS_ENABLE_WHOLE_ARCHIVE: 1
   ASAN_OPTIONS: 'detect_odr_violation=2:symbolize=1'
+  LSAN_OPTIONS: ''
   ASAN_SYMBOLIZER_PATH: /home/linuxbrew/.linuxbrew/opt/llvm@20/bin/llvm-symbolizer
 
 jobs:
@@ -44,6 +45,13 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-asan-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Set LSAN_OPTIONS
+        run: |
+          supp=$(pwd)/.lsan.supp
+          if [ -e "$supp" ]; then 
+            echo "::debug::Set suppressions file to $supp"
+            echo LSAN_OPTIONS="$LSAN_OPTIONS:suppressions=$supp" >> $GITHUB_ENV
+          fi
       - name: Build in asan mode
         run: cargo +nightly build --target=x86_64-unknown-linux-gnu --profile=dev
       - name: Run tests in asan mode
