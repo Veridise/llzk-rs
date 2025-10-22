@@ -27,7 +27,7 @@ impl<F: Field> ConstraintSystemInfo<F> for halo2_proofs::plonk::ConstraintSystem
             .iter()
             .map(|a| LookupData {
                 name: a.name(),
-                inputs: a.input_expressions(),
+                arguments: a.input_expressions(),
                 table: a.table_expressions(),
             })
             .collect()

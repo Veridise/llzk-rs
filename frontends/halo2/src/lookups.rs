@@ -33,7 +33,7 @@ pub struct LookupData<'syn, F> {
     /// Name of the lookup.
     pub name: &'syn str,
     /// Expressions representing the arguments of the lookup.
-    pub inputs: &'syn [Expression<F>],
+    pub arguments: &'syn [Expression<F>],
     /// Expressions representing the columns of the table.
     pub table: &'syn [Expression<F>],
 }
@@ -53,7 +53,7 @@ impl<'syn, F: Field> Lookup<'syn, F> {
         cs.lookups()
             .iter()
             .enumerate()
-            .map(|(idx, a)| Self::new(idx, a.name, a.inputs, a.table))
+            .map(|(idx, a)| Self::new(idx, a.name, a.arguments, a.table))
             .collect()
     }
 
