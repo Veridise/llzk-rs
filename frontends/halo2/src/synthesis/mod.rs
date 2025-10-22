@@ -148,13 +148,42 @@ impl<F: Field> std::fmt::Debug for CircuitSynthesis<F> {
 }
 
 /// Collects the information from the synthesis.
+///
+/// Use this struct to give information about the structure of the circuit during the call to
+/// [`crate::CircuitCallbacks::synthesize`]. The synthesis of the circuit is divided in groups and
+/// these are divided in regions. Groups can contain others groups inside them, forming a tree.
+///
+/// Before synthesis a default top-level group is initialized such that you don't need to do
+/// anything with them if your use case doesn't need dividing the circuit into groups.
+///
+/// The circuit is represented as a table of cells divided into regions. The region boundaries are
+/// represented by a set of columns and an interval of the rows of the table. Regions cannot
+/// overlap and during synthesis there can only be one active region that must be exited before
+/// opening a new one.
+///
+/// Regions can represent lookup tables and these can only contain fixed columns.
+///
+/// Regions also have a set of selectors that can be turned on per row of the region. These
+/// selectors are used to check what polynomials returned by the [`GateInfo`] instances are
+/// enabled in that row. The driver will emit IR for each polynomial that is enabled in each row of
+/// each region.
 pub struct Synthesizer<F: Field> {
+    // Unique identifier wrt a driver instance for this synthesis process.
     id: usize,
+    // Keeps track of the construction of the groups tree.
     groups: GroupBuilder,
+    // Data for the columns containing fixed values.
     fixed: FixedData<F>,
+    // Undirected graph of equality constraints between cells in the table.
     eq_constraints: EqConstraintGraph<F>,
     // A list of set of columns. Represents the regions that need to be converted into tables.
+    // After a region has finished processing, if it was marked as a table the information about
+    // it in the regions list is discarded and the set of columns that comprise the table is moved
+    // to this list.
     tables: Vec<HashSet<Column<Fixed>>>,
+    // This iterator yields indices for the regions inside the circuit. Each region has an unique
+    // index. Regions marked as tables discard their index, that is reused for the next
+    // region.
     next_index: Box<dyn Iterator<Item = RegionIndex>>,
 }
 
@@ -210,9 +239,9 @@ impl<F: Field> Synthesizer<F> {
     }
 
     /// Marks the given selector as enabled for the table row.
-    pub fn enable_selector(&mut self, selector: &Selector, row: usize) {
+    pub fn enable_selector(&mut self, selector: Selector, row: usize) {
         self.groups.regions_mut().edit(|region| {
-            region.enable_selector(*selector, row);
+            region.enable_selector(selector, row);
         });
     }
 
@@ -245,7 +274,18 @@ impl<F: Field> Synthesizer<F> {
         self.fixed.blanket_fill(column, row, Value::known(value));
         let r = self.groups.regions_mut();
         r.edit(|region| region.update_extent(column.into(), row));
-        r.mark_region();
+    }
+
+    /// Annotates that starting from the given row the given fixed column has that value and marks
+    /// the current region as a table.
+    pub fn fill_table(&mut self, column: Column<Fixed>, row: usize, value: F) {
+        self.fill_from_row(column, row, value);
+        self.mark_region_as_table();
+    }
+
+    /// Marks the current region as a table.
+    pub fn mark_region_as_table(&mut self) {
+        self.groups.regions_mut().mark_region()
     }
 
     /// Pushes a new namespace.

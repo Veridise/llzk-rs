@@ -188,7 +188,7 @@ impl<F: Field> Assignment<F> for SynthesizerAssignment<'_, F> {
         AR: Into<String>,
         A: FnOnce() -> AR,
     {
-        self.synthetizer.enable_selector(selector, row);
+        self.synthetizer.enable_selector(*selector, row);
         Ok(())
     }
 
@@ -257,7 +257,7 @@ impl<F: Field> Assignment<F> for SynthesizerAssignment<'_, F> {
         row: usize,
         value: Value<Rational<F>>,
     ) -> Result<(), Error> {
-        self.synthetizer.fill_from_row(
+        self.synthetizer.fill_table(
             column,
             row,
             steal(&value.map(|f| f.evaluate())).ok_or_else(|| {
