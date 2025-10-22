@@ -4,13 +4,13 @@
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 
-pub mod adaptors;
 pub(crate) mod backend;
 pub mod driver;
 mod error;
 mod expressions;
 mod gates;
 mod halo2;
+pub mod info_traits;
 mod io;
 pub mod ir;
 pub mod lookups;
@@ -21,8 +21,8 @@ mod utils;
 mod value;
 
 use crate::{
-    adaptors::ConstraintSystemAdaptor,
     halo2::Field,
+    info_traits::ConstraintSystemInfo,
     io::{AdviceIO, InstanceIO},
 };
 pub use backend::{
@@ -51,7 +51,7 @@ pub trait CircuitCallbacks<F: Field> {
     /// Should be the same type as the circuit config.
     type Config;
     /// Type of the constraint system.
-    type CS: ConstraintSystemAdaptor<F> + Default + 'static;
+    type CS: ConstraintSystemInfo<F> + Default + 'static;
     /// Error type for synthesis.
     type Error: std::error::Error + Sync + Send + 'static;
 

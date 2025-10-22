@@ -1,9 +1,9 @@
 use std::{borrow::Cow, cmp::Ordering, collections::HashSet, hash::Hash, ops::Range};
 
 use crate::{
-    adaptors::GateAdaptor,
     expressions::{ScopedExpression, constant_folding::ConstantFolding, rewriter::rewrite_expr},
     halo2::*,
+    info_traits::GateInfo,
     ir::stmt::IRStmt,
     resolvers::FixedQueryResolver,
     synthesis::regions::{RegionData, RegionRow},
@@ -28,7 +28,7 @@ pub struct GateScope<'syn, 'io, F>
 where
     F: Field,
 {
-    gate: &'syn dyn GateAdaptor<F>,
+    gate: &'syn dyn GateInfo<F>,
     region: RegionData<'syn>,
     /// The bounds are [start,end).
     row_bounds: (usize, usize),
@@ -42,7 +42,7 @@ impl<'syn, 'io, F: Field> GateScope<'syn, 'io, F> {
     ///
     /// Since this class is passed to a callback its constructor is protected.
     pub(crate) fn new(
-        gate: &'syn dyn GateAdaptor<F>,
+        gate: &'syn dyn GateInfo<F>,
         region: RegionData<'syn>,
         row_bounds: (usize, usize),
         advice_io: &'io crate::io::AdviceIO,

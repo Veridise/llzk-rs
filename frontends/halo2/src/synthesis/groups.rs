@@ -1,11 +1,11 @@
 use std::{borrow::Borrow, collections::HashMap, ops::Deref};
 
 use crate::{
-    adaptors::GateAdaptor,
     halo2::{
         Advice, Any, Cell, Column, ColumnType, Expression, Field, Instance, RegionIndex, Rotation,
         groups::{GroupKey, GroupKeyInstance},
     },
+    info_traits::GateInfo,
     io::{AdviceIO, IOCell, InstanceIO},
     lookups::Lookup,
     resolvers::FixedQueryResolver,
@@ -233,8 +233,8 @@ impl Group {
     /// Returns the cartesian product of the regions and the gates.
     pub fn region_gates<'a, F: Field>(
         &'a self,
-        gates: &'a [&dyn GateAdaptor<F>],
-    ) -> impl Iterator<Item = (&'a dyn GateAdaptor<F>, RegionData<'a>)> + 'a {
+        gates: &'a [&dyn GateInfo<F>],
+    ) -> impl Iterator<Item = (&'a dyn GateInfo<F>, RegionData<'a>)> + 'a {
         self.regions()
             .into_iter()
             .flat_map(|r| gates.iter().map(move |g| (*g, r)))

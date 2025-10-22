@@ -3,10 +3,10 @@
 use std::ops::Index;
 
 use crate::{
-    adaptors::ConstraintSystemAdaptor,
     backend::codegen::lookup::query_from_table_expr,
     gates::AnyQuery,
     halo2::{Expression, Field, FixedQuery},
+    info_traits::ConstraintSystemInfo,
 };
 use anyhow::Result;
 
@@ -49,7 +49,7 @@ fn compute_table_cells<'syn, F: Field>(
 
 impl<'syn, F: Field> Lookup<'syn, F> {
     /// Returns the list of lookups defined in the constraint system.
-    pub fn load(cs: &'syn dyn ConstraintSystemAdaptor<F>) -> Vec<Self> {
+    pub fn load(cs: &'syn dyn ConstraintSystemInfo<F>) -> Vec<Self> {
         cs.lookups()
             .iter()
             .enumerate()

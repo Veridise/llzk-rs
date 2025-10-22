@@ -9,13 +9,13 @@ use regions::{FixedData, RegionIndexToStart, TableData};
 
 use crate::{
     CircuitIO,
-    adaptors::{CSA, ConstraintSystemAdaptor, GateAdaptor},
     gates::AnyQuery,
     halo2::{
         Field,
         groups::{GroupKey, RegionsGroup},
         *,
     },
+    info_traits::{CSI, ConstraintSystemInfo, GateInfo},
     io::{AdviceIO, IOCell, InstanceIO},
     lookups::{Lookup, LookupTableRow},
     resolvers::FixedQueryResolver,
@@ -32,7 +32,7 @@ where
     F: Field,
 {
     id: usize,
-    cs: CSA<F>,
+    cs: CSI<F>,
     eq_constraints: EqConstraintGraph<F>,
     fixed: FixedData<F>,
     tables: Vec<TableData<F>>,
@@ -44,7 +44,7 @@ where
     F: Field,
 {
     /// Returns the list of gates in the constraint system.
-    pub fn gates(&self) -> Vec<&dyn GateAdaptor<F>> {
+    pub fn gates(&self) -> Vec<&dyn GateInfo<F>> {
         self.cs.gates()
     }
 
@@ -179,7 +179,7 @@ impl<F: Field> Synthesizer<F> {
     /// Builds a [`CircuitSynthesis`] with the information recollected about the circuit.
     pub(crate) fn build<CS>(mut self, cs: CS) -> Result<CircuitSynthesis<F>>
     where
-        CS: ConstraintSystemAdaptor<F> + 'static,
+        CS: ConstraintSystemInfo<F> + 'static,
     {
         add_fixed_to_const_constraints(&mut self.eq_constraints, &self.fixed)?;
 
