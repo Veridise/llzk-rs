@@ -9,7 +9,7 @@ use crate::{
         picus::{PicusBackend, PicusOutput, PicusParams},
     },
     halo2::PrimeField,
-    io::{AdviceIO, AdviceIOValidator, InstanceIO, InstanceIOValidator},
+    io::{AdviceIO, InstanceIO},
     ir::{
         IRCtx, ResolvedIRCircuit, UnresolvedIRCircuit,
         generate::{IRGenParams, generate_ir},
@@ -35,11 +35,9 @@ impl Driver {
         let mut syn = Synthesizer::new(self.next_id());
         let config = C::configure(&mut cs);
 
-        let advice_io: AdviceIO = C::advice_io(&config);
-        let instance_io: InstanceIO = C::instance_io(&config);
         log::debug!("Validating io hints");
-        advice_io.validate(&AdviceIOValidator)?;
-        instance_io.validate(&InstanceIOValidator)?;
+        let advice_io: AdviceIO = C::advice_io(&config)?;
+        let instance_io: InstanceIO = C::instance_io(&config)?;
 
         syn.configure_io(advice_io, instance_io);
         log::debug!("Starting synthesis");

@@ -62,10 +62,10 @@ pub trait CircuitCallbacks<F: Field> {
     fn configure(cs: &mut Self::CS) -> Self::Config;
 
     /// Returns the advice cells that are part of the inputs and outputs of the circuit.
-    fn advice_io(config: &Self::Config) -> AdviceIO;
+    fn advice_io(config: &Self::Config) -> anyhow::Result<AdviceIO>;
 
     /// Returns the instance cells that are part of the inputs and outputs of the circuit.
-    fn instance_io(config: &Self::Config) -> InstanceIO;
+    fn instance_io(config: &Self::Config) -> anyhow::Result<InstanceIO>;
 
     /// This callback requests the client to fill out the [`Synthesizer`] with the synthesis
     /// information about the circuit.

@@ -268,10 +268,10 @@ impl<F: Field> CircuitCallbacks<F> for MulCircuit<F> {
         <Self as Circuit<F>>::configure(cs)
     }
 
-    fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
-        CircuitIO::empty()
+    fn advice_io(_: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Advice>> {
+        Ok(CircuitIO::empty())
     }
-    fn instance_io(config: &<Self as Circuit<F>>::Config) -> CircuitIO<Instance> {
+    fn instance_io(config: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Instance>> {
         let inputs = Vec::from_iter(0..=10);
         let outputs = Vec::from_iter(11..=21);
         CircuitIO::new(

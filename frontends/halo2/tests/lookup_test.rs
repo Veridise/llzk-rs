@@ -260,10 +260,10 @@ impl<F: Field> CircuitCallbacks<F> for LookupCircuit<F> {
         <Self as Circuit<F>>::configure(cs)
     }
 
-    fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
-        CircuitIO::empty()
+    fn advice_io(_: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Advice>> {
+        Ok(CircuitIO::empty())
     }
-    fn instance_io(config: &<Self as Circuit<F>>::Config) -> CircuitIO<Instance> {
+    fn instance_io(config: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Instance>> {
         CircuitIO::new(&[(config.instance, &[0])], &[(config.instance, &[1])])
     }
     fn synthesize(
