@@ -18,4 +18,4 @@ cc = "^1.1"
 tempfile = "3.20"
 
 [dev-dependencies]
-tempdir = "0.3"
+tempfile = "3"
