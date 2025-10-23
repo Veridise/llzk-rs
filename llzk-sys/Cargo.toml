@@ -15,6 +15,7 @@ exclude = [
   "/llzk-lib/doc",
   "/llzk-lib/nix",
   "/llzk-lib/python",
+  "/llzk-lib/scripts",
   "/llzk-lib/test",
   "/llzk-lib/tools",
   "/llzk-lib/unittests",
