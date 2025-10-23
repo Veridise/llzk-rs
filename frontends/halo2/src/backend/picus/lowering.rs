@@ -9,7 +9,7 @@ use crate::{
     ir::CmpOp,
 };
 use anyhow::Result;
-use picus::{expr, stmt, ModuleLike as _};
+use picus::{ModuleLike as _, expr, stmt};
 
 pub type PicusModuleRef = picus::ModuleRef<VarKey>;
 pub(super) type PicusExpr = picus::expr::Expr;
@@ -90,6 +90,12 @@ impl Lowering for PicusModuleLowering {
 
     fn generate_assert(&self, expr: &Self::CellOutput) -> Result<()> {
         let stmt = stmt::constrain(expr.clone());
+        self.module.borrow_mut().add_stmt(stmt);
+        Ok(())
+    }
+
+    fn generate_post_condition(&self, expr: &Self::CellOutput) -> Result<()> {
+        let stmt = stmt::post_condition(expr.clone());
         self.module.borrow_mut().add_stmt(stmt);
         Ok(())
     }
