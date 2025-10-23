@@ -6,6 +6,7 @@ use melior::{
 use mlir_sys::MlirAttribute;
 
 /// Possible options for creating [`CmpPredicateAttribute`].
+#[derive(Debug)]
 #[repr(u32)]
 pub enum CmpPredicate {
     Eq = llzk_sys::LlzkCmp_LlzkCmp_EQ,
@@ -17,6 +18,7 @@ pub enum CmpPredicate {
 }
 
 /// Attribute representing a comparison predicate.
+#[derive(Debug)]
 pub struct CmpPredicateAttribute<'c> {
     inner: Attribute<'c>,
 }

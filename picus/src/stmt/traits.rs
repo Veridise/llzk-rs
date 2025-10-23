@@ -25,7 +25,7 @@ pub trait ConstraintLike {
     fn constraint_expr(&self) -> Option<&dyn ConstraintExpr>;
 }
 
-pub trait CallLike {
+pub trait CallLike : std::fmt::Debug {
     fn callee(&self) -> &str;
 
     fn with_new_callee(&self, new_name: String) -> Stmt;
@@ -41,6 +41,7 @@ pub trait CallLikeMut: CallLike {
     fn set_callee(&mut self, new_name: String);
 }
 
+#[derive(Debug)]
 pub struct CallLikeAdaptor<'a>(&'a dyn CallLike);
 
 impl<'a> CallLikeAdaptor<'a> {

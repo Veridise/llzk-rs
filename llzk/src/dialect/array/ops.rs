@@ -17,6 +17,7 @@ use crate::{
 
 use super::ArrayType;
 
+#[derive(Debug)]
 pub enum ArrayCtor<'c, 'a, 'b, 'd> {
     Values(&'a [Value<'c, 'b>]),
     MapDimAttr(&'a [ValueRange<'c, 'a, 'b>], DenseI32ArrayAttribute<'c>),

@@ -5,6 +5,7 @@ use melior::{
 };
 use mlir_sys::MlirAttribute;
 
+#[derive(Debug)]
 pub struct PublicAttribute<'c> {
     inner: Attribute<'c>,
 }

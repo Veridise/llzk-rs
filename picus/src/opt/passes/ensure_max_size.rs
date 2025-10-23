@@ -18,6 +18,14 @@ pub struct EnsureMaxExprSizePass<C> {
     ctx: C,
 }
 
+impl<C> std::fmt::Debug for EnsureMaxExprSizePass<C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EnsureMaxExprSizePass")
+            .field("limit", &self.limit)
+            .finish()
+    }
+}
+
 impl<C> From<(usize, C)> for EnsureMaxExprSizePass<C> {
     fn from((limit, ctx): (usize, C)) -> Self {
         Self { limit, ctx }
@@ -53,14 +61,24 @@ impl<'a, K: Temp<'a, Ctx = C>, C: Copy> MutOptimizer<Module<K>> for EnsureMaxExp
     }
 }
 
-struct EnsureMaxExprSizePassImpl<'a, E, T> {
+struct EnsureMaxExprSizePassImpl<'a, E: std::fmt::Debug, T> {
     limit: usize,
     emitter: &'a mut E,
     temporaries: T,
     count: usize,
 }
 
-impl<E, T> EnsureMaxExprSizePassImpl<'_, E, T> {
+impl<E: std::fmt::Debug, T> std::fmt::Debug for EnsureMaxExprSizePassImpl<'_, E, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EnsureMaxExprSizePassImpl")
+            .field("limit", &self.limit)
+            .field("count", &self.count)
+            .field("emitter", &self.emitter)
+            .finish()
+    }
+}
+
+impl<E: std::fmt::Debug, T> EnsureMaxExprSizePassImpl<'_, E, T> {
     fn push_count<O>(&mut self, f: impl Fn(&mut Self) -> O) -> O {
         self.count += 1;
         let o = f(self);
@@ -69,7 +87,7 @@ impl<E, T> EnsureMaxExprSizePassImpl<'_, E, T> {
     }
 }
 
-impl<E, T> Optimizer<dyn ExprLike, Expr> for EnsureMaxExprSizePassImpl<'_, E, T>
+impl<E: std::fmt::Debug, T> Optimizer<dyn ExprLike, Expr> for EnsureMaxExprSizePassImpl<'_, E, T>
 where
     E: ConstraintEmitter,
     T: Iterator<Item = Result<VarStr>>,

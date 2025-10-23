@@ -10,7 +10,7 @@ use mlir_sys::{
     mlirSymbolRefAttrGetRootReference, MlirAttribute,
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct SymbolRefAttribute<'c> {
     inner: Attribute<'c>,
 }
