@@ -10,7 +10,7 @@ use mlir_sys::MlirType;
 
 use crate::utils::FromRaw;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct StructType<'c> {
     t: Type<'c>,
 }

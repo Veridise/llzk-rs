@@ -42,6 +42,7 @@ pub trait OpBuilderLike<'c> {
     }
 }
 
+#[derive(Debug)]
 pub struct OpBuilder<'c> {
     raw: MlirOpBuilder,
     _context: PhantomData<&'c Context>,
@@ -84,6 +85,7 @@ impl Drop for OpBuilder<'_> {
     }
 }
 
+#[derive(Debug)]
 pub struct OpBuilderRef<'c, 'a> {
     raw: MlirOpBuilder,
     _reference: PhantomData<&'a OpBuilder<'c>>,
