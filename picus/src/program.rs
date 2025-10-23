@@ -12,6 +12,7 @@ use crate::{
 };
 use anyhow::{Result, anyhow};
 
+#[derive(Debug)]
 pub struct Program<K: VarKind> {
     prime: PrimeNumber,
     modules: Vec<Module<K>>,
@@ -126,6 +127,7 @@ impl<K: VarKind> Add for Program<K> {
 //    }
 //}
 
+#[derive(Debug)]
 struct PrimeNumber(Felt);
 
 impl TextRepresentable for PrimeNumber {
