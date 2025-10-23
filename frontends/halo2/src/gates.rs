@@ -1,8 +1,9 @@
 use std::{borrow::Cow, cmp::Ordering, collections::HashSet, hash::Hash, ops::Range};
 
 use crate::{
-    expressions::{constant_folding::ConstantFolding, rewriter::rewrite_expr, ScopedExpression},
+    expressions::{ScopedExpression, constant_folding::ConstantFolding, rewriter::rewrite_expr},
     halo2::*,
+    info_traits::GateInfo,
     ir::stmt::IRStmt,
     resolvers::FixedQueryResolver,
     synthesis::regions::{RegionData, RegionRow},
@@ -27,7 +28,7 @@ pub struct GateScope<'syn, 'io, F>
 where
     F: Field,
 {
-    gate: &'syn Gate<F>,
+    gate: &'syn dyn GateInfo<F>,
     region: RegionData<'syn>,
     /// The bounds are [start,end).
     row_bounds: (usize, usize),
@@ -41,7 +42,7 @@ impl<'syn, 'io, F: Field> GateScope<'syn, 'io, F> {
     ///
     /// Since this class is passed to a callback its constructor is protected.
     pub(crate) fn new(
-        gate: &'syn Gate<F>,
+        gate: &'syn dyn GateInfo<F>,
         region: RegionData<'syn>,
         row_bounds: (usize, usize),
         advice_io: &'io crate::io::AdviceIO,
@@ -176,7 +177,6 @@ impl<'syn, 'io, F: Field> GateScope<'syn, 'io, F> {
 impl<F: PrimeField> std::fmt::Debug for GateScope<'_, '_, F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GateScope")
-            .field("gate", &self.gate)
             .field("region", &self.region)
             .field("row_bounds", &self.row_bounds)
             .field("advice_io", &self.advice_io)
@@ -308,10 +308,12 @@ impl<F> GateRewritePattern<F> for RewritePatternSet<F> {
             RewriteError::NoMatch
         } else {
             log::debug!("Returning {} errors", errors.len());
-            RewriteError::Err(anyhow::anyhow!(errors
-                .into_iter()
-                .flat_map(|e: anyhow::Error| [e.to_string(), "\n".to_string()])
-                .collect::<String>()))
+            RewriteError::Err(anyhow::anyhow!(
+                errors
+                    .into_iter()
+                    .flat_map(|e: anyhow::Error| [e.to_string(), "\n".to_string()])
+                    .collect::<String>()
+            ))
         })
     }
 }

@@ -5,7 +5,7 @@ use std::ops::{Add, Deref, Mul, Rem, RemAssign, Sub};
 use crate::{
     backend::{
         func::FuncIO,
-        lowering::{lowerable::LowerableExpr, ExprLowering},
+        lowering::{ExprLowering, lowerable::LowerableExpr},
     },
     expressions::ScopedExpression,
     halo2::{Challenge, Expression, PrimeField},
@@ -443,12 +443,13 @@ mod folding_tests {
 
 #[cfg(test)]
 mod lowering_tests {
+    use crate::CircuitIO;
     use crate::expressions::ScopedExpression;
     use crate::ir::equivalency::{EqvRelation as _, SymbolicEqv};
     use crate::resolvers::FixedQueryResolver;
     use crate::synthesis::regions::{RegionRow, Regions};
-    use crate::CircuitIO;
     use crate::{halo2::*, synthesis::regions::RegionData};
+    use halo2_proofs::plonk::ConstraintSystem;
     use rstest::{fixture, rstest};
     type F = Fr;
 
