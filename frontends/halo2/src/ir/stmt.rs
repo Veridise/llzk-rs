@@ -1,12 +1,12 @@
 //! Structs for representing statements of the circuit's logic.
 
-use super::{equivalency::EqvRelation, expr::IRBexpr, CmpOp};
+use super::{CmpOp, equivalency::EqvRelation, expr::IRBexpr};
 use crate::{
     backend::{
         func::FuncIO,
         lowering::{
-            lowerable::{LowerableExpr, LowerableStmt},
             Lowering,
+            lowerable::{LowerableExpr, LowerableStmt},
         },
     },
     ir::expr::{Felt, IRAexpr},
