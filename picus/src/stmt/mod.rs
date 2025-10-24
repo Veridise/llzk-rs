@@ -2,8 +2,8 @@ use crate::display::{TextRepresentable, TextRepresentation};
 use crate::expr::traits::ConstraintExpr;
 use crate::felt::Felt;
 use crate::vars::VarStr;
-use anyhow::{anyhow, Result};
-use impls::{AssumeDeterministicStmt, CallStmt, CommentLine, ConstraintStmt};
+use anyhow::{Result, anyhow};
+use impls::{AssumeDeterministicStmt, CallStmt, CommentLine, ConstraintStmt, PostConditionStmt};
 use std::collections::HashSet;
 use std::{cell::RefCell, rc::Rc};
 use traits::{
@@ -108,4 +108,9 @@ pub fn constrain(expr: Expr) -> Stmt {
 
 pub fn comment(s: String) -> Stmt {
     Wrap::new(CommentLine::new(s).into())
+}
+
+/// Creates a `(post-condition <expr>)` statement.
+pub fn post_condition(expr: Expr) -> Stmt {
+    Wrap::new(PostConditionStmt::new(expr).into())
 }

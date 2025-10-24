@@ -19,6 +19,7 @@ mod assume_determ;
 mod call;
 mod comment;
 mod constraint;
+mod post_cond;
 mod seq;
 
 use assert::Assert;
@@ -26,6 +27,7 @@ use assume_determ::AssumeDeterministic;
 use call::Call;
 use comment::Comment;
 use constraint::Constraint;
+use post_cond::PostCond;
 use seq::Seq;
 
 /// IR for operations that occur in the main circuit.
@@ -42,6 +44,8 @@ pub enum IRStmt<T> {
     Assert(Assert<T>),
     /// A sequence of statements.
     Seq(Seq<T>),
+    /// A post-condition expression.
+    PostCond(PostCond<T>),
 }
 
 impl<T: PartialEq> PartialEq for IRStmt<T> {
@@ -58,6 +62,7 @@ impl<T: PartialEq> PartialEq for IRStmt<T> {
             (IRStmt::Comment(lhs), IRStmt::Comment(rhs)) => lhs.eq(rhs),
             (IRStmt::AssumeDeterministic(lhs), IRStmt::AssumeDeterministic(rhs)) => lhs.eq(rhs),
             (IRStmt::Assert(lhs), IRStmt::Assert(rhs)) => lhs.eq(rhs),
+            (IRStmt::PostCond(lhs), IRStmt::PostCond(rhs)) => lhs.eq(rhs),
             (IRStmt::Seq(_), _) | (_, IRStmt::Seq(_)) => unreachable!(),
             _ => false,
         })
@@ -74,6 +79,7 @@ impl<T: std::fmt::Debug> std::fmt::Debug for IRStmt<T> {
                 write!(f, "{assume_deterministic:?}")
             }
             IRStmt::Assert(assert) => write!(f, "{assert:?}"),
+            IRStmt::PostCond(pc) => write!(f, "{pc:?}"),
             IRStmt::Seq(seq) => write!(f, "{seq:?}"),
         }
     }
@@ -87,6 +93,11 @@ impl<T> IRStmt<T> {
         outputs: impl IntoIterator<Item = FuncIO>,
     ) -> Self {
         Call::new(callee, inputs, outputs).into()
+    }
+
+    /// Creates a post condition formula.
+    pub fn post_cond(cond: IRBexpr<T>) -> Self {
+        PostCond::new(cond).into()
     }
 
     /// Creates a constraint between two expressions.
@@ -138,6 +149,7 @@ impl<T> IRStmt<T> {
             IRStmt::Comment(comment) => Comment::new(comment.value()).into(),
             IRStmt::AssumeDeterministic(ad) => AssumeDeterministic::new(ad.value()).into(),
             IRStmt::Assert(assert) => assert.map(f).into(),
+            IRStmt::PostCond(pc) => pc.map(f).into(),
             IRStmt::Seq(seq) => Seq::new(seq.into_iter().map(|s| s.map(f))).into(),
         }
     }
@@ -166,6 +178,7 @@ impl<T> IRStmt<T> {
             IRStmt::Comment(comment) => Comment::new(comment.value()).into(),
             IRStmt::AssumeDeterministic(ad) => AssumeDeterministic::new(ad.value()).into(),
             IRStmt::Assert(assert) => assert.map_into(f).into(),
+            IRStmt::PostCond(pc) => pc.map_into(f).into(),
             IRStmt::Seq(seq) => Seq::new(seq.iter().map(|s| s.map_into(f))).into(),
         }
     }
@@ -178,6 +191,7 @@ impl<T> IRStmt<T> {
             IRStmt::Comment(comment) => Comment::new(comment.value()).into(),
             IRStmt::AssumeDeterministic(ad) => AssumeDeterministic::new(ad.value()).into(),
             IRStmt::Assert(assert) => assert.try_map(f)?.into(),
+            IRStmt::PostCond(pc) => pc.try_map(f)?.into(),
             IRStmt::Seq(seq) => Seq::new(
                 seq.into_iter()
                     .map(|s| s.try_map(f))
@@ -195,6 +209,7 @@ impl<T> IRStmt<T> {
             IRStmt::Comment(_) => Ok(()),
             IRStmt::AssumeDeterministic(_) => Ok(()),
             IRStmt::Assert(assert) => assert.try_map_inplace(f),
+            IRStmt::PostCond(pc) => pc.try_map_inplace(f),
             IRStmt::Seq(seq) => {
                 for stmt in seq.iter_mut() {
                     stmt.try_map_inplace(f)?;
@@ -220,6 +235,37 @@ impl<T> IRStmt<ExprOrTemp<T>> {
     ///
     /// It doesn't go inside `T` so it won't rename temporaries inside it.
     pub(crate) fn rebase_temps(&mut self, renaming_fn: &mut impl FnMut(Temp) -> Temp) {
+        fn rebase_bexpr<T>(
+            expr: &mut IRBexpr<ExprOrTemp<T>>,
+            renaming_fn: &mut impl FnMut(Temp) -> Temp,
+        ) {
+            match expr {
+                IRBexpr::True | IRBexpr::False => {}
+                IRBexpr::Cmp(_, lhs, rhs) => {
+                    if let ExprOrTemp::Temp(temp) = lhs {
+                        *temp = renaming_fn(*temp);
+                    }
+                    if let ExprOrTemp::Temp(temp) = rhs {
+                        *temp = renaming_fn(*temp);
+                    }
+                }
+                IRBexpr::And(exprs) | IRBexpr::Or(exprs) => {
+                    for expr in exprs {
+                        rebase_bexpr(expr, renaming_fn)
+                    }
+                }
+                IRBexpr::Not(expr) => rebase_bexpr(expr, renaming_fn),
+                IRBexpr::Det(expr) => {
+                    if let ExprOrTemp::Temp(temp) = expr {
+                        *temp = renaming_fn(*temp);
+                    }
+                }
+                IRBexpr::Implies(lhs, rhs) | IRBexpr::Iff(lhs, rhs) => {
+                    rebase_bexpr(lhs, renaming_fn);
+                    rebase_bexpr(rhs, renaming_fn);
+                }
+            }
+        }
         match self {
             IRStmt::ConstraintCall(call) => {
                 for input in call.inputs_mut() {
@@ -248,38 +294,10 @@ impl<T> IRStmt<ExprOrTemp<T>> {
                 }
             }
             IRStmt::Assert(assert) => {
-                fn rebase_bexpr<T>(
-                    expr: &mut IRBexpr<ExprOrTemp<T>>,
-                    renaming_fn: &mut impl FnMut(Temp) -> Temp,
-                ) {
-                    match expr {
-                        IRBexpr::True | IRBexpr::False => {}
-                        IRBexpr::Cmp(_, lhs, rhs) => {
-                            if let ExprOrTemp::Temp(temp) = lhs {
-                                *temp = renaming_fn(*temp);
-                            }
-                            if let ExprOrTemp::Temp(temp) = rhs {
-                                *temp = renaming_fn(*temp);
-                            }
-                        }
-                        IRBexpr::And(exprs) | IRBexpr::Or(exprs) => {
-                            for expr in exprs {
-                                rebase_bexpr(expr, renaming_fn)
-                            }
-                        }
-                        IRBexpr::Not(expr) => rebase_bexpr(expr, renaming_fn),
-                        IRBexpr::Det(expr) => {
-                            if let ExprOrTemp::Temp(temp) = expr {
-                                *temp = renaming_fn(*temp);
-                            }
-                        }
-                        IRBexpr::Implies(lhs, rhs) | IRBexpr::Iff(lhs, rhs) => {
-                            rebase_bexpr(lhs, renaming_fn);
-                            rebase_bexpr(rhs, renaming_fn);
-                        }
-                    }
-                }
                 rebase_bexpr(assert.cond_mut(), renaming_fn);
+            }
+            IRStmt::PostCond(pc) => {
+                rebase_bexpr(pc.cond_mut(), renaming_fn);
             }
             IRStmt::Seq(seq) => {
                 for stmt in seq.iter_mut() {
@@ -309,6 +327,11 @@ impl IRStmt<IRAexpr> {
                     *self = replacement;
                 }
             }
+            IRStmt::PostCond(pc) => {
+                if let Some(replacement) = pc.constant_fold(prime)? {
+                    *self = replacement;
+                }
+            }
             IRStmt::Seq(seq) => seq.constant_fold(prime)?,
         }
         Ok(())
@@ -322,6 +345,7 @@ impl IRStmt<IRAexpr> {
             IRStmt::Comment(_) => {}
             IRStmt::AssumeDeterministic(_) => {}
             IRStmt::Assert(assert) => assert.canonicalize(),
+            IRStmt::PostCond(pc) => pc.canonicalize(),
             IRStmt::Seq(seq) => seq.canonicalize(),
         }
     }
@@ -348,6 +372,9 @@ where
             }
             (IRStmt::Assert(lhs), IRStmt::Assert(rhs)) => {
                 <E as EqvRelation<Assert<L>, Assert<R>>>::equivalent(lhs, rhs)
+            }
+            (IRStmt::PostCond(lhs), IRStmt::PostCond(rhs)) => {
+                <E as EqvRelation<PostCond<L>, PostCond<R>>>::equivalent(lhs, rhs)
             }
             (IRStmt::Seq(_), _) | (_, IRStmt::Seq(_)) => unreachable!(),
             _ => false,
@@ -491,6 +518,11 @@ impl<T> From<Assert<T>> for IRStmt<T> {
         Self::Assert(value)
     }
 }
+impl<T> From<PostCond<T>> for IRStmt<T> {
+    fn from(value: PostCond<T>) -> Self {
+        Self::PostCond(value)
+    }
+}
 impl<T> From<Seq<T>> for IRStmt<T> {
     fn from(value: Seq<T>) -> Self {
         Self::Seq(value)
@@ -508,6 +540,7 @@ impl<T: LowerableExpr> LowerableStmt for IRStmt<T> {
             Self::Comment(comment) => comment.lower(l),
             Self::AssumeDeterministic(ad) => ad.lower(l),
             Self::Assert(assert) => assert.lower(l),
+            Self::PostCond(pc) => pc.lower(l),
             Self::Seq(seq) => seq.lower(l),
         }
     }
@@ -521,6 +554,7 @@ impl<T: Clone> Clone for IRStmt<T> {
             Self::Comment(c) => c.clone().into(),
             Self::AssumeDeterministic(func_io) => func_io.clone().into(),
             Self::Assert(e) => e.clone().into(),
+            Self::PostCond(e) => e.clone().into(),
             Self::Seq(stmts) => stmts.clone().into(),
         }
     }
