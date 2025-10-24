@@ -46,7 +46,7 @@ impl<T> PostCond<T> {
 
 impl PostCond<IRAexpr> {
     /// Folds the statements if the expressions are constant.
-    /// If a assert-like statement folds into a tautology (i.e. `(= 0 0 )`) gets removed. If it
+    /// If an assert-like statement folds into a tautology (i.e. `(= 0 0 )`), it gets removed. If it
     /// folds into a unsatisfiable proposition the method returns an error.
     pub fn constant_fold(&mut self, prime: Felt) -> Result<Option<IRStmt<IRAexpr>>> {
         self.0.constant_fold(prime);
