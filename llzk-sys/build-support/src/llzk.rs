@@ -179,7 +179,7 @@ impl<W: Write> CargoCommands<W> {
 mod tests {
     use super::*;
     use std::io::Cursor;
-    use tempdir::TempDir;
+    use tempfile::TempDir;
 
     macro_rules! cargo_command_test {
         ($name:ident, $cargo:ident, $t:expr, $expected:expr) => {
@@ -332,8 +332,8 @@ mod tests {
 
     #[test]
     fn test_llzk_cargo_commands() {
-        let src = TempDir::new("src").unwrap();
-        let dst = TempDir::new("dst").unwrap();
+        let src = TempDir::with_prefix("src").unwrap();
+        let dst = TempDir::with_prefix("dst").unwrap();
         let libraries = ["XXX", "YYY"];
         let others = ["other file"];
         let llzk = setup_llzk(src.path(), dst.path(), &libraries, &others);
@@ -354,8 +354,8 @@ mod tests {
 
     #[test]
     fn test_llzk_cargo_commands_no_whole_archive() {
-        let src = TempDir::new("src").unwrap();
-        let dst = TempDir::new("dst").unwrap();
+        let src = TempDir::with_prefix("src").unwrap();
+        let dst = TempDir::with_prefix("dst").unwrap();
         let libraries = ["XXX", "YYY"];
         let others = ["other file"];
         let llzk = setup_llzk(src.path(), dst.path(), &libraries, &others);
@@ -376,8 +376,8 @@ mod tests {
 
     #[test]
     fn test_llzk_cargo_commands_with_whole_archive() {
-        let src = TempDir::new("src").unwrap();
-        let dst = TempDir::new("dst").unwrap();
+        let src = TempDir::with_prefix("src").unwrap();
+        let dst = TempDir::with_prefix("dst").unwrap();
         let libraries = ["XXX", "YYY"];
         let others = ["other file"];
         let llzk = setup_llzk(src.path(), dst.path(), &libraries, &others);

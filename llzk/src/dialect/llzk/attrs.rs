@@ -1,10 +1,11 @@
 use llzk_sys::{llzkAttributeIsAPublicAttr, llzkPublicAttrGet};
 use melior::{
-    ir::{Attribute, AttributeLike},
     Context,
+    ir::{Attribute, AttributeLike, Identifier},
 };
 use mlir_sys::MlirAttribute;
 
+#[derive(Debug)]
 pub struct PublicAttribute<'c> {
     inner: Attribute<'c>,
 }
@@ -22,6 +23,10 @@ impl<'c> PublicAttribute<'c> {
 
     pub fn new(ctx: &'c Context) -> Self {
         unsafe { Self::from_raw(llzkPublicAttrGet(ctx.to_raw())) }
+    }
+
+    pub fn named_attr_pair(ctx: &'c Context) -> (Identifier<'c>, Attribute<'c>) {
+        (Identifier::new(ctx, "llzk.pub"), Attribute::unit(ctx))
     }
 }
 

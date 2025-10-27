@@ -11,14 +11,15 @@ use crate::{
 
 pub mod passes;
 
-pub trait Optimizer<I: ?Sized, O> {
+pub trait Optimizer<I: ?Sized, O>: std::fmt::Debug {
     fn optimize(&mut self, i: &I) -> Result<O>;
 }
 
-pub trait MutOptimizer<T: ?Sized> {
+pub trait MutOptimizer<T: ?Sized>: std::fmt::Debug {
     fn optimize(&mut self, t: &mut T) -> Result<()>;
 }
 
+#[derive(Debug)]
 pub struct OptimizerPipelineBuilder<K: VarKind>(OptimizerPipeline<K>);
 
 impl<K: VarKind + 'static> OptimizerPipelineBuilder<K> {
@@ -64,6 +65,17 @@ where
     FN: FnMut(&str) -> FN2,
     FN2: FnMut(&dyn ExprLike) -> Result<Expr>;
 
+impl<K, FN, FN2> std::fmt::Debug for AnonModuleScopedExprPass<K, FN, FN2>
+where
+    K: VarKind,
+    FN: FnMut(&str) -> FN2,
+    FN2: FnMut(&dyn ExprLike) -> Result<Expr>,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AnonModuleScopedExprPass").finish()
+    }
+}
+
 impl<K, FN, FN2> From<FN> for AnonModuleScopedExprPass<K, FN, FN2>
 where
     K: VarKind,
@@ -91,6 +103,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct OptimizerPipeline<K: VarKind> {
     passes: Vec<Box<dyn MutOptimizer<Program<K>>>>,
 }
