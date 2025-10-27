@@ -185,6 +185,9 @@ impl<'a> IRPrinter<'a> {
                 }
                 Ok(())
             }
+            IRStmt::PostCond(post_cond) => self.block("post-cond", ctx, |ctx| {
+                self.fmt_bexpr(post_cond.cond(), ctx)
+            }),
         }
     }
 

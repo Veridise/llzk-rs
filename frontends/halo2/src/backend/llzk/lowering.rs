@@ -2,13 +2,13 @@ use std::rc::Rc;
 
 use crate::backend::lowering::ExprLowering;
 use crate::halo2::Challenge;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use llzk::builder::OpBuilder;
 use llzk::prelude::*;
 use melior::ir::ValueLike;
 use melior::{
-    ir::{Location, Operation, OperationRef, Type, Value},
     Context,
+    ir::{Location, Operation, OperationRef, Type, Value},
 };
 use mlir_sys::MlirValue;
 
@@ -17,8 +17,8 @@ use crate::backend::{
     func::{ArgNo, FuncIO},
     lowering::Lowering,
 };
-use crate::ir::expr::Felt;
 use crate::ir::CmpOp;
+use crate::ir::expr::Felt;
 
 use super::counter::Counter;
 use super::extras::{block_list, operations_list};
@@ -229,6 +229,10 @@ impl<'c> Lowering for LlzkStructLowering<'c> {
     }
 
     fn generate_assert(&self, _expr: &Self::CellOutput) -> Result<()> {
+        todo!()
+    }
+
+    fn generate_post_condition(&self, _expr: &Self::CellOutput) -> Result<()> {
         todo!()
     }
 }
