@@ -9,7 +9,7 @@ use halo2_proofs::poly::Rotation;
 use halo2curves_070::bn256::Fr;
 use std::marker::PhantomData;
 
-use halo2_llzk_frontend::{CircuitCallbacks, CircuitIO};
+use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis};
 
 mod common;
 
@@ -235,7 +235,7 @@ impl<F: Field> Circuit<F> for MulWithFixedConstraintCircuit<F> {
     }
 }
 
-impl<F: Field> CircuitCallbacks<F> for MulWithFixedConstraintCircuit<F> {
+impl<F: Field> CircuitSynthesis<F> for MulWithFixedConstraintCircuit<F> {
     type Circuit = Self;
     type Config = MulWithFixedConstraintConfig;
 

@@ -2,7 +2,7 @@ use std::{borrow::Cow, cell::RefCell};
 
 use ff::{Field, PrimeField};
 use halo2_llzk_frontend::{
-    CircuitCallbacks, PicusParams, Synthesizer,
+    CircuitSynthesis, PicusParams, Synthesizer,
     driver::Driver,
     ir::{ResolvedIRCircuit, generate::IRGenParams, stmt::IRStmt},
     lookups::{
@@ -44,7 +44,7 @@ pub fn synthesize_and_generate_ir<'drv, F, C>(
 ) -> ResolvedIRCircuit
 where
     F: PrimeField,
-    C: CircuitCallbacks<F>,
+    C: CircuitSynthesis<F>,
 {
     let syn = driver.synthesize(&circuit).unwrap();
     let unresolved = driver.generate_ir(&syn, params).unwrap();
@@ -75,7 +75,7 @@ pub fn picus_test<F, C>(
     canonicalize: bool,
 ) where
     F: PrimeField,
-    C: CircuitCallbacks<F>,
+    C: CircuitSynthesis<F>,
 {
     let mut driver = Driver::default();
     let mut resolved = synthesize_and_generate_ir(&mut driver, circuit, ir_params);

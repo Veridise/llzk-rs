@@ -1,6 +1,6 @@
 use group::ff::Field;
 use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
-use halo2_llzk_frontend::{CircuitCallbacks, CircuitIO, PicusParamsBuilder};
+use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis, PicusParamsBuilder};
 use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::default_group_key;
 use halo2_proofs::plonk::{
@@ -309,7 +309,7 @@ impl<F: Field> Circuit<F> for MulCircuit<F> {
     }
 }
 
-impl<F: Field> CircuitCallbacks<F> for MulCircuit<F> {
+impl<F: Field> CircuitSynthesis<F> for MulCircuit<F> {
     type Circuit = Self;
     type Config = MulConfig;
 

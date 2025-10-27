@@ -8,7 +8,7 @@ use halo2_proofs::poly::Rotation;
 use halo2curves_070::bn256::Fr;
 use std::marker::PhantomData;
 
-use halo2_llzk_frontend::{CircuitCallbacks, CircuitIO, PicusParamsBuilder};
+use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis, PicusParamsBuilder};
 
 mod common;
 
@@ -245,7 +245,7 @@ impl<F: Field> Circuit<F> for LookupCircuit<F> {
     }
 }
 
-impl<F: Field> CircuitCallbacks<F> for LookupCircuit<F> {
+impl<F: Field> CircuitSynthesis<F> for LookupCircuit<F> {
     type Circuit = Self;
     type Config = LookupConfig;
 

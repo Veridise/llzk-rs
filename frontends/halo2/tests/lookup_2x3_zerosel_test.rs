@@ -9,7 +9,7 @@ use halo2curves_070::bn256::Fr;
 use std::iter;
 use std::marker::PhantomData;
 
-use halo2_llzk_frontend::{CircuitCallbacks, CircuitIO, PicusParamsBuilder};
+use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis, PicusParamsBuilder};
 
 mod common;
 
@@ -243,7 +243,7 @@ impl<F: Field> Circuit<F> for Lookup2x3ZeroSelCircuit<F> {
     }
 }
 
-impl<F: Field> CircuitCallbacks<F> for Lookup2x3ZeroSelCircuit<F> {
+impl<F: Field> CircuitSynthesis<F> for Lookup2x3ZeroSelCircuit<F> {
     type Circuit = Self;
     type Config = Lookup2x3ZeroSelConfig;
 

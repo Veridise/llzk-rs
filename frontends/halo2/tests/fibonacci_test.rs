@@ -7,7 +7,7 @@ use halo2_proofs::plonk::{
 use halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
-use halo2_llzk_frontend::{CircuitCallbacks, CircuitIO, PicusParamsBuilder};
+use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis, PicusParamsBuilder};
 use halo2curves_070::bn256::Fr;
 
 mod common;
@@ -258,7 +258,7 @@ impl<F: Field> Circuit<F> for FibonacciCircuit<F> {
     }
 }
 
-impl<F: Field> CircuitCallbacks<F> for FibonacciCircuit<F> {
+impl<F: Field> CircuitSynthesis<F> for FibonacciCircuit<F> {
     type Circuit = Self;
     type Config = FibonacciConfig;
     type CS = ConstraintSystem<F>;

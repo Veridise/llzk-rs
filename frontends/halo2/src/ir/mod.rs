@@ -12,7 +12,7 @@ use crate::{
         generate::region_data,
         groups::GroupBody,
     },
-    synthesis::CircuitSynthesis,
+    synthesis::SynthesizedCircuit,
     temps::ExprOrTemp,
 };
 
@@ -96,7 +96,7 @@ where
     pub fn inject_ir(
         &mut self,
         ir: impl IntoIterator<Item = (RegionIndex, IRStmt<ExpressionInRow<'syn, F>>)>,
-        syn: &'syn CircuitSynthesis<F>,
+        syn: &'syn SynthesizedCircuit<F>,
     ) -> anyhow::Result<()> {
         let regions = region_data(syn);
         for (index, stmt) in ir {

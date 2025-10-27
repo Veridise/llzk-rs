@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    CircuitCallbacks,
+    CircuitSynthesis,
     backend::{
         llzk::{LlzkBackend, LlzkOutput, LlzkParams},
         picus::{PicusBackend, PicusOutput, PicusParams},
@@ -14,7 +14,7 @@ use crate::{
         IRCtx, ResolvedIRCircuit, UnresolvedIRCircuit,
         generate::{IRGenParams, generate_ir},
     },
-    synthesis::{CircuitSynthesis, Synthesizer},
+    synthesis::{SynthesizedCircuit, Synthesizer},
 };
 
 /// Controls the different lowering stages of circuits.
@@ -26,9 +26,9 @@ pub struct Driver {
 
 impl Driver {
     /// Synthesizes a circuit .
-    pub fn synthesize<F, C>(&mut self, circuit: &C) -> anyhow::Result<CircuitSynthesis<F>>
+    pub fn synthesize<F, C>(&mut self, circuit: &C) -> anyhow::Result<SynthesizedCircuit<F>>
     where
-        C: CircuitCallbacks<F>,
+        C: CircuitSynthesis<F>,
         F: PrimeField,
     {
         let mut cs = C::CS::default();
@@ -42,15 +42,15 @@ impl Driver {
         syn.configure_io(advice_io, instance_io);
         log::debug!("Starting synthesis");
         C::synthesize(circuit.circuit(), config, &mut syn, &cs)?;
-        let synthesis = syn.build(cs)?;
+        let synthesized = syn.build(cs)?;
         log::debug!("Synthesis completed successfuly");
-        Ok(synthesis)
+        Ok(synthesized)
     }
 
     /// Generates the IR of the synthesized circuit.
     pub fn generate_ir<'syn, 'drv, 'cb, 'sco, F>(
         &'drv mut self,
-        syn: &'syn CircuitSynthesis<F>,
+        syn: &'syn SynthesizedCircuit<F>,
         params: IRGenParams<'cb, '_, F>,
     ) -> anyhow::Result<UnresolvedIRCircuit<'drv, 'syn, 'sco, F>>
     where
@@ -84,7 +84,7 @@ impl Driver {
     }
 
     /// Creates the IR context for the synthesized circuit.
-    fn get_or_create_ir_ctx<'drv, F>(&'drv mut self, syn: &CircuitSynthesis<F>) -> &'drv IRCtx
+    fn get_or_create_ir_ctx<'drv, F>(&'drv mut self, syn: &SynthesizedCircuit<F>) -> &'drv IRCtx
     where
         F: PrimeField,
     {

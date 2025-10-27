@@ -27,7 +27,7 @@ use crate::{
     lookups::callbacks::{LazyLookupTableGenerator, LookupTableGenerator},
     resolvers::FixedQueryResolver,
     synthesis::{
-        CircuitSynthesis,
+        SynthesizedCircuit,
         constraint::EqConstraint,
         groups::{Group, GroupCell},
         regions::{RegionData, RegionRow, Row},
@@ -662,7 +662,7 @@ where
 }
 
 fn codegen_lookup_invocations<'sco, 'syn, 'ctx, 'cb, F>(
-    syn: &'syn CircuitSynthesis<F>,
+    syn: &'syn SynthesizedCircuit<F>,
     region_rows: &[RegionRow<'syn, 'ctx, 'syn, F>],
     lookup_cb: &'cb dyn LookupCallbacks<F>,
     generate_debug_comments: bool,

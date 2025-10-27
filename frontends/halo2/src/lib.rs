@@ -42,10 +42,18 @@ pub use io::CircuitIO;
 pub use lookups::callbacks::LookupCallbacks;
 pub use synthesis::Synthesizer;
 
-/// Defines, for a given circuit, a set of callbacks with information
-/// required by the LLZK codegen module to construct the IR representation of the
-/// circuit.
-pub trait CircuitCallbacks<F: Field> {
+/// Implementations of this trait define how a circuit is synthesized.
+///
+/// Serves as a bridge to the Halo2 circuit synthesis process that allows disconnecting the types
+/// defined in this crate with the types defined by Halo2. Since many Halo2 based projects fork the
+/// library this trait allows for swapping the concrete implementation of Halo2 without having to
+/// change the codebase of this crate.
+///
+/// # Note
+///
+/// At the time of writing removing the dependency on Halo2 is a work in progress and some types in this crate still
+/// depend on types defined by Halo2.
+pub trait CircuitSynthesis<F: Field> {
     /// The type of the circuit.
     type Circuit;
     /// Should be the same type as the circuit config.

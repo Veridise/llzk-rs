@@ -27,7 +27,7 @@ pub mod groups;
 pub mod regions;
 
 /// Result of synthesizing a circuit.
-pub struct CircuitSynthesis<F>
+pub struct SynthesizedCircuit<F>
 where
     F: Field,
 {
@@ -39,7 +39,7 @@ where
     groups: Groups,
 }
 
-impl<F> CircuitSynthesis<F>
+impl<F> SynthesizedCircuit<F>
 where
     F: Field,
 {
@@ -135,7 +135,7 @@ where
     }
 }
 
-impl<F: Field> std::fmt::Debug for CircuitSynthesis<F> {
+impl<F: Field> std::fmt::Debug for SynthesizedCircuit<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CircuitSynthesis")
             .field("id", &self.id)
@@ -206,13 +206,13 @@ impl<F: Field> Synthesizer<F> {
     }
 
     /// Builds a [`CircuitSynthesis`] with the information recollected about the circuit.
-    pub(crate) fn build<CS>(mut self, cs: CS) -> Result<CircuitSynthesis<F>>
+    pub(crate) fn build<CS>(mut self, cs: CS) -> Result<SynthesizedCircuit<F>>
     where
         CS: ConstraintSystemInfo<F> + 'static,
     {
         add_fixed_to_const_constraints(&mut self.eq_constraints, &self.fixed)?;
 
-        Ok(CircuitSynthesis {
+        Ok(SynthesizedCircuit {
             id: self.id,
             cs: Box::new(cs),
             eq_constraints: self.eq_constraints,
