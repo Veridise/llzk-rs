@@ -2,10 +2,10 @@ use std::{borrow::Borrow, collections::HashMap, ops::Deref};
 
 use crate::{
     halo2::{
+        Advice, Any, Cell, Column, ColumnType, Expression, Field, Instance, RegionIndex, Rotation,
         groups::{GroupKey, GroupKeyInstance},
-        Advice, Any, Cell, Column, ColumnType, Expression, Field, Gate, Instance, RegionIndex,
-        Rotation,
     },
+    info_traits::GateInfo,
     io::{AdviceIO, IOCell, InstanceIO},
     lookups::Lookup,
     resolvers::FixedQueryResolver,
@@ -233,11 +233,11 @@ impl Group {
     /// Returns the cartesian product of the regions and the gates.
     pub fn region_gates<'a, F: Field>(
         &'a self,
-        gates: &'a [Gate<F>],
-    ) -> impl Iterator<Item = (&'a Gate<F>, RegionData<'a>)> + 'a {
+        gates: &'a [&dyn GateInfo<F>],
+    ) -> impl Iterator<Item = (&'a dyn GateInfo<F>, RegionData<'a>)> + 'a {
         self.regions()
             .into_iter()
-            .flat_map(|r| gates.iter().map(move |g| (g, r)))
+            .flat_map(|r| gates.iter().map(move |g| (*g, r)))
     }
 }
 
@@ -371,6 +371,7 @@ impl GroupTree {
 /// Once completed they get added to the list of children of the next group in the stack.
 ///
 /// The root group owned by the builder is always a top-level block.
+#[derive(Debug)]
 pub struct GroupBuilder {
     root: GroupTree,
     stack: Vec<GroupTree>,
@@ -473,5 +474,11 @@ impl GroupBuilder {
     /// Returns a mutable reference to the regions in the current group.
     pub fn regions_mut(&mut self) -> &mut Regions {
         &mut self.current_mut().regions
+    }
+}
+
+impl Default for GroupBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }

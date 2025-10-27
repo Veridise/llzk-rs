@@ -3,18 +3,18 @@
 use std::collections::HashMap;
 
 use crate::{
-    CircuitCallbacks,
+    CircuitSynthesis,
     backend::{
         llzk::{LlzkBackend, LlzkOutput, LlzkParams},
         picus::{PicusBackend, PicusOutput, PicusParams},
     },
     halo2::PrimeField,
-    io::{AdviceIO, AdviceIOValidator, InstanceIO, InstanceIOValidator},
+    io::{AdviceIO, InstanceIO},
     ir::{
         IRCtx, ResolvedIRCircuit, UnresolvedIRCircuit,
         generate::{IRGenParams, generate_ir},
     },
-    synthesis::{CircuitSynthesis, Synthesizer},
+    synthesis::{SynthesizedCircuit, Synthesizer},
 };
 
 /// Controls the different lowering stages of circuits.
@@ -26,30 +26,31 @@ pub struct Driver {
 
 impl Driver {
     /// Synthesizes a circuit .
-    pub fn synthesize<F, C>(&mut self, circuit: &C) -> anyhow::Result<CircuitSynthesis<F>>
+    pub fn synthesize<F, C>(&mut self, circuit: &C) -> anyhow::Result<SynthesizedCircuit<F>>
     where
-        C: CircuitCallbacks<F>,
+        C: CircuitSynthesis<F>,
         F: PrimeField,
     {
+        let mut cs = C::CS::default();
         let mut syn = Synthesizer::new(self.next_id());
-        let config = C::configure(syn.cs_mut());
+        let config = C::configure(&mut cs);
 
-        let advice_io: AdviceIO = C::advice_io(&config);
-        let instance_io: InstanceIO = C::instance_io(&config);
         log::debug!("Validating io hints");
-        advice_io.validate(&AdviceIOValidator)?;
-        instance_io.validate(&InstanceIOValidator::new(syn.cs()))?;
+        let advice_io: AdviceIO = C::advice_io(&config)?;
+        let instance_io: InstanceIO = C::instance_io(&config)?;
 
+        syn.configure_io(advice_io, instance_io);
         log::debug!("Starting synthesis");
-        let synthesis = syn.synthesize(circuit, config, advice_io, instance_io)?;
+        C::synthesize(circuit.circuit(), config, &mut syn, &cs)?;
+        let synthesized = syn.build(cs)?;
         log::debug!("Synthesis completed successfuly");
-        Ok(synthesis)
+        Ok(synthesized)
     }
 
     /// Generates the IR of the synthesized circuit.
     pub fn generate_ir<'syn, 'drv, 'cb, 'sco, F>(
         &'drv mut self,
-        syn: &'syn CircuitSynthesis<F>,
+        syn: &'syn SynthesizedCircuit<F>,
         params: IRGenParams<'cb, '_, F>,
     ) -> anyhow::Result<UnresolvedIRCircuit<'drv, 'syn, 'sco, F>>
     where
@@ -83,10 +84,10 @@ impl Driver {
     }
 
     /// Creates the IR context for the synthesized circuit.
-    fn get_or_create_ir_ctx<'drv, F: PrimeField>(
-        &'drv mut self,
-        syn: &CircuitSynthesis<F>,
-    ) -> &'drv IRCtx {
+    fn get_or_create_ir_ctx<'drv, F>(&'drv mut self, syn: &SynthesizedCircuit<F>) -> &'drv IRCtx
+    where
+        F: PrimeField,
+    {
         self.ir_ctxs
             .entry(syn.id())
             .or_insert_with(|| IRCtx::new(syn))

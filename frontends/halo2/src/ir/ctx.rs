@@ -6,7 +6,7 @@ use crate::halo2::{Advice, Any, Column, Instance};
 use crate::halo2::{Field, RegionIndex};
 use crate::io::IOCell;
 use crate::ir::generate::region_data;
-use crate::synthesis::CircuitSynthesis;
+use crate::synthesis::SynthesizedCircuit;
 use crate::synthesis::groups::GroupCell;
 use crate::synthesis::regions::RegionData;
 
@@ -20,7 +20,7 @@ pub struct IRCtx {
 }
 
 impl IRCtx {
-    pub(crate) fn new<F: Field>(syn: &CircuitSynthesis<F>) -> Self {
+    pub(crate) fn new<F: Field>(syn: &SynthesizedCircuit<F>) -> Self {
         let mut groups_advice_io: HashMap<usize, crate::io::AdviceIO> = Default::default();
         let mut groups_instance_io: HashMap<usize, crate::io::InstanceIO> = Default::default();
 

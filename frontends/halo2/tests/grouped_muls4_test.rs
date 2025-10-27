@@ -1,6 +1,6 @@
 use group::ff::Field;
 use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
-use halo2_llzk_frontend::{CircuitCallbacks, CircuitIO, PicusParamsBuilder};
+use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis, PicusParamsBuilder};
 use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::default_group_key;
 use halo2_proofs::plonk::{
@@ -394,12 +394,33 @@ impl<F: Field> Circuit<F> for MulCircuit<F> {
     }
 }
 
-impl<F: Field> CircuitCallbacks<F> for MulCircuit<F> {
-    fn advice_io(_: &<Self as Circuit<F>>::Config) -> CircuitIO<Advice> {
-        CircuitIO::empty()
+impl<F: Field> CircuitSynthesis<F> for MulCircuit<F> {
+    type Circuit = Self;
+    type Config = MulConfig;
+
+    type CS = ConstraintSystem<F>;
+
+    type Error = halo2_proofs::plonk::Error;
+
+    fn circuit(&self) -> &Self::Circuit {
+        self
+    }
+    fn configure(cs: &mut Self::CS) -> Self::Config {
+        <Self as Circuit<F>>::configure(cs)
     }
 
-    fn instance_io(config: &<Self as Circuit<F>>::Config) -> CircuitIO<Instance> {
+    fn advice_io(_: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Advice>> {
+        Ok(CircuitIO::empty())
+    }
+    fn instance_io(config: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Instance>> {
         CircuitIO::new(&[(config.instance, &[0])], &[(config.instance, &[1])])
+    }
+    fn synthesize(
+        circuit: &Self::Circuit,
+        config: Self::Config,
+        synthesizer: &mut halo2_llzk_frontend::Synthesizer<F>,
+        cs: &Self::CS,
+    ) -> Result<(), Self::Error> {
+        common::SynthesizerAssignment::synthesize(circuit, config, synthesizer, cs)
     }
 }

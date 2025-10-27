@@ -10,7 +10,8 @@ use crate::{
     },
     expressions::{ExpressionInRow, ScopedExpression},
     gates::RewritePatternSet,
-    halo2::{Expression, Field, Gate, Rotation, groups::GroupKeyInstance},
+    halo2::{Expression, Field, Rotation, groups::GroupKeyInstance},
+    info_traits::GateInfo,
     ir::{
         CmpOp, IRCtx,
         ctx::AdviceCells,
@@ -26,7 +27,7 @@ use crate::{
     lookups::callbacks::{LazyLookupTableGenerator, LookupTableGenerator},
     resolvers::FixedQueryResolver,
     synthesis::{
-        CircuitSynthesis,
+        SynthesizedCircuit,
         constraint::EqConstraint,
         groups::{Group, GroupCell},
         regions::{RegionData, RegionRow, Row},
@@ -633,7 +634,7 @@ where
 
 /// Uses the given rewrite patterns to lower the gates on each region.
 fn lower_gates<'sco, 'syn, 'io, F>(
-    gates: &'syn [Gate<F>],
+    gates: Vec<&'syn dyn GateInfo<F>>,
     regions: &[RegionData<'syn>],
     patterns: &RewritePatternSet<F>,
     advice_io: &'io crate::io::AdviceIO,
@@ -680,7 +681,7 @@ where
 }
 
 fn codegen_lookup_invocations<'sco, 'syn, 'ctx, 'cb, F>(
-    syn: &'syn CircuitSynthesis<F>,
+    syn: &'syn SynthesizedCircuit<F>,
     region_rows: &[RegionRow<'syn, 'ctx, 'syn, F>],
     lookup_cb: &'cb dyn LookupCallbacks<F>,
     generate_debug_comments: bool,

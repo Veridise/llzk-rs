@@ -9,7 +9,7 @@ use crate::{
     halo2::{Field, PrimeField, RegionIndex},
     ir::{IRCtx, generate::patterns::load_patterns, groups::GroupBody},
     lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
-    synthesis::{CircuitSynthesis, groups::Group, regions::RegionData},
+    synthesis::{SynthesizedCircuit, groups::Group, regions::RegionData},
     temps::ExprOrTemp,
 };
 
@@ -121,7 +121,7 @@ impl<'lc, 'gc, F: Field> IRGenParamsBuilder<'lc, 'gc, F> {
 
 /// Generates an intermediate representation of the circuit from its synthesis.
 pub fn generate_ir<'syn, 'ctx, 'cb, 'sco, F>(
-    syn: &'syn CircuitSynthesis<F>,
+    syn: &'syn SynthesizedCircuit<F>,
     params: IRGenParams<'cb, '_, F>,
     ir_ctx: &'ctx IRCtx,
 ) -> anyhow::Result<Vec<GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>>>
@@ -170,7 +170,7 @@ where
 
 /// Creates a map from region index to its data
 #[inline]
-pub(super) fn region_data<'s, F: Field>(syn: &'s CircuitSynthesis<F>) -> RegionByIndex<'s> {
+pub(super) fn region_data<'s, F: Field>(syn: &'s SynthesizedCircuit<F>) -> RegionByIndex<'s> {
     syn.groups()
         .iter()
         .flat_map(|g| g.regions())
@@ -187,7 +187,7 @@ pub(super) type RegionByIndex<'s> = HashMap<RegionIndex, RegionData<'s>>;
 /// Support data for creating group body IR structs
 pub(super) struct GroupIRCtx<'lc, 'gc, 'syn, F: Field> {
     regions_by_index: RegionByIndex<'syn>,
-    syn: &'syn CircuitSynthesis<F>,
+    syn: &'syn SynthesizedCircuit<F>,
     patterns: RewritePatternSet<F>,
     params: IRGenParams<'lc, 'gc, F>,
 }
@@ -201,7 +201,7 @@ impl<'lc, 'gc, 'syn, F: Field> GroupIRCtx<'lc, 'gc, 'syn, F> {
         &self.regions_by_index
     }
 
-    pub(super) fn syn(&self) -> &'syn CircuitSynthesis<F> {
+    pub(super) fn syn(&self) -> &'syn SynthesizedCircuit<F> {
         self.syn
     }
 
