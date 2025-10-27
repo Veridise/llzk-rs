@@ -483,13 +483,15 @@ impl StmtConstantFolding for PostConditionStmt {
     }
 }
 
+const POST_CONDITION_KW: &'static str = "post-condition";
+
 impl TextRepresentable for PostConditionStmt {
     fn to_repr(&self) -> TextRepresentation<'_> {
-        owned_list!("post-condition", &self.0).break_line()
+        owned_list!(POST_CONDITION_KW, &self.0).break_line()
     }
 
     fn width_hint(&self) -> usize {
-        17 + self.0.width_hint()
+        3 + POST_CONDITION_KW.len() + self.0.width_hint()
     }
 }
 
