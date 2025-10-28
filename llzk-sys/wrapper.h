@@ -9,7 +9,7 @@
 #include "llzk-c/Dialect/Global.h"
 #include "llzk-c/Dialect/Include.h"
 #include "llzk-c/Dialect/LLZK.h"
-#include "llzk-c/Dialect/Polymorphic.h"
+#include "llzk-c/Dialect/Poly.h"
 #include "llzk-c/Dialect/String.h"
 #include "llzk-c/Dialect/Struct.h"
 #include "llzk-c/Dialect/Undef.h"
