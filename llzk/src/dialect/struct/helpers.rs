@@ -23,16 +23,12 @@ pub fn compute_fn<'c>(
     inputs: &[(Type<'c>, Location<'c>)],
     arg_attrs: Option<&[&[(Identifier<'c>, Attribute<'c>)]]>,
 ) -> Result<FuncDefOp<'c>, Error> {
-    let context = loc.context();
+    let context = unsafe { loc.context().to_ref() };
     let input_types: Vec<Type<'c>> = inputs.iter().map(|(t, _)| *t).collect();
     function::def(
         loc,
         "compute",
-        FunctionType::new(
-            unsafe { context.to_ref() },
-            &input_types,
-            &[struct_type.into()],
-        ),
+        FunctionType::new(context, &input_types, &[struct_type.into()]),
         &[],
         arg_attrs,
     )
@@ -53,7 +49,7 @@ pub fn constrain_fn<'c>(
     inputs: &[(Type<'c>, Location<'c>)],
     arg_attrs: Option<&[&[(Identifier<'c>, Attribute<'c>)]]>,
 ) -> Result<FuncDefOp<'c>, Error> {
-    let context = loc.context();
+    let context = unsafe { loc.context().to_ref() };
     let mut input_types: Vec<Type<'c>> = vec![struct_type.into()];
     input_types.extend(inputs.iter().map(|(t, _)| *t));
     let mut all_inputs = vec![(struct_type.into(), loc)];
@@ -66,7 +62,7 @@ pub fn constrain_fn<'c>(
     function::def(
         loc,
         "constrain",
-        FunctionType::new(unsafe { context.to_ref() }, &input_types, &[]),
+        FunctionType::new(context, &input_types, &[]),
         &[],
         all_arg_attrs.as_ref().map(Vec::as_slice),
     )

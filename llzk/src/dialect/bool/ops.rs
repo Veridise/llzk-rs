@@ -4,8 +4,8 @@ use crate::{
 };
 
 use melior::ir::{
-    attribute::StringAttribute, operation::OperationBuilder, r#type::IntegerType, Identifier,
-    Location, Operation, Value,
+    Identifier, Location, Operation, Value, attribute::StringAttribute,
+    operation::OperationBuilder, r#type::IntegerType,
 };
 
 fn build_cmp_op<'c>(
@@ -13,13 +13,13 @@ fn build_cmp_op<'c>(
     location: Location<'c>,
     operands: &[Value<'c, '_>],
 ) -> Result<Operation<'c>, Error> {
-    let ctx = location.context();
+    let context = unsafe { location.context().to_ref() };
     OperationBuilder::new("bool.cmp", location)
-        .add_results(&[IntegerType::new(unsafe { ctx.to_ref() }, 1).into()])
+        .add_results(&[IntegerType::new(context, 1).into()])
         .add_operands(operands)
         .add_attributes(&[(
-            Identifier::new(unsafe { ctx.to_ref() }, "predicate"),
-            CmpPredicateAttribute::new(unsafe { ctx.to_ref() }, pred).into(),
+            Identifier::new(context, "predicate"),
+            CmpPredicateAttribute::new(context, pred).into(),
         )])
         .build()
         .map_err(Into::into)
@@ -49,9 +49,9 @@ fn build_op<'c>(
     location: Location<'c>,
     operands: &[Value<'c, '_>],
 ) -> Result<Operation<'c>, Error> {
-    let ctx = location.context();
+    let context = unsafe { location.context().to_ref() };
     OperationBuilder::new(format!("bool.{name}").as_str(), location)
-        .add_results(&[IntegerType::new(unsafe { ctx.to_ref() }, 1).into()])
+        .add_results(&[IntegerType::new(context, 1).into()])
         .add_operands(operands)
         .build()
         .map_err(Into::into)
@@ -97,12 +97,12 @@ pub fn assert<'c>(
     cond: Value<'c, '_>,
     msg: Option<&str>,
 ) -> Result<Operation<'c>, Error> {
-    let ctx = unsafe { location.context().to_ref() };
+    let context = unsafe { location.context().to_ref() };
     let mut builder = OperationBuilder::new("bool.assert", location).add_operands(&[cond]);
     if let Some(msg) = msg {
         builder = builder.add_attributes(&[(
-            Identifier::new(ctx, "msg"),
-            StringAttribute::new(ctx, msg).into(),
+            Identifier::new(context, "msg"),
+            StringAttribute::new(context, msg).into(),
         )]);
     }
 

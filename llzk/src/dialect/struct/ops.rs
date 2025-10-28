@@ -247,12 +247,12 @@ pub fn def<'c, I>(
 where
     I: IntoIterator<Item = Result<Operation<'c>, Error>>,
 {
-    let ctx = location.context();
+    let context = unsafe { location.context().to_ref() };
     let params: Vec<Attribute> = params
         .iter()
-        .map(|a| FlatSymbolRefAttribute::new(unsafe { ctx.to_ref() }, a).into())
+        .map(|a| FlatSymbolRefAttribute::new(context, a).into())
         .collect();
-    let params = ArrayAttribute::new(unsafe { ctx.to_ref() }, &params).into();
+    let params = ArrayAttribute::new(context, &params).into();
     let region = Region::new();
     let block = Block::new(&[]);
     region_ops
@@ -262,13 +262,10 @@ where
             Ok(())
         })?;
     region.append_block(block);
-    let name: Attribute = StringAttribute::new(unsafe { ctx.to_ref() }, name).into();
+    let name: Attribute = StringAttribute::new(context, name).into();
     let attrs = [
-        (Identifier::new(unsafe { ctx.to_ref() }, "sym_name"), name),
-        (
-            Identifier::new(unsafe { ctx.to_ref() }, "const_params"),
-            params,
-        ),
+        (Identifier::new(context, "sym_name"), name),
+        (Identifier::new(context, "const_params"), params),
     ];
 
     OperationBuilder::new("struct.def", location)
@@ -290,21 +287,18 @@ pub fn field<'c, T>(
 where
     T: Into<Type<'c>>,
 {
-    let ctx = location.context();
+    let context = unsafe { location.context().to_ref() };
     let r#type = TypeAttribute::new(r#type.into());
     let mut builder = OperationBuilder::new("struct.field", location).add_attributes(&[
         (
-            ident!(ctx, "sym_name"),
-            StringAttribute::new(unsafe { ctx.to_ref() }, name).into(),
+            Identifier::new(context, "sym_name"),
+            StringAttribute::new(context, name).into(),
         ),
-        (ident!(ctx, "type"), r#type.into()),
+        (Identifier::new(context, "type"), r#type.into()),
     ]);
 
     builder = if is_column {
-        builder.add_attributes(&[(
-            ident!(ctx, "column"),
-            Attribute::unit(unsafe { ctx.to_ref() }),
-        )])
+        builder.add_attributes(&[(Identifier::new(context, "column"), Attribute::unit(context))])
     } else {
         builder
     };
@@ -353,12 +347,9 @@ pub fn writef<'c>(
     field_name: &str,
     value: Value<'c, '_>,
 ) -> Result<Operation<'c>, Error> {
-    let context = location.context();
-    let field_name = FlatSymbolRefAttribute::new(unsafe { context.to_ref() }, field_name);
-    let attrs = [(
-        Identifier::new(unsafe { context.to_ref() }, "field_name"),
-        field_name.into(),
-    )];
+    let context = unsafe { location.context().to_ref() };
+    let field_name = FlatSymbolRefAttribute::new(context, field_name);
+    let attrs = [(Identifier::new(context, "field_name"), field_name.into())];
     OperationBuilder::new("struct.writef", location)
         .add_operands(&[component, value])
         .add_attributes(&attrs)

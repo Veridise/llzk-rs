@@ -22,22 +22,25 @@ pub fn def<'c>(
     constant: bool,
     initial_value: Option<Attribute<'c>>,
 ) -> Operation<'c> {
-    let ctx = location.context();
+    let context = unsafe { location.context().to_ref() };
     let mut attrs = vec![
         (
-            ident!(ctx, "sym_name"),
-            StringAttribute::new(unsafe { ctx.to_ref() }, name).into(),
+            Identifier::new(context, "sym_name"),
+            StringAttribute::new(context, name).into(),
         ),
-        (ident!(ctx, "type"), TypeAttribute::new(r#type).into()),
+        (
+            Identifier::new(context, "type"),
+            TypeAttribute::new(r#type).into(),
+        ),
     ];
     if constant {
         attrs.push((
-            ident!(ctx, "constant"),
-            Attribute::unit(unsafe { ctx.to_ref() }),
+            Identifier::new(context, "constant"),
+            Attribute::unit(context),
         ));
     }
     if let Some(initial_value) = initial_value {
-        attrs.push((ident!(ctx, "initial_value"), initial_value));
+        attrs.push((Identifier::new(context, "initial_value"), initial_value));
     }
     OperationBuilder::new("global.def", location)
         .add_attributes(&attrs)

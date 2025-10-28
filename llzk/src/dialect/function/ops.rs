@@ -10,17 +10,17 @@ use llzk_sys::{
     llzkOperationIsAFuncDefOp,
 };
 use melior::{
+    Context, StringRef,
     ir::{
+        Attribute, AttributeLike, BlockLike as _, Identifier, Location, Operation, RegionLike as _,
+        Type, TypeLike, Value,
         attribute::ArrayAttribute,
         block::BlockArgument,
         operation::{OperationBuilder, OperationLike},
         r#type::FunctionType,
-        Attribute, AttributeLike, BlockLike as _, Identifier, Location, Operation, RegionLike as _,
-        Type, TypeLike, Value,
     },
-    Context, StringRef,
 };
-use mlir_sys::{mlirDictionaryAttrGet, mlirNamedAttributeGet, MlirAttribute, MlirNamedAttribute};
+use mlir_sys::{MlirAttribute, MlirNamedAttribute, mlirDictionaryAttrGet, mlirNamedAttributeGet};
 
 use crate::{
     dialect::r#struct::StructType, error::Error, macros::llzk_op_type,
@@ -214,10 +214,10 @@ pub fn def<'c>(
     attrs: &[(Identifier<'c>, Attribute<'c>)],
     arg_attrs: Option<&[&[(Identifier<'c>, Attribute<'c>)]]>,
 ) -> Result<FuncDefOp<'c>, Error> {
-    let ctx = location.context();
+    let context = unsafe { location.context().to_ref() };
     let name = StringRef::new(name);
     let attrs: Vec<_> = attrs.iter().map(tuple_to_named_attr).collect();
-    let arg_attrs = prepare_arg_attrs(arg_attrs, r#type.input_count(), unsafe { ctx.to_ref() });
+    let arg_attrs = prepare_arg_attrs(arg_attrs, r#type.input_count(), context);
     unsafe {
         Operation::from_raw(llzkFuncDefOpCreateWithAttrsAndArgAttrs(
             location.to_raw(),

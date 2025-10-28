@@ -1,18 +1,16 @@
 use crate::{error::Error, ident};
 
 use super::{FeltConstAttribute, FeltType};
-use melior::ir::{
-    operation::OperationBuilder, Identifier, Location, Operation, Value,
-};
+use melior::ir::{Identifier, Location, Operation, Value, operation::OperationBuilder};
 
 fn build_op<'c>(
     name: &str,
     location: Location<'c>,
     operands: &[Value<'c, '_>],
 ) -> Result<Operation<'c>, Error> {
-    let ctx = location.context();
+    let context = unsafe { location.context().to_ref() };
     OperationBuilder::new(format!("felt.{name}").as_str(), location)
-        .add_results(&[FeltType::new(unsafe { ctx.to_ref() }).into()])
+        .add_results(&[FeltType::new(context).into()])
         .add_operands(operands)
         .build()
         .map_err(Into::into)
@@ -65,10 +63,10 @@ pub fn constant<'c>(
     location: Location<'c>,
     value: FeltConstAttribute<'c>,
 ) -> Result<Operation<'c>, Error> {
-    let ctx = location.context();
+    let context = unsafe { location.context().to_ref() };
     OperationBuilder::new("felt.const", location)
-        .add_results(&[FeltType::new(unsafe { ctx.to_ref() }).into()])
-        .add_attributes(&[(ident!(ctx, "value"), value.into())])
+        .add_results(&[FeltType::new(context).into()])
+        .add_attributes(&[(Identifier::new(context, "value"), value.into())])
         .build()
         .map_err(Into::into)
 }
