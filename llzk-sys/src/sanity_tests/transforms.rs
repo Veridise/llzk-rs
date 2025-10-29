@@ -9,7 +9,7 @@ use crate::{
     mlirRegisterLLZKTransformationRedundantOperationEliminationPass,
     mlirRegisterLLZKTransformationRedundantReadAndWriteEliminationPass,
     mlirRegisterLLZKTransformationUnusedDeclarationEliminationPass,
-    sanity_tests::{context, TestContext},
+    sanity_tests::{TestContext, context},
 };
 
 #[rstest]

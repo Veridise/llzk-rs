@@ -5,7 +5,7 @@ use rstest::rstest;
 
 use crate::{
     llzkStringTypeGet, llzkTypeIsAStringType, mlirGetDialectHandle__llzk__string__,
-    sanity_tests::{context, TestContext},
+    sanity_tests::{TestContext, context},
 };
 
 #[test]

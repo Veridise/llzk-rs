@@ -1,21 +1,21 @@
 use std::ptr::{null, null_mut};
 
 use mlir_sys::{
-    mlirAffineConstantExprGet, mlirAffineMapAttrGet, mlirAffineMapEqual, mlirAffineMapGet,
-    mlirAttributeEqual, mlirFlatSymbolRefAttrGet, mlirLocationUnknownGet, mlirOperationDestroy,
-    mlirOperationVerify, mlirStringAttrGet, mlirStringRefEqual, MlirValue,
+    MlirValue, mlirAffineConstantExprGet, mlirAffineMapAttrGet, mlirAffineMapEqual,
+    mlirAffineMapGet, mlirAttributeEqual, mlirFlatSymbolRefAttrGet, mlirLocationUnknownGet,
+    mlirOperationDestroy, mlirOperationVerify, mlirStringAttrGet, mlirStringRefEqual,
 };
 use rstest::rstest;
 
 use crate::{
-    llzkApplyMapOpBuild, llzkApplyMapOpBuildWithAffineExpr, llzkApplyMapOpBuildWithAffineMap,
-    llzkApplyMapOpGetAffineMap, llzkApplyMapOpGetDimOperands, llzkApplyMapOpGetNumDimOperands,
-    llzkApplyMapOpGetNumSymbolOperands, llzkApplyMapOpGetSymbolOperands,
-    llzkOperationIsAApplyMapOp, llzkTypeIsATypeVarType, llzkTypeVarTypeGet,
-    llzkTypeVarTypeGetFromAttr, llzkTypeVarTypeGetName, llzkTypeVarTypeGetNameRef,
-    mlirGetDialectHandle__llzk__polymorphic__, mlirOpBuilderCreate, mlirOpBuilderDestroy,
-    sanity_tests::{context, str_ref, TestContext},
-    MlirValueRange,
+    MlirValueRange, llzkApplyMapOpBuild, llzkApplyMapOpBuildWithAffineExpr,
+    llzkApplyMapOpBuildWithAffineMap, llzkApplyMapOpGetAffineMap, llzkApplyMapOpGetDimOperands,
+    llzkApplyMapOpGetNumDimOperands, llzkApplyMapOpGetNumSymbolOperands,
+    llzkApplyMapOpGetSymbolOperands, llzkOperationIsAApplyMapOp, llzkTypeIsATypeVarType,
+    llzkTypeVarTypeGet, llzkTypeVarTypeGetFromAttr, llzkTypeVarTypeGetName,
+    llzkTypeVarTypeGetNameRef, mlirGetDialectHandle__llzk__polymorphic__, mlirOpBuilderCreate,
+    mlirOpBuilderDestroy,
+    sanity_tests::{TestContext, context, str_ref},
 };
 
 #[test]
