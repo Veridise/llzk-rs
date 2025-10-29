@@ -8,6 +8,7 @@ pub use crate::dialect::llzk::prelude::*;
 pub use crate::dialect::module::llzk_module;
 pub use crate::dialect::r#struct::prelude::*;
 pub use crate::error::Error as LlzkError;
+pub use crate::passes as llzk_passes;
 
 /// Exports functions that create operations
 pub mod array {
@@ -24,7 +25,7 @@ pub mod constrain {
 /// Exports functions that create operations
 pub mod felt {
     pub use crate::dialect::felt::{
-        add, bit_and, bit_not, bit_or, bit_xor, constant, div, inv, mul, neg, r#mod, shl, shr, sub,
+        add, bit_and, bit_not, bit_or, bit_xor, constant, div, inv, r#mod, mul, neg, shl, shr, sub,
     };
 }
 /// Exports functions that create operations
@@ -43,25 +44,25 @@ pub mod r#struct {
 
 /// melior reexports of commonly used types.
 pub use melior::{
+    Context, ContextRef, Error as MeliorError, StringRef,
     ir::{
+        Location, Region, RegionLike, RegionRef, Value, ValueLike,
         attribute::{
             Attribute, AttributeLike, FlatSymbolRefAttribute, IntegerAttribute, StringAttribute,
         },
         block::{Block, BlockArgument, BlockLike, BlockRef},
         operation::{Operation, OperationLike, OperationMutLike, OperationRef},
         r#type::{FunctionType, IntegerType, Type, TypeLike},
-        Location, Region, RegionLike, RegionRef, Value, ValueLike,
     },
     pass::{OperationPassManager, Pass, PassManager},
-    Context, ContextRef, Error as MeliorError, StringRef,
 };
 
 /// Reexpor of the passes included in melior.
 pub mod melior_passes {
+    pub use melior::pass::r#async::*;
     pub use melior::pass::conversion::*;
     pub use melior::pass::gpu::*;
     pub use melior::pass::linalg::*;
-    pub use melior::pass::r#async::*;
     pub use melior::pass::sparse_tensor::*;
     pub use melior::pass::transform::*;
 }
