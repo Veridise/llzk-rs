@@ -11,8 +11,9 @@ use crate::{
         expr::{Felt, IRAexpr},
         generate::region_data,
         groups::GroupBody,
+        printer::IRPrinter,
     },
-    synthesis::CircuitSynthesis,
+    synthesis::SynthesizedCircuit,
     temps::ExprOrTemp,
 };
 
@@ -56,6 +57,7 @@ pub mod equivalency;
 pub mod expr;
 pub mod generate;
 pub mod groups;
+pub mod printer;
 pub mod stmt;
 
 pub use ctx::IRCtx;
@@ -96,7 +98,7 @@ where
     pub fn inject_ir(
         &mut self,
         ir: impl IntoIterator<Item = (RegionIndex, IRStmt<ExpressionInRow<'syn, F>>)>,
-        syn: &'syn CircuitSynthesis<F>,
+        syn: &'syn SynthesizedCircuit<F>,
     ) -> anyhow::Result<()> {
         let regions = region_data(syn);
         for (index, stmt) in ir {
@@ -175,6 +177,11 @@ impl ResolvedIRCircuit {
     /// Returns the context associated with this circuit.
     pub fn ctx(&self) -> &IRCtx {
         &self.ctx
+    }
+
+    /// Returns a printer of the circuit.
+    pub fn display<'a>(&'a self) -> IRPrinter<'a> {
+        IRPrinter::from_circuit(self)
     }
 
     /// Returns the main group.

@@ -263,6 +263,10 @@ impl<'c> Lowering for LlzkStructLowering<'c, '_> {
         )?)?;
         Ok(())
     }
+
+    fn generate_post_condition(&self, _expr: &Self::CellOutput) -> Result<()> {
+        todo!()
+    }
 }
 
 impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
@@ -484,6 +488,7 @@ impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
 #[cfg(test)]
 mod tests {
     use ff::Field as _;
+    use halo2_proofs::plonk::ConstraintSystem;
     use log::LevelFilter;
     use melior::ir::Module;
     use simplelog::{Config, TestLogger};
@@ -926,23 +931,25 @@ mod tests {
 
     impl FragmentCfg {
         fn advice_io(&self) -> AdviceIO {
-            let mut cs = crate::halo2::ConstraintSystem::<crate::halo2::Fr>::default();
+            let mut cs = ConstraintSystem::<crate::halo2::Fr>::default();
             let inputs = Vec::from_iter(self.n_public_inputs..self.n_inputs);
             let outputs = Vec::from_iter(self.n_public_outputs..self.n_outputs);
             AdviceIO::new(
                 &[(cs.advice_column(), &inputs)],
                 &[(cs.advice_column(), &outputs)],
             )
+            .unwrap()
         }
 
         fn instance_io(&self) -> InstanceIO {
-            let mut cs = crate::halo2::ConstraintSystem::<crate::halo2::Fr>::default();
+            let mut cs = ConstraintSystem::<crate::halo2::Fr>::default();
             let inputs = Vec::from_iter(0..self.n_public_inputs);
             let outputs = Vec::from_iter(0..self.n_public_outputs);
             InstanceIO::new(
                 &[(cs.instance_column(), &inputs)],
                 &[(cs.instance_column(), &outputs)],
             )
+            .unwrap()
         }
 
         fn inputs(&self) -> String {

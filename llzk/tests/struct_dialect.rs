@@ -68,6 +68,47 @@ fn empty_struct_with_one_param() {
 }
 
 #[test]
+fn empty_struct_with_pub_inputs() {
+    common::setup();
+    let context = LlzkContext::new();
+    let module = llzk_module(Location::unknown(&context));
+    let loc = Location::unknown(&context);
+    let typ = StructType::from_str_params(&context, "empty", &[]);
+
+    let inputs = vec![(FeltType::new(&context).into(), Location::unknown(&context))];
+    let arg_attrs = vec![vec![PublicAttribute::named_attr_pair(&context)]];
+    let s = r#struct::def(loc, "empty", &[], {
+        [
+            r#struct::helpers::compute_fn(loc, typ, inputs.as_slice(), Some(arg_attrs.as_slice()))
+                .map(Into::into),
+            r#struct::helpers::constrain_fn(
+                loc,
+                typ,
+                inputs.as_slice(),
+                Some(arg_attrs.as_slice()),
+            )
+            .map(Into::into),
+        ]
+    })
+    .unwrap();
+
+    let s = module.body().append_operation(s.into());
+    assert!(s.verify());
+    log::info!("Op passed verification");
+    let ir = format!("{s}");
+    let expected = r"struct.def @empty<[]> {
+  function.def @compute(%arg0: !felt.type {llzk.pub}) -> !struct.type<@empty<[]>> attributes {function.allow_witness} {
+    %self = struct.new : <@empty<[]>>
+    function.return %self : !struct.type<@empty<[]>>
+  }
+  function.def @constrain(%arg0: !struct.type<@empty<[]>>, %arg1: !felt.type {llzk.pub}) attributes {function.allow_constraint} {
+    function.return
+  }
+}";
+    similar_asserts::assert_eq!(ir, expected);
+}
+
+#[test]
 fn signal_struct() {
     common::setup();
     let context = LlzkContext::new();

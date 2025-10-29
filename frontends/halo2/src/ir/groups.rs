@@ -10,7 +10,8 @@ use crate::{
     },
     expressions::{ExpressionInRow, ScopedExpression},
     gates::RewritePatternSet,
-    halo2::{Expression, Field, Gate, Rotation, groups::GroupKeyInstance},
+    halo2::{Expression, Field, Rotation, groups::GroupKeyInstance},
+    info_traits::GateInfo,
     ir::{
         CmpOp, IRCtx,
         ctx::AdviceCells,
@@ -26,7 +27,7 @@ use crate::{
     lookups::callbacks::{LazyLookupTableGenerator, LookupTableGenerator},
     resolvers::FixedQueryResolver,
     synthesis::{
-        CircuitSynthesis,
+        SynthesizedCircuit,
         constraint::EqConstraint,
         groups::{Group, GroupCell},
         regions::{RegionData, RegionRow, Row},
@@ -259,6 +260,16 @@ impl<E> GroupBody<E> {
         &mut self.name
     }
 
+    /// Returns the number of inputs.
+    pub fn input_count(&self) -> usize {
+        self.input_count
+    }
+
+    /// Returns the number of outputs.
+    pub fn output_count(&self) -> usize {
+        self.output_count
+    }
+
     /// Returns the list of callsites inside the group.
     pub fn callsites(&self) -> &[CallSite<E>] {
         &self.callsites
@@ -272,6 +283,15 @@ impl<E> GroupBody<E> {
     /// Returns the group key. Returns `None` if the group is the top-level.
     pub fn key(&self) -> Option<GroupKeyInstance> {
         self.key
+    }
+
+    /// Returns an iterator with all the [`IRStmt`] in the group.
+    pub fn statements<'a>(&'a self) -> impl Iterator<Item = &'a IRStmt<E>> {
+        self.gates
+            .iter()
+            .chain(self.eq_constraints.iter())
+            .chain(self.lookups.iter())
+            .chain(self.injected.iter().flatten())
     }
 
     /// Tries to convert the inner expression type to another.
@@ -620,7 +640,7 @@ where
 
 /// Uses the given rewrite patterns to lower the gates on each region.
 fn lower_gates<'sco, 'syn, 'io, F>(
-    gates: &'syn [Gate<F>],
+    gates: Vec<&'syn dyn GateInfo<F>>,
     regions: &[RegionData<'syn>],
     patterns: &RewritePatternSet<F>,
     advice_io: &'io crate::io::AdviceIO,
@@ -667,7 +687,7 @@ where
 }
 
 fn codegen_lookup_invocations<'sco, 'syn, 'ctx, 'cb, F>(
-    syn: &'syn CircuitSynthesis<F>,
+    syn: &'syn SynthesizedCircuit<F>,
     region_rows: &[RegionRow<'syn, 'ctx, 'syn, F>],
     lookup_cb: &'cb dyn LookupCallbacks<F>,
     generate_debug_comments: bool,

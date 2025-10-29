@@ -1,13 +1,12 @@
 use std::{collections::HashSet, fmt, slice::Iter};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 
 use crate::{
     display::{ListPunctuation, TextRepresentable, TextRepresentation},
     expr::{
-        known_var,
+        Expr, known_var,
         traits::{ConstantFolding, ConstraintExpr, MaybeVarLike},
-        Expr,
     },
     felt::Felt,
     ident::Ident,
@@ -15,11 +14,11 @@ use crate::{
 };
 
 use super::{
+    Stmt, Wrap,
     traits::{
         CallLike, CallLikeAdaptor, ConstraintLike, ExprArgs, FreeVars, MaybeCallLike,
         StmtConstantFolding, StmtLike,
     },
-    Stmt, Wrap,
 };
 
 //===----------------------------------------------------------------------===//
@@ -432,3 +431,74 @@ impl FreeVars for AssumeDeterministicStmt {
 }
 
 impl StmtLike for AssumeDeterministicStmt {}
+
+//===----------------------------------------------------------------------===//
+// PostConditionStmt
+//===----------------------------------------------------------------------===//
+
+#[derive(Debug, PartialEq)]
+pub struct PostConditionStmt(Expr);
+
+impl PostConditionStmt {
+    pub fn new(e: Expr) -> Self {
+        Self(e)
+    }
+}
+
+impl ExprArgs for PostConditionStmt {
+    fn args(&self) -> Vec<Expr> {
+        vec![self.0.clone()]
+    }
+
+    fn replace_arg(&mut self, idx: usize, expr: Expr) -> Result<()> {
+        if idx != 0 {
+            bail!("Index {idx} is out of bounds for post-condition statement");
+        }
+        self.0 = expr;
+        Ok(())
+    }
+}
+
+impl ConstraintLike for PostConditionStmt {
+    fn is_constraint(&self) -> bool {
+        false
+    }
+
+    fn constraint_expr(&self) -> Option<&dyn ConstraintExpr> {
+        None
+    }
+}
+
+impl MaybeCallLike for PostConditionStmt {
+    fn as_call<'a>(&'a self) -> Option<CallLikeAdaptor<'a>> {
+        None
+    }
+}
+
+impl StmtConstantFolding for PostConditionStmt {
+    fn fold(&self, prime: &Felt) -> Option<Stmt> {
+        Some(Wrap::new(
+            Self(self.0.fold(prime).unwrap_or(self.0.clone())).into(),
+        ))
+    }
+}
+
+const POST_CONDITION_KW: &'static str = "post-condition";
+
+impl TextRepresentable for PostConditionStmt {
+    fn to_repr(&self) -> TextRepresentation<'_> {
+        owned_list!(POST_CONDITION_KW, &self.0).break_line()
+    }
+
+    fn width_hint(&self) -> usize {
+        3 + POST_CONDITION_KW.len() + self.0.width_hint()
+    }
+}
+
+impl FreeVars for PostConditionStmt {
+    fn free_vars(&self) -> HashSet<&VarStr> {
+        self.0.free_vars()
+    }
+}
+
+impl StmtLike for PostConditionStmt {}

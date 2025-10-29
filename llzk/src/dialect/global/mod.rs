@@ -2,9 +2,9 @@ use llzk_sys::mlirGetDialectHandle__llzk__global__;
 use melior::{
     dialect::DialectHandle,
     ir::{
-        attribute::{FlatSymbolRefAttribute, TypeAttribute},
-        operation::OperationBuilder,
         Attribute, Identifier, Location, Operation, Type, Value,
+        attribute::{StringAttribute, TypeAttribute},
+        operation::OperationBuilder,
     },
 };
 
@@ -26,7 +26,7 @@ pub fn def<'c>(
     let mut attrs = vec![
         (
             ident!(ctx, "sym_name"),
-            FlatSymbolRefAttribute::new(unsafe { ctx.to_ref() }, name).into(),
+            StringAttribute::new(unsafe { ctx.to_ref() }, name).into(),
         ),
         (ident!(ctx, "type"), TypeAttribute::new(r#type).into()),
     ];

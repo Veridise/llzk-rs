@@ -8,7 +8,7 @@ use crate::{
     Program,
 };
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct FoldExprsPass;
 
 impl<K: VarKind + Copy> MutOptimizer<Program<K>> for FoldExprsPass {
@@ -20,6 +20,7 @@ impl<K: VarKind + Copy> MutOptimizer<Program<K>> for FoldExprsPass {
     }
 }
 
+#[derive(Debug)]
 struct FoldExprsPassImpl(Felt);
 
 impl Optimizer<dyn ExprLike, Expr> for FoldExprsPassImpl {

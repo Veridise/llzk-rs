@@ -11,7 +11,7 @@ use crate::{
     Module,
 };
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ReplaceKnownConstsPass;
 
 type ReplacementSet = HashMap<VarStr, Felt>;

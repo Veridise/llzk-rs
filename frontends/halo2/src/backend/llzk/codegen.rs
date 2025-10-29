@@ -123,12 +123,10 @@ fn create_pipeline<'c>(context: &'c Context) -> PassManager<'c> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        LlzkParamsBuilder,
-        halo2::{ConstraintSystem, Fr},
-    };
+    use crate::{LlzkParamsBuilder, halo2::Fr};
 
     use super::*;
+    use halo2_proofs::plonk::ConstraintSystem;
     use log::LevelFilter;
     use rstest::{fixture, rstest};
     use simplelog::{Config, TestLogger};
@@ -197,7 +195,7 @@ mod tests {
         let mut cs = ConstraintSystem::<Fr>::default();
         let instance_col = cs.instance_column();
         let advice_io = AdviceIO::empty();
-        let instance_io = InstanceIO::new(&[(instance_col, &[0, 1, 2])], &[]);
+        let instance_io = InstanceIO::new(&[(instance_col, &[0, 1, 2])], &[]).unwrap();
         let main = codegen
             .define_main_function(&advice_io, &instance_io)
             .unwrap();
@@ -243,8 +241,8 @@ mod tests {
         let codegen = LlzkCodegen::initialize(&state);
         let mut cs = ConstraintSystem::<Fr>::default();
         let advice_col = cs.advice_column();
-        let advice_io = AdviceIO::new(&[(advice_col, &[0, 1, 2])], &[]);
-        let instance_io = InstanceIO::new(&[], &[]);
+        let advice_io = AdviceIO::new(&[(advice_col, &[0, 1, 2])], &[]).unwrap();
+        let instance_io = InstanceIO::new(&[], &[]).unwrap();
         let main = codegen
             .define_main_function(&advice_io, &instance_io)
             .unwrap();
@@ -291,7 +289,7 @@ mod tests {
         let mut cs = ConstraintSystem::<Fr>::default();
         let instance_col = cs.instance_column();
         let advice_io = AdviceIO::empty();
-        let instance_io = InstanceIO::new(&[], &[(instance_col, &[0, 1, 2])]);
+        let instance_io = InstanceIO::new(&[], &[(instance_col, &[0, 1, 2])]).unwrap();
         let main = codegen
             .define_main_function(&advice_io, &instance_io)
             .unwrap();
@@ -340,8 +338,8 @@ mod tests {
         let codegen = LlzkCodegen::initialize(&state);
         let mut cs = ConstraintSystem::<Fr>::default();
         let advice_col = cs.advice_column();
-        let advice_io = AdviceIO::new(&[], &[(advice_col, &[0, 1, 2])]);
-        let instance_io = InstanceIO::new(&[], &[]);
+        let advice_io = AdviceIO::new(&[], &[(advice_col, &[0, 1, 2])]).unwrap();
+        let instance_io = InstanceIO::new(&[], &[]).unwrap();
         let main = codegen
             .define_main_function(&advice_io, &instance_io)
             .unwrap();
@@ -391,8 +389,10 @@ mod tests {
         let mut cs = ConstraintSystem::<Fr>::default();
         let advice_col = cs.advice_column();
         let instance_col = cs.instance_column();
-        let advice_io = AdviceIO::new(&[(advice_col, &[0, 1, 2])], &[(advice_col, &[3, 4])]);
-        let instance_io = InstanceIO::new(&[(instance_col, &[0, 1])], &[(instance_col, &[2, 3])]);
+        let advice_io =
+            AdviceIO::new(&[(advice_col, &[0, 1, 2])], &[(advice_col, &[3, 4])]).unwrap();
+        let instance_io =
+            InstanceIO::new(&[(instance_col, &[0, 1])], &[(instance_col, &[2, 3])]).unwrap();
         let main = codegen
             .define_main_function(&advice_io, &instance_io)
             .unwrap();

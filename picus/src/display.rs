@@ -7,7 +7,7 @@ use std::{
 
 use crate::{vars::VarKind, Program};
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ListPunctuation {
     None,
     Parens,
@@ -55,6 +55,7 @@ impl Default for ListPunctuation {
     }
 }
 
+#[derive(Debug)]
 struct TRListBase<L> {
     lst: L,
     punct: ListPunctuation,
@@ -126,7 +127,7 @@ where
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ListItem<'a> {
     Concrete(TextRepresentation<'a>),
     Reference(&'a dyn TextRepresentable),
@@ -201,7 +202,7 @@ impl<'a> From<TRInner<'a>> for ListItem<'a> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum TRInner<'a> {
     Nothing,
     Atom(&'a str),
@@ -239,6 +240,7 @@ impl TextRepresentable for TRInner<'_> {
     }
 }
 
+#[derive(Debug)]
 pub struct TextRepresentation<'a> {
     inner: TRInner<'a>,
     force_break: bool,
@@ -433,7 +435,7 @@ impl<'a> Sum for TextRepresentation<'a> {
     }
 }
 
-pub trait TextRepresentable {
+pub trait TextRepresentable : std::fmt::Debug {
     fn to_repr(&self) -> TextRepresentation<'_>;
 
     fn width_hint(&self) -> usize;
@@ -525,6 +527,7 @@ impl TextRepresentable for Vec<Rc<&dyn TextRepresentable>> {
     }
 }
 
+#[derive(Debug)]
 pub struct Display<'a, K: VarKind> {
     program: &'a Program<K>,
 }

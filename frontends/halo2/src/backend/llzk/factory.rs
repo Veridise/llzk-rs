@@ -71,16 +71,12 @@ impl StructIO {
     }
 
     /// Returns the list of argument attributes for the struct's functions.
-    ///
-    /// Element #0 is the attribute for the self argument in `@constrain`. if using the output of
-    /// this method to create the `@compute` function read the slice from element #1 `[1..]`.
     pub fn arg_attrs<'c>(&self, ctx: &'c Context) -> Vec<Vec<NamedAttribute<'c>>> {
         let pub_attr = (
             Identifier::new(ctx, "llzk.pub"),
             PublicAttribute::new(ctx).into(),
         );
-        std::iter::once(vec![])
-            .chain(std::iter::repeat_n(vec![pub_attr], self.public_inputs))
+        std::iter::repeat_n(vec![pub_attr], self.public_inputs)
             .chain(std::iter::repeat_n(vec![], self.private_inputs))
             .collect()
     }
@@ -128,7 +124,7 @@ pub fn create_struct<'c>(
             loc,
             StructType::from_str(context, struct_name),
             &func_args,
-            Some(&arg_attrs[1..]),
+            Some(&arg_attrs),
         )
         .map(Operation::from),
         r#struct::helpers::constrain_fn(

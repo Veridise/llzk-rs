@@ -120,7 +120,8 @@
             # Shared settings for packages
             pkgSettings = {
               RUSTFLAGS = "-lLLVM -L ${mlir-with-llvm}/lib";
-              # Fix _FORTIFY_SOURCE warning on Linux by ensuring build dependencies are optimized
+              # For release packages, fix _FORTIFY_SOURCE warning on Linux
+              # by ensuring build dependencies are optimized.
               CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_OPT_LEVEL = "2";
               # Fix for GNU-like linkers on Linux to avoid removing symbols
               LLZK_SYS_ENABLE_WHOLE_ARCHIVE = "1";
@@ -132,6 +133,9 @@
             devSettings = {
               RUSTFLAGS = "-L ${mlir-with-llvm}/lib";
               RUST_SRC_PATH = final.rustPlatform.rustLibSrc;
+              # Fix _FORTIFY_SOURCE warning on Linux. The same approach used in `pkgSettings` did not work
+              # in the dev shell for some reason. In this case, just disable _FORTIFY_SOURCE altogether.
+              NIX_CFLAGS_COMPILE = " -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0";
             };
           };
 
