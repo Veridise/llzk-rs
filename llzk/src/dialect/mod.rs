@@ -6,12 +6,13 @@ pub mod function;
 pub mod global;
 pub mod llzk;
 pub mod r#struct;
+pub mod undef;
 
 pub mod module {
     use std::ffi::CStr;
 
     use llzk_sys::LLZK_LANG_ATTR_NAME;
-    use melior::ir::{attribute::StringAttribute, operation::OperationMutLike, Location, Module};
+    use melior::ir::{Location, Module, attribute::StringAttribute, operation::OperationMutLike};
 
     pub fn llzk_module<'c>(location: Location<'c>) -> Module<'c> {
         let mut module = Module::new(location);
