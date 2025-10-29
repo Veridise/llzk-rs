@@ -49,7 +49,7 @@ mod tests {
     #[test]
     fn generated_pass_functions() {
         let ctx = Context::new();
-        // Use a PassManager to manage the lifetime of the creates passes to avoid memory leaks.
+        // Use a PassManager to manage the lifetime of the created passes to avoid memory leaks.
         let pm = PassManager::new(&ctx);
         super::register_llzk_transformation_passes();
         super::register_redundant_operation_elimination_pass();
