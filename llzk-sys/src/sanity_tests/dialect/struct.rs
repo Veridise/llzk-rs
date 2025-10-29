@@ -4,12 +4,12 @@ use std::{
 };
 
 use mlir_sys::{
-    mlirAffineConstantExprGet, mlirAffineMapGet, mlirArrayAttrGet, mlirAttributeEqual,
-    mlirFlatSymbolRefAttrGet, mlirIdentifierGet, mlirIndexTypeGet, mlirIntegerAttrGet,
-    mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate, mlirOperationDestroy,
-    mlirOperationGetContext, mlirOperationGetResult, mlirOperationStateAddAttributes,
-    mlirOperationStateAddResults, mlirOperationStateGet, mlirStringRefCreateFromCString,
-    MlirOperation,
+    MlirOperation, mlirAffineConstantExprGet, mlirAffineMapGet, mlirArrayAttrGet,
+    mlirAttributeEqual, mlirFlatSymbolRefAttrGet, mlirIdentifierGet, mlirIndexTypeGet,
+    mlirIntegerAttrGet, mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate,
+    mlirOperationDestroy, mlirOperationGetContext, mlirOperationGetResult,
+    mlirOperationStateAddAttributes, mlirOperationStateAddResults, mlirOperationStateGet,
+    mlirStringRefCreateFromCString,
 };
 use rstest::{fixture, rstest};
 use std::alloc::{Layout, alloc, dealloc};
@@ -28,7 +28,7 @@ use crate::{
     llzkStructTypeGetParams, llzkStructTypeGetWithArrayAttr, llzkStructTypeGetWithAttrs,
     llzkTypeIsAStructType, mlirGetDialectHandle__llzk__component__, mlirOpBuilderCreate,
     mlirOpBuilderDestroy,
-    sanity_tests::{context, str_ref, TestContext},
+    sanity_tests::{TestContext, context, str_ref},
 };
 
 #[test]

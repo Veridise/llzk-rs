@@ -1,17 +1,18 @@
 use std::ptr::null_mut;
 
 use mlir_sys::{
+    MlirAttribute, MlirContext, MlirNamedAttribute, MlirOperation, MlirType,
     mlirAttributeGetContext, mlirFlatSymbolRefAttrGet, mlirIdentifierGet, mlirIndexTypeGet,
     mlirIntegerAttrGet, mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate,
-    mlirOperationDestroy, mlirOperationStateAddAttributes, mlirOperationStateGet, mlirTypeAttrGet, mlirUnitAttrGet,
-    MlirAttribute, MlirContext, MlirNamedAttribute, MlirOperation, MlirType,
+    mlirOperationDestroy, mlirOperationStateAddAttributes, mlirOperationStateGet, mlirTypeAttrGet,
+    mlirUnitAttrGet,
 };
 use rstest::rstest;
 
 use crate::{
     llzkGlobalDefOpGetIsConstant, llzkOperationIsAGlobalDefOp,
     mlirGetDialectHandle__llzk__global__,
-    sanity_tests::{context, str_ref, TestContext},
+    sanity_tests::{TestContext, context, str_ref},
 };
 
 #[test]

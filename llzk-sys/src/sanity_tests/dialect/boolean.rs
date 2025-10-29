@@ -1,8 +1,7 @@
 use crate::{
-    llzkAttributeIsAFeltCmpPredicateAttr, llzkFeltCmpPredicateAttrGet,
+    LlzkCmp, llzkAttributeIsAFeltCmpPredicateAttr, llzkFeltCmpPredicateAttrGet,
     mlirGetDialectHandle__llzk__boolean__,
-    sanity_tests::{context, TestContext},
-    LlzkCmp,
+    sanity_tests::{TestContext, context},
 };
 use mlir_sys::mlirUnitAttrGet;
 use rstest::rstest;

@@ -4,14 +4,14 @@ use crate::{
     llzkCreateArrayOpBuildWithMapOperandsAndDims, llzkCreateArrayOpBuildWithValues,
     llzkTypeIsAArrayType, mlirGetDialectHandle__llzk__array__, mlirOpBuilderCreate,
     mlirOpBuilderDestroy,
-    sanity_tests::{context, load_llzk_dialects, TestContext},
+    sanity_tests::{TestContext, context, load_llzk_dialects},
 };
 use mlir_sys::{
-    mlirAttributeEqual, mlirDenseI32ArrayGet, mlirIdentifierGet, mlirIndexTypeGet,
-    mlirIntegerAttrGet, mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate,
-    mlirOperationDestroy, mlirOperationGetResult, mlirOperationStateAddAttributes,
-    mlirOperationStateEnableResultTypeInference, mlirOperationStateGet, mlirOperationVerify,
-    mlirStringRefCreateFromCString, mlirTypeEqual, MlirContext, MlirOperation, MlirType,
+    MlirContext, MlirOperation, MlirType, mlirAttributeEqual, mlirDenseI32ArrayGet,
+    mlirIdentifierGet, mlirIndexTypeGet, mlirIntegerAttrGet, mlirLocationUnknownGet,
+    mlirNamedAttributeGet, mlirOperationCreate, mlirOperationDestroy, mlirOperationGetResult,
+    mlirOperationStateAddAttributes, mlirOperationStateEnableResultTypeInference,
+    mlirOperationStateGet, mlirOperationVerify, mlirStringRefCreateFromCString, mlirTypeEqual,
 };
 use rstest::{fixture, rstest};
 use std::{ffi::CString, ptr::null};

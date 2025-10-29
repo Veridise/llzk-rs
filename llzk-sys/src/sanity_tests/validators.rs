@@ -4,7 +4,7 @@ use rstest::rstest;
 use crate::{
     mlirCreateLLZKValidationFieldWriteValidatorPass,
     mlirRegisterLLZKValidationFieldWriteValidatorPass, mlirRegisterLLZKValidationPasses,
-    sanity_tests::{context, TestContext},
+    sanity_tests::{TestContext, context},
 };
 
 #[rstest]

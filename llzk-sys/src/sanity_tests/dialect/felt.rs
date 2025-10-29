@@ -6,7 +6,7 @@ use rstest::rstest;
 use crate::{
     llzkAttributeIsAFeltConstAttr, llzkFeltConstAttrGet, llzkFeltTypeGet, llzkTypeIsAFeltType,
     mlirGetDialectHandle__llzk__felt__,
-    sanity_tests::{context, TestContext},
+    sanity_tests::{TestContext, context},
 };
 
 #[test]

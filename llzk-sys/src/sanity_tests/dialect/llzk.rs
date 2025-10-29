@@ -4,7 +4,7 @@ use rstest::rstest;
 
 use crate::{
     llzkAttributeIsAPublicAttr, llzkPublicAttrGet, mlirGetDialectHandle__llzk__,
-    sanity_tests::{context, TestContext},
+    sanity_tests::{TestContext, context},
 };
 
 #[test]

@@ -1,4 +1,4 @@
-use std::ffi::{c_char, CStr};
+use std::ffi::{CStr, c_char};
 
 use crate::{
     LLZK_COMPONENT_NAME_MAIN, LLZK_COMPONENT_NAME_SIGNAL, LLZK_FUNC_NAME_COMPUTE,
