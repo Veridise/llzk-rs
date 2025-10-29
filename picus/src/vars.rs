@@ -5,8 +5,6 @@ use std::{
     ops::Index,
 };
 
-use patricia_tree::StringPatriciaSet;
-
 use crate::{
     display::{TextRepresentable, TextRepresentation},
     ident::{Ident, VALID_IDENT},
@@ -83,7 +81,6 @@ pub trait VarAllocator {
 pub struct Vars<K: VarKind> {
     map: HashMap<K, VarStr>,
     unique: HashSet<String>,
-    //unique: StringPatriciaSet,
 }
 
 impl<K: VarKind> Vars<K> {
