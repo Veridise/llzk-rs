@@ -10,7 +10,15 @@ regex = "1.11"
 log = "0.4"
 disjoint = "0.8"
 lazy_static = "1.5"
+patricia_tree = "0.10"
 
 [features]
 default = []
 bigint-felt = ["dep:num-bigint"]
+
+[dev-dependencies]
+criterion = "0.7"
+
+[[bench]]
+name = "vars_benchmark"
+harness = false
