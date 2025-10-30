@@ -1,7 +1,7 @@
 use llzk_sys::{llzkFeltTypeGet, llzkTypeIsAFeltType};
 use melior::{
-    ir::{Type, TypeLike},
     Context,
+    ir::{Type, TypeLike},
 };
 use mlir_sys::MlirType;
 

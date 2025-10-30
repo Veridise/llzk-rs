@@ -3,8 +3,8 @@ use llzk_sys::{
     llzkFeltConstAttrGetFromString, llzkFeltConstAttrGetWithBits,
 };
 use melior::{
-    ir::{Attribute, AttributeLike},
     Context, StringRef,
+    ir::{Attribute, AttributeLike},
 };
 use mlir_sys::MlirAttribute;
 

@@ -1,9 +1,7 @@
 use crate::{error::Error, ident};
 
 use super::{FeltConstAttribute, FeltType};
-use melior::ir::{
-    operation::OperationBuilder, Identifier, Location, Operation, Value,
-};
+use melior::ir::{Identifier, Location, Operation, Value, operation::OperationBuilder};
 
 fn build_op<'c>(
     name: &str,

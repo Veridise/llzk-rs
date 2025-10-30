@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, ops::Deref};
 
 use log::Log;
-use melior::{diagnostic::DiagnosticHandlerId, dialect::DialectRegistry, Context};
+use melior::{Context, diagnostic::DiagnosticHandlerId, dialect::DialectRegistry};
 
 use crate::{diagnostics::log_diagnostic, register_all_llzk_dialects};
 

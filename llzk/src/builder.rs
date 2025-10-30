@@ -1,13 +1,13 @@
 use std::marker::PhantomData;
 
 use llzk_sys::{
-    mlirOpBuilderCreate, mlirOpBuilderDestroy, mlirOpBuilderGetContext,
+    MlirOpBuilder, mlirOpBuilderCreate, mlirOpBuilderDestroy, mlirOpBuilderGetContext,
     mlirOpBuilderGetInsertionBlock, mlirOpBuilderGetInsertionPoint,
-    mlirOpBuilderSetInsertionPointToStart, MlirOpBuilder,
+    mlirOpBuilderSetInsertionPointToStart,
 };
 use melior::{
-    ir::{BlockLike, BlockRef, Location, Operation, OperationRef},
     Context, ContextRef,
+    ir::{BlockLike, BlockRef, Location, Operation, OperationRef},
 };
 
 pub trait OpBuilderLike<'c> {

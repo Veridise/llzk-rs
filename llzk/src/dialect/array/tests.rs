@@ -1,16 +1,13 @@
 use melior::{
-    dialect::arith,
-    ir::{
-        attribute::IntegerAttribute, operation::OperationLike, Location, Module, Type,
-        Value,
-    },
     Context,
+    dialect::arith,
+    ir::{Location, Module, Type, Value, attribute::IntegerAttribute, operation::OperationLike},
 };
 use rstest::rstest;
 
 use crate::{
     builder::{OpBuilder, OpBuilderLike},
-    dialect::array::{new, ArrayCtor},
+    dialect::array::{ArrayCtor, new},
     test::ctx,
 };
 
