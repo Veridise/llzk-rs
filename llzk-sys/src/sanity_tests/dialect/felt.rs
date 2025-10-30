@@ -7,7 +7,7 @@ use crate::{
     llzkAttributeIsAFeltConstAttr, llzkFeltConstAttrGet, llzkFeltConstAttrGetFromParts,
     llzkFeltConstAttrGetFromString, llzkFeltConstAttrGetWithBits, llzkFeltTypeGet,
     llzkTypeIsAFeltType, mlirGetDialectHandle__llzk__felt__,
-    sanity_tests::{context, str_ref, TestContext},
+    sanity_tests::{TestContext, context, str_ref},
 };
 
 #[test]
