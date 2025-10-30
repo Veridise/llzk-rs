@@ -3,9 +3,8 @@
 use std::collections::HashMap;
 
 use crate::{
-    GateCallbacks,
     expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo, ScopedExpression},
-    gates::{DefaultGateCallbacks, RewritePatternSet},
+    gates::{DefaultGateCallbacks, GateCallbacks, RewritePatternSet},
     halo2::{Field, PrimeField, RegionIndex},
     ir::{IRCtx, generate::patterns::load_patterns, groups::GroupBody},
     lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},

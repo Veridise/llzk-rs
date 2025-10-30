@@ -8,7 +8,7 @@ pub(crate) mod backend;
 pub mod driver;
 mod error;
 pub mod expressions;
-mod gates;
+pub mod gates;
 mod halo2;
 pub mod info_traits;
 mod io;
@@ -36,7 +36,6 @@ pub use backend::{
     },
 };
 pub use error::to_plonk_error;
-pub use gates::{GateCallbacks, GateRewritePattern, GateScope, RewriteError, RewriteOutput};
 pub use io::CircuitIO;
 pub use lookups::callbacks::LookupCallbacks;
 pub use synthesis::Synthesizer;

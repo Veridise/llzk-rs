@@ -11,7 +11,9 @@ use halo2_proofs::poly::Rotation;
 use halo2curves_070::bn256::Fr;
 use std::marker::PhantomData;
 
-use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis, ExpressionInRow, PicusParamsBuilder};
+use halo2_llzk_frontend::{
+    CircuitIO, CircuitSynthesis, PicusParamsBuilder, expressions::ExpressionInRow,
+};
 
 mod common;
 

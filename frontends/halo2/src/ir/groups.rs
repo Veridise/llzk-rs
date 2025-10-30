@@ -3,14 +3,14 @@
 use std::collections::HashMap;
 
 use crate::{
-    GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
+    LookupCallbacks,
     backend::{
         func::{CellRef, FuncIO},
         lowering::{Lowering, lowerable::LowerableStmt},
     },
     expressions::{ExprBuilder, ExpressionInRow, ExpressionInfo, ScopedExpression},
-    gates::{Gate, RewritePatternSet},
-    halo2::{Expression, Field, Rotation, groups::GroupKeyInstance},
+    gates::{Gate, GateRewritePattern as _, GateScope, RewriteError, RewritePatternSet},
+    halo2::{Field, Rotation, groups::GroupKeyInstance},
     info_traits::GateInfo,
     ir::{
         CmpOp, IRCtx,

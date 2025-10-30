@@ -1,6 +1,6 @@
-use std::{
-    borrow::Cow, cell::RefCell, cmp::Ordering, collections::HashSet, hash::Hash, ops::Range,
-};
+//! Types and traits related to gates.
+
+use std::{borrow::Cow, cell::RefCell, cmp::Ordering, hash::Hash, ops::Range};
 
 use crate::{
     expressions::{
@@ -216,6 +216,7 @@ impl<'syn, 'io, F: Field, E> GateScope<'syn, 'io, F, E> {
 }
 
 impl<F: Field, E> Copy for GateScope<'_, '_, F, E> {}
+
 impl<F: Field, E> Clone for GateScope<'_, '_, F, E> {
     fn clone(&self) -> Self {
         Self {
@@ -382,16 +383,7 @@ impl<F, E> GateRewritePattern<F, E> for RewritePatternSet<F, E> {
     }
 }
 
-fn find_in_binop<'a, QR, F, Q>(lhs: &'a Expression<F>, rhs: &'a Expression<F>, q: Q) -> HashSet<QR>
-where
-    F: Field,
-    Q: Fn(&'a Expression<F>) -> HashSet<QR>,
-    QR: Hash + Eq + Clone,
-{
-    q(lhs).union(&q(rhs)).cloned().collect()
-}
-
-pub type SelectorSet = bit_set::BitSet;
+pub(crate) type SelectorSet = bit_set::BitSet;
 
 pub(crate) fn find_selectors<F: Field, E: EvaluableExpr<F>>(poly: &E) -> SelectorSet {
     struct Eval(RefCell<SelectorSet>);
@@ -419,7 +411,7 @@ pub(crate) fn find_selectors<F: Field, E: EvaluableExpr<F>>(poly: &E) -> Selecto
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum AnyQuery {
+pub(crate) enum AnyQuery {
     Advice(AdviceQuery),
     Instance(InstanceQuery),
     Fixed(FixedQuery),

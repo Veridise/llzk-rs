@@ -9,8 +9,8 @@ use halo2curves_070::bn256::Fr;
 use std::marker::PhantomData;
 
 use halo2_llzk_frontend::{
-    CircuitIO, CircuitSynthesis, GateCallbacks, GateRewritePattern, GateScope, PicusParamsBuilder,
-    RewriteError,
+    CircuitIO, CircuitSynthesis, PicusParamsBuilder,
+    gates::{GateCallbacks, GateRewritePattern, GateScope, RewriteError},
 };
 
 mod common;

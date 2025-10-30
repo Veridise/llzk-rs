@@ -1,7 +1,9 @@
 use crate::{
-    GateCallbacks, GateRewritePattern, GateScope, RewriteError, RewriteOutput,
     expressions::{EvaluableExpr, ExprBuilder},
-    gates::{RewritePatternSet, find_selectors},
+    gates::{
+        GateCallbacks, GateRewritePattern, GateScope, RewriteError, RewriteOutput,
+        RewritePatternSet, find_selectors,
+    },
     halo2::Field,
     ir::{CmpOp, stmt::IRStmt},
 };
