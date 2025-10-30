@@ -51,7 +51,7 @@ impl From<Key> for VarStr {
 ///  4. Inserting different elements that result in the same string representation. Forces the
 ///  uniquer to check several times for unique names.
 ///
-/// For each scenario we progressively tests with a larger amount of inputs: 1, 5, 10, 50, 100.
+/// For each scenario, we progressively test with a larger amount of inputs: 1, 5, 10, 50, 100.
 /// This gives a decent enough sample size for checking performance and completing the benchmark in
 /// a decent time even if its under the usual workload seen on production.
 ///
