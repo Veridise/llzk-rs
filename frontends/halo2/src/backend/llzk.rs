@@ -36,6 +36,6 @@ impl<'c> From<Module<'c>> for LlzkOutput<'c> {
 
 impl std::fmt::Display for LlzkOutput<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.module)
+        write!(f, "{}", self.module.as_operation())
     }
 }

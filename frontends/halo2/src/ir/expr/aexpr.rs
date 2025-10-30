@@ -349,6 +349,7 @@ impl LowerableExpr for IRAexpr {
     where
         L: ExprLowering + ?Sized,
     {
+        log::debug!("Lowering expr: {self:?}");
         match self {
             IRAexpr::Constant(f) => l.lower_constant(f),
             IRAexpr::IO(io) => l.lower_funcio(io),

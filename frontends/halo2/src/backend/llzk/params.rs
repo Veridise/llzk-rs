@@ -7,6 +7,7 @@ pub struct LlzkParams<'c> {
     context: &'c LlzkContext,
     top_level: Option<String>,
     inline: bool,
+    optimize: bool,
 }
 
 impl<'c> LlzkParams<'c> {
@@ -14,6 +15,7 @@ impl<'c> LlzkParams<'c> {
         Self {
             context,
             top_level: Default::default(),
+            optimize: true,
             inline: false,
         }
     }
@@ -31,6 +33,11 @@ impl<'c> LlzkParams<'c> {
     /// Returns wether inlining is enabled or not.
     pub fn inline(&self) -> bool {
         self.inline
+    }
+
+    /// Returns true if optimization is enabled.
+    pub fn optimize(&self) -> bool {
+        self.optimize
     }
 }
 
@@ -65,6 +72,18 @@ impl<'c> LlzkParamsBuilder<'c> {
     /// Sets lowering to creating separate modules for each group.
     pub fn no_inline(&mut self) -> &mut Self {
         self.0.inline = false;
+        self
+    }
+
+    /// Enables optimizations.
+    pub fn optimize(&mut self) -> &mut Self {
+        self.0.optimize = true;
+        self
+    }
+
+    /// Disables optimizations.
+    pub fn no_optimize(&mut self) -> &mut Self {
+        self.0.optimize = false;
         self
     }
 

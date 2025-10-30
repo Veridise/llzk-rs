@@ -76,21 +76,16 @@ fn empty_struct_with_pub_inputs() {
     let typ = StructType::from_str_params(&context, "empty", &[]);
 
     let inputs = vec![(FeltType::new(&context).into(), Location::unknown(&context))];
-    let arg_attrs = vec![PublicAttribute::named_attr_pair(&context)];
+    let arg_attrs = vec![vec![PublicAttribute::named_attr_pair(&context)]];
     let s = r#struct::def(loc, "empty", &[], {
         [
-            r#struct::helpers::compute_fn(
-                loc,
-                typ,
-                inputs.as_slice(),
-                Some(vec![arg_attrs.as_slice()].as_slice()),
-            )
-            .map(Into::into),
+            r#struct::helpers::compute_fn(loc, typ, inputs.as_slice(), Some(arg_attrs.as_slice()))
+                .map(Into::into),
             r#struct::helpers::constrain_fn(
                 loc,
                 typ,
                 inputs.as_slice(),
-                Some(vec![arg_attrs.as_slice()].as_slice()),
+                Some(arg_attrs.as_slice()),
             )
             .map(Into::into),
         ]
