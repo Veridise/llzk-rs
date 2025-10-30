@@ -5,8 +5,8 @@ mod r#type;
 use llzk_sys::mlirGetDialectHandle__llzk__component__;
 use melior::dialect::DialectHandle;
 pub use ops::{
-    def, field, new, readf, readf_with_offset, writef, FieldDefOp, FieldDefOpLike, FieldDefOpRef,
-    StructDefOp, StructDefOpLike, StructDefOpMutLike, StructDefOpRef,
+    FieldDefOp, FieldDefOpLike, FieldDefOpRef, StructDefOp, StructDefOpLike, StructDefOpMutLike,
+    StructDefOpRef, def, field, new, readf, readf_with_offset, writef,
 };
 pub use r#type::StructType;
 

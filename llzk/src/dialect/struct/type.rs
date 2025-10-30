@@ -1,10 +1,10 @@
 use llzk_sys::{llzkStructTypeGetWithArrayAttr, llzkTypeIsAStructType};
 use melior::{
-    ir::{
-        attribute::{ArrayAttribute, FlatSymbolRefAttribute},
-        Attribute, AttributeLike as _, Type, TypeLike,
-    },
     Context,
+    ir::{
+        Attribute, AttributeLike as _, Type, TypeLike,
+        attribute::{ArrayAttribute, FlatSymbolRefAttribute},
+    },
 };
 use mlir_sys::MlirType;
 

@@ -4,8 +4,8 @@ use crate::{
 };
 
 use melior::ir::{
-    attribute::StringAttribute, operation::OperationBuilder, r#type::IntegerType, Identifier,
-    Location, Operation, Value,
+    Identifier, Location, Operation, Value, attribute::StringAttribute,
+    operation::OperationBuilder, r#type::IntegerType,
 };
 
 fn build_cmp_op<'c>(

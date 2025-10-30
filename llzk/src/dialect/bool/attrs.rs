@@ -1,7 +1,7 @@
-use llzk_sys::{llzkAttributeIsAFeltCmpPredicateAttr, llzkFeltCmpPredicateAttrGet, LlzkCmp};
+use llzk_sys::{LlzkCmp, llzkAttributeIsAFeltCmpPredicateAttr, llzkFeltCmpPredicateAttrGet};
 use melior::{
-    ir::{Attribute, AttributeLike},
     Context,
+    ir::{Attribute, AttributeLike},
 };
 use mlir_sys::MlirAttribute;
 
