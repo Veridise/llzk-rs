@@ -65,5 +65,6 @@ fn run() -> Result<()> {
 fn main() {
     if let Err(err) = run() {
         println!("cargo:error={err:#}");
+        std::process::exit(1);
     }
 }

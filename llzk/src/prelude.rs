@@ -26,7 +26,7 @@ pub mod constrain {
 /// Exports functions that create operations
 pub mod felt {
     pub use crate::dialect::felt::{
-        add, bit_and, bit_not, bit_or, bit_xor, constant, div, inv, mul, neg, r#mod, shl, shr, sub,
+        add, bit_and, bit_not, bit_or, bit_xor, constant, div, inv, r#mod, mul, neg, shl, shr, sub,
     };
 }
 /// Exports functions that create operations
@@ -42,28 +42,32 @@ pub mod r#struct {
     pub use crate::dialect::r#struct::helpers;
     pub use crate::dialect::r#struct::{def, field, new, readf, readf_with_offset, writef};
 }
+/// Exports functions that create operations
+pub mod undef {
+    pub use crate::dialect::undef::undef;
+}
 
 /// melior reexports of commonly used types.
 pub use melior::{
+    Context, ContextRef, Error as MeliorError, StringRef,
     ir::{
+        Location, Region, RegionLike, RegionRef, Value, ValueLike,
         attribute::{
             Attribute, AttributeLike, FlatSymbolRefAttribute, IntegerAttribute, StringAttribute,
         },
         block::{Block, BlockArgument, BlockLike, BlockRef},
         operation::{Operation, OperationLike, OperationMutLike, OperationRef},
         r#type::{FunctionType, IntegerType, Type, TypeLike},
-        Location, Region, RegionLike, RegionRef, Value, ValueLike,
     },
     pass::{OperationPassManager, Pass, PassManager},
-    Context, ContextRef, Error as MeliorError, StringRef,
 };
 
 /// Reexpor of the passes included in melior.
 pub mod melior_passes {
+    pub use melior::pass::r#async::*;
     pub use melior::pass::conversion::*;
     pub use melior::pass::gpu::*;
     pub use melior::pass::linalg::*;
-    pub use melior::pass::r#async::*;
     pub use melior::pass::sparse_tensor::*;
     pub use melior::pass::transform::*;
 }

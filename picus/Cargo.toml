@@ -14,3 +14,10 @@ lazy_static = "1.5"
 [features]
 default = []
 bigint-felt = ["dep:num-bigint"]
+
+[dev-dependencies]
+criterion = "0.7"
+
+[[bench]]
+name = "vars_benchmark"
+harness = false

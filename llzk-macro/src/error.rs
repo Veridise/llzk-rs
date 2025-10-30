@@ -1,5 +1,4 @@
 //! Errors emitted by the macros
-
 use std::borrow::Cow;
 
 use thiserror::Error;

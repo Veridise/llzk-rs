@@ -4,8 +4,9 @@ members = [
   "llzk",
   "llzk-sys",
   "llzk-sys/build-support",
-  "llzk-macro"
-, "picus"]
+  "llzk-macro",
+  "picus"
+]
 resolver = "2"
 
 [workspace.dependencies]

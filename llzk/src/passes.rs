@@ -31,6 +31,7 @@ passes!(
     [mlirCreateLLZKValidationFieldWriteValidatorPass]
 );
 
+/// Registers all the available LLZK passes.
 pub fn register_all_llzk_passes() {
     register_llzk_transformation_passes();
     register_llzk_array_transformation_passes();
@@ -43,12 +44,12 @@ pub fn register_all_llzk_passes() {
 mod tests {
     //! Tests to make sure that the expected function were generated.
 
-    use melior::{pass::PassManager, Context};
+    use melior::{Context, pass::PassManager};
 
     #[test]
     fn generated_pass_functions() {
         let ctx = Context::new();
-        // Use a PassManager to manage the lifetime of the creates passes to avoid memory leaks.
+        // Use a PassManager to manage the lifetime of the created passes to avoid memory leaks.
         let pm = PassManager::new(&ctx);
         super::register_llzk_transformation_passes();
         super::register_redundant_operation_elimination_pass();

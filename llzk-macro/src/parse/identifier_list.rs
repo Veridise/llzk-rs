@@ -4,22 +4,20 @@
 
 use proc_macro2::Ident;
 use syn::{
+    Result, Token,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    Result, Token,
 };
 
 /// Represents a comma-separated list of identifiers. Used as the DSL for the [`crate::conversion_passes`] macro.
 pub struct IdentifierList {
     identifiers: Vec<Ident>,
 }
-
 impl IdentifierList {
     pub fn identifiers(&self) -> &[Ident] {
         &self.identifiers
     }
 }
-
 impl Parse for IdentifierList {
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(Self {

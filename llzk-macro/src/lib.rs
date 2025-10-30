@@ -34,7 +34,7 @@ pub fn conversion_passes(stream: TokenStream) -> TokenStream {
     }))
 }
 
-/// Creats functions for registering and creating passes.
+/// Creates functions for registering and creating passes.
 #[proc_macro]
 pub fn passes(stream: TokenStream) -> TokenStream {
     let set = parse_macro_input!(stream as PassSet);
