@@ -5,10 +5,7 @@ use halo2_llzk_frontend::{
     CircuitSynthesis, PicusParams, Synthesizer,
     driver::Driver,
     ir::{ResolvedIRCircuit, generate::IRGenParams, stmt::IRStmt},
-    lookups::{
-        Lookup,
-        callbacks::{LookupCallbacks, LookupTableGenerator},
-    },
+    lookups::{Lookup, callbacks::LookupCallbacks, table::LookupTableGenerator},
     temps::{ExprOrTemp, Temps},
     to_plonk_error,
 };

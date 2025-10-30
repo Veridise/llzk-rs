@@ -18,7 +18,6 @@ mod resolvers;
 mod synthesis;
 pub mod temps;
 mod utils;
-mod value;
 
 use crate::{
     halo2::Field,

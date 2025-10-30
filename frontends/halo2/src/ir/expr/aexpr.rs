@@ -481,7 +481,7 @@ mod lowering_tests {
     use crate::resolvers::FixedQueryResolver;
     use crate::synthesis::regions::{RegionRow, Regions};
     use crate::{halo2::*, synthesis::regions::RegionData};
-    use halo2_proofs::plonk::ConstraintSystem;
+    use halo2_proofs::plonk::{ConstraintSystem, Expression};
     use rstest::{fixture, rstest};
     type F = Fr;
 

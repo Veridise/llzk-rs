@@ -8,7 +8,7 @@ use std::{
 #[derive(Debug, Copy, Clone)]
 pub enum RegionKind {
     Region,
-    Table,
+    //Table,
 }
 
 #[derive(Debug)]
@@ -183,8 +183,6 @@ impl<'a> RegionData<'a> {
             (RegionKind::Region, Some(index)) => {
                 format!("region {} {:?}", **index, self.name())
             }
-            (RegionKind::Table, None) => format!("table {:?}", self.name()),
-            _ => unreachable!(),
         }
     }
 

@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use anyhow::Result;
-use std::{borrow::Cow, collections::HashSet};
+use std::borrow::Cow;
 
 #[derive(Copy, Clone, Debug)]
 pub struct RegionRow<'r, 'io, 'fq, F: Field> {
@@ -51,24 +51,25 @@ impl<'r, 'io, 'fq, F: Field> RegionRow<'r, 'io, 'fq, F> {
         self.region.selectors_enabled_for_row(self.row.row)
     }
 
-    pub fn region_index(&self) -> Option<usize> {
-        self.region.index().map(|f| *f)
-    }
+    //pub fn region_index(&self) -> Option<usize> {
+    //    self.region.index().map(|f| *f)
+    //}
 
-    pub fn region_name(&self) -> &str {
-        self.region.name()
-    }
+    //pub fn region_name(&self) -> &str {
+    //    self.region.name()
+    //}
 
     pub fn row_number(&self) -> usize {
         self.row.row
     }
 
-    pub fn region_index_as_str(&self) -> String {
-        match self.region_index() {
-            Some(i) => i.to_string(),
-            None => "<unk>".to_string(),
-        }
-    }
+    //pub fn region_index_as_str(&self) -> String {
+    //    match self.region_index() {
+    //        Some(i) => i.to_string(),
+    //        None => "<unk>".to_string(),
+    //    }
+    //}
+
     #[inline]
     pub fn gate_is_disabled(&self, selectors: &SelectorSet) -> bool {
         self.enabled().is_disjoint(selectors)

@@ -39,16 +39,16 @@ use crate::{
 
 /// Temporary implementation of [`ConstraintSystemInfo`].
 impl<F: Field> ConstraintSystemInfo<F> for halo2_proofs::plonk::ConstraintSystem<F> {
-    type Polynomial = crate::halo2::Expression<F>;
+    type Polynomial = halo2_proofs::plonk::Expression<F>;
 
-    fn gates(&self) -> Vec<&dyn GateInfo<crate::halo2::Expression<F>>> {
+    fn gates(&self) -> Vec<&dyn GateInfo<halo2_proofs::plonk::Expression<F>>> {
         self.gates()
             .iter()
-            .map(|g| g as &dyn GateInfo<crate::halo2::Expression<F>>)
+            .map(|g| g as &dyn GateInfo<halo2_proofs::plonk::Expression<F>>)
             .collect()
     }
 
-    fn lookups<'cs>(&'cs self) -> Vec<LookupData<'cs, crate::halo2::Expression<F>>> {
+    fn lookups<'cs>(&'cs self) -> Vec<LookupData<'cs, halo2_proofs::plonk::Expression<F>>> {
         self.lookups()
             .iter()
             .map(|a| LookupData {
@@ -61,18 +61,18 @@ impl<F: Field> ConstraintSystemInfo<F> for halo2_proofs::plonk::ConstraintSystem
 }
 
 /// Temporary implementation of [`GateInfo`].
-impl<F: Field> GateInfo<crate::halo2::Expression<F>> for halo2_proofs::plonk::Gate<F> {
+impl<F: Field> GateInfo<halo2_proofs::plonk::Expression<F>> for halo2_proofs::plonk::Gate<F> {
     fn name(&self) -> &str {
         self.name()
     }
 
-    fn polynomials(&self) -> &[crate::halo2::Expression<F>] {
+    fn polynomials(&self) -> &[halo2_proofs::plonk::Expression<F>] {
         self.polynomials()
     }
 }
 
 /// Temporary implementation of [`ExpressionInfo`].
-impl<F> ExpressionInfo for crate::halo2::Expression<F> {
+impl<F> ExpressionInfo for halo2_proofs::plonk::Expression<F> {
     fn as_negation(&self) -> Option<&Self> {
         match self {
             Self::Negated(expr) => Some(&**expr),
@@ -89,7 +89,7 @@ impl<F> ExpressionInfo for crate::halo2::Expression<F> {
 }
 
 /// Temporary implementation of [`EvaluableExpr`].
-impl<F: Field> EvaluableExpr<F> for Expression<F> {
+impl<F: Field> EvaluableExpr<F> for halo2_proofs::plonk::Expression<F> {
     fn evaluate<E: EvalExpression<F>>(&self, evaluator: &E) -> E::Output {
         self.evaluate(
             &|f| evaluator.constant(&f),
@@ -107,7 +107,7 @@ impl<F: Field> EvaluableExpr<F> for Expression<F> {
 }
 
 /// Temporary implementation of [`ExprBuilder`].
-impl<F: Field> ExprBuilder<F> for Expression<F> {
+impl<F: Field> ExprBuilder<F> for halo2_proofs::plonk::Expression<F> {
     fn constant(f: F) -> Self {
         Self::Constant(f)
     }

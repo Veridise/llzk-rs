@@ -1,6 +1,6 @@
 //! Types and traits related to gates.
 
-use std::{borrow::Cow, cell::RefCell, cmp::Ordering, hash::Hash, ops::Range};
+use std::{borrow::Cow, cell::RefCell, ops::Range};
 
 use crate::{
     expressions::{
@@ -9,6 +9,7 @@ use crate::{
     },
     halo2::*,
     info_traits::GateInfo,
+    io::{AdviceIO, InstanceIO},
     ir::stmt::IRStmt,
     resolvers::FixedQueryResolver,
     synthesis::regions::{RegionData, RegionRow},
@@ -76,8 +77,8 @@ where
     region: RegionData<'syn>,
     /// The bounds are [start,end).
     row_bounds: (usize, usize),
-    advice_io: &'io crate::io::AdviceIO,
-    instance_io: &'io crate::io::InstanceIO,
+    advice_io: &'io AdviceIO,
+    instance_io: &'io InstanceIO,
     fqr: &'syn dyn FixedQueryResolver<F>,
 }
 
@@ -89,8 +90,8 @@ impl<'syn, 'io, F: Field, E> GateScope<'syn, 'io, F, E> {
         gate: &'syn Gate<E>,
         region: RegionData<'syn>,
         row_bounds: (usize, usize),
-        advice_io: &'io crate::io::AdviceIO,
-        instance_io: &'io crate::io::InstanceIO,
+        advice_io: &'io AdviceIO,
+        instance_io: &'io InstanceIO,
         fqr: &'syn dyn FixedQueryResolver<F>,
     ) -> Self {
         Self {
@@ -408,147 +409,4 @@ pub(crate) fn find_selectors<F: Field, E: EvaluableExpr<F>>(poly: &E) -> Selecto
     let e = Eval(Default::default());
     poly.evaluate(&e);
     e.0.take()
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub(crate) enum AnyQuery {
-    Advice(AdviceQuery),
-    Instance(InstanceQuery),
-    Fixed(FixedQuery),
-}
-
-impl AnyQuery {
-    pub fn expr<F>(&self) -> Expression<F> {
-        match self {
-            AnyQuery::Advice(advice_query) => Expression::Advice(*advice_query),
-            AnyQuery::Instance(instance_query) => Expression::Instance(*instance_query),
-            AnyQuery::Fixed(fixed_query) => Expression::Fixed(*fixed_query),
-        }
-    }
-    pub fn column_index(&self) -> usize {
-        match self {
-            AnyQuery::Advice(advice_query) => advice_query.column_index(),
-            AnyQuery::Instance(instance_query) => instance_query.column_index(),
-            AnyQuery::Fixed(fixed_query) => fixed_query.column_index(),
-        }
-    }
-
-    pub fn rotation(&self) -> Rotation {
-        match self {
-            AnyQuery::Advice(advice_query) => advice_query.rotation(),
-            AnyQuery::Instance(instance_query) => instance_query.rotation(),
-            AnyQuery::Fixed(fixed_query) => fixed_query.rotation(),
-        }
-    }
-
-    pub fn phase(&self) -> Option<u8> {
-        match self {
-            AnyQuery::Advice(advice_query) => Some(advice_query.phase()),
-            _ => None,
-        }
-    }
-
-    pub fn type_id(&self) -> u8 {
-        match self {
-            AnyQuery::Advice(_) => 0,
-            AnyQuery::Instance(_) => 1,
-            AnyQuery::Fixed(_) => 2,
-        }
-    }
-
-    pub fn to_tuple(&self) -> (u8, usize, i32, Option<u8>) {
-        (
-            self.type_id(),
-            self.column_index(),
-            self.rotation().0,
-            self.phase(),
-        )
-    }
-}
-
-impl PartialEq<FixedQuery> for AnyQuery {
-    fn eq(&self, other: &FixedQuery) -> bool {
-        match self {
-            Self::Fixed(query) => query == other,
-            _ => false,
-        }
-    }
-}
-
-impl PartialEq<InstanceQuery> for AnyQuery {
-    fn eq(&self, other: &InstanceQuery) -> bool {
-        match self {
-            Self::Instance(query) => query == other,
-            _ => false,
-        }
-    }
-}
-
-impl PartialEq<AdviceQuery> for AnyQuery {
-    fn eq(&self, other: &AdviceQuery) -> bool {
-        match self {
-            Self::Advice(query) => query == other,
-            _ => false,
-        }
-    }
-}
-
-impl PartialOrd for AnyQuery {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for AnyQuery {
-    /// Column metadata is ordered lexicographically by column type, then index, and lastly
-    /// rotation. In the case of Advice columns the last element is the phase.
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.to_tuple().cmp(&other.to_tuple())
-    }
-}
-
-impl Hash for AnyQuery {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let (typ, col, rot, pha) = self.to_tuple();
-        typ.hash(state);
-        col.hash(state);
-        rot.hash(state);
-        pha.hash(state);
-    }
-}
-
-impl From<&AdviceQuery> for AnyQuery {
-    fn from(query: &AdviceQuery) -> Self {
-        Self::Advice(*query)
-    }
-}
-
-impl From<&InstanceQuery> for AnyQuery {
-    fn from(query: &InstanceQuery) -> Self {
-        Self::Instance(*query)
-    }
-}
-
-impl From<&FixedQuery> for AnyQuery {
-    fn from(query: &FixedQuery) -> Self {
-        Self::Fixed(*query)
-    }
-}
-
-impl From<AdviceQuery> for AnyQuery {
-    fn from(query: AdviceQuery) -> Self {
-        Self::Advice(query)
-    }
-}
-
-impl From<InstanceQuery> for AnyQuery {
-    fn from(query: InstanceQuery) -> Self {
-        Self::Instance(query)
-    }
-}
-
-impl From<FixedQuery> for AnyQuery {
-    fn from(query: FixedQuery) -> Self {
-        Self::Fixed(query)
-    }
 }

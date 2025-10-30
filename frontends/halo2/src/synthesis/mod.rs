@@ -4,23 +4,21 @@ use std::{collections::HashSet, convert::identity};
 
 use anyhow::{Result, anyhow};
 use constraint::{EqConstraint, EqConstraintArg, EqConstraintGraph};
-use groups::{Group, GroupBuilder, GroupCell, Groups};
-use regions::{FixedData, RegionIndexToStart, TableData};
+use groups::{GroupBuilder, Groups};
+use regions::{FixedData, TableData};
 
 use crate::{
-    CircuitIO,
     expressions::ExpressionInfo,
-    gates::{AnyQuery, Gate},
+    gates::Gate,
     halo2::{
         Field,
         groups::{GroupKey, RegionsGroup},
         *,
     },
     info_traits::ConstraintSystemInfo,
-    io::{AdviceIO, IOCell, InstanceIO},
-    lookups::{Lookup, LookupTableRow},
+    io::{AdviceIO, InstanceIO},
+    lookups::{Lookup, table::LookupTableRow},
     resolvers::FixedQueryResolver,
-    value::steal,
 };
 
 pub(crate) mod constraint;
@@ -28,6 +26,7 @@ pub(crate) mod groups;
 pub(crate) mod regions;
 
 /// Result of synthesizing a circuit.
+#[derive(Debug)]
 pub struct SynthesizedCircuit<F, E>
 where
     F: Field,
@@ -56,7 +55,7 @@ where
     }
 
     /// Finds the table that corresponds to the query set.
-    fn find_table(&self, q: &[AnyQuery]) -> Result<Vec<Vec<F>>> {
+    fn find_table(&self, q: &[FixedQuery]) -> Result<Vec<Vec<F>>> {
         self.tables
             .iter()
             .find_map(|table| table.get_rows(q))
@@ -114,22 +113,6 @@ where
         &self.eq_constraints
     }
 
-    /// Returns a mapping from the region index to region start
-    pub(crate) fn regions_by_index(&self) -> RegionIndexToStart {
-        self.groups
-            .as_ref()
-            .iter()
-            .flat_map(|g| g.regions())
-            .enumerate()
-            .map(|(idx, region)| (idx.into(), region.rows().start.into()))
-            .collect()
-    }
-
-    /// Returns the top level group in the circuit.
-    pub(crate) fn top_level_group(&self) -> Option<&Group> {
-        self.groups.top_level()
-    }
-
     /// Returns a reference to a resolver for fixed queries.
     pub(crate) fn fixed_query_resolver(&self) -> &dyn FixedQueryResolver<F> {
         &self.fixed
@@ -137,19 +120,6 @@ where
 
     pub(crate) fn id(&self) -> usize {
         self.id
-    }
-}
-
-impl<F: Field, E: std::fmt::Debug> std::fmt::Debug for SynthesizedCircuit<F, E> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CircuitSynthesis")
-            .field("id", &self.id)
-            .field("eq_constraints", &self.eq_constraints)
-            .field("fixed", &self.fixed)
-            .field("tables", &self.tables)
-            .field("groups", &self.groups)
-            .field("gates", &self.gates)
-            .finish()
     }
 }
 
@@ -207,8 +177,8 @@ impl<F: Field> Synthesizer<F> {
 
     /// Configures the IO of the circuit.
     pub(crate) fn configure_io(&mut self, advice_io: AdviceIO, instance_io: InstanceIO) {
-        add_root_io(&mut self.groups, &advice_io);
-        add_root_io(&mut self.groups, &instance_io);
+        self.groups.add_root_io(&advice_io);
+        self.groups.add_root_io(&instance_io);
     }
 
     /// Builds a [`SynthesizedCircuit`] with the information recollected about the circuit.
@@ -222,7 +192,6 @@ impl<F: Field> Synthesizer<F> {
             id: self.id,
             gates: cs.gates().into_iter().map(Gate::new::<F>).collect(),
             lookups: Lookup::load(&cs),
-            //cs: Box::new(cs),
             eq_constraints: self.eq_constraints,
             tables: fill_tables(self.tables, &self.fixed)?,
             fixed: self.fixed,
@@ -267,7 +236,7 @@ impl<F: Field> Synthesizer<F> {
         self.groups.regions_mut().edit(|region| {
             region.update_extent(fixed.into(), row);
         });
-        self.fixed.assign_fixed(fixed, row, Value::known(value));
+        self.fixed.assign_fixed(fixed, row, value);
     }
 
     /// Annotates that the two given cells have a copy constraint between them.
@@ -279,7 +248,7 @@ impl<F: Field> Synthesizer<F> {
     /// Annotates that starting from the given row the given fixed column has that value.
     pub fn fill_from_row(&mut self, column: Column<Fixed>, row: usize, value: F) {
         log::debug!("fill_from_row{:?}", (column, row, value));
-        self.fixed.blanket_fill(column, row, Value::known(value));
+        self.fixed.blanket_fill(column, row, value);
         let r = self.groups.regions_mut();
         r.edit(|region| region.update_extent(column.into(), row));
     }
@@ -377,24 +346,9 @@ fn add_fixed_to_const_constraints<F: Field>(
     };
 
     for (col, row) in fixed_cells {
-        let value = steal(&fixed.resolve_fixed(col.index(), row))
-            .ok_or_else(|| anyhow!("Fixed cell was assigned an unknown value!"))?;
+        let value = fixed.resolve_fixed(col.index(), row);
         constraints.add(EqConstraint::FixedToConst(col, row, value));
     }
 
     Ok(())
-}
-
-/// Adds to the list of input and output cells of the top-level block.
-fn add_root_io<C: ColumnType>(groups: &mut GroupBuilder, io: &CircuitIO<C>)
-where
-    IOCell<C>: Into<GroupCell>,
-{
-    for c in io.inputs() {
-        groups.add_root_input(*c);
-    }
-
-    for c in io.outputs() {
-        groups.add_root_output(*c);
-    }
 }

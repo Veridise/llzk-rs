@@ -11,7 +11,6 @@ use crate::{
     expressions::{ExprBuilder, ExpressionInRow, ExpressionInfo, ScopedExpression},
     gates::{Gate, GateRewritePattern as _, GateScope, RewriteError, RewritePatternSet},
     halo2::{Field, Rotation, groups::GroupKeyInstance},
-    info_traits::GateInfo,
     ir::{
         CmpOp, IRCtx,
         ctx::AdviceCells,
@@ -24,7 +23,7 @@ use crate::{
         },
         stmt::IRStmt,
     },
-    lookups::callbacks::{LazyLookupTableGenerator, LookupTableGenerator},
+    lookups::table::{LazyLookupTableGenerator, LookupTableGenerator},
     resolvers::FixedQueryResolver,
     synthesis::{
         SynthesizedCircuit,
@@ -37,7 +36,7 @@ use crate::{
 };
 use anyhow::Result;
 
-pub mod bounds;
+pub(crate) mod bounds;
 pub mod callsite;
 
 /// Group's IR

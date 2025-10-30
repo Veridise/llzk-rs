@@ -1,15 +1,14 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::lowering::lowerable::LowerableStmt;
 use super::lowering::ExprLowering as _;
+use super::lowering::lowerable::LowerableStmt;
 use super::{func::FuncIO, lowering::Lowering};
 use crate::io::{AdviceIO, InstanceIO};
 use crate::ir::expr::Felt;
 use crate::ir::{IRCtx, ResolvedIRCircuit};
 use anyhow::Result;
 
-pub mod lookup;
 pub mod strats;
 
 pub trait Codegen<'c: 's, 's>: Sized + 's {
