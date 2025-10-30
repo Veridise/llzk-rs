@@ -8,6 +8,7 @@ pub use crate::dialect::llzk::prelude::*;
 pub use crate::dialect::module::llzk_module;
 pub use crate::dialect::r#struct::prelude::*;
 pub use crate::error::Error as LlzkError;
+pub use crate::passes as llzk_passes;
 
 /// Exports functions that create operations
 pub mod array {

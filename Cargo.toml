@@ -4,6 +4,7 @@ members = [
   "llzk",
   "llzk-sys",
   "llzk-sys/build-support",
+  "llzk-macro",
   "picus"
 ]
 resolver = "2"
