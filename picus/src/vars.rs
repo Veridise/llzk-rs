@@ -78,27 +78,30 @@ pub trait VarAllocator {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Vars<K: VarKind>(HashMap<K, VarStr>);
+pub struct Vars<K: VarKind> {
+    map: HashMap<K, VarStr>,
+    unique: HashSet<String>,
+}
 
 impl<K: VarKind> Vars<K> {
     pub fn keys(&self) -> impl Iterator<Item = &K> {
-        self.0.keys()
+        self.map.keys()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&K, &VarStr)> {
-        self.0.iter()
+        self.map.iter()
     }
 
     /// Lookup a var's key in the vars table. This operation is linear.
     pub fn lookup_key(&self, var: &VarStr) -> Option<&K> {
-        self.0.iter().find(|(_, v)| **v == *var).map(|(k, _)| k)
+        self.map.iter().find(|(_, v)| **v == *var).map(|(k, _)| k)
     }
 
     /// Returns the inputs in the environment sorted by their key (which matches declaration
     /// order).
     pub fn inputs(&self) -> impl Iterator<Item = &str> {
         let mut inputs = self
-            .0
+            .map
             .iter()
             .filter_map(|(k, v)| k.get_input_no().map(|no| (no, v)))
             .collect::<Vec<_>>();
@@ -110,7 +113,7 @@ impl<K: VarKind> Vars<K> {
     /// order).
     pub fn outputs(&self) -> impl Iterator<Item = &str> {
         let mut outputs = self
-            .0
+            .map
             .iter()
             .filter_map(|(k, v)| k.get_output_no().map(|no| (no, v)))
             .collect::<Vec<_>>();
@@ -123,25 +126,22 @@ impl<K: VarKind> Vars<K> {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.map.is_empty()
     }
 
     fn filter<'a, P>(&'a self, p: P) -> impl Iterator<Item = &'a str>
     where
         P: Fn(&'a K, &'a VarStr) -> bool + 'a,
     {
-        self.0.iter().filter_map(move |(k, v)| -> Option<&str> {
-            if p(k, v) {
-                Some(&v.0)
-            } else {
-                None
-            }
+        self.map.iter().filter_map(move |(k, v)| -> Option<&str> {
+            if p(k, v) { Some(&v.0) } else { None }
         })
     }
 
     /// Inserts a variable using the given VarStr. The behavior mimics `HashMap::insert`.
     pub fn insert_with_value(&mut self, key: K, v: VarStr) {
-        self.0.insert(key, v);
+        self.map.insert(key, v.clone());
+        self.unique.insert(v.0);
     }
 }
 
@@ -149,7 +149,7 @@ impl<K: VarKind> Index<&K> for Vars<K> {
     type Output = VarStr;
 
     fn index(&self, index: &K) -> &Self::Output {
-        &self.0[index]
+        &self.map[index]
     }
 }
 
@@ -159,28 +159,35 @@ impl<K: VarKind> IntoIterator for Vars<K> {
     type IntoIter = <HashMap<K, VarStr> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+        self.map.into_iter()
     }
 }
 
 impl<K: VarKind, S: Into<K> + Into<VarStr> + Clone> FromIterator<S> for Vars<K> {
     fn from_iter<T: IntoIterator<Item = S>>(iter: T) -> Self {
-        Self(HashMap::from_iter(
-            iter.into_iter()
-                .map(|seed| (seed.clone().into(), seed.into())),
-        ))
+        let iter: Vec<(K, VarStr)> = iter
+            .into_iter()
+            .map(|seed| (seed.clone().into(), seed.into()))
+            .collect();
+        let unique: HashSet<String> = iter.iter().map(|(_, v)| v.0.clone()).collect();
+
+        let map = HashMap::from_iter(iter);
+        assert_eq!(map.len(), unique.len());
+        Self { map, unique }
     }
 }
 
 impl<K: VarKind, S: Into<K> + Into<VarStr> + Clone> Extend<S> for Vars<K> {
     fn extend<T: IntoIterator<Item = S>>(&mut self, iter: T) {
-        self.0.extend(
-            iter.into_iter()
-                .map(|seed| (seed.clone().into(), seed.into()))
-                .inspect(|(key, var)| {
-                    log::debug!("Priming vars db with key {key:?} and var {var:?}")
-                }),
-        )
+        let iter: Vec<(K, VarStr)> = iter
+            .into_iter()
+            .map(|seed| (seed.clone().into(), seed.into()))
+            .inspect(|(key, var)| log::debug!("Priming vars db with key {key:?} and var {var:?}"))
+            .collect();
+        self.unique.extend(iter.iter().map(|(_, v)| v.0.clone()));
+        self.map.extend(iter);
+
+        assert_eq!(self.map.len(), self.unique.len());
     }
 }
 
@@ -190,7 +197,7 @@ impl<'a, K: VarKind> IntoIterator for &'a Vars<K> {
     type IntoIter = <&'a HashMap<K, VarStr> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.iter()
+        self.map.iter()
     }
 }
 
@@ -201,20 +208,15 @@ impl<K: VarKind + Clone + fmt::Debug> Vars<K> {
     pub fn insert<S: Into<K> + Into<VarStr> + Clone>(&mut self, seed: S) -> VarStr {
         let key = seed.clone().into();
         log::debug!("[{self:p}] Inserting var key {key:?}");
-        if self.0.contains_key(&key) {
-            let prev_name = self.0[&key].clone();
+        if self.map.contains_key(&key) {
+            let prev_name = self.map[&key].clone();
             let new_name: VarStr = seed.into();
             log::debug!(
                 "[{self:p}]  Key {key:?} was already inserted. Cached name is {prev_name:?} and the generated name is {new_name:?}"
             );
             return prev_name;
         }
-        let unique_names = self
-            .0
-            .values()
-            .map(|v| v.0.as_str())
-            .collect::<HashSet<_>>();
-        log::debug!("[{self:p}]  Unique names: {unique_names:?}");
+        log::debug!("[{self:p}]  Unique names: {:?}", self.unique);
         let v = [seed.into()]
             .into_iter()
             .cycle()
@@ -227,10 +229,10 @@ impl<K: VarKind + Clone + fmt::Debug> Vars<K> {
                 }
             })
             .inspect(|v| log::debug!("[{self:p}]  Testing if {v:?} is a fresh name"))
-            .find(|v| !unique_names.contains(v.0.as_str()))
+            .find(|v| !self.unique.contains(&v.0))
             .unwrap();
 
-        self.0.insert(key.clone(), v.clone());
+        self.insert_with_value(key.clone(), v.clone());
         log::debug!("[{self:p}]  Returning {v:?} as the variable name for key {key:?}");
         v
     }
