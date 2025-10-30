@@ -1,12 +1,12 @@
 use std::{
-    ffi::{c_void, CString},
+    ffi::{CString, c_void},
     ptr::{null, null_mut},
 };
 
 use mlir_sys::{
-    mlirArrayAttrGet, mlirAttributeEqual, mlirAttributeGetContext, mlirFlatSymbolRefAttrGet,
-    mlirIndexTypeGet, mlirIntegerAttrGet, mlirIntegerTypeGet, mlirLocationUnknownGet,
-    mlirStringRefCreateFromCString, MlirOperation, MlirType,
+    MlirOperation, MlirType, mlirArrayAttrGet, mlirAttributeEqual, mlirAttributeGetContext,
+    mlirFlatSymbolRefAttrGet, mlirIndexTypeGet, mlirIntegerAttrGet, mlirIntegerTypeGet,
+    mlirLocationUnknownGet, mlirStringRefCreateFromCString,
 };
 use rstest::{fixture, rstest};
 
@@ -16,7 +16,7 @@ use crate::{
     llzkIsValidArrayElemType, llzkIsValidArrayType, llzkIsValidColumnType,
     llzkIsValidConstReadType, llzkIsValidEmitEqType, llzkIsValidGlobalType, llzkIsValidType,
     llzkTypeParamsUnify, llzkTypesUnify,
-    sanity_tests::{context, TestContext},
+    sanity_tests::{TestContext, context},
 };
 
 struct IndexType {

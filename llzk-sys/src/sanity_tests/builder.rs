@@ -4,10 +4,9 @@ use mlir_sys::{MlirBlock, MlirOperation, MlirRegion};
 use rstest::rstest;
 
 use crate::{
-    mlirOpBuilderCreate, mlirOpBuilderCreateWithListener, mlirOpBuilderDestroy,
-    mlirOpBuilderListenerCreate, mlirOpBuilderListenerDestroy,
-    sanity_tests::{context, TestContext},
-    MlirOpBuilderInsertPoint,
+    MlirOpBuilderInsertPoint, mlirOpBuilderCreate, mlirOpBuilderCreateWithListener,
+    mlirOpBuilderDestroy, mlirOpBuilderListenerCreate, mlirOpBuilderListenerDestroy,
+    sanity_tests::{TestContext, context},
 };
 
 #[rstest]
