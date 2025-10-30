@@ -68,7 +68,7 @@ pub fn insert(c: &mut Criterion) {
     for n in [1, 5, 10, 50, 100] {
         group.throughput(Throughput::Elements(n));
 
-        // Direct insertion without checking for name collissions
+        // Direct insertion without checking for name collisions
         group.bench_with_input(BenchmarkId::new("direct", n), &(n as usize), |b, i| {
             b.iter(|| {
                 let mut vars = Vars::<Key>::default();
