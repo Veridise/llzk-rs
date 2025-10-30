@@ -43,7 +43,7 @@ impl From<Key> for VarStr {
 /// Benchmark for different insertion scenarios in the [`Vars`] environment.
 ///
 /// Tests element by element insertion in the following scenarios:
-///  1. Direct insertion on the environment without checking for name collissions. Serves as a baseline
+///  1. Direct insertion on the environment without checking for name collisions. Serves as a baseline
 ///  of directly inserting on the underlying data structures.
 ///  2. Repeatedly inserting the same element, triggering cache hits.
 ///  3. Inserting different elements each time. Should be similar to the direct insertion plus a
