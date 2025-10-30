@@ -53,7 +53,7 @@ impl From<Key> for VarStr {
 ///
 /// For each scenario, we progressively test with a larger amount of inputs: 1, 5, 10, 50, 100.
 /// This gives a decent enough sample size for checking performance and completing the benchmark in
-/// a decent time even if its under the usual workload seen on production.
+/// a decent time even if it's under the usual workload seen on production.
 ///
 /// The most common scenarios are #2 and #3 so those are the ones that would need targeted
 /// optimizations, if needed.
