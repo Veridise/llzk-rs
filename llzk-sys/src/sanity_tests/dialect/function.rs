@@ -12,13 +12,13 @@ use crate::{
     llzkFuncDefOpGetSingleResultTypeOfCompute, llzkFuncDefOpSetAllowConstraintAttr,
     llzkFuncDefOpSetAllowWitnessAttr, llzkOperationIsACallOp, llzkOperationIsAFuncDefOp,
     mlirGetDialectHandle__llzk__function__, mlirOpBuilderCreate, mlirOpBuilderDestroy,
-    sanity_tests::{context, str_ref, TestContext},
+    sanity_tests::{TestContext, context, str_ref},
 };
 use mlir_sys::{
-    mlirDenseI32ArrayGet, mlirDictionaryAttrGet, mlirFlatSymbolRefAttrGet, mlirFunctionTypeGet,
-    mlirIndexTypeGet, mlirLocationUnknownGet, mlirOperationDestroy, mlirOperationGetContext,
-    mlirOperationVerify, mlirStringRefCreateFromCString, mlirTypeEqual, MlirAttribute, MlirContext,
-    MlirNamedAttribute, MlirOperation, MlirType,
+    MlirAttribute, MlirContext, MlirNamedAttribute, MlirOperation, MlirType, mlirDenseI32ArrayGet,
+    mlirDictionaryAttrGet, mlirFlatSymbolRefAttrGet, mlirFunctionTypeGet, mlirIndexTypeGet,
+    mlirLocationUnknownGet, mlirOperationDestroy, mlirOperationGetContext, mlirOperationVerify,
+    mlirStringRefCreateFromCString, mlirTypeEqual,
 };
 use rstest::{fixture, rstest};
 use std::{

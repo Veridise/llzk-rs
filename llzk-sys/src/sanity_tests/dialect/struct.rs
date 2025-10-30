@@ -4,12 +4,12 @@ use std::{
 };
 
 use mlir_sys::{
-    mlirAffineConstantExprGet, mlirAffineMapGet, mlirArrayAttrGet, mlirAttributeEqual,
-    mlirFlatSymbolRefAttrGet, mlirIdentifierGet, mlirIndexTypeGet, mlirIntegerAttrGet,
-    mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate, mlirOperationDestroy,
-    mlirOperationGetContext, mlirOperationGetResult, mlirOperationStateAddAttributes,
-    mlirOperationStateAddResults, mlirOperationStateGet, mlirStringRefCreateFromCString,
-    MlirOperation,
+    MlirOperation, mlirAffineConstantExprGet, mlirAffineMapGet, mlirArrayAttrGet,
+    mlirAttributeEqual, mlirFlatSymbolRefAttrGet, mlirIdentifierGet, mlirIndexTypeGet,
+    mlirIntegerAttrGet, mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate,
+    mlirOperationDestroy, mlirOperationGetContext, mlirOperationGetResult,
+    mlirOperationStateAddAttributes, mlirOperationStateAddResults, mlirOperationStateGet,
+    mlirStringRefCreateFromCString,
 };
 use rstest::{fixture, rstest};
 use std::alloc::{alloc, dealloc, Layout};

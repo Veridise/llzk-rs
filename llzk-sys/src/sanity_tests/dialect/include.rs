@@ -5,7 +5,7 @@ use rstest::rstest;
 
 use crate::{
     llzkIncludeOpCreate, mlirGetDialectHandle__llzk__include__,
-    sanity_tests::{context, str_ref, TestContext},
+    sanity_tests::{TestContext, context, str_ref},
 };
 
 #[test]
