@@ -1,0 +1,6 @@
+# Suppressions for known issues reported by ASAN
+# We should only add lines here if we are absolute certain the reported issue is not our fault.
+leak:registerPass
+leak:buildDefaultRegistryFn
+leak:std::_Function_handler<void (llvm::function_ref<void (mlir::detail::PassOptions const&)>), mlir::PassInfo::PassInfo(llvm::StringRef, llvm::StringRef, std::function<std::unique_ptr<mlir::Pass, std::default_delete<mlir::Pass>> ()> const&)::'lambda'(llvm::function_ref<void (mlir::detail::PassOptions const&)>)>::_M_manager(std::_Any_data&, std::_Any_data const&, std::_Manager_operation)
+leak:llvm::allocate_buffer
