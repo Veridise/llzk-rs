@@ -5,7 +5,7 @@ mod r#type;
 
 use llzk_sys::mlirGetDialectHandle__llzk__array__;
 use melior::dialect::DialectHandle;
-pub use ops::{extract, insert, new, read, write, ArrayCtor};
+pub use ops::{ArrayCtor, extract, insert, new, read, write};
 pub use r#type::ArrayType;
 
 pub fn handle() -> DialectHandle {

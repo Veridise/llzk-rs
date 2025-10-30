@@ -1,13 +1,13 @@
 use std::fmt;
 
 use melior::{
-    ir::{attribute::FlatSymbolRefAttribute, Attribute, AttributeLike},
     Context, StringRef,
+    ir::{Attribute, AttributeLike, attribute::FlatSymbolRefAttribute},
 };
 use mlir_sys::{
-    mlirAttributeIsASymbolRef, mlirSymbolRefAttrGet, mlirSymbolRefAttrGetLeafReference,
-    mlirSymbolRefAttrGetNestedReference, mlirSymbolRefAttrGetNumNestedReferences,
-    mlirSymbolRefAttrGetRootReference, MlirAttribute,
+    MlirAttribute, mlirAttributeIsASymbolRef, mlirSymbolRefAttrGet,
+    mlirSymbolRefAttrGetLeafReference, mlirSymbolRefAttrGetNestedReference,
+    mlirSymbolRefAttrGetNumNestedReferences, mlirSymbolRefAttrGetRootReference,
 };
 
 #[derive(Clone, Copy, Debug)]

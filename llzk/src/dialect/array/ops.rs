@@ -2,11 +2,11 @@ use llzk_sys::{
     llzkCreateArrayOpBuildWithMapOperands, llzkCreateArrayOpBuildWithMapOperandsAndDims,
     llzkCreateArrayOpBuildWithValues,
 };
-use melior::ir::operation::OperationBuilder;
 use melior::ir::TypeLike;
+use melior::ir::operation::OperationBuilder;
 use melior::ir::{
-    attribute::DenseI32ArrayAttribute, Attribute, AttributeLike, Location, Operation, Type, Value,
-    ValueLike,
+    Attribute, AttributeLike, Location, Operation, Type, Value, ValueLike,
+    attribute::DenseI32ArrayAttribute,
 };
 use mlir_sys::MlirOperation;
 
