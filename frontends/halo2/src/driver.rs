@@ -8,7 +8,9 @@ use crate::{
         llzk::{LlzkBackend, LlzkOutput, LlzkParams},
         picus::{PicusBackend, PicusOutput, PicusParams},
     },
+    expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
     halo2::PrimeField,
+    info_traits::ConstraintSystemInfo,
     io::{AdviceIO, InstanceIO},
     ir::{
         IRCtx, ResolvedIRCircuit, UnresolvedIRCircuit,
@@ -26,7 +28,10 @@ pub struct Driver {
 
 impl Driver {
     /// Synthesizes a circuit .
-    pub fn synthesize<F, C>(&mut self, circuit: &C) -> anyhow::Result<SynthesizedCircuit<F>>
+    pub fn synthesize<F, C>(
+        &mut self,
+        circuit: &C,
+    ) -> anyhow::Result<SynthesizedCircuit<F, <C::CS as ConstraintSystemInfo<F>>::Polynomial>>
     where
         C: CircuitSynthesis<F>,
         F: PrimeField,
@@ -48,13 +53,14 @@ impl Driver {
     }
 
     /// Generates the IR of the synthesized circuit.
-    pub fn generate_ir<'syn, 'drv, 'cb, 'sco, F>(
+    pub fn generate_ir<'syn, 'drv, 'cb, 'sco, F, E>(
         &'drv mut self,
-        syn: &'syn SynthesizedCircuit<F>,
-        params: IRGenParams<'cb, '_, F>,
-    ) -> anyhow::Result<UnresolvedIRCircuit<'drv, 'syn, 'sco, F>>
+        syn: &'syn SynthesizedCircuit<F, E>,
+        params: IRGenParams<'cb, '_, F, E>,
+    ) -> anyhow::Result<UnresolvedIRCircuit<'drv, 'syn, 'sco, F, E>>
     where
         F: PrimeField,
+        E: Clone + ExprBuilder<F> + ExpressionInfo + EvaluableExpr<F> + std::fmt::Debug,
         'syn: 'sco,
         'drv: 'sco + 'syn,
         'cb: 'sco + 'syn,
@@ -84,7 +90,10 @@ impl Driver {
     }
 
     /// Creates the IR context for the synthesized circuit.
-    fn get_or_create_ir_ctx<'drv, F>(&'drv mut self, syn: &SynthesizedCircuit<F>) -> &'drv IRCtx
+    fn get_or_create_ir_ctx<'drv, F, E>(
+        &'drv mut self,
+        syn: &SynthesizedCircuit<F, E>,
+    ) -> &'drv IRCtx
     where
         F: PrimeField,
     {

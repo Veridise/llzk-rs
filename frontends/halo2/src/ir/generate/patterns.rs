@@ -1,10 +1,10 @@
-use crate::expressions::utils::ExprDebug;
-use crate::gates::{find_selectors, RewritePatternSet};
-use crate::halo2::Expression;
-use crate::halo2::Field;
-use crate::ir::stmt::IRStmt;
-use crate::ir::CmpOp;
-use crate::{GateCallbacks, GateRewritePattern, GateScope, RewriteError, RewriteOutput};
+use crate::{
+    GateCallbacks, GateRewritePattern, GateScope, RewriteError, RewriteOutput,
+    expressions::{EvaluableExpr, ExprBuilder},
+    gates::{RewritePatternSet, find_selectors},
+    halo2::Field,
+    ir::{CmpOp, stmt::IRStmt},
+};
 use std::{borrow::Cow, result::Result as StdResult};
 
 /// Default gate pattern that transforms each polynomial in a gate into an equality statement for
@@ -21,8 +21,11 @@ impl FallbackGateRewriter {
     }
 }
 
-impl<F> GateRewritePattern<F> for FallbackGateRewriter {
-    fn match_gate<'syn>(&self, _gate: GateScope<'syn, '_, F>) -> StdResult<(), RewriteError>
+impl<F, E> GateRewritePattern<F, E> for FallbackGateRewriter
+where
+    E: std::fmt::Debug + EvaluableExpr<F> + ExprBuilder<F>,
+{
+    fn match_gate<'syn>(&self, _gate: GateScope<'syn, '_, F, E>) -> StdResult<(), RewriteError>
     where
         F: Field,
     {
@@ -31,10 +34,11 @@ impl<F> GateRewritePattern<F> for FallbackGateRewriter {
 
     fn rewrite_gate<'syn>(
         &self,
-        gate: GateScope<'syn, '_, F>,
-    ) -> StdResult<RewriteOutput<'syn, F>, anyhow::Error>
+        gate: GateScope<'syn, '_, F, E>,
+    ) -> StdResult<RewriteOutput<'syn, E>, anyhow::Error>
     where
         F: Field,
+        E: Clone,
     {
         log::debug!(
             "Generating gate '{}' on region '{}' with the fallback rewriter",
@@ -50,24 +54,17 @@ impl<F> GateRewritePattern<F> for FallbackGateRewriter {
                 gate.polynomials()
                     .iter()
                     .filter(move |e| {
-                        let set = find_selectors(e);
+                        let set = find_selectors(*e);
                         if self.ignore_disabled_gates && row.gate_is_disabled(&set) {
                             log::debug!(
-                                "Expression {:?} was ignored because its selectors are disabled",
-                                ExprDebug(e)
+                                "Expression {e:?} was ignored because its selectors are disabled",
                             );
                             return false;
                         }
                         true
                     })
                     .map(Cow::Borrowed)
-                    .map(|lhs| {
-                        IRStmt::constraint(
-                            CmpOp::Eq,
-                            lhs,
-                            Cow::Owned(Expression::Constant(F::ZERO)),
-                        )
-                    })
+                    .map(|lhs| IRStmt::constraint(CmpOp::Eq, lhs, Cow::Owned(E::constant(F::ZERO))))
                     .map(move |s| s.map(&|e: Cow<'syn, _>| (row.row_number(), e)))
                 //.collect()
             })
@@ -77,7 +74,11 @@ impl<F> GateRewritePattern<F> for FallbackGateRewriter {
 
 /// Configures a rewrite pattern set from patterns potentially provided by the user and
 /// the fallback pattern for gates that don't require special handling.
-pub fn load_patterns<F: Field>(gate_cbs: &dyn GateCallbacks<F>) -> RewritePatternSet<F> {
+pub fn load_patterns<F, E>(gate_cbs: &dyn GateCallbacks<F, E>) -> RewritePatternSet<F, E>
+where
+    F: Field,
+    E: ExprBuilder<F> + EvaluableExpr<F> + std::fmt::Debug,
+{
     let mut patterns = RewritePatternSet::default();
     let user_patterns = gate_cbs.patterns();
     log::debug!("Loading {} user patterns", user_patterns.len());

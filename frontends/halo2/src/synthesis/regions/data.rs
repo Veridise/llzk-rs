@@ -1,5 +1,6 @@
-use crate::halo2::*;
+use crate::{gates::SelectorSet, halo2::*};
 use std::{
+    borrow::Cow,
     collections::{HashMap, HashSet},
     ops::Range,
 };
@@ -18,7 +19,8 @@ pub struct RegionDataImpl {
     index: Option<RegionIndex>,
     /// The selectors that have been enabled in this region. All other selectors are by
     /// construction not enabled.
-    enabled_selectors: HashMap<Selector, Vec<usize>>,
+    //enabled_selectors: HashMap<Selector, Vec<usize>>,
+    enabled_selectors: HashMap<usize, SelectorSet>,
     /// The columns involved in this region.
     columns: HashSet<Column<Any>>,
     /// The rows that this region starts and ends on, if known.
@@ -39,7 +41,7 @@ impl RegionDataImpl {
         }
     }
 
-    pub fn enabled_selectors(&self) -> &HashMap<Selector, Vec<usize>> {
+    pub fn enabled_selectors(&self) -> &HashMap<usize, SelectorSet> {
         &self.enabled_selectors
     }
 
@@ -68,12 +70,16 @@ impl RegionDataImpl {
         self.index.take()
     }
 
-    pub fn selectors_enabled_for_row(&self, row: usize) -> Vec<&Selector> {
+    pub fn selectors_enabled_for_row(&self, row: usize) -> Cow<SelectorSet> {
         self.enabled_selectors
-            .iter()
-            .filter(|(_, rows)| rows.contains(&row))
-            .map(|(sel, _)| sel)
-            .collect()
+            .get(&row)
+            .map(Cow::Borrowed)
+            .unwrap_or_default()
+        //self.enabled_selectors
+        //    .iter()
+        //    .filter(|(_, rows)| rows.contains(&row))
+        //    .map(|(sel, _)| sel)
+        //    .collect()
     }
 
     pub fn update_extent(&mut self, column: Column<Any>, row: usize) {
@@ -85,7 +91,10 @@ impl RegionDataImpl {
     }
 
     pub fn enable_selector(&mut self, s: Selector, row: usize) {
-        self.enabled_selectors.entry(s).or_default().push(row);
+        self.enabled_selectors
+            .entry(row)
+            .or_default()
+            .insert(s.index());
     }
 
     pub fn rows(&self) -> Range<usize> {
@@ -155,11 +164,11 @@ impl<'a> RegionData<'a> {
         self.inner.kind
     }
 
-    pub fn selectors_enabled_for_row(&self, row: usize) -> Vec<&'a Selector> {
+    pub fn selectors_enabled_for_row(&self, row: usize) -> Cow<SelectorSet> {
         self.inner.selectors_enabled_for_row(row)
     }
 
-    pub fn enabled_selectors(&self) -> &'a HashMap<Selector, Vec<usize>> {
+    pub fn enabled_selectors(&self) -> &'a HashMap<usize, SelectorSet> {
         self.inner.enabled_selectors()
     }
 

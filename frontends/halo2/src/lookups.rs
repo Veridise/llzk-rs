@@ -3,7 +3,7 @@
 use std::ops::Index;
 
 use crate::{
-    backend::codegen::lookup::query_from_table_expr,
+    expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
     gates::AnyQuery,
     halo2::{Expression, Field, FixedQuery},
     info_traits::ConstraintSystemInfo,
@@ -12,34 +12,40 @@ use anyhow::Result;
 
 pub mod callbacks;
 
-/// Lightweight representation of a lookup that is cheap to copy
-#[derive(Clone, Copy, Debug)]
-pub struct Lookup<'syn, F: Field> {
-    name: &'syn str,
+/// Defines a lookup as a list of pairs of expressions.
+#[derive(Debug)]
+pub struct Lookup<E> {
+    name: String,
     idx: usize,
-    inputs: &'syn [Expression<F>],
-    table: &'syn [Expression<F>],
+    inputs: Vec<E>,
+    table: Vec<E>,
 }
 
-impl<F: Field> std::fmt::Display for Lookup<'_, F> {
+impl<E> std::fmt::Display for Lookup<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Lookup {} '{}'", self.idx, self.name)
     }
 }
 
-/// Data required for building a lookup.
+/// Lightweight representation of a lookup that is cheap to copy
 #[derive(Debug, Copy, Clone)]
-pub struct LookupData<'syn, F> {
+pub struct LookupData<'syn, E> {
     /// Name of the lookup.
     pub name: &'syn str,
     /// Expressions representing the arguments of the lookup.
-    pub arguments: &'syn [Expression<F>],
+    pub arguments: &'syn [E],
     /// Expressions representing the columns of the table.
-    pub table: &'syn [Expression<F>],
+    pub table: &'syn [E],
 }
 
-fn compute_table_cells<'syn, F: Field>(
-    table: impl Iterator<Item = &'syn Expression<F>>,
+fn query_from_table_expr<E: ExpressionInfo>(e: &E) -> Result<FixedQuery> {
+    e.as_fixed_query()
+        .copied()
+        .ok_or_else(|| anyhow::anyhow!("Table row expressions can only be fixed cell queries"))
+}
+
+fn compute_table_cells<'e, E: ExpressionInfo + 'e>(
+    table: impl Iterator<Item = &'e E>,
 ) -> Result<Vec<AnyQuery>> {
     table
         .map(query_from_table_expr)
@@ -47,9 +53,12 @@ fn compute_table_cells<'syn, F: Field>(
         .collect()
 }
 
-impl<'syn, F: Field> Lookup<'syn, F> {
+impl<E> Lookup<E> {
     /// Returns the list of lookups defined in the constraint system.
-    pub fn load(cs: &'syn dyn ConstraintSystemInfo<F>) -> Vec<Self> {
+    pub fn load<'syn, F: Field>(cs: &'syn dyn ConstraintSystemInfo<F, Polynomial = E>) -> Vec<Self>
+    where
+        E: EvaluableExpr<F> + Clone + ExpressionInfo + ExprBuilder<F>,
+    {
         cs.lookups()
             .iter()
             .enumerate()
@@ -57,23 +66,21 @@ impl<'syn, F: Field> Lookup<'syn, F> {
             .collect()
     }
 
-    fn new(
-        idx: usize,
-        name: &'syn str,
-        inputs: &'syn [Expression<F>],
-        table: &'syn [Expression<F>],
-    ) -> Self {
+    fn new(idx: usize, name: &str, inputs: &[E], table: &[E]) -> Self
+    where
+        E: Clone,
+    {
         Self {
             idx,
-            name,
-            inputs,
-            table,
+            name: name.to_string(),
+            inputs: inputs.to_vec(),
+            table: table.to_vec(),
         }
     }
 
     /// Name given to the lookup.
     pub fn name(&self) -> &str {
-        self.name
+        &self.name
     }
 
     /// Returns the index of the lookup.
@@ -82,24 +89,28 @@ impl<'syn, F: Field> Lookup<'syn, F> {
     }
 
     /// Returns the list of expressions used to query the lookup table.
-    pub fn expressions(
-        &self,
-    ) -> impl Iterator<Item = (&'syn Expression<F>, &'syn Expression<F>)> + 'syn {
-        self.inputs.iter().zip(self.table)
+    pub fn expressions(&self) -> impl Iterator<Item = (&E, &E)> {
+        self.inputs.iter().zip(self.table.iter())
     }
 
     /// Returns the inputs of the queries.
-    pub fn inputs(&self) -> &'syn [Expression<F>] {
-        self.inputs
+    pub fn inputs(&self) -> &[E] {
+        &self.inputs
     }
 
     /// Returns the queries to the lookup table.
-    pub fn table_queries(&self) -> Result<Vec<AnyQuery>> {
+    pub fn table_queries(&self) -> Result<Vec<AnyQuery>>
+    where
+        E: ExpressionInfo,
+    {
         compute_table_cells(self.table.iter())
     }
 
     /// Returns an expression for the query to the n-th column in the table.
-    pub fn expr_for_column(&self, col: usize) -> Result<&Expression<F>> {
+    pub fn expr_for_column(&self, col: usize) -> Result<&E>
+    where
+        E: ExpressionInfo,
+    {
         self.table_queries()?
             .into_iter()
             .enumerate()

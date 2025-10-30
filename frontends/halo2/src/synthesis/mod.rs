@@ -9,48 +9,50 @@ use regions::{FixedData, RegionIndexToStart, TableData};
 
 use crate::{
     CircuitIO,
-    gates::AnyQuery,
+    expressions::ExpressionInfo,
+    gates::{AnyQuery, Gate},
     halo2::{
         Field,
         groups::{GroupKey, RegionsGroup},
         *,
     },
-    info_traits::{CSI, ConstraintSystemInfo, GateInfo},
+    info_traits::ConstraintSystemInfo,
     io::{AdviceIO, IOCell, InstanceIO},
     lookups::{Lookup, LookupTableRow},
     resolvers::FixedQueryResolver,
     value::steal,
 };
 
-pub mod constraint;
-pub mod groups;
-pub mod regions;
+pub(crate) mod constraint;
+pub(crate) mod groups;
+pub(crate) mod regions;
 
 /// Result of synthesizing a circuit.
-pub struct SynthesizedCircuit<F>
+pub struct SynthesizedCircuit<F, E>
 where
     F: Field,
 {
     id: usize,
-    cs: CSI<F>,
+    lookups: Vec<Lookup<E>>,
+    gates: Vec<Gate<E>>,
     eq_constraints: EqConstraintGraph<F>,
     fixed: FixedData<F>,
     tables: Vec<TableData<F>>,
     groups: Groups,
 }
 
-impl<F> SynthesizedCircuit<F>
+impl<F, E> SynthesizedCircuit<F, E>
 where
     F: Field,
 {
     /// Returns the list of gates in the constraint system.
-    pub fn gates(&self) -> Vec<&dyn GateInfo<F>> {
-        self.cs.gates()
+    pub(crate) fn gates(&self) -> &[Gate<E>] {
+        &self.gates
     }
 
     /// Returns the lookups declared during synthesis.
-    pub fn lookups<'a>(&'a self) -> Vec<Lookup<'a, F>> {
-        Lookup::load(&*self.cs)
+    pub(crate) fn lookups(&self) -> &[Lookup<E>] {
+        &self.lookups
     }
 
     /// Finds the table that corresponds to the query set.
@@ -63,7 +65,10 @@ where
     }
 
     /// Returns the list of tables the lookup refers to.
-    pub fn tables_for_lookup(&self, l: &Lookup<F>) -> Result<Vec<LookupTableRow<F>>> {
+    pub(crate) fn tables_for_lookup(&self, l: &Lookup<E>) -> Result<Vec<LookupTableRow<F>>>
+    where
+        E: ExpressionInfo,
+    {
         fn transpose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
             assert!(!v.is_empty());
             let len = v[0].len();
@@ -100,17 +105,17 @@ where
     }
 
     /// Returns the groups in the circuit.
-    pub fn groups(&self) -> &Groups {
+    pub(crate) fn groups(&self) -> &Groups {
         &self.groups
     }
 
     /// Returns the equality constraints.
-    pub fn constraints(&self) -> &EqConstraintGraph<F> {
+    pub(crate) fn constraints(&self) -> &EqConstraintGraph<F> {
         &self.eq_constraints
     }
 
     /// Returns a mapping from the region index to region start
-    pub fn regions_by_index(&self) -> RegionIndexToStart {
+    pub(crate) fn regions_by_index(&self) -> RegionIndexToStart {
         self.groups
             .as_ref()
             .iter()
@@ -121,12 +126,12 @@ where
     }
 
     /// Returns the top level group in the circuit.
-    pub fn top_level_group(&self) -> Option<&Group> {
+    pub(crate) fn top_level_group(&self) -> Option<&Group> {
         self.groups.top_level()
     }
 
     /// Returns a reference to a resolver for fixed queries.
-    pub fn fixed_query_resolver(&self) -> &dyn FixedQueryResolver<F> {
+    pub(crate) fn fixed_query_resolver(&self) -> &dyn FixedQueryResolver<F> {
         &self.fixed
     }
 
@@ -135,7 +140,7 @@ where
     }
 }
 
-impl<F: Field> std::fmt::Debug for SynthesizedCircuit<F> {
+impl<F: Field, E: std::fmt::Debug> std::fmt::Debug for SynthesizedCircuit<F, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CircuitSynthesis")
             .field("id", &self.id)
@@ -143,6 +148,7 @@ impl<F: Field> std::fmt::Debug for SynthesizedCircuit<F> {
             .field("fixed", &self.fixed)
             .field("tables", &self.tables)
             .field("groups", &self.groups)
+            .field("gates", &self.gates)
             .finish()
     }
 }
@@ -150,7 +156,7 @@ impl<F: Field> std::fmt::Debug for SynthesizedCircuit<F> {
 /// Collects the information from the synthesis.
 ///
 /// Use this struct to give information about the structure of the circuit during the call to
-/// [`crate::CircuitCallbacks::synthesize`]. The synthesis of the circuit is divided in groups and
+/// [`crate::CircuitSynthesis::synthesize`]. The synthesis of the circuit is divided in groups and
 /// these are divided in regions. Groups can contain others groups inside them, forming a tree.
 ///
 /// Before synthesis a default top-level group is initialized such that you don't need to do
@@ -164,7 +170,7 @@ impl<F: Field> std::fmt::Debug for SynthesizedCircuit<F> {
 /// Regions can represent lookup tables and these can only contain fixed columns.
 ///
 /// Regions also have a set of selectors that can be turned on per row of the region. These
-/// selectors are used to check what polynomials returned by the [`GateInfo`] instances are
+/// selectors are used to check what polynomials returned by the [`crate::info_traits::GateInfo`] instances are
 /// enabled in that row. The driver will emit IR for each polynomial that is enabled in each row of
 /// each region.
 pub struct Synthesizer<F: Field> {
@@ -205,8 +211,8 @@ impl<F: Field> Synthesizer<F> {
         add_root_io(&mut self.groups, &instance_io);
     }
 
-    /// Builds a [`CircuitSynthesis`] with the information recollected about the circuit.
-    pub(crate) fn build<CS>(mut self, cs: CS) -> Result<SynthesizedCircuit<F>>
+    /// Builds a [`SynthesizedCircuit`] with the information recollected about the circuit.
+    pub(crate) fn build<CS>(mut self, cs: CS) -> Result<SynthesizedCircuit<F, CS::Polynomial>>
     where
         CS: ConstraintSystemInfo<F> + 'static,
     {
@@ -214,7 +220,9 @@ impl<F: Field> Synthesizer<F> {
 
         Ok(SynthesizedCircuit {
             id: self.id,
-            cs: Box::new(cs),
+            gates: cs.gates().into_iter().map(Gate::new::<F>).collect(),
+            lookups: Lookup::load(&cs),
+            //cs: Box::new(cs),
             eq_constraints: self.eq_constraints,
             tables: fill_tables(self.tables, &self.fixed)?,
             fixed: self.fixed,

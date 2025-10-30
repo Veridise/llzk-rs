@@ -65,7 +65,7 @@ const EXPECTED_OPT_PICUS: &'static str = r"
 (end-module)
 ";
 
-fn ir_to_inject<'e>() -> Vec<(RegionIndex, IRStmt<ExpressionInRow<'e, Fr>>)> {
+fn ir_to_inject<'e>() -> Vec<(RegionIndex, IRStmt<ExpressionInRow<'e, Expression<Fr>>>)> {
     let mut cs = ConstraintSystem::default();
     let config = <MulCircuit<Fr> as Circuit<Fr>>::configure(&mut cs);
     let a = config.col_a.cur();

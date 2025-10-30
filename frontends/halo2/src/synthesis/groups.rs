@@ -1,6 +1,8 @@
 use std::{borrow::Borrow, collections::HashMap, ops::Deref};
 
 use crate::{
+    expressions::ExprBuilder,
+    gates::Gate,
     halo2::{
         Advice, Any, Cell, Column, ColumnType, Expression, Field, Instance, RegionIndex, Rotation,
         groups::{GroupKey, GroupKeyInstance},
@@ -33,11 +35,11 @@ pub enum GroupCell {
 }
 
 impl GroupCell {
-    pub fn to_expr<F: Field>(self) -> Expression<F> {
+    pub fn to_expr<F: Field, E: ExprBuilder<F>>(self) -> E {
         match self {
-            GroupCell::Assigned(cell) => cell.column.query_cell(Rotation::cur()),
-            GroupCell::InstanceIO(cell) => cell.0.query_cell(Rotation::cur()),
-            GroupCell::AdviceIO(cell) => cell.0.query_cell(Rotation::cur()),
+            GroupCell::Assigned(cell) => E::from_column(cell.column, Rotation::cur()),
+            GroupCell::InstanceIO((column, _)) => E::from_column(column, Rotation::cur()),
+            GroupCell::AdviceIO((column, _)) => E::from_column(column, Rotation::cur()),
         }
     }
 
@@ -107,7 +109,7 @@ impl From<IOCell<Advice>> for GroupCell {
 ///
 /// The parent-children relation is represented by indices on a vector instead.
 #[derive(Debug)]
-pub struct Group {
+pub(crate) struct Group {
     kind: GroupKind,
     name: Option<String>,
     inputs: Vec<GroupCell>,
@@ -170,14 +172,14 @@ impl Group {
     /// Returns the certesian product between the regions' rows and the lookups
     pub fn lookups_per_region_row<'a, 'io, 'fq, F: Field>(
         &'a self,
-        lookups: &[Lookup<'a, F>],
+        lookups: &'a [Lookup<F>],
         advice_io: &'io AdviceIO,
         instance_io: &'io InstanceIO,
         fqr: &'fq dyn FixedQueryResolver<F>,
-    ) -> Vec<(RegionRow<'a, 'io, 'fq, F>, Lookup<'a, F>)> {
+    ) -> Vec<(RegionRow<'a, 'io, 'fq, F>, &'a Lookup<F>)> {
         self.region_rows(advice_io, instance_io, fqr)
             .into_iter()
-            .flat_map(|r| lookups.iter().copied().map(move |l| (r, l)))
+            .flat_map(|r| lookups.iter().map(move |l| (r, l)))
             .collect()
     }
 
@@ -229,23 +231,13 @@ impl Group {
             GroupKind::Group(group_key_instance) => Some(group_key_instance),
         }
     }
-
-    /// Returns the cartesian product of the regions and the gates.
-    pub fn region_gates<'a, F: Field>(
-        &'a self,
-        gates: &'a [&dyn GateInfo<F>],
-    ) -> impl Iterator<Item = (&'a dyn GateInfo<F>, RegionData<'a>)> + 'a {
-        self.regions()
-            .into_iter()
-            .flat_map(|r| gates.iter().map(move |g| (*g, r)))
-    }
 }
 
 /// A collection of groups.
 ///
 /// It is represented with a newtype to be able to add methods to this type.
 #[derive(Debug)]
-pub struct Groups(Vec<Group>);
+pub(crate) struct Groups(Vec<Group>);
 
 impl Groups {
     pub fn top_level(&self) -> Option<&Group> {
@@ -301,7 +293,7 @@ impl Deref for Groups {
 /// The boundary between parent and children is determined by the groups
 /// the circuit declares during synthesis.
 #[derive(Debug)]
-pub struct GroupTree {
+pub(crate) struct GroupTree {
     kind: GroupKind,
     name: Option<String>,
     inputs: Vec<GroupCell>,
