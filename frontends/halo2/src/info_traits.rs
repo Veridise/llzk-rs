@@ -2,7 +2,13 @@
 
 use ff::Field;
 
-use crate::lookups::LookupData;
+use crate::{
+    QueryKind,
+    halo2::Rotation,
+    lookups::LookupData,
+    resolvers::{Advice, Fixed, Instance},
+    table::Cell,
+};
 
 /// Boxed constraints system adaptor.
 pub(crate) type CSI<F> = Box<dyn ConstraintSystemInfo<F>>;
@@ -52,4 +58,31 @@ impl<F: Field> GateInfo<F> for halo2_proofs::plonk::Gate<F> {
     fn polynomials(&self) -> &[crate::halo2::Expression<F>] {
         self.polynomials()
     }
+}
+
+/// Trait for retrieving information about cell queries.
+pub trait QueryInfo {
+    /// The kind of query this implementation provides information about.
+    type Kind: QueryKind;
+
+    /// Returns the rotation offset.
+    fn rotation(&self) -> Rotation;
+
+    /// Returns the index of the column the queried cell belongs to.
+    fn column_index(&self) -> usize;
+}
+
+/// Trait for retrieving information about a selector.
+pub trait SelectorInfo {
+    /// Returns the identifier of the selector.
+    fn id(&self) -> usize;
+}
+
+/// Trait for retrieving information about group annotations.
+pub trait GroupInfo {
+    /// Returns the inputs of the group.
+    fn inputs(&self) -> impl Iterator<Item = Cell> + '_;
+
+    /// Returns the outputs of the group.
+    fn outputs(&self) -> impl Iterator<Item = Cell> + '_;
 }

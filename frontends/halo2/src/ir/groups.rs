@@ -10,7 +10,7 @@ use crate::{
     },
     expressions::{ExpressionInRow, ScopedExpression},
     gates::RewritePatternSet,
-    halo2::{Expression, Field, Rotation, groups::GroupKeyInstance},
+    halo2::{Expression, Field, Rotation, RotationExt},
     info_traits::GateInfo,
     ir::{
         CmpOp, IRCtx,
@@ -29,9 +29,10 @@ use crate::{
     synthesis::{
         SynthesizedCircuit,
         constraint::EqConstraint,
-        groups::{Group, GroupCell},
+        groups::{Group, GroupCell, GroupKey},
         regions::{RegionData, RegionRow, Row},
     },
+    table::Any,
     temps::{ExprOrTemp, Temps},
     utils,
 };
@@ -48,7 +49,7 @@ pub struct GroupBody<E> {
     id: usize,
     input_count: usize,
     output_count: usize,
-    key: Option<GroupKeyInstance>,
+    key: Option<GroupKey>,
     gates: IRStmt<E>,
     eq_constraints: IRStmt<E>,
     callsites: Vec<CallSite<E>>,
@@ -281,7 +282,7 @@ impl<E> GroupBody<E> {
     }
 
     /// Returns the group key. Returns `None` if the group is the top-level.
-    pub fn key(&self) -> Option<GroupKeyInstance> {
+    pub fn key(&self) -> Option<GroupKey> {
         self.key
     }
 
@@ -511,11 +512,11 @@ fn select_equality_constraints<F: Field>(
                     (Bound::IO, Bound::Outside) => false,
                     (Bound::Outside, Bound::IO) => false,
                     (Bound::Within, Bound::Outside) => match r.0.column_type() {
-                        crate::halo2::Any::Fixed => true,
+                        Any::Fixed => true,
                         _ => false,
                     },
                     (Bound::Outside, Bound::Within) => match l.0.column_type() {
-                        crate::halo2::Any::Fixed => true,
+                        Any::Fixed => true,
                         _ => false,
                     },
                 },

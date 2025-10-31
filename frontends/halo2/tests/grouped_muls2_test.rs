@@ -1,6 +1,6 @@
 use group::ff::Field;
 use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
-use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis, PicusParamsBuilder};
+use halo2_llzk_frontend::{AdviceIO, CircuitIO, CircuitSynthesis, InstanceIO, PicusParamsBuilder};
 use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::default_group_key;
 use halo2_proofs::plonk::{
@@ -324,10 +324,10 @@ impl<F: Field> CircuitSynthesis<F> for MulCircuit<F> {
         <Self as Circuit<F>>::configure(cs)
     }
 
-    fn advice_io(_: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Advice>> {
+    fn advice_io(_: &<Self as Circuit<F>>::Config) -> anyhow::Result<AdviceIO> {
         Ok(CircuitIO::empty())
     }
-    fn instance_io(config: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Instance>> {
+    fn instance_io(config: &<Self as Circuit<F>>::Config) -> anyhow::Result<InstanceIO> {
         CircuitIO::new(&[(config.instance, &[0])], &[(config.instance, &[1])])
     }
     fn synthesize(

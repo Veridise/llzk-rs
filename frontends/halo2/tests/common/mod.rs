@@ -14,9 +14,9 @@ use halo2_llzk_frontend::{
 };
 #[cfg(feature = "get-challenge")]
 use halo2_proofs::plonk::Challenge;
-use halo2_proofs::plonk::FloorPlanner;
 #[cfg(feature = "annotate-column")]
 use halo2_proofs::plonk::{Any, Column};
+use halo2_proofs::{circuit::groups::GroupKeyInstance, plonk::FloorPlanner};
 use halo2_proofs::{
     circuit::{
         Value,
@@ -188,7 +188,7 @@ impl<F: Field> Assignment<F> for SynthesizerAssignment<'_, F> {
         AR: Into<String>,
         A: FnOnce() -> AR,
     {
-        self.synthetizer.enable_selector(*selector, row);
+        self.synthetizer.enable_selector(selector, row);
         Ok(())
     }
 
@@ -301,7 +301,8 @@ impl<F: Field> Assignment<F> for SynthesizerAssignment<'_, F> {
         N: FnOnce() -> NR,
         K: GroupKey,
     {
-        self.synthetizer.enter_group(name().into(), key);
+        self.synthetizer
+            .enter_group(name().into(), *GroupKeyInstance::from(key));
     }
 
     fn exit_group(&mut self, meta: RegionsGroup) {

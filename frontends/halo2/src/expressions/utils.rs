@@ -20,8 +20,8 @@ struct RotationDebug(Rotation);
 
 impl std::fmt::Debug for RotationDebug {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.0 .0 != 0 {
-            write!(f, "@{}", self.0 .0)
+        if self.0 != 0 {
+            write!(f, "@{}", self.0)
         } else {
             write!(f, "")
         }
@@ -38,7 +38,7 @@ impl<'a, F: Field> std::fmt::Debug for ExprDebug<'a, F> {
             idx: usize,
             r: Rotation,
         ) -> std::fmt::Result {
-            let r = RotationDebug(r);
+            let r = RotationDebug(r.into());
             write!(f, "{typ}{idx}{r:?}")
         }
 
@@ -53,10 +53,10 @@ impl<'a, F: Field> std::fmt::Debug for ExprDebug<'a, F> {
         match &self.0 {
             Expression::Constant(ff) => write!(f, "{:?}", FDebug(*ff)),
             Expression::Selector(selector) => write!(f, "s{}", selector.index()),
-            Expression::Fixed(q) => fmt_query(f, "f", q.column_index(), q.rotation()),
+            Expression::Fixed(q) => fmt_query(f, "f", q.column_index(), q.rotation().0),
 
-            Expression::Advice(q) => fmt_query(f, "a", q.column_index(), q.rotation()),
-            Expression::Instance(q) => fmt_query(f, "i", q.column_index(), q.rotation()),
+            Expression::Advice(q) => fmt_query(f, "a", q.column_index(), q.rotation().0),
+            Expression::Instance(q) => fmt_query(f, "i", q.column_index(), q.rotation().0),
             Expression::Challenge(challenge) => write!(f, "c{}", challenge.index()),
             Expression::Negated(expression) => {
                 write!(f, "Negated({:?})", ExprDebug(expression.as_ref()))

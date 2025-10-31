@@ -9,7 +9,7 @@ use halo2curves_070::bn256::Fr;
 use std::iter;
 use std::marker::PhantomData;
 
-use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis, PicusParamsBuilder};
+use halo2_llzk_frontend::{AdviceIO, CircuitIO, CircuitSynthesis, InstanceIO, PicusParamsBuilder};
 
 mod common;
 
@@ -258,10 +258,10 @@ impl<F: Field> CircuitSynthesis<F> for Lookup2x3Circuit<F> {
         <Self as Circuit<F>>::configure(cs)
     }
 
-    fn advice_io(_: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Advice>> {
+    fn advice_io(_: &<Self as Circuit<F>>::Config) -> anyhow::Result<AdviceIO> {
         Ok(CircuitIO::empty())
     }
-    fn instance_io(config: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Instance>> {
+    fn instance_io(config: &<Self as Circuit<F>>::Config) -> anyhow::Result<InstanceIO> {
         CircuitIO::new(&[(config.instance, &[0])], &[(config.instance, &[1])])
     }
     fn synthesize(

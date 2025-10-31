@@ -6,10 +6,14 @@ use crate::{
     GateCallbacks,
     expressions::ScopedExpression,
     gates::{DefaultGateCallbacks, RewritePatternSet},
-    halo2::{Field, PrimeField, RegionIndex},
+    halo2::{Field, PrimeField},
     ir::{IRCtx, generate::patterns::load_patterns, groups::GroupBody},
     lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
-    synthesis::{SynthesizedCircuit, groups::Group, regions::RegionData},
+    synthesis::{
+        SynthesizedCircuit,
+        groups::Group,
+        regions::{RegionData, RegionIndex},
+    },
     temps::ExprOrTemp,
 };
 

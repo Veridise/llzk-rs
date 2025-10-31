@@ -16,15 +16,13 @@ pub mod ir;
 pub mod lookups;
 mod resolvers;
 mod synthesis;
+pub mod table;
 pub mod temps;
 mod utils;
 mod value;
 
-use crate::{
-    halo2::Field,
-    info_traits::ConstraintSystemInfo,
-    io::{AdviceIO, InstanceIO},
-};
+pub use crate::io::{AdviceIO, InstanceIO};
+use crate::{halo2::Field, info_traits::ConstraintSystemInfo};
 pub use backend::{
     llzk::{
         LlzkOutput,
@@ -40,6 +38,7 @@ pub use expressions::ExpressionInRow;
 pub use gates::{GateCallbacks, GateRewritePattern, GateScope, RewriteError, RewriteOutput};
 pub use io::CircuitIO;
 pub use lookups::callbacks::LookupCallbacks;
+pub use resolvers::{Advice, Fixed, Instance, QueryKind};
 pub use synthesis::Synthesizer;
 
 /// Implementations of this trait define how a circuit is synthesized.

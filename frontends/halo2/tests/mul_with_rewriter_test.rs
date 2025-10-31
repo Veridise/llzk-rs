@@ -9,8 +9,8 @@ use halo2curves_070::bn256::Fr;
 use std::marker::PhantomData;
 
 use halo2_llzk_frontend::{
-    CircuitIO, CircuitSynthesis, GateCallbacks, GateRewritePattern, GateScope, PicusParamsBuilder,
-    RewriteError,
+    AdviceIO, CircuitIO, CircuitSynthesis, GateCallbacks, GateRewritePattern, GateScope,
+    InstanceIO, PicusParamsBuilder, RewriteError,
 };
 
 mod common;
@@ -228,10 +228,10 @@ impl<F: Field> CircuitSynthesis<F> for MulCircuit<F> {
         <Self as Circuit<F>>::configure(cs)
     }
 
-    fn advice_io(_: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Advice>> {
+    fn advice_io(_: &<Self as Circuit<F>>::Config) -> anyhow::Result<AdviceIO> {
         Ok(CircuitIO::empty())
     }
-    fn instance_io(config: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Instance>> {
+    fn instance_io(config: &<Self as Circuit<F>>::Config) -> anyhow::Result<InstanceIO> {
         CircuitIO::new(&[(config.instance, &[0])], &[(config.instance, &[1])])
     }
     fn synthesize(

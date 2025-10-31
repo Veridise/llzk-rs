@@ -443,15 +443,21 @@ mod folding_tests {
 
 #[cfg(test)]
 mod lowering_tests {
-    use crate::CircuitIO;
     use crate::expressions::ScopedExpression;
+    use crate::info_traits::QueryInfo;
     use crate::ir::equivalency::{EqvRelation as _, SymbolicEqv};
     use crate::resolvers::FixedQueryResolver;
+    use crate::synthesis::regions::{RegionData, RegionIndex};
     use crate::synthesis::regions::{RegionRow, Regions};
-    use crate::{halo2::*, synthesis::regions::RegionData};
-    use halo2_proofs::plonk::ConstraintSystem;
+    use crate::{CircuitIO, Instance};
+    use ff::Field;
+    use halo2_proofs::plonk::{
+        Advice, Column, ConstraintSystem, Constraints, Expression, Selector,
+    };
+    use halo2_proofs::poly::Rotation;
     use rstest::{fixture, rstest};
-    type F = Fr;
+
+    type F = crate::halo2::Fr;
 
     #[allow(dead_code)]
     struct MulCfg {
@@ -495,7 +501,7 @@ mod lowering_tests {
             log::debug!("Creating region #{n}");
             r.push(|| "region", &mut indices, &mut tables);
             r.edit(|r| {
-                r.enable_selector(cfg.selector, n);
+                r.enable_selector(&cfg.selector, n);
                 // Fake using some cells.
                 for col in cfg.advices {
                     r.update_extent(col.into(), n);
@@ -513,8 +519,8 @@ mod lowering_tests {
         poly: &Expression<F>,
         region: RegionData,
     ) -> anyhow::Result<Vec<super::IRAexpr>> {
-        let advice_io = CircuitIO::<Advice>::empty();
-        let instance_io = CircuitIO::<Instance>::empty();
+        let advice_io = CircuitIO::<crate::Advice>::empty();
+        let instance_io = CircuitIO::<crate::Instance>::empty();
         let zero = ZeroResolver {};
 
         region
@@ -552,7 +558,11 @@ mod lowering_tests {
     struct ZeroResolver {}
 
     impl FixedQueryResolver<F> for ZeroResolver {
-        fn resolve_query(&self, _query: &FixedQuery, _row: usize) -> anyhow::Result<F> {
+        fn resolve_query(
+            &self,
+            _query: &dyn QueryInfo<Kind = crate::resolvers::Fixed>,
+            _row: usize,
+        ) -> anyhow::Result<F> {
             Ok(F::ZERO)
         }
     }

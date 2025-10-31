@@ -1,8 +1,9 @@
-use crate::halo2::*;
+use crate::{resolvers::Fixed, table::Column};
 use data::RegionDataImpl;
+use halo2_proofs::circuit::Value;
 use std::{
     collections::{HashMap, HashSet},
-    ops::RangeFrom,
+    ops::{Deref, RangeFrom},
 };
 
 pub(super) mod data;
@@ -19,6 +20,41 @@ pub use row::Row;
 pub use table::TableData;
 
 type BlanketFills<F> = Vec<(RangeFrom<usize>, Value<F>)>;
+
+/// Replacement for Halo2's `RegionStart` type.
+#[derive(Debug)]
+pub struct RegionStart(usize);
+
+impl From<usize> for RegionStart {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+/// Replacement for Halo2's `RegionIndex` type.
+#[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
+pub struct RegionIndex(usize);
+
+impl Deref for RegionIndex {
+    type Target = usize;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<usize> for RegionIndex {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+/// Temporary conversion.
+impl From<halo2_proofs::circuit::RegionIndex> for RegionIndex {
+    fn from(value: halo2_proofs::circuit::RegionIndex) -> Self {
+        Self(*value)
+    }
+}
 
 pub type RegionIndexToStart = HashMap<RegionIndex, RegionStart>;
 

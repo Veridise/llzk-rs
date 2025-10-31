@@ -2,15 +2,15 @@ use anyhow::Result;
 
 use crate::{
     backend::lowering::{
-        lowerable::{LowerableExpr, LowerableStmt},
         Lowering,
+        lowerable::{LowerableExpr, LowerableStmt},
     },
     ir::{
+        CmpOp,
         canon::canonicalize_constraint,
         equivalency::EqvRelation,
         expr::{Felt, IRAexpr},
         stmt::IRStmt,
-        CmpOp,
     },
 };
 
@@ -155,6 +155,7 @@ mod test {
     use crate::ir::stmt::test::TestHelper;
 
     use super::*;
+    use crate::halo2::{Halo2Rotation, RotationExt};
 
     #[test]
     fn test_partial_eq_on_i32() {
@@ -163,8 +164,10 @@ mod test {
     }
 
     mod ff {
+        use halo2_proofs::plonk::{Advice, ColumnType as _, Fixed, Instance};
+
         use super::*;
-        use crate::halo2::{ColumnType, Expression, Field, Fixed, Rotation};
+        use crate::halo2::{Expression, Field, Rotation};
 
         type F = crate::halo2::Fr;
 
@@ -174,16 +177,16 @@ mod test {
             Expression::Constant(f)
         }
 
-        fn f(col: usize, rot: Rotation) -> Expression<F> {
+        fn f(col: usize, rot: Halo2Rotation) -> Expression<F> {
             Fixed.query_cell(col, rot)
         }
 
-        fn a(col: usize, rot: Rotation) -> Expression<F> {
-            crate::halo2::Advice::default().query_cell(col, rot)
+        fn a(col: usize, rot: Halo2Rotation) -> Expression<F> {
+            Advice::default().query_cell(col, rot)
         }
 
-        fn i(col: usize, rot: Rotation) -> Expression<F> {
-            crate::halo2::Instance.query_cell(col, rot)
+        fn i(col: usize, rot: Halo2Rotation) -> Expression<F> {
+            Instance.query_cell(col, rot)
         }
 
         #[test]

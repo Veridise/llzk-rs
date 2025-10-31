@@ -8,7 +8,7 @@ use halo2_proofs::plonk::{
 use halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
-use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis, PicusParamsBuilder};
+use halo2_llzk_frontend::{AdviceIO, CircuitIO, CircuitSynthesis, InstanceIO, PicusParamsBuilder};
 use halo2curves_070::bn256::Fr;
 
 mod common;
@@ -292,11 +292,11 @@ impl<F: Field> CircuitSynthesis<F> for FibonacciCircuit<F> {
         <Self as Circuit<F>>::configure(cs)
     }
 
-    fn advice_io(_: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Advice>> {
+    fn advice_io(_: &<Self as Circuit<F>>::Config) -> anyhow::Result<AdviceIO> {
         Ok(CircuitIO::empty())
     }
 
-    fn instance_io(config: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Instance>> {
+    fn instance_io(config: &<Self as Circuit<F>>::Config) -> anyhow::Result<InstanceIO> {
         CircuitIO::new(&[(config.instance, &[0, 1])], &[(config.instance, &[2, 3])])
     }
 

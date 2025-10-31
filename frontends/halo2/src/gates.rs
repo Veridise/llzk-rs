@@ -6,7 +6,7 @@ use crate::{
     info_traits::GateInfo,
     ir::stmt::IRStmt,
     resolvers::FixedQueryResolver,
-    synthesis::regions::{RegionData, RegionRow},
+    synthesis::regions::{RegionData, RegionIndex, RegionRow},
 };
 
 /// Error emitted by the patterns that can indicate either that the pattern didn't match or that it
@@ -318,6 +318,8 @@ impl<F> GateRewritePattern<F> for RewritePatternSet<F> {
     }
 }
 
+pub(crate) type SelectorSet = bit_set::BitSet;
+
 fn find_in_binop<'a, QR, F, Q>(lhs: &'a Expression<F>, rhs: &'a Expression<F>, q: Q) -> HashSet<QR>
 where
     F: Field,
@@ -327,22 +329,35 @@ where
     q(lhs).union(&q(rhs)).cloned().collect()
 }
 
-pub(crate) fn find_selectors<F: Field>(poly: &Expression<F>) -> HashSet<&Selector> {
+fn find_selectors_inner<F: Field>(poly: &Expression<F>) -> HashSet<&halo2_proofs::plonk::Selector> {
     match poly {
         Expression::Selector(selector) => [selector].into(),
-        Expression::Negated(expression) => find_selectors(expression),
-        Expression::Sum(lhs, rhs) => find_in_binop(lhs, rhs, find_selectors),
-        Expression::Product(lhs, rhs) => find_in_binop(lhs, rhs, find_selectors),
-        Expression::Scaled(expression, _) => find_selectors(expression),
+        Expression::Negated(expression) => find_selectors_inner(expression),
+        Expression::Sum(lhs, rhs) => find_in_binop(lhs, rhs, find_selectors_inner),
+        Expression::Product(lhs, rhs) => find_in_binop(lhs, rhs, find_selectors_inner),
+        Expression::Scaled(expression, _) => find_selectors_inner(expression),
         _ => Default::default(),
     }
 }
 
+pub(crate) fn find_selectors<F: Field>(poly: &Expression<F>) -> SelectorSet {
+    find_selectors_inner(poly)
+        .into_iter()
+        .map(|s| s.index())
+        .collect()
+}
+
+// The code below gets removed in #47. I'm making changes to silence the compiler for now.
+
+use halo2_proofs::plonk::AdviceQuery as H2AdviceQuery;
+use halo2_proofs::plonk::FixedQuery as H2FixedQuery;
+use halo2_proofs::plonk::InstanceQuery as H2InstanceQuery;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum AnyQuery {
-    Advice(AdviceQuery),
-    Instance(InstanceQuery),
-    Fixed(FixedQuery),
+    Advice(H2AdviceQuery),
+    Instance(H2InstanceQuery),
+    Fixed(H2FixedQuery),
 }
 
 impl AnyQuery {
@@ -367,6 +382,7 @@ impl AnyQuery {
             AnyQuery::Instance(instance_query) => instance_query.rotation(),
             AnyQuery::Fixed(fixed_query) => fixed_query.rotation(),
         }
+        .0
     }
 
     pub fn phase(&self) -> Option<u8> {
@@ -388,14 +404,14 @@ impl AnyQuery {
         (
             self.type_id(),
             self.column_index(),
-            self.rotation().0,
+            self.rotation(),
             self.phase(),
         )
     }
 }
 
-impl PartialEq<FixedQuery> for AnyQuery {
-    fn eq(&self, other: &FixedQuery) -> bool {
+impl PartialEq<H2FixedQuery> for AnyQuery {
+    fn eq(&self, other: &H2FixedQuery) -> bool {
         match self {
             Self::Fixed(query) => query == other,
             _ => false,
@@ -403,8 +419,8 @@ impl PartialEq<FixedQuery> for AnyQuery {
     }
 }
 
-impl PartialEq<InstanceQuery> for AnyQuery {
-    fn eq(&self, other: &InstanceQuery) -> bool {
+impl PartialEq<H2InstanceQuery> for AnyQuery {
+    fn eq(&self, other: &H2InstanceQuery) -> bool {
         match self {
             Self::Instance(query) => query == other,
             _ => false,
@@ -412,8 +428,8 @@ impl PartialEq<InstanceQuery> for AnyQuery {
     }
 }
 
-impl PartialEq<AdviceQuery> for AnyQuery {
-    fn eq(&self, other: &AdviceQuery) -> bool {
+impl PartialEq<H2AdviceQuery> for AnyQuery {
+    fn eq(&self, other: &H2AdviceQuery) -> bool {
         match self {
             Self::Advice(query) => query == other,
             _ => false,
@@ -445,38 +461,38 @@ impl Hash for AnyQuery {
     }
 }
 
-impl From<&AdviceQuery> for AnyQuery {
-    fn from(query: &AdviceQuery) -> Self {
+impl From<&H2AdviceQuery> for AnyQuery {
+    fn from(query: &H2AdviceQuery) -> Self {
         Self::Advice(*query)
     }
 }
 
-impl From<&InstanceQuery> for AnyQuery {
-    fn from(query: &InstanceQuery) -> Self {
+impl From<&H2InstanceQuery> for AnyQuery {
+    fn from(query: &H2InstanceQuery) -> Self {
         Self::Instance(*query)
     }
 }
 
-impl From<&FixedQuery> for AnyQuery {
-    fn from(query: &FixedQuery) -> Self {
+impl From<&H2FixedQuery> for AnyQuery {
+    fn from(query: &H2FixedQuery) -> Self {
         Self::Fixed(*query)
     }
 }
 
-impl From<AdviceQuery> for AnyQuery {
-    fn from(query: AdviceQuery) -> Self {
+impl From<H2AdviceQuery> for AnyQuery {
+    fn from(query: H2AdviceQuery) -> Self {
         Self::Advice(query)
     }
 }
 
-impl From<InstanceQuery> for AnyQuery {
-    fn from(query: InstanceQuery) -> Self {
+impl From<H2InstanceQuery> for AnyQuery {
+    fn from(query: H2InstanceQuery) -> Self {
         Self::Instance(query)
     }
 }
 
-impl From<FixedQuery> for AnyQuery {
-    fn from(query: FixedQuery) -> Self {
+impl From<H2FixedQuery> for AnyQuery {
+    fn from(query: H2FixedQuery) -> Self {
         Self::Fixed(query)
     }
 }

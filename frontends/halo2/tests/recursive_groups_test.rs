@@ -7,7 +7,7 @@ use halo2_proofs::poly::Rotation;
 use halo2curves_070::bn256::Fr;
 use std::marker::PhantomData;
 
-use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis, PicusParamsBuilder};
+use halo2_llzk_frontend::{AdviceIO, CircuitIO, CircuitSynthesis, InstanceIO, PicusParamsBuilder};
 
 mod common;
 
@@ -307,10 +307,10 @@ impl<F: Field> CircuitSynthesis<F> for MulCircuit<F> {
         <Self as Circuit<F>>::configure(cs)
     }
 
-    fn advice_io(_: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Advice>> {
+    fn advice_io(_: &<Self as Circuit<F>>::Config) -> anyhow::Result<AdviceIO> {
         Ok(CircuitIO::empty())
     }
-    fn instance_io(config: &<Self as Circuit<F>>::Config) -> anyhow::Result<CircuitIO<Instance>> {
+    fn instance_io(config: &<Self as Circuit<F>>::Config) -> anyhow::Result<InstanceIO> {
         let inputs: Vec<_> = (0..N_INPUTS).collect();
         CircuitIO::new(
             &[(config.instance, &inputs)],

@@ -1,6 +1,5 @@
-use crate::halo2::{
-    AdviceQuery, Challenge, Expression, Field, FixedQuery, InstanceQuery, Selector,
-};
+use crate::halo2::{Challenge, Expression, Field};
+use halo2_proofs::plonk::{AdviceQuery, FixedQuery, InstanceQuery, Selector};
 
 use crate::expressions::utils::ExprDebug;
 
