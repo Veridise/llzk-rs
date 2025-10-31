@@ -112,7 +112,5 @@ impl<F: Copy + std::fmt::Debug + Default> FixedData<F> {
 impl<F: Field> FixedQueryResolver<F> for FixedData<F> {
     fn resolve_query(&self, query: &FixedQuery, row: usize) -> anyhow::Result<F> {
         Ok(self.resolve_fixed(query.column_index(), row))
-
-        //steal(&value).ok_or_else(|| anyhow::anyhow!("Fixed cell was assigned an unknown value!"))
     }
 }

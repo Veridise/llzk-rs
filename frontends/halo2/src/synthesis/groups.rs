@@ -55,26 +55,6 @@ impl GroupCell {
         }
     }
 
-    //pub fn col(&self) -> Column<Any> {
-    //    match self {
-    //        GroupCell::Assigned(cell) => cell.column,
-    //        GroupCell::InstanceIO((col, _)) => (*col).into(),
-    //        GroupCell::AdviceIO((col, _)) => (*col).into(),
-    //    }
-    //}
-
-    ///// Tries to construct a a cell from a tuple of column and row.
-    /////
-    ///// If the column is Fixed returns None.
-    //pub fn from_tuple((col, row): (Column<Any>, usize)) -> Option<Self> {
-    //    if let Ok(col) = Column::<Instance>::try_from(col) {
-    //        return Some(Self::InstanceIO((col, row)));
-    //    }
-    //    Column::<Advice>::try_from(col)
-    //        .ok()
-    //        .map(|col| Self::AdviceIO((col, row)))
-    //}
-
     /// Returns true if the cell is from a Fixed column.
     pub fn is_fixed(&self) -> bool {
         match self {
@@ -166,24 +146,6 @@ impl Group {
             .collect()
     }
 
-    ///// Returns the certesian product between the regions' rows and the lookups
-    //pub fn lookups_per_region_row<'a, 'io, 'fq, F: Field>(
-    //    &'a self,
-    //    lookups: &'a [Lookup<F>],
-    //    advice_io: &'io AdviceIO,
-    //    instance_io: &'io InstanceIO,
-    //    fqr: &'fq dyn FixedQueryResolver<F>,
-    //) -> Vec<(RegionRow<'a, 'io, 'fq, F>, &'a Lookup<F>)> {
-    //    self.region_rows(advice_io, instance_io, fqr)
-    //        .into_iter()
-    //        .flat_map(|r| lookups.iter().map(move |l| (r, l)))
-    //        .collect()
-    //}
-
-    //pub fn is_top_level(&self) -> bool {
-    //    matches!(self.kind, GroupKind::TopLevel)
-    //}
-
     pub fn inputs(&self) -> &[GroupCell] {
         &self.inputs
     }
@@ -191,12 +153,6 @@ impl Group {
     pub fn outputs(&self) -> &[GroupCell] {
         &self.outputs
     }
-
-    ///// If the group has a children with that index return Some with the position in the children
-    ///// array where it is. Otherwise returns None
-    //pub fn has_child(&self, n: usize) -> Option<usize> {
-    //    self.children.iter().position(|c| *c == n)
-    //}
 
     pub fn name(&self) -> &str {
         if self.kind == GroupKind::TopLevel {
@@ -207,10 +163,6 @@ impl Group {
             .map(|s| if s.is_empty() { "unnamed_group" } else { s })
             .unwrap_or("unnamed_group")
     }
-
-    //pub fn children_count(&self) -> usize {
-    //    self.children.len()
-    //}
 
     /// Returns the group objects of the children
     pub fn children<'a>(&'a self, groups: &'a [Group]) -> Vec<(usize, &'a Group)> {
@@ -237,13 +189,6 @@ impl Group {
 pub(crate) struct Groups(Vec<Group>);
 
 impl Groups {
-    //pub fn top_level(&self) -> Option<&Group> {
-    //    // When constructing the flattened version the top level
-    //    // group will be the last one so we reverse the iterator to try find it
-    //    // faster.
-    //    self.0.iter().rev().find(|g| g.kind == GroupKind::TopLevel)
-    //}
-
     pub fn region_starts(&self) -> HashMap<RegionIndex, usize> {
         self.0
             .iter()

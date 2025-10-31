@@ -8,7 +8,6 @@ use std::{
 #[derive(Debug, Copy, Clone)]
 pub enum RegionKind {
     Region,
-    //Table,
 }
 
 #[derive(Debug)]
@@ -19,7 +18,6 @@ pub struct RegionDataImpl {
     index: Option<RegionIndex>,
     /// The selectors that have been enabled in this region. All other selectors are by
     /// construction not enabled.
-    //enabled_selectors: HashMap<Selector, Vec<usize>>,
     enabled_selectors: HashMap<usize, SelectorSet>,
     /// The columns involved in this region.
     columns: HashSet<Column<Any>>,
@@ -75,11 +73,6 @@ impl RegionDataImpl {
             .get(&row)
             .map(Cow::Borrowed)
             .unwrap_or_default()
-        //self.enabled_selectors
-        //    .iter()
-        //    .filter(|(_, rows)| rows.contains(&row))
-        //    .map(|(sel, _)| sel)
-        //    .collect()
     }
 
     pub fn update_extent(&mut self, column: Column<Any>, row: usize) {
