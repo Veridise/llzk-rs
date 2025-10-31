@@ -56,7 +56,7 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 [[package]]
 name = "bench_macros"
 version = "0.1.0"
-source = "git+https://github.com/Veridise/midnight-zk.git#d108f6f5939af7bb45e921cba6610afa3c682df1"
+source = "git+https://github.com/Veridise/midnight-zk.git#69246ac80d1edc03dd4a2701a63493f46ac4e1ed"
 dependencies = [
  "quote",
  "syn 2.0.108",
@@ -81,6 +81,21 @@ dependencies = [
  "shlex",
  "syn 2.0.108",
 ]
+
+[[package]]
+name = "bit-set"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08807e080ed7f9d5433fa9b275196cfc35414f66a0c79d864dc51a0d825231a3"
+dependencies = [
+ "bit-vec",
+]
+
+[[package]]
+name = "bit-vec"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e764a1d40d510daf35e07be9eb06e75770908c27d411ee6c92109c9840eaaf7"
 
 [[package]]
 name = "bitflags"
@@ -624,6 +639,7 @@ name = "halo2-llzk-frontend"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bit-set",
  "disjoint",
  "ff",
  "group",
@@ -877,7 +893,7 @@ checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 [[package]]
 name = "midnight-curves"
 version = "0.1.1"
-source = "git+https://github.com/Veridise/midnight-zk.git#d108f6f5939af7bb45e921cba6610afa3c682df1"
+source = "git+https://github.com/Veridise/midnight-zk.git#69246ac80d1edc03dd4a2701a63493f46ac4e1ed"
 dependencies = [
  "bitvec",
  "blst",
@@ -896,7 +912,7 @@ dependencies = [
 [[package]]
 name = "midnight-proofs"
 version = "0.5.1"
-source = "git+https://github.com/Veridise/midnight-zk.git#d108f6f5939af7bb45e921cba6610afa3c682df1"
+source = "git+https://github.com/Veridise/midnight-zk.git#69246ac80d1edc03dd4a2701a63493f46ac4e1ed"
 dependencies = [
  "bench_macros",
  "blake2b_simd",

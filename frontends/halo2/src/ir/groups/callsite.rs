@@ -4,20 +4,20 @@ use crate::{
     backend::{
         func::FuncIO,
         lowering::{
-            lowerable::{LowerableExpr, LowerableStmt},
             Lowering,
+            lowerable::{LowerableExpr, LowerableStmt},
         },
     },
     expressions::ScopedExpression,
-    halo2::{groups::GroupKeyInstance, Field},
+    halo2::Field,
     ir::{
+        CmpOp,
         equivalency::{EqvRelation, SymbolicEqv},
         expr::{Felt, IRAexpr},
         stmt::IRStmt,
-        CmpOp,
     },
     synthesis::{
-        groups::{Group, GroupCell},
+        groups::{Group, GroupCell, GroupKey},
         regions::{RegionData, RegionRow, Row},
     },
     temps::ExprOrTemp,
@@ -28,7 +28,7 @@ use anyhow::Result;
 #[derive(Debug)]
 pub struct CallSite<E> {
     name: String,
-    callee: GroupKeyInstance,
+    callee: GroupKey,
     /// The index in the original groups array to the called group.
     callee_id: usize,
     inputs: Vec<E>,
@@ -58,7 +58,7 @@ fn cells_to_exprs<'e, 's, 'syn: 's, 'cb, 'io: 's, F: Field>(
             let expr = cell.to_expr::<F>();
             let row = match cell {
                 GroupCell::Assigned(cell) => {
-                    let start = ctx.regions_by_index()[&cell.region_index]
+                    let start = ctx.regions_by_index()[&cell.region_index.into()]
                         .start()
                         .ok_or_else(|| {
                             anyhow::anyhow!("Region {} does not have a start", *cell.region_index)

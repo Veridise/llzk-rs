@@ -1,14 +1,17 @@
 use super::{RegionData, Row};
 use crate::{
     backend::func::FuncIO,
+    gates::SelectorSet,
     halo2::*,
+    info_traits::{QueryInfo, SelectorInfo},
     io::{AdviceIO, InstanceIO},
     resolvers::{
-        FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
+        Advice, Fixed, FixedQueryResolver, Instance, QueryResolver, ResolvedQuery,
+        ResolvedSelector, SelectorResolver,
     },
 };
 use anyhow::Result;
-use std::collections::HashSet;
+use std::{borrow::Cow, collections::HashSet};
 
 #[derive(Copy, Clone, Debug)]
 pub struct RegionRow<'r, 'io, 'fq, F: Field> {
@@ -46,11 +49,8 @@ impl<'r, 'io, 'fq, F: Field> RegionRow<'r, 'io, 'fq, F> {
         }
     }
 
-    fn enabled(&self) -> HashSet<&'r Selector> {
-        self.region
-            .selectors_enabled_for_row(self.row.row)
-            .into_iter()
-            .collect()
+    fn enabled(&self) -> Cow<SelectorSet> {
+        self.region.selectors_enabled_for_row(self.row.row)
     }
 
     pub fn region_index(&self) -> Option<usize> {
@@ -72,7 +72,7 @@ impl<'r, 'io, 'fq, F: Field> RegionRow<'r, 'io, 'fq, F> {
         }
     }
     #[inline]
-    pub fn gate_is_disabled(&self, selectors: &HashSet<&Selector>) -> bool {
+    pub fn gate_is_disabled(&self, selectors: &SelectorSet) -> bool {
         self.enabled().is_disjoint(selectors)
     }
 
@@ -83,7 +83,7 @@ impl<'r, 'io, 'fq, F: Field> RegionRow<'r, 'io, 'fq, F> {
 }
 
 impl<F: Field> QueryResolver<F> for RegionRow<'_, '_, '_, F> {
-    fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>> {
+    fn resolve_fixed_query(&self, query: &dyn QueryInfo<Kind = Fixed>) -> Result<ResolvedQuery<F>> {
         let row = self.row.resolve_rotation(query.rotation())?;
         self.row
             .fqr
@@ -91,8 +91,15 @@ impl<F: Field> QueryResolver<F> for RegionRow<'_, '_, '_, F> {
             .map(ResolvedQuery::Lit)
     }
 
-    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<ResolvedQuery<F>> {
-        log::debug!("Resolving query: {query:?}");
+    fn resolve_advice_query(
+        &self,
+        query: &dyn QueryInfo<Kind = Advice>,
+    ) -> Result<ResolvedQuery<F>> {
+        log::debug!(
+            "Resolving query: Adv[{}]@{}",
+            query.column_index(),
+            query.rotation()
+        );
         let base = self
             .region
             .start()
@@ -105,19 +112,21 @@ impl<F: Field> QueryResolver<F> for RegionRow<'_, '_, '_, F> {
             .map(ResolvedQuery::IO)
     }
 
-    fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>> {
+    fn resolve_instance_query(
+        &self,
+        query: &dyn QueryInfo<Kind = Instance>,
+    ) -> Result<ResolvedQuery<F>> {
         self.row.resolve_instance_query(query)
     }
 }
 
 impl<F: Field> SelectorResolver for RegionRow<'_, '_, '_, F> {
-    fn resolve_selector(&self, selector: &Selector) -> Result<ResolvedSelector> {
+    fn resolve_selector(&self, selector: &dyn SelectorInfo) -> Result<ResolvedSelector> {
         let selected = self
             .region
             .enabled_selectors()
-            .get(selector)
-            .map(|rows| rows.contains(&self.row.row))
-            .unwrap_or(false);
+            .get(&self.row_number())
+            .is_some_and(|selectors| selectors.contains(selector.id()));
         Ok(ResolvedSelector::Const(selected.into()))
     }
 }

@@ -2,10 +2,41 @@ use std::borrow::Cow;
 
 use crate::{
     backend::func::{ArgNo, FuncIO},
-    halo2::{AdviceQuery, Field, FixedQuery, InstanceQuery, Selector, Value},
+    halo2::{Field, Value},
+    info_traits::{QueryInfo, SelectorInfo},
     value::steal,
 };
 use anyhow::Result;
+
+mod sealed {
+    /// Sealed trait pattern to avoid clients implementing the trait [`super::QueryKind`] on
+    /// external types.
+    pub trait QK {}
+}
+
+/// Marker trait for defining the kind of a query.
+pub trait QueryKind: sealed::QK {}
+
+/// Marker for fixed cell queries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Fixed;
+
+impl sealed::QK for Fixed {}
+impl QueryKind for Fixed {}
+
+/// Marker for advice cell queries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Advice;
+
+impl sealed::QK for Advice {}
+impl QueryKind for Advice {}
+
+/// Marker for instance cell queries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Instance;
+
+impl sealed::QK for Instance {}
+impl QueryKind for Instance {}
 
 pub trait ResolversProvider<F> {
     fn query_resolver(&self) -> &dyn QueryResolver<F>;
@@ -62,11 +93,7 @@ impl Bool {
     where
         F: Field,
     {
-        if self.0 {
-            F::ONE
-        } else {
-            F::ZERO
-        }
+        if self.0 { F::ONE } else { F::ZERO }
     }
 }
 
@@ -94,7 +121,7 @@ impl From<bool> for ResolvedSelector {
 /// Resolver that returns the value or the variable that is representing the selector.
 pub trait SelectorResolver {
     /// Resolved the selector and returns its value.
-    fn resolve_selector(&self, selector: &Selector) -> Result<ResolvedSelector>;
+    fn resolve_selector(&self, selector: &dyn SelectorInfo) -> Result<ResolvedSelector>;
 }
 
 /// Possible results of resolving a query.
@@ -132,37 +159,49 @@ impl<F: Field> From<FuncIO> for ResolvedQuery<F> {
 /// Resolver trait that only supports fixed cell queries.
 pub trait FixedQueryResolver<F: Field> {
     /// Resolved the fixed query and returns its assigned value during synthesis.
-    fn resolve_query(&self, query: &FixedQuery, row: usize) -> Result<F>;
+    fn resolve_query(&self, query: &dyn QueryInfo<Kind = Fixed>, row: usize) -> Result<F>;
 }
 
 /// Resolver trait that converts a query to a cell into a constant value or a variable.
 pub trait QueryResolver<F: Field> {
     /// Resolves a fixed query.
-    fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>>;
+    fn resolve_fixed_query(&self, query: &dyn QueryInfo<Kind = Fixed>) -> Result<ResolvedQuery<F>>;
 
     /// Resolves an advice query.
-    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<ResolvedQuery<F>>;
+    fn resolve_advice_query(
+        &self,
+        query: &dyn QueryInfo<Kind = Advice>,
+    ) -> Result<ResolvedQuery<F>>;
 
     /// Resolves an instance query.
-    fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>>;
+    fn resolve_instance_query(
+        &self,
+        query: &dyn QueryInfo<Kind = Instance>,
+    ) -> Result<ResolvedQuery<F>>;
 }
 
 impl<F: Field, Q: QueryResolver<F> + Clone> QueryResolver<F> for Cow<'_, Q> {
-    fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>> {
+    fn resolve_fixed_query(&self, query: &dyn QueryInfo<Kind = Fixed>) -> Result<ResolvedQuery<F>> {
         self.as_ref().resolve_fixed_query(query)
     }
 
-    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<ResolvedQuery<F>> {
+    fn resolve_advice_query(
+        &self,
+        query: &dyn QueryInfo<Kind = Advice>,
+    ) -> Result<ResolvedQuery<F>> {
         self.as_ref().resolve_advice_query(query)
     }
 
-    fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>> {
+    fn resolve_instance_query(
+        &self,
+        query: &dyn QueryInfo<Kind = Instance>,
+    ) -> Result<ResolvedQuery<F>> {
         self.as_ref().resolve_instance_query(query)
     }
 }
 
 impl<S: SelectorResolver + Clone> SelectorResolver for Cow<'_, S> {
-    fn resolve_selector(&self, selector: &Selector) -> Result<ResolvedSelector> {
+    fn resolve_selector(&self, selector: &dyn SelectorInfo) -> Result<ResolvedSelector> {
         self.as_ref().resolve_selector(selector)
     }
 }

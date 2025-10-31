@@ -5,8 +5,8 @@ use std::ops::Index;
 use crate::{
     backend::codegen::lookup::query_from_table_expr,
     gates::AnyQuery,
-    halo2::{Expression, Field, FixedQuery},
-    info_traits::ConstraintSystemInfo,
+    halo2::{Expression, Field},
+    info_traits::{ConstraintSystemInfo, QueryInfo},
 };
 use anyhow::Result;
 
@@ -147,10 +147,10 @@ impl<F> Index<usize> for LookupTableRow<F> {
     }
 }
 
-impl<F> Index<FixedQuery> for LookupTableRow<F> {
+impl<F, Q: QueryInfo<Kind = crate::resolvers::Fixed>> Index<Q> for LookupTableRow<F> {
     type Output = F;
 
-    fn index(&self, index: FixedQuery) -> &Self::Output {
+    fn index(&self, index: Q) -> &Self::Output {
         &self[index.column_index()]
     }
 }

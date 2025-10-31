@@ -1,4 +1,8 @@
-use crate::halo2::{Any, Column, Field, Fixed};
+use crate::{
+    Fixed,
+    halo2::Field,
+    table::{Any, Column},
+};
 use std::collections::BTreeSet;
 
 /// Possible nodes in the graph.

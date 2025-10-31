@@ -1,8 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    halo2::{Assigned, Column, Field, Fixed, FixedQuery, Value},
-    resolvers::FixedQueryResolver,
+    halo2::{Assigned, Field, Value},
+    info_traits::QueryInfo,
+    resolvers::{Fixed, FixedQueryResolver},
+    table::Column,
     value::steal,
 };
 
@@ -110,7 +112,7 @@ impl<F: Copy + std::fmt::Debug + Default> FixedData<F> {
 }
 
 impl<F: Field> FixedQueryResolver<F> for FixedData<F> {
-    fn resolve_query(&self, query: &FixedQuery, row: usize) -> anyhow::Result<F> {
+    fn resolve_query(&self, query: &dyn QueryInfo<Kind = Fixed>, row: usize) -> anyhow::Result<F> {
         let value = self.resolve_fixed(query.column_index(), row);
 
         steal(&value).ok_or_else(|| anyhow::anyhow!("Fixed cell was assigned an unknown value!"))

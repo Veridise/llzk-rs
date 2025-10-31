@@ -1,11 +1,15 @@
-use crate::halo2::{Advice, Column, ColumnType, Instance};
+use crate::resolvers::{Advice, Instance};
+use crate::table::{Column, ColumnType};
 use anyhow::{Result, bail};
 use std::collections::HashSet;
 use std::hash::Hash;
 
 pub type IOCell<C> = (Column<C>, usize);
 
+/// [`CircuitIO`] configured for [`Advice`] cells.
 pub type AdviceIO = CircuitIO<Advice>;
+
+/// [`CircuitIO`] configured for [`Instance`] cells.
 pub type InstanceIO = CircuitIO<Instance>;
 
 /// Records what cells of the given column type are inputs and what cells are outputs.
@@ -55,9 +59,12 @@ impl<C: ColumnType> CircuitIO<C> {
         self.outputs.len()
     }
 
-    fn map(m: &[(Column<C>, &[usize])]) -> Vec<IOCell<C>> {
+    fn map<I>(m: &[(I, &[usize])]) -> Vec<IOCell<C>>
+    where
+        I: Into<Column<C>> + Copy,
+    {
         m.iter()
-            .flat_map(|(col, rows)| rows.iter().map(|row| (*col, *row)))
+            .flat_map(|(col, rows)| rows.iter().map(|row| ((*col).into(), *row)))
             .collect()
     }
 }
@@ -65,20 +72,26 @@ impl<C: ColumnType> CircuitIO<C> {
 impl<C: ColumnType + Hash> CircuitIO<C> {
     /// Creates a CircuitIO with the given columns and each row that is either an input or an
     /// output.
-    pub fn new(
-        inputs: &[(Column<C>, &[usize])],
-        outputs: &[(Column<C>, &[usize])],
-    ) -> Result<Self> {
+    pub fn new<I>(inputs: &[(I, &[usize])], outputs: &[(I, &[usize])]) -> Result<Self>
+    where
+        I: Into<Column<C>> + Copy,
+    {
         Self::new_from_iocells(Self::map(inputs), Self::map(outputs)).validated()
     }
 
     /// Creates a CircuitIO with only inputs.
-    pub fn from_inputs(inputs: &[(Column<C>, &[usize])]) -> Result<Self> {
+    pub fn from_inputs<I>(inputs: &[(I, &[usize])]) -> Result<Self>
+    where
+        I: Into<Column<C>> + Copy,
+    {
         Self::new(inputs, &[])
     }
 
     /// Creates a CircuitIO with only outputs.
-    pub fn from_outputs(outputs: &[(Column<C>, &[usize])]) -> Result<Self> {
+    pub fn from_outputs<I>(outputs: &[(I, &[usize])]) -> Result<Self>
+    where
+        I: Into<Column<C>> + Copy,
+    {
         Self::new(&[], outputs)
     }
 

@@ -38,15 +38,15 @@ pub mod inline {
 
 pub mod groups {
 
-    use crate::halo2::groups::GroupKeyInstance;
+    use crate::ir::IRCtx;
     use crate::ir::expr::IRAexpr;
     use crate::ir::groups::GroupBody;
-    use crate::ir::IRCtx;
+    use crate::synthesis::groups::GroupKey;
     use crate::{
         backend::codegen::{Codegen, CodegenStrategy},
         ir::{
-            equivalency::{EqvRelation, SymbolicEqv},
             ResolvedIRCircuit,
+            equivalency::{EqvRelation, SymbolicEqv},
         },
         utils,
     };
@@ -125,9 +125,7 @@ pub mod groups {
     }
 
     /// Organizes the groups by their key. Each group contains a list with the index to the group.
-    pub fn organize_groups_by_key(
-        groups: &[GroupBody<IRAexpr>],
-    ) -> HashMap<GroupKeyInstance, Vec<usize>> {
+    pub fn organize_groups_by_key(groups: &[GroupBody<IRAexpr>]) -> HashMap<GroupKey, Vec<usize>> {
         let mut groups_by_key: HashMap<_, Vec<_>> = HashMap::new();
         for group in groups {
             if group.is_main() {

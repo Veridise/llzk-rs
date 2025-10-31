@@ -6,14 +6,14 @@ use stmt::IRStmt;
 
 use crate::{
     expressions::{ExpressionInRow, ScopedExpression},
-    halo2::{PrimeField, RegionIndex},
+    halo2::PrimeField,
     ir::{
         expr::{Felt, IRAexpr},
         generate::region_data,
         groups::GroupBody,
         printer::IRPrinter,
     },
-    synthesis::SynthesizedCircuit,
+    synthesis::{SynthesizedCircuit, regions::RegionIndex},
     temps::ExprOrTemp,
 };
 
@@ -95,13 +95,17 @@ where
     }
 
     /// Injects the IR into the specific regions
-    pub fn inject_ir(
+    pub fn inject_ir<R>(
         &mut self,
-        ir: impl IntoIterator<Item = (RegionIndex, IRStmt<ExpressionInRow<'syn, F>>)>,
+        ir: impl IntoIterator<Item = (R, IRStmt<ExpressionInRow<'syn, F>>)>,
         syn: &'syn SynthesizedCircuit<F>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<()>
+    where
+        R: Into<RegionIndex>,
+    {
         let regions = region_data(syn);
         for (index, stmt) in ir {
+            let index = index.into();
             let region = regions[&index];
             let group_idx = self.regions_to_groups[*index];
             self.groups[group_idx].inject_ir(
