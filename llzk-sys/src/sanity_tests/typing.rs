@@ -252,9 +252,9 @@ fn test_llzk_is_more_concrete_unification(index_type: IndexType) {
 }
 
 #[rstest]
-fn test_llzk_force_int_attr_type(context: TestContext, i16_type: I16Type) {
+fn test_llzk_force_int_attr_type(i16_type: I16Type) {
     unsafe {
-        let location = mlirLocationUnknownGet(context.ctx);
+        let location = mlirLocationUnknownGet(i16_type.context.ctx);
         let in_attr = mlirIntegerAttrGet(i16_type.t, 0);
         let out_attr = llzkForceIntAttrType(in_attr, location);
         assert!(!mlirAttributeEqual(in_attr, out_attr));

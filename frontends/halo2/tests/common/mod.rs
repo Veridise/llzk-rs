@@ -1,19 +1,18 @@
 use std::{borrow::Cow, cell::RefCell};
 
 use ff::{Field, PrimeField};
+#[cfg(feature = "picus-backend")]
+use halo2_llzk_frontend::PicusParams;
 use halo2_llzk_frontend::{
-    CircuitSynthesis, PicusParams, Synthesizer,
+    CircuitSynthesis, Synthesizer,
     driver::Driver,
     ir::{ResolvedIRCircuit, generate::IRGenParams, stmt::IRStmt},
     lookups::{Lookup, callbacks::LookupCallbacks, table::LookupTableGenerator},
     temps::{ExprOrTemp, Temps},
     to_plonk_error,
 };
-#[cfg(feature = "get-challenge")]
-use halo2_proofs::plonk::Challenge;
-use halo2_proofs::plonk::FloorPlanner;
-#[cfg(feature = "annotate-column")]
 use halo2_proofs::plonk::{Any, Column};
+use halo2_proofs::plonk::{Challenge, FloorPlanner};
 use halo2_proofs::{
     circuit::{
         Value,
@@ -64,6 +63,7 @@ where
     resolved
 }
 
+#[cfg(feature = "picus-backend")]
 #[allow(dead_code)]
 pub fn picus_test<F, C>(
     circuit: C,
@@ -98,6 +98,7 @@ pub fn picus_test<F, C>(
     check_picus(&driver, &resolved, params, expected);
 }
 
+#[cfg(feature = "picus-backend")]
 pub fn check_picus(
     driver: &Driver,
     circuit: &ResolvedIRCircuit,
@@ -280,7 +281,6 @@ impl<F: Field> Assignment<F> for SynthesizerAssignment<'_, F> {
         self.synthetizer.pop_namespace(name);
     }
 
-    #[cfg(feature = "annotate-column")]
     fn annotate_column<A, AR>(&mut self, _: A, _: Column<Any>)
     where
         AR: Into<String>,
@@ -288,7 +288,6 @@ impl<F: Field> Assignment<F> for SynthesizerAssignment<'_, F> {
     {
     }
 
-    #[cfg(feature = "get-challenge")]
     fn get_challenge(&self, _: Challenge) -> Value<F> {
         Value::unknown()
     }

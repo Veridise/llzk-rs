@@ -2,12 +2,12 @@
 
 use std::collections::HashMap;
 
+#[cfg(feature = "llzk-backend")]
+use crate::backend::llzk::{LlzkBackend, LlzkOutput, LlzkParams};
+#[cfg(feature = "picus-backend")]
+use crate::backend::picus::{PicusBackend, PicusOutput, PicusParams};
 use crate::{
     CircuitSynthesis,
-    backend::{
-        llzk::{LlzkBackend, LlzkOutput, LlzkParams},
-        picus::{PicusBackend, PicusOutput, PicusParams},
-    },
     expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
     halo2::PrimeField,
     info_traits::ConstraintSystemInfo,
@@ -103,6 +103,7 @@ impl Driver {
     }
 
     /// Creates a picus program from the circuit synthesis.
+    #[cfg(feature = "picus-backend")]
     pub fn picus(
         &self,
         ir: &ResolvedIRCircuit,
@@ -112,6 +113,7 @@ impl Driver {
     }
 
     /// Creates a llzk module from the circuit synthesis.
+    #[cfg(feature = "llzk-backend")]
     pub fn llzk<'c>(
         &self,
         ir: &ResolvedIRCircuit,

@@ -1,7 +1,7 @@
 use llzk_sys::mlirGetDialectHandle__llzk__constrain__;
 use melior::{
     dialect::DialectHandle,
-    ir::{operation::OperationBuilder, Location, Operation, Value},
+    ir::{Location, Operation, Value, operation::OperationBuilder},
 };
 
 pub fn handle() -> DialectHandle {

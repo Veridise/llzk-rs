@@ -1,7 +1,7 @@
 use llzk::prelude::*;
 use melior::ir::{
-    r#type::{FunctionType, IntegerType},
     Location, Type,
+    r#type::{FunctionType, IntegerType},
 };
 
 mod common;
