@@ -11,7 +11,9 @@ use halo2_proofs::poly::Rotation;
 use halo2curves_070::bn256::Fr;
 use std::marker::PhantomData;
 
-use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis, ExpressionInRow, PicusParamsBuilder};
+#[cfg(feature = "picus-backend")]
+use halo2_llzk_frontend::PicusParamsBuilder;
+use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis, ExpressionInRow};
 
 mod common;
 
@@ -95,6 +97,7 @@ fn ir_to_inject<'e>() -> Vec<(RegionIndex, IRStmt<ExpressionInRow<'e, Fr>>)> {
     injected
 }
 
+#[cfg(feature = "picus-backend")]
 #[test]
 fn mul_injected_circuit_picus() {
     common::setup();
@@ -137,6 +140,7 @@ fn mul_injected_circuit_picus() {
     );
 }
 
+#[cfg(feature = "picus-backend")]
 #[test]
 fn mul_injected_opt_circuit_picus() {
     common::setup();

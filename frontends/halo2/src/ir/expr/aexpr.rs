@@ -43,6 +43,7 @@ impl std::fmt::Debug for Felt {
     }
 }
 
+#[cfg(feature = "picus-backend")]
 impl From<Felt> for picus::felt::Felt {
     fn from(value: Felt) -> Self {
         Self::new(value.0.as_ref().clone())
