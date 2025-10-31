@@ -1,4 +1,6 @@
 use group::ff::Field;
+#[cfg(feature = "picus-backend")]
+use halo2_llzk_frontend::PicusParamsBuilder;
 use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
 use halo2_llzk_frontend::{AdviceIO, InstanceIO, PicusParamsBuilder};
 use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
@@ -28,6 +30,7 @@ const EXPECTED_PICUS: &'static str = r"
 (end-module)
 ";
 
+#[cfg(feature = "picus-backend")]
 #[test]
 fn mul_with_fixed_constraint_circuit_picus() {
     common::setup();
@@ -53,6 +56,7 @@ const EXPECTED_OPT_PICUS: &'static str = r"
 (end-module)
 ";
 
+#[cfg(feature = "picus-backend")]
 #[test]
 fn mul_with_fixed_constraint_opt_circuit_picus() {
     common::setup();

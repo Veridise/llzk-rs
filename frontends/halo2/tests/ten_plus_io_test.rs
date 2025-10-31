@@ -8,7 +8,9 @@ use halo2_proofs::poly::Rotation;
 use halo2curves_070::bn256::Fr;
 use std::marker::PhantomData;
 
-use halo2_llzk_frontend::{AdviceIO, CircuitIO, CircuitSynthesis, InstanceIO, PicusParamsBuilder};
+#[cfg(feature = "picus-backend")]
+use halo2_llzk_frontend::PicusParamsBuilder;
+use halo2_llzk_frontend::{AdviceIO, InstanceIO, CircuitIO, CircuitSynthesis};
 
 mod common;
 
@@ -77,6 +79,7 @@ const EXPECTED_OPT_PICUS: &'static str = r"
 (end-module)
 ";
 
+#[cfg(feature = "picus-backend")]
 #[test]
 fn ten_plus_circuit_picus() {
     common::setup();
@@ -92,6 +95,7 @@ fn ten_plus_circuit_picus() {
     );
 }
 
+#[cfg(feature = "picus-backend")]
 #[test]
 fn ten_plus_opt_circuit_picus() {
     common::setup();

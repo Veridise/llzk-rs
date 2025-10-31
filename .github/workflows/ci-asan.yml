@@ -53,6 +53,6 @@ jobs:
             echo LSAN_OPTIONS="$LSAN_OPTIONS:suppressions=$supp" >> $GITHUB_ENV
           fi
       - name: Build in asan mode
-        run: cargo +nightly build --target=x86_64-unknown-linux-gnu --profile=dev
+        run: cargo +nightly build --target=x86_64-unknown-linux-gnu --profile=dev --all-features
       - name: Run tests in asan mode
-        run: cargo +nightly test --target=x86_64-unknown-linux-gnu --profile=dev
+        run: cargo +nightly test --target=x86_64-unknown-linux-gnu --profile=dev --all-features

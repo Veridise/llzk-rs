@@ -12,11 +12,11 @@ rstest = "0.26"
 group = "0.13"
 
 [dependencies]
-melior = { workspace = true }
-mlir-sys = { workspace = true }
-llzk-sys = { path = "../../llzk-sys/", version = "0.1.0"}
-llzk = { path = "../../llzk/", version = "0.1.0", features =["bigint"]}
-picus = { path = "../../picus", version = "0.1.0", features=["bigint-felt"]}
+melior = { workspace = true, optional = true }
+mlir-sys = { workspace = true, optional = true }
+llzk-sys = { path = "../../llzk-sys/", version = "0.1.0", optional = true }
+llzk = { path = "../../llzk/", version = "0.1.0", features =["bigint"], optional = true}
+picus = { path = "../../picus", version = "0.1.0", features=["bigint-felt"], optional = true }
 anyhow = "^1"
 ff = "0.13"
 num-bigint = "0.4"
@@ -84,17 +84,7 @@ default-features = false
 # optional = true
 
 [features]
-default = ["annotate-column", "get-challenge"]
-# axiom = ["axiom_halo2_proofs", "phase-tracking", "halo2curves_021"]
-# midnight = [ "halo2_proofs/region-groups","halo2_proofs/bits", "annotate-column", "get-challenge", "halo2curves_070"]
-# pse = ["pse_halo2_proofs", "phase-tracking", "halo2curves_021"]
-# pse-v1 = ["pse_v1_halo2_proofs", "halo2curves_021"]
-# scroll = ["scroll_halo2_proofs", "phase-tracking", "halo2curves_021"]
-# zcash = ["zcash_halo2_proofs", "halo2curves_021"]
+default = ["llzk-backend", "picus-backend"]
 
-# These features encapsulate behavior where the different implementations deviate.
-# Each represents a particular change or feature and different libraries activate them
-# as necessary. They are not meant to be enabled by the end user.
-phase-tracking = []
-annotate-column = []
-get-challenge = []
+llzk-backend = ["dep:mlir-sys", "dep:melior", "dep:llzk-sys", "dep:llzk"]
+picus-backend = ["dep:picus"]

@@ -22,16 +22,19 @@ mod utils;
 mod value;
 
 pub use crate::io::{AdviceIO, InstanceIO};
-use crate::{halo2::Field, info_traits::ConstraintSystemInfo};
-pub use backend::{
-    llzk::{
-        LlzkOutput,
-        params::{LlzkParams, LlzkParamsBuilder},
-    },
-    picus::{
-        PicusOutput,
-        params::{PicusParams, PicusParamsBuilder},
-    },
+use crate::{
+    halo2::Field,
+    info_traits::ConstraintSystemInfo,
+};
+#[cfg(feature = "llzk-backend")]
+pub use backend::llzk::{
+    LlzkOutput,
+    params::{LlzkParams, LlzkParamsBuilder},
+};
+#[cfg(feature = "picus-backend")]
+pub use backend::picus::{
+    PicusOutput,
+    params::{PicusParams, PicusParamsBuilder},
 };
 pub use error::to_plonk_error;
 pub use expressions::ExpressionInRow;
