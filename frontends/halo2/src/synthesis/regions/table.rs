@@ -1,4 +1,4 @@
-use crate::{gates::AnyQuery, halo2::Value, value::steal};
+use crate::halo2::FixedQuery;
 use std::{
     cmp::Ordering,
     collections::{BTreeMap, HashMap, HashSet},
@@ -46,12 +46,12 @@ impl Ord for Fill {
 /// Sparse representation of a table.
 #[derive(Debug)]
 pub struct TableData<F: Copy> {
-    values: HashMap<usize, BTreeMap<Fill, Value<F>>>,
+    values: HashMap<usize, BTreeMap<Fill, F>>,
 }
 
 pub enum ColumnMatch {
     Contained,
-    Missing(Vec<AnyQuery>),
+    Missing(Vec<FixedQuery>),
 }
 
 impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
@@ -66,7 +66,7 @@ impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
                     .map(move |(r, v)| (col, (Fill::Many(r.start), v)))
             }))
             .fold(
-                HashMap::<usize, BTreeMap<Fill, Value<F>>>::new(),
+                HashMap::<usize, BTreeMap<Fill, F>>::new(),
                 |mut map, (col, (fill, value))| {
                     map.entry(col).or_default().insert(fill, value);
                     map
@@ -75,7 +75,7 @@ impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
         Self { values }
     }
 
-    pub fn check_columns(&self, cols: &[AnyQuery]) -> ColumnMatch {
+    pub fn check_columns(&self, cols: &[FixedQuery]) -> ColumnMatch {
         assert!(!cols.is_empty());
         let col_set = self.collect_columns();
         cols.iter()
@@ -101,7 +101,7 @@ impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
             })
     }
 
-    fn find_upper_limit(&self, tables: &[&BTreeMap<Fill, Value<F>>]) -> anyhow::Result<usize> {
+    fn find_upper_limit(&self, tables: &[&BTreeMap<Fill, F>]) -> anyhow::Result<usize> {
         tables
             .iter()
             .map(|table| {
@@ -117,7 +117,7 @@ impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
             .ok_or_else(|| anyhow::anyhow!("Could not get the largest row fill of table"))
     }
 
-    fn get_rows_impl(&self, cols: &[AnyQuery]) -> anyhow::Result<Vec<Vec<F>>> {
+    fn get_rows_impl(&self, cols: &[FixedQuery]) -> anyhow::Result<Vec<Vec<F>>> {
         let tables = cols
             .iter()
             .map(|c| &self.values[&c.column_index()])
@@ -127,23 +127,13 @@ impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
 
         tables
             .into_iter()
-            .map(|table| {
-                fill_table(table, upper_limit).and_then(|t| {
-                    t.into_iter()
-                        .map(|v| {
-                            steal(&v).ok_or_else(|| {
-                                anyhow::anyhow!("Table value filled with unknown value!")
-                            })
-                        })
-                        .collect::<anyhow::Result<Vec<_>>>()
-                })
-            })
+            .map(|table| fill_table(table, upper_limit))
             .collect()
     }
 
     /// Returns the rows the table has for the given columns. The columns have to have
     /// the same number of rows
-    pub fn get_rows(&self, cols: &[AnyQuery]) -> Option<anyhow::Result<Vec<Vec<F>>>> {
+    pub fn get_rows(&self, cols: &[FixedQuery]) -> Option<anyhow::Result<Vec<Vec<F>>>> {
         if matches!(self.check_columns(cols), ColumnMatch::Missing(_)) {
             return None;
         }
@@ -156,9 +146,9 @@ impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
 }
 
 fn fill_table<F: Default + Copy>(
-    table: &BTreeMap<Fill, Value<F>>,
+    table: &BTreeMap<Fill, F>,
     upper_limit: usize,
-) -> anyhow::Result<Vec<Value<F>>> {
+) -> anyhow::Result<Vec<F>> {
     let mut dense = vec![Default::default(); upper_limit + 1];
     let mut check = vec![false; upper_limit + 1];
 

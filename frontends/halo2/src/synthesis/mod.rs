@@ -4,57 +4,58 @@ use std::{collections::HashSet, convert::identity};
 
 use anyhow::{Result, anyhow};
 use constraint::{EqConstraint, EqConstraintArg, EqConstraintGraph};
-use groups::{Group, GroupBuilder, GroupCell, Groups};
-use regions::{FixedData, RegionIndexToStart, TableData};
+use groups::{GroupBuilder, Groups};
+use regions::{FixedData, TableData};
 
 use crate::{
-    CircuitIO,
-    gates::AnyQuery,
+    expressions::ExpressionInfo,
+    gates::Gate,
     halo2::{
         Field,
         groups::{GroupKey, RegionsGroup},
         *,
     },
-    info_traits::{CSI, ConstraintSystemInfo, GateInfo},
-    io::{AdviceIO, IOCell, InstanceIO},
-    lookups::{Lookup, LookupTableRow},
+    info_traits::ConstraintSystemInfo,
+    io::{AdviceIO, InstanceIO},
+    lookups::{Lookup, table::LookupTableRow},
     resolvers::FixedQueryResolver,
-    value::steal,
 };
 
-pub mod constraint;
-pub mod groups;
-pub mod regions;
+pub(crate) mod constraint;
+pub(crate) mod groups;
+pub(crate) mod regions;
 
 /// Result of synthesizing a circuit.
-pub struct SynthesizedCircuit<F>
+#[derive(Debug)]
+pub struct SynthesizedCircuit<F, E>
 where
     F: Field,
 {
     id: usize,
-    cs: CSI<F>,
+    lookups: Vec<Lookup<E>>,
+    gates: Vec<Gate<E>>,
     eq_constraints: EqConstraintGraph<F>,
     fixed: FixedData<F>,
     tables: Vec<TableData<F>>,
     groups: Groups,
 }
 
-impl<F> SynthesizedCircuit<F>
+impl<F, E> SynthesizedCircuit<F, E>
 where
     F: Field,
 {
     /// Returns the list of gates in the constraint system.
-    pub fn gates(&self) -> Vec<&dyn GateInfo<F>> {
-        self.cs.gates()
+    pub(crate) fn gates(&self) -> &[Gate<E>] {
+        &self.gates
     }
 
     /// Returns the lookups declared during synthesis.
-    pub fn lookups<'a>(&'a self) -> Vec<Lookup<'a, F>> {
-        Lookup::load(&*self.cs)
+    pub(crate) fn lookups(&self) -> &[Lookup<E>] {
+        &self.lookups
     }
 
     /// Finds the table that corresponds to the query set.
-    fn find_table(&self, q: &[AnyQuery]) -> Result<Vec<Vec<F>>> {
+    fn find_table(&self, q: &[FixedQuery]) -> Result<Vec<Vec<F>>> {
         self.tables
             .iter()
             .find_map(|table| table.get_rows(q))
@@ -63,7 +64,10 @@ where
     }
 
     /// Returns the list of tables the lookup refers to.
-    pub fn tables_for_lookup(&self, l: &Lookup<F>) -> Result<Vec<LookupTableRow<F>>> {
+    pub(crate) fn tables_for_lookup(&self, l: &Lookup<E>) -> Result<Vec<LookupTableRow<F>>>
+    where
+        E: ExpressionInfo,
+    {
         fn transpose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
             assert!(!v.is_empty());
             let len = v[0].len();
@@ -100,33 +104,17 @@ where
     }
 
     /// Returns the groups in the circuit.
-    pub fn groups(&self) -> &Groups {
+    pub(crate) fn groups(&self) -> &Groups {
         &self.groups
     }
 
     /// Returns the equality constraints.
-    pub fn constraints(&self) -> &EqConstraintGraph<F> {
+    pub(crate) fn constraints(&self) -> &EqConstraintGraph<F> {
         &self.eq_constraints
     }
 
-    /// Returns a mapping from the region index to region start
-    pub fn regions_by_index(&self) -> RegionIndexToStart {
-        self.groups
-            .as_ref()
-            .iter()
-            .flat_map(|g| g.regions())
-            .enumerate()
-            .map(|(idx, region)| (idx.into(), region.rows().start.into()))
-            .collect()
-    }
-
-    /// Returns the top level group in the circuit.
-    pub fn top_level_group(&self) -> Option<&Group> {
-        self.groups.top_level()
-    }
-
     /// Returns a reference to a resolver for fixed queries.
-    pub fn fixed_query_resolver(&self) -> &dyn FixedQueryResolver<F> {
+    pub(crate) fn fixed_query_resolver(&self) -> &dyn FixedQueryResolver<F> {
         &self.fixed
     }
 
@@ -135,22 +123,10 @@ where
     }
 }
 
-impl<F: Field> std::fmt::Debug for SynthesizedCircuit<F> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CircuitSynthesis")
-            .field("id", &self.id)
-            .field("eq_constraints", &self.eq_constraints)
-            .field("fixed", &self.fixed)
-            .field("tables", &self.tables)
-            .field("groups", &self.groups)
-            .finish()
-    }
-}
-
 /// Collects the information from the synthesis.
 ///
 /// Use this struct to give information about the structure of the circuit during the call to
-/// [`crate::CircuitCallbacks::synthesize`]. The synthesis of the circuit is divided in groups and
+/// [`crate::CircuitSynthesis::synthesize`]. The synthesis of the circuit is divided in groups and
 /// these are divided in regions. Groups can contain others groups inside them, forming a tree.
 ///
 /// Before synthesis a default top-level group is initialized such that you don't need to do
@@ -164,7 +140,7 @@ impl<F: Field> std::fmt::Debug for SynthesizedCircuit<F> {
 /// Regions can represent lookup tables and these can only contain fixed columns.
 ///
 /// Regions also have a set of selectors that can be turned on per row of the region. These
-/// selectors are used to check what polynomials returned by the [`GateInfo`] instances are
+/// selectors are used to check what polynomials returned by the [`crate::info_traits::GateInfo`] instances are
 /// enabled in that row. The driver will emit IR for each polynomial that is enabled in each row of
 /// each region.
 pub struct Synthesizer<F: Field> {
@@ -201,12 +177,12 @@ impl<F: Field> Synthesizer<F> {
 
     /// Configures the IO of the circuit.
     pub(crate) fn configure_io(&mut self, advice_io: AdviceIO, instance_io: InstanceIO) {
-        add_root_io(&mut self.groups, &advice_io);
-        add_root_io(&mut self.groups, &instance_io);
+        self.groups.add_root_io(&advice_io);
+        self.groups.add_root_io(&instance_io);
     }
 
-    /// Builds a [`CircuitSynthesis`] with the information recollected about the circuit.
-    pub(crate) fn build<CS>(mut self, cs: CS) -> Result<SynthesizedCircuit<F>>
+    /// Builds a [`SynthesizedCircuit`] with the information recollected about the circuit.
+    pub(crate) fn build<CS>(mut self, cs: CS) -> Result<SynthesizedCircuit<F, CS::Polynomial>>
     where
         CS: ConstraintSystemInfo<F> + 'static,
     {
@@ -214,7 +190,8 @@ impl<F: Field> Synthesizer<F> {
 
         Ok(SynthesizedCircuit {
             id: self.id,
-            cs: Box::new(cs),
+            gates: cs.gates().into_iter().map(Gate::new::<F>).collect(),
+            lookups: Lookup::load(&cs),
             eq_constraints: self.eq_constraints,
             tables: fill_tables(self.tables, &self.fixed)?,
             fixed: self.fixed,
@@ -259,7 +236,7 @@ impl<F: Field> Synthesizer<F> {
         self.groups.regions_mut().edit(|region| {
             region.update_extent(fixed.into(), row);
         });
-        self.fixed.assign_fixed(fixed, row, Value::known(value));
+        self.fixed.assign_fixed(fixed, row, value);
     }
 
     /// Annotates that the two given cells have a copy constraint between them.
@@ -271,7 +248,7 @@ impl<F: Field> Synthesizer<F> {
     /// Annotates that starting from the given row the given fixed column has that value.
     pub fn fill_from_row(&mut self, column: Column<Fixed>, row: usize, value: F) {
         log::debug!("fill_from_row{:?}", (column, row, value));
-        self.fixed.blanket_fill(column, row, Value::known(value));
+        self.fixed.blanket_fill(column, row, value);
         let r = self.groups.regions_mut();
         r.edit(|region| region.update_extent(column.into(), row));
     }
@@ -369,24 +346,9 @@ fn add_fixed_to_const_constraints<F: Field>(
     };
 
     for (col, row) in fixed_cells {
-        let value = steal(&fixed.resolve_fixed(col.index(), row))
-            .ok_or_else(|| anyhow!("Fixed cell was assigned an unknown value!"))?;
+        let value = fixed.resolve_fixed(col.index(), row);
         constraints.add(EqConstraint::FixedToConst(col, row, value));
     }
 
     Ok(())
-}
-
-/// Adds to the list of input and output cells of the top-level block.
-fn add_root_io<C: ColumnType>(groups: &mut GroupBuilder, io: &CircuitIO<C>)
-where
-    IOCell<C>: Into<GroupCell>,
-{
-    for c in io.inputs() {
-        groups.add_root_input(*c);
-    }
-
-    for c in io.outputs() {
-        groups.add_root_output(*c);
-    }
 }

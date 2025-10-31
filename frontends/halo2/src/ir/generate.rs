@@ -3,9 +3,8 @@
 use std::collections::HashMap;
 
 use crate::{
-    GateCallbacks,
-    expressions::ScopedExpression,
-    gates::{DefaultGateCallbacks, RewritePatternSet},
+    expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo, ScopedExpression},
+    gates::{DefaultGateCallbacks, GateCallbacks, RewritePatternSet},
     halo2::{Field, PrimeField, RegionIndex},
     ir::{IRCtx, generate::patterns::load_patterns, groups::GroupBody},
     lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
@@ -16,13 +15,13 @@ use crate::{
 mod patterns;
 
 /// Configuration parameters for IR generation.
-pub struct IRGenParams<'lc, 'gc, F: Field> {
+pub struct IRGenParams<'lc, 'gc, F: Field, E> {
     debug_comments: bool,
-    lookup_cb: Option<&'lc dyn LookupCallbacks<F>>,
-    gate_cb: Option<&'gc dyn GateCallbacks<F>>,
+    lookup_cb: Option<&'lc dyn LookupCallbacks<F, E>>,
+    gate_cb: Option<&'gc dyn GateCallbacks<F, E>>,
 }
 
-impl<'lc, 'gc, F: Field> IRGenParams<'lc, 'gc, F> {
+impl<'lc, 'gc, F: Field, E> IRGenParams<'lc, 'gc, F, E> {
     fn new() -> Self {
         Self {
             debug_comments: false,
@@ -37,13 +36,13 @@ impl<'lc, 'gc, F: Field> IRGenParams<'lc, 'gc, F> {
     }
 }
 
-impl<F: Field> Default for IRGenParams<'_, '_, F> {
+impl<F: Field, E> Default for IRGenParams<'_, '_, F, E> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<F: Field> std::fmt::Debug for IRGenParams<'_, '_, F> {
+impl<F: Field, E> std::fmt::Debug for IRGenParams<'_, '_, F, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("IRGenParams")
             .field("debug_comments", &self.debug_comments)
@@ -69,9 +68,9 @@ impl<F: Field> std::fmt::Debug for IRGenParams<'_, '_, F> {
 
 /// Builder for creating [`IRGenParams`].
 #[derive(Debug, Default)]
-pub struct IRGenParamsBuilder<'lc, 'gc, F: Field>(IRGenParams<'lc, 'gc, F>);
+pub struct IRGenParamsBuilder<'lc, 'gc, F: Field, E>(IRGenParams<'lc, 'gc, F, E>);
 
-impl<'lc, 'gc, F: Field> IRGenParamsBuilder<'lc, 'gc, F> {
+impl<'lc, 'gc, F: Field, E> IRGenParamsBuilder<'lc, 'gc, F, E> {
     /// Creates a new builder.
     pub fn new() -> Self {
         Self(IRGenParams::new())
@@ -90,7 +89,7 @@ impl<'lc, 'gc, F: Field> IRGenParamsBuilder<'lc, 'gc, F> {
     }
 
     /// Sets the lookup callbacks.
-    pub fn lookup_callbacks(&mut self, lc: &'lc dyn LookupCallbacks<F>) -> &mut Self {
+    pub fn lookup_callbacks(&mut self, lc: &'lc dyn LookupCallbacks<F, E>) -> &mut Self {
         self.0.lookup_cb = Some(lc);
         self
     }
@@ -102,7 +101,7 @@ impl<'lc, 'gc, F: Field> IRGenParamsBuilder<'lc, 'gc, F> {
     }
 
     /// Sets the gate callbacks.
-    pub fn gate_callbacks(&mut self, gc: &'gc dyn GateCallbacks<F>) -> &mut Self {
+    pub fn gate_callbacks(&mut self, gc: &'gc dyn GateCallbacks<F, E>) -> &mut Self {
         self.0.gate_cb = Some(gc);
         self
     }
@@ -114,19 +113,20 @@ impl<'lc, 'gc, F: Field> IRGenParamsBuilder<'lc, 'gc, F> {
     }
 
     /// Creates the params.
-    pub fn build(&mut self) -> IRGenParams<'lc, 'gc, F> {
+    pub fn build(&mut self) -> IRGenParams<'lc, 'gc, F, E> {
         std::mem::take(&mut self.0)
     }
 }
 
 /// Generates an intermediate representation of the circuit from its synthesis.
-pub fn generate_ir<'syn, 'ctx, 'cb, 'sco, F>(
-    syn: &'syn SynthesizedCircuit<F>,
-    params: IRGenParams<'cb, '_, F>,
+pub(crate) fn generate_ir<'syn, 'ctx, 'cb, 'sco, F, E>(
+    syn: &'syn SynthesizedCircuit<F, E>,
+    params: IRGenParams<'cb, '_, F, E>,
     ir_ctx: &'ctx IRCtx,
-) -> anyhow::Result<Vec<GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>>>
+) -> anyhow::Result<Vec<GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>>>>
 where
     F: PrimeField,
+    E: Clone + ExprBuilder<F> + ExpressionInfo + EvaluableExpr<F> + std::fmt::Debug,
     'syn: 'sco,
     'ctx: 'sco + 'syn,
     'cb: 'sco + 'syn,
@@ -170,7 +170,7 @@ where
 
 /// Creates a map from region index to its data
 #[inline]
-pub(super) fn region_data<'s, F: Field>(syn: &'s SynthesizedCircuit<F>) -> RegionByIndex<'s> {
+pub(super) fn region_data<'s, F: Field, E>(syn: &'s SynthesizedCircuit<F, E>) -> RegionByIndex<'s> {
     syn.groups()
         .iter()
         .flat_map(|g| g.regions())
@@ -185,14 +185,14 @@ pub(super) fn region_data<'s, F: Field>(syn: &'s SynthesizedCircuit<F>) -> Regio
 pub(super) type RegionByIndex<'s> = HashMap<RegionIndex, RegionData<'s>>;
 
 /// Support data for creating group body IR structs
-pub(super) struct GroupIRCtx<'lc, 'gc, 'syn, F: Field> {
+pub(super) struct GroupIRCtx<'lc, 'gc, 'syn, F: Field, E> {
     regions_by_index: RegionByIndex<'syn>,
-    syn: &'syn SynthesizedCircuit<F>,
-    patterns: RewritePatternSet<F>,
-    params: IRGenParams<'lc, 'gc, F>,
+    syn: &'syn SynthesizedCircuit<F, E>,
+    patterns: RewritePatternSet<F, E>,
+    params: IRGenParams<'lc, 'gc, F, E>,
 }
 
-impl<'lc, 'gc, 'syn, F: Field> GroupIRCtx<'lc, 'gc, 'syn, F> {
+impl<'lc, 'gc, 'syn, F: Field, E> GroupIRCtx<'lc, 'gc, 'syn, F, E> {
     pub(super) fn groups(&self) -> &'syn [Group] {
         self.syn.groups()
     }
@@ -201,15 +201,18 @@ impl<'lc, 'gc, 'syn, F: Field> GroupIRCtx<'lc, 'gc, 'syn, F> {
         &self.regions_by_index
     }
 
-    pub(super) fn syn(&self) -> &'syn SynthesizedCircuit<F> {
+    pub(super) fn syn(&self) -> &'syn SynthesizedCircuit<F, E> {
         self.syn
     }
 
-    pub(super) fn patterns(&self) -> &RewritePatternSet<F> {
+    pub(super) fn patterns(&self) -> &RewritePatternSet<F, E> {
         &self.patterns
     }
 
-    pub(super) fn lookup_cb(&self) -> &'lc dyn LookupCallbacks<F> {
+    pub(super) fn lookup_cb(&self) -> &'lc dyn LookupCallbacks<F, E>
+    where
+        E: Clone,
+    {
         self.params.lookup_cb.unwrap_or(&DefaultLookupCallbacks)
     }
 

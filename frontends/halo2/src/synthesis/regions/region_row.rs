@@ -1,6 +1,7 @@
 use super::{RegionData, Row};
 use crate::{
     backend::func::FuncIO,
+    gates::SelectorSet,
     halo2::*,
     io::{AdviceIO, InstanceIO},
     resolvers::{
@@ -8,7 +9,7 @@ use crate::{
     },
 };
 use anyhow::Result;
-use std::collections::HashSet;
+use std::borrow::Cow;
 
 #[derive(Copy, Clone, Debug)]
 pub struct RegionRow<'r, 'io, 'fq, F: Field> {
@@ -46,33 +47,16 @@ impl<'r, 'io, 'fq, F: Field> RegionRow<'r, 'io, 'fq, F> {
         }
     }
 
-    fn enabled(&self) -> HashSet<&'r Selector> {
-        self.region
-            .selectors_enabled_for_row(self.row.row)
-            .into_iter()
-            .collect()
-    }
-
-    pub fn region_index(&self) -> Option<usize> {
-        self.region.index().map(|f| *f)
-    }
-
-    pub fn region_name(&self) -> &str {
-        self.region.name()
+    fn enabled(&self) -> Cow<SelectorSet> {
+        self.region.selectors_enabled_for_row(self.row.row)
     }
 
     pub fn row_number(&self) -> usize {
         self.row.row
     }
 
-    pub fn region_index_as_str(&self) -> String {
-        match self.region_index() {
-            Some(i) => i.to_string(),
-            None => "<unk>".to_string(),
-        }
-    }
     #[inline]
-    pub fn gate_is_disabled(&self, selectors: &HashSet<&Selector>) -> bool {
+    pub fn gate_is_disabled(&self, selectors: &SelectorSet) -> bool {
         self.enabled().is_disjoint(selectors)
     }
 
@@ -115,9 +99,8 @@ impl<F: Field> SelectorResolver for RegionRow<'_, '_, '_, F> {
         let selected = self
             .region
             .enabled_selectors()
-            .get(selector)
-            .map(|rows| rows.contains(&self.row.row))
-            .unwrap_or(false);
+            .get(&self.row_number())
+            .is_some_and(|selectors| selectors.contains(selector.index()));
         Ok(ResolvedSelector::Const(selected.into()))
     }
 }

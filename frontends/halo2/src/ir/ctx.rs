@@ -20,7 +20,7 @@ pub struct IRCtx {
 }
 
 impl IRCtx {
-    pub(crate) fn new<F: Field>(syn: &SynthesizedCircuit<F>) -> Self {
+    pub(crate) fn new<F: Field, E>(syn: &SynthesizedCircuit<F, E>) -> Self {
         let mut groups_advice_io: HashMap<usize, crate::io::AdviceIO> = Default::default();
         let mut groups_instance_io: HashMap<usize, crate::io::InstanceIO> = Default::default();
 

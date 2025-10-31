@@ -75,14 +75,6 @@ pub enum EqConstraint<F: Field> {
 }
 
 impl<F: Field> EqConstraint<F> {
-    pub fn any_to_any(from: Column<Any>, from_row: usize, to: Column<Any>, to_row: usize) -> Self {
-        Self::AnyToAny(from, from_row, to, to_row)
-    }
-
-    pub fn fixed_to_const(from: Column<Fixed>, row: usize, f: F) -> Self {
-        Self::FixedToConst(from, row, f)
-    }
-
     pub fn from(&self) -> EqConstraintArg<F> {
         match *self {
             EqConstraint::AnyToAny(col, row, _, _) => EqConstraintArg::Any(col, row),

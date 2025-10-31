@@ -2,8 +2,7 @@ use std::borrow::Cow;
 
 use crate::{
     backend::func::{ArgNo, FuncIO},
-    halo2::{AdviceQuery, Field, FixedQuery, InstanceQuery, Selector, Value},
-    value::steal,
+    halo2::{AdviceQuery, Field, FixedQuery, InstanceQuery, Selector},
 };
 use anyhow::Result;
 
@@ -62,11 +61,7 @@ impl Bool {
     where
         F: Field,
     {
-        if self.0 {
-            F::ONE
-        } else {
-            F::ZERO
-        }
+        if self.0 { F::ONE } else { F::ZERO }
     }
 }
 
@@ -104,17 +99,6 @@ pub enum ResolvedQuery<F> {
     Lit(F),
     // An input or output of a function
     IO(FuncIO),
-}
-
-impl<F: Field> TryFrom<Value<F>> for ResolvedQuery<F> {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Value<F>) -> std::result::Result<Self, Self::Error> {
-        let value = steal(&value).ok_or(anyhow::anyhow!(
-            "Failed to extract literal field element from value"
-        ))?;
-        Ok(Self::Lit(value))
-    }
 }
 
 impl<F: Field> From<ArgNo> for ResolvedQuery<F> {

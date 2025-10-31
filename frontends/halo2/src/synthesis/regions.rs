@@ -1,9 +1,6 @@
 use crate::halo2::*;
 use data::RegionDataImpl;
-use std::{
-    collections::{HashMap, HashSet},
-    ops::RangeFrom,
-};
+use std::collections::HashSet;
 
 pub(super) mod data;
 mod fixed;
@@ -17,10 +14,6 @@ pub use fixed::FixedData;
 pub use region_row::RegionRow;
 pub use row::Row;
 pub use table::TableData;
-
-type BlanketFills<F> = Vec<(RangeFrom<usize>, Value<F>)>;
-
-pub type RegionIndexToStart = HashMap<RegionIndex, RegionStart>;
 
 /// A set of regions
 #[derive(Default, Debug)]

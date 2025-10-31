@@ -1,13 +1,12 @@
 use std::{borrow::Borrow, collections::HashMap, ops::Deref};
 
 use crate::{
+    expressions::ExprBuilder,
     halo2::{
-        Advice, Any, Cell, Column, ColumnType, Expression, Field, Instance, RegionIndex, Rotation,
+        Advice, Any, Cell, ColumnType, Field, Instance, RegionIndex, Rotation,
         groups::{GroupKey, GroupKeyInstance},
     },
-    info_traits::GateInfo,
-    io::{AdviceIO, IOCell, InstanceIO},
-    lookups::Lookup,
+    io::{AdviceIO, CircuitIO, IOCell, InstanceIO},
     resolvers::FixedQueryResolver,
 };
 
@@ -33,11 +32,11 @@ pub enum GroupCell {
 }
 
 impl GroupCell {
-    pub fn to_expr<F: Field>(self) -> Expression<F> {
+    pub fn to_expr<F: Field, E: ExprBuilder<F>>(self) -> E {
         match self {
-            GroupCell::Assigned(cell) => cell.column.query_cell(Rotation::cur()),
-            GroupCell::InstanceIO(cell) => cell.0.query_cell(Rotation::cur()),
-            GroupCell::AdviceIO(cell) => cell.0.query_cell(Rotation::cur()),
+            GroupCell::Assigned(cell) => E::from_column(cell.column, Rotation::cur()),
+            GroupCell::InstanceIO((column, _)) => E::from_column(column, Rotation::cur()),
+            GroupCell::AdviceIO((column, _)) => E::from_column(column, Rotation::cur()),
         }
     }
 
@@ -54,26 +53,6 @@ impl GroupCell {
             GroupCell::Assigned(cell) => Some(cell.region_index),
             _ => None,
         }
-    }
-
-    pub fn col(&self) -> Column<Any> {
-        match self {
-            GroupCell::Assigned(cell) => cell.column,
-            GroupCell::InstanceIO((col, _)) => (*col).into(),
-            GroupCell::AdviceIO((col, _)) => (*col).into(),
-        }
-    }
-
-    /// Tries to construct a a cell from a tuple of column and row.
-    ///
-    /// If the column is Fixed returns None.
-    pub fn from_tuple((col, row): (Column<Any>, usize)) -> Option<Self> {
-        if let Ok(col) = Column::<Instance>::try_from(col) {
-            return Some(Self::InstanceIO((col, row)));
-        }
-        Column::<Advice>::try_from(col)
-            .ok()
-            .map(|col| Self::AdviceIO((col, row)))
     }
 
     /// Returns true if the cell is from a Fixed column.
@@ -107,7 +86,7 @@ impl From<IOCell<Advice>> for GroupCell {
 ///
 /// The parent-children relation is represented by indices on a vector instead.
 #[derive(Debug)]
-pub struct Group {
+pub(crate) struct Group {
     kind: GroupKind,
     name: Option<String>,
     inputs: Vec<GroupCell>,
@@ -167,36 +146,12 @@ impl Group {
             .collect()
     }
 
-    /// Returns the certesian product between the regions' rows and the lookups
-    pub fn lookups_per_region_row<'a, 'io, 'fq, F: Field>(
-        &'a self,
-        lookups: &[Lookup<'a, F>],
-        advice_io: &'io AdviceIO,
-        instance_io: &'io InstanceIO,
-        fqr: &'fq dyn FixedQueryResolver<F>,
-    ) -> Vec<(RegionRow<'a, 'io, 'fq, F>, Lookup<'a, F>)> {
-        self.region_rows(advice_io, instance_io, fqr)
-            .into_iter()
-            .flat_map(|r| lookups.iter().copied().map(move |l| (r, l)))
-            .collect()
-    }
-
-    pub fn is_top_level(&self) -> bool {
-        matches!(self.kind, GroupKind::TopLevel)
-    }
-
     pub fn inputs(&self) -> &[GroupCell] {
         &self.inputs
     }
 
     pub fn outputs(&self) -> &[GroupCell] {
         &self.outputs
-    }
-
-    /// If the group has a children with that index return Some with the position in the children
-    /// array where it is. Otherwise returns None
-    pub fn has_child(&self, n: usize) -> Option<usize> {
-        self.children.iter().position(|c| *c == n)
     }
 
     pub fn name(&self) -> &str {
@@ -207,10 +162,6 @@ impl Group {
             .as_deref()
             .map(|s| if s.is_empty() { "unnamed_group" } else { s })
             .unwrap_or("unnamed_group")
-    }
-
-    pub fn children_count(&self) -> usize {
-        self.children.len()
     }
 
     /// Returns the group objects of the children
@@ -229,32 +180,15 @@ impl Group {
             GroupKind::Group(group_key_instance) => Some(group_key_instance),
         }
     }
-
-    /// Returns the cartesian product of the regions and the gates.
-    pub fn region_gates<'a, F: Field>(
-        &'a self,
-        gates: &'a [&dyn GateInfo<F>],
-    ) -> impl Iterator<Item = (&'a dyn GateInfo<F>, RegionData<'a>)> + 'a {
-        self.regions()
-            .into_iter()
-            .flat_map(|r| gates.iter().map(move |g| (*g, r)))
-    }
 }
 
 /// A collection of groups.
 ///
 /// It is represented with a newtype to be able to add methods to this type.
 #[derive(Debug)]
-pub struct Groups(Vec<Group>);
+pub(crate) struct Groups(Vec<Group>);
 
 impl Groups {
-    pub fn top_level(&self) -> Option<&Group> {
-        // When constructing the flattened version the top level
-        // group will be the last one so we reverse the iterator to try find it
-        // faster.
-        self.0.iter().rev().find(|g| g.kind == GroupKind::TopLevel)
-    }
-
     pub fn region_starts(&self) -> HashMap<RegionIndex, usize> {
         self.0
             .iter()
@@ -301,7 +235,7 @@ impl Deref for Groups {
 /// The boundary between parent and children is determined by the groups
 /// the circuit declares during synthesis.
 #[derive(Debug)]
-pub struct GroupTree {
+pub(crate) struct GroupTree {
     kind: GroupKind,
     name: Option<String>,
     inputs: Vec<GroupCell>,
@@ -455,20 +389,17 @@ impl GroupBuilder {
         }
     }
 
-    /// Adds a cell to the root group's list of inputs.
-    pub fn add_root_input<C: ColumnType>(&mut self, cell: IOCell<C>)
+    /// Adds to the list of input and output cells of the top-level block.
+    pub fn add_root_io<C: ColumnType>(&mut self, io: &CircuitIO<C>)
     where
         IOCell<C>: Into<GroupCell>,
     {
-        self.current_mut().inputs.push(cell.into())
-    }
-
-    /// Adds a cell to the root group's list of outputs.
-    pub fn add_root_output<C: ColumnType>(&mut self, cell: IOCell<C>)
-    where
-        IOCell<C>: Into<GroupCell>,
-    {
-        self.current_mut().outputs.push(cell.into())
+        self.root
+            .inputs
+            .extend(io.inputs().iter().copied().map(Into::into));
+        self.root
+            .outputs
+            .extend(io.outputs().iter().copied().map(Into::into));
     }
 
     /// Returns a mutable reference to the regions in the current group.
