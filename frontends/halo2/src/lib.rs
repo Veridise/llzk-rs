@@ -25,15 +25,15 @@ use crate::{
     info_traits::ConstraintSystemInfo,
     io::{AdviceIO, InstanceIO},
 };
-pub use backend::{
-    llzk::{
-        LlzkOutput,
-        params::{LlzkParams, LlzkParamsBuilder},
-    },
-    picus::{
-        PicusOutput,
-        params::{PicusParams, PicusParamsBuilder},
-    },
+#[cfg(feature = "llzk-backend")]
+pub use backend::llzk::{
+    LlzkOutput,
+    params::{LlzkParams, LlzkParamsBuilder},
+};
+#[cfg(feature = "picus-backend")]
+pub use backend::picus::{
+    PicusOutput,
+    params::{PicusParams, PicusParamsBuilder},
 };
 pub use error::to_plonk_error;
 pub use expressions::ExpressionInRow;

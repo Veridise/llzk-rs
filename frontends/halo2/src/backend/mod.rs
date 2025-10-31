@@ -1,18 +1,20 @@
 use std::marker::PhantomData;
 
 use crate::{
-    backend::codegen::{strats::inline::InlineConstraintsStrat, CodegenParams},
+    backend::codegen::{CodegenParams, strats::inline::InlineConstraintsStrat},
     ir::{IRCtx, ResolvedIRCircuit},
 };
 use anyhow::Result;
 
 pub mod codegen;
 pub mod func;
+#[cfg(feature = "llzk-backend")]
 pub mod llzk;
 pub mod lowering;
+#[cfg(feature = "picus-backend")]
 pub mod picus;
 
-use codegen::{strats::groups::GroupConstraintsStrat, Codegen, CodegenStrategy};
+use codegen::{Codegen, CodegenStrategy, strats::groups::GroupConstraintsStrat};
 
 /// Entrypoint for the backend.
 pub struct Backend<C, S> {
