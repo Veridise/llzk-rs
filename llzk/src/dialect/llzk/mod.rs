@@ -1,3 +1,5 @@
+//! `llzk` dialect.
+
 mod attrs;
 
 pub use attrs::PublicAttribute;

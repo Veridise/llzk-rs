@@ -1,3 +1,5 @@
+//! `struct` dialect.
+
 pub mod helpers;
 mod ops;
 mod r#type;
@@ -10,6 +12,7 @@ pub use ops::{
 };
 pub use r#type::StructType;
 
+/// Returns a handle to the `struct` dialect.
 pub fn handle() -> DialectHandle {
     unsafe { DialectHandle::from_raw(mlirGetDialectHandle__llzk__component__()) }
 }

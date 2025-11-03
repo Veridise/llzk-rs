@@ -1,3 +1,5 @@
+//! APIs for the different dialects available in LLZK.
+
 pub mod array;
 pub mod bool;
 pub mod constrain;
@@ -9,11 +11,13 @@ pub mod r#struct;
 pub mod undef;
 
 pub mod module {
+    //! Functions for working in `builtin.module` in LLZK.
     use std::ffi::CStr;
 
     use llzk_sys::LLZK_LANG_ATTR_NAME;
     use melior::ir::{Location, Module, attribute::StringAttribute, operation::OperationMutLike};
 
+    /// Creates a new `builtin.module` operation preconfigured to meet LLZK's specifications.
     pub fn llzk_module<'c>(location: Location<'c>) -> Module<'c> {
         let mut module = Module::new(location);
         let mut op = module.as_operation_mut();

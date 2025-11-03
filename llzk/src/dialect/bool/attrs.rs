@@ -9,11 +9,17 @@ use mlir_sys::MlirAttribute;
 #[derive(Debug)]
 #[repr(u32)]
 pub enum CmpPredicate {
+    /// Equal to.
     Eq = llzk_sys::LlzkCmp_LlzkCmp_EQ,
+    /// Not equal to.
     Ne = llzk_sys::LlzkCmp_LlzkCmp_NE,
+    /// Less than.
     Lt = llzk_sys::LlzkCmp_LlzkCmp_LT,
+    /// Less or equal than.
     Le = llzk_sys::LlzkCmp_LlzkCmp_LE,
+    /// Greater than.
     Gt = llzk_sys::LlzkCmp_LlzkCmp_GT,
+    /// Greater or equal than.
     Ge = llzk_sys::LlzkCmp_LlzkCmp_GE,
 }
 
@@ -24,7 +30,10 @@ pub struct CmpPredicateAttribute<'c> {
 }
 
 impl<'c> CmpPredicateAttribute<'c> {
+    /// Creates a new attribute from its raw representation.
+    ///
     /// # Safety
+    ///
     /// The MLIR attribute must be a valid pointer of type CmpPredicateAttribute.
     pub unsafe fn from_raw(attr: MlirAttribute) -> Self {
         unsafe {
@@ -34,6 +43,7 @@ impl<'c> CmpPredicateAttribute<'c> {
         }
     }
 
+    /// Creates a new attribute.
     pub fn new(ctx: &'c Context, predicate: CmpPredicate) -> Self {
         unsafe {
             Self::from_raw(llzkFeltCmpPredicateAttrGet(

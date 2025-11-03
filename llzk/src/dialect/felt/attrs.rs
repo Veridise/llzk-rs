@@ -8,33 +8,34 @@ use melior::{
 };
 use mlir_sys::MlirAttribute;
 
-#[derive(Debug)]
-pub enum Radix {
-    Base2,
-    Base8,
-    Base10,
-    Base16,
-    Base32,
-}
+//#[derive(Debug)]
+//pub enum Radix {
+//    Base2,
+//    Base8,
+//    Base10,
+//    Base16,
+//    Base32,
+//}
+//
+//impl Default for Radix {
+//    fn default() -> Self {
+//        Self::Base10
+//    }
+//}
+//
+//impl From<Radix> for u8 {
+//    fn from(value: Radix) -> Self {
+//        match value {
+//            Radix::Base2 => 2,
+//            Radix::Base8 => 8,
+//            Radix::Base10 => 10,
+//            Radix::Base16 => 16,
+//            Radix::Base32 => 32,
+//        }
+//    }
+//}
 
-impl Default for Radix {
-    fn default() -> Self {
-        Self::Base10
-    }
-}
-
-impl From<Radix> for u8 {
-    fn from(value: Radix) -> Self {
-        match value {
-            Radix::Base2 => 2,
-            Radix::Base8 => 8,
-            Radix::Base10 => 10,
-            Radix::Base16 => 16,
-            Radix::Base32 => 32,
-        }
-    }
-}
-
+/// A constant finite field element.
 pub struct FeltConstAttribute<'c> {
     inner: Attribute<'c>,
 }
@@ -50,6 +51,7 @@ impl<'c> FeltConstAttribute<'c> {
         }
     }
 
+    /// Creates a [`FeltConstAttribute`] from an unsigned integer.
     pub fn new(ctx: &'c Context, value: u64) -> Self {
         unsafe { Self::from_raw(llzkFeltConstAttrGet(ctx.to_raw(), value as i64)) }
     }
@@ -99,7 +101,9 @@ impl<'c> FeltConstAttribute<'c> {
 
     /// Creates a [`FeltConstAttribute`] from a [`num_bigint::BigUint`].
     ///
-    /// Panics if the number of bits required to represent the bigint plus one does not fit in 32 bits.
+    /// # Panics
+    ///
+    /// If the number of bits required to represent the bigint plus one does not fit in 32 bits.
     #[cfg(feature = "bigint")]
     pub fn from_biguint(ctx: &'c Context, value: &num_bigint::BigUint) -> Self {
         // Increase by one to ensure the value is kept unsigned.

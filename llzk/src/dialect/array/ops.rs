@@ -17,10 +17,16 @@ use crate::{
 
 use super::ArrayType;
 
+/// Possible constructors for creating `array.new` operations.
 #[derive(Debug)]
 pub enum ArrayCtor<'c, 'a, 'b, 'd> {
+    /// Creates the array from a list of values.
+    ///
+    /// The list's length must be the same length as the array type.
     Values(&'a [Value<'c, 'b>]),
+    /// Creates an empty array with the given dimensions.
     MapDimAttr(&'a [ValueRange<'c, 'a, 'b>], DenseI32ArrayAttribute<'c>),
+    /// Creates an empty array with the given dimensions.
     MapDimSlice(&'a [ValueRange<'c, 'a, 'b>], &'d [i32]),
 }
 

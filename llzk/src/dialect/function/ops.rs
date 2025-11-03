@@ -168,7 +168,7 @@ impl<'a, 'c: 'a> CallOpLike<'c, 'a> for CallOpRef<'c, 'a> {}
 impl<'a, 'c: 'a> CallOpLike<'c, 'a> for CallOpRefMut<'c, 'a> {}
 
 //===----------------------------------------------------------------------===//
-// operation factories
+// Operation factories
 //===----------------------------------------------------------------------===//
 
 fn tuple_to_named_attr(t: &(Identifier, Attribute)) -> MlirNamedAttribute {
@@ -232,10 +232,17 @@ pub fn def<'c>(
     .try_into()
 }
 
+/// Creates a new `function.call` operation.
+///
+/// This factory is not implemented yet.
 pub fn call<'c>() -> CallOp<'c> {
     todo!()
 }
 
+/// Creates a new `function.return` operation.
+///
+/// This operation is the terminator op for `function.def` and must be the last operation of the
+/// last block in it. The values array must match the number of outputs, and their types, of the parent function.
 pub fn r#return<'c>(location: Location<'c>, values: &[Value<'c, '_>]) -> Operation<'c> {
     OperationBuilder::new("function.return", location)
         .add_operands(values)

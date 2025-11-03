@@ -1,3 +1,5 @@
+//! Types related to errors.
+
 use std::{
     convert::Infallible,
     error,
@@ -7,14 +9,22 @@ use std::{
 
 type MeliorError = melior::Error;
 
+/// Error type produced by the functions defined in this crate.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Error {
+    /// Happens when a custom operation factory function fails.
     BuildMthdFailed(&'static str),
+    /// Happens when accessing an element in a collection by an index out of bounds.
     OutOfBoundsArgument(Option<String>, usize),
+    /// Happens when attempting to cast a type erased operation into the wrong type.
     OperationExpected(&'static str, String),
+    /// Happens when accessing a block in a region by an index ouf of bounds.
     BlockExpected(usize),
+    /// Happens when attempting to get an operation from a block but the block is empty.
     EmptyBlock,
+    /// Wrapper around [`melior::Error`] errors.
     Melior(MeliorError),
+    /// Happens when an IR object doesn't have an attribute by that name.
     AttributeNotFound(String),
 }
 

@@ -1,3 +1,5 @@
+//! Types related to the symbol attribute.
+
 use std::fmt;
 
 use melior::{
@@ -10,12 +12,21 @@ use mlir_sys::{
     mlirSymbolRefAttrGetNumNestedReferences, mlirSymbolRefAttrGetRootReference,
 };
 
+/// A `SymbolRef` attribute.
+///
+/// The different between this attribute and [`FlatSymbolRefAttribute`] is that this attribute
+/// contains a path of symbol names, which allows referencing operations defined inside modules,
+/// structs, etc.
 #[derive(Clone, Copy, Debug)]
 pub struct SymbolRefAttribute<'c> {
     inner: Attribute<'c>,
 }
 
 impl<'c> SymbolRefAttribute<'c> {
+    /// Creates a new symbol attribute with the give name and path.
+    ///
+    /// The path doesn't contain the name of the symbol. Therefore, for symbols defined at the _top
+    /// level_ the [`refs`] slice should be empty.
     pub fn new(ctx: &'c Context, name: &str, refs: &[&str]) -> Self {
         let name = StringRef::new(name);
         let refs: Vec<_> = refs
@@ -36,14 +47,17 @@ impl<'c> SymbolRefAttribute<'c> {
         }
     }
 
+    /// Returns the root of the symbol's path.
     pub fn root(&self) -> StringRef<'_> {
         unsafe { StringRef::from_raw(mlirSymbolRefAttrGetRootReference(self.to_raw())) }
     }
 
+    /// Returns the leaf of the symbol's path. This corresponds with the symbol name.
     pub fn leaf(&self) -> StringRef<'_> {
         unsafe { StringRef::from_raw(mlirSymbolRefAttrGetLeafReference(self.to_raw())) }
     }
 
+    /// Returns the symbol path as a vector of independent attributes.
     pub fn nested(&self) -> Vec<Attribute<'c>> {
         let nested_count = unsafe { mlirSymbolRefAttrGetNumNestedReferences(self.to_raw()) };
         (0..nested_count)

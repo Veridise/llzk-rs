@@ -1,3 +1,5 @@
+//! `array` dialect.
+
 mod ops;
 #[cfg(test)]
 mod tests;
@@ -8,6 +10,7 @@ use melior::dialect::DialectHandle;
 pub use ops::{ArrayCtor, extract, insert, new, read, write};
 pub use r#type::ArrayType;
 
+/// Returns a handle to the `array` dialect.
 pub fn handle() -> DialectHandle {
     unsafe { DialectHandle::from_raw(mlirGetDialectHandle__llzk__array__()) }
 }

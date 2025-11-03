@@ -1,6 +1,8 @@
-#![warn(rustdoc::broken_intra_doc_links)]
+//! High-level API for working with LLZK.
+
+#![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_debug_implementations)]
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 
 use llzk_sys::llzkRegisterAllDialects;
 use melior::dialect::DialectRegistry;

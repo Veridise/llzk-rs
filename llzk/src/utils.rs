@@ -1,3 +1,5 @@
+//! General utilities
+
 use std::{
     ffi::c_void,
     fmt::{self, Formatter},
@@ -6,6 +8,7 @@ use std::{
 use melior::StringRef;
 use mlir_sys::MlirStringRef;
 
+/// Creates an instance from its low-level unsafe representation.
 pub trait FromRaw<RawT> {
     /// Constructs Self from RawT via some unsafe function.
     /// # Safety
@@ -34,10 +37,11 @@ pub(crate) unsafe extern "C" fn print_callback(string: MlirStringRef, data: *mut
     }
 }
 
+/// Creates an [`Identifier`].
 #[macro_export]
 macro_rules! ident {
     ($ctx:expr, $name:expr) => {{
         let ctx = $ctx;
-        Identifier::new(unsafe { ctx.to_ref() }, $name)
+        melior::ir::Identifier::new(unsafe { ctx.to_ref() }, $name)
     }};
 }

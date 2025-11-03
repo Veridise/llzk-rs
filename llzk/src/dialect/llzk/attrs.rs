@@ -5,13 +5,17 @@ use melior::{
 };
 use mlir_sys::MlirAttribute;
 
+/// Represents the `llzk.pub` attribute.
 #[derive(Debug)]
 pub struct PublicAttribute<'c> {
     inner: Attribute<'c>,
 }
 
 impl<'c> PublicAttribute<'c> {
+    /// Creates a new attribute from its raw representation.
+    ///
     /// # Safety
+    ///
     /// The MLIR attribute must be a valid pointer of type FeltConstAttribute.
     pub unsafe fn from_raw(attr: MlirAttribute) -> Self {
         unsafe {
@@ -21,10 +25,12 @@ impl<'c> PublicAttribute<'c> {
         }
     }
 
+    /// Creates a new attribute.
     pub fn new(ctx: &'c Context) -> Self {
         unsafe { Self::from_raw(llzkPublicAttrGet(ctx.to_raw())) }
     }
 
+    /// Creates a new `llzk.pub` attribute along the expected identifier for this attribute.
     pub fn named_attr_pair(ctx: &'c Context) -> (Identifier<'c>, Attribute<'c>) {
         (Identifier::new(ctx, "llzk.pub"), Attribute::unit(ctx))
     }

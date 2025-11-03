@@ -1,9 +1,12 @@
+//! `undef` dialect.
+
 use llzk_sys::mlirGetDialectHandle__llzk__undef__;
 use melior::{
     dialect::DialectHandle,
     ir::{Location, Operation, Type, operation::OperationBuilder},
 };
 
+/// Returns a handle to the `undef` dialect.
 pub fn handle() -> DialectHandle {
     unsafe { DialectHandle::from_raw(mlirGetDialectHandle__llzk__undef__()) }
 }

@@ -1,8 +1,10 @@
+//! `felt` dialect.
+
 mod attrs;
 mod ops;
 mod r#type;
 
-pub use attrs::{FeltConstAttribute, Radix};
+pub use attrs::{FeltConstAttribute /*, Radix*/};
 use llzk_sys::mlirGetDialectHandle__llzk__felt__;
 use melior::dialect::DialectHandle;
 pub use ops::{
@@ -10,6 +12,7 @@ pub use ops::{
 };
 pub use r#type::FeltType;
 
+/// Returns a handle to the `felt` dialect.
 pub fn handle() -> DialectHandle {
     unsafe { DialectHandle::from_raw(mlirGetDialectHandle__llzk__felt__()) }
 }
