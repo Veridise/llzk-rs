@@ -8,33 +8,6 @@ use melior::{
 };
 use mlir_sys::MlirAttribute;
 
-//#[derive(Debug)]
-//pub enum Radix {
-//    Base2,
-//    Base8,
-//    Base10,
-//    Base16,
-//    Base32,
-//}
-//
-//impl Default for Radix {
-//    fn default() -> Self {
-//        Self::Base10
-//    }
-//}
-//
-//impl From<Radix> for u8 {
-//    fn from(value: Radix) -> Self {
-//        match value {
-//            Radix::Base2 => 2,
-//            Radix::Base8 => 8,
-//            Radix::Base10 => 10,
-//            Radix::Base16 => 16,
-//            Radix::Base32 => 32,
-//        }
-//    }
-//}
-
 /// A constant finite field element.
 pub struct FeltConstAttribute<'c> {
     inner: Attribute<'c>,
