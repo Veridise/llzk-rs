@@ -60,4 +60,4 @@ jobs:
         env:
           CI_BOT_PAT: "${{ secrets.CI_BUILD_TOKEN }}"
       - name: Run clippy
-        run: cargo clippy -- --no-deps
+        run: cargo clippy --all-features -- --no-deps

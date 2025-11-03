@@ -9,7 +9,11 @@ use halo2curves_070::bn256::Fr;
 use llzk::prelude::LlzkContext;
 use std::marker::PhantomData;
 
-use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis, LlzkParamsBuilder, PicusParamsBuilder};
+#[cfg(feature = "llzk-backend")]
+use halo2_llzk_frontend::LlzkParamsBuilder;
+#[cfg(feature = "picus-backend")]
+use halo2_llzk_frontend::PicusParamsBuilder;
+use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis};
 
 mod common;
 
@@ -18,6 +22,7 @@ const EXPECTED_OPT_PICUS: &'static str = include_str!("expected/picus/mul_test_o
 const EXPECTED_LLZK: &'static str = include_str!("expected/llzk/mul_test.mlir");
 const EXPECTED_OPT_LLZK: &'static str = include_str!("expected/llzk/mul_test_opt.mlir");
 
+#[cfg(feature = "picus-backend")]
 #[test]
 fn mul_circuit_picus() {
     common::setup();
@@ -33,6 +38,7 @@ fn mul_circuit_picus() {
     );
 }
 
+#[cfg(feature = "picus-backend")]
 #[test]
 fn mul_opt_circuit_picus() {
     common::setup();
@@ -45,6 +51,7 @@ fn mul_opt_circuit_picus() {
     );
 }
 
+#[cfg(feature = "llzk-backend")]
 #[test]
 fn mul_circuit_llzk() {
     common::setup();
@@ -58,6 +65,7 @@ fn mul_circuit_llzk() {
     );
 }
 
+#[cfg(feature = "llzk-backend")]
 #[test]
 fn mul_opt_circuit_llzk() {
     common::setup();

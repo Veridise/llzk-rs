@@ -9,7 +9,9 @@ use halo2curves_070::bn256::Fr;
 use std::iter;
 use std::marker::PhantomData;
 
-use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis, PicusParamsBuilder};
+#[cfg(feature = "picus-backend")]
+use halo2_llzk_frontend::PicusParamsBuilder;
+use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis};
 
 mod common;
 
@@ -23,6 +25,7 @@ const EXPECTED_PICUS: &'static str = r"
 (end-module)
 ";
 
+#[cfg(feature = "picus-backend")]
 #[test]
 fn lookup_2x3_fixed_circuit_picus() {
     common::setup();
@@ -48,6 +51,7 @@ const EXPECTED_OPT_PICUS: &'static str = r"
 (end-module)
 ";
 
+#[cfg(feature = "picus-backend")]
 #[test]
 fn lookup_2x3_fixed_opt_circuit_picus() {
     common::setup();

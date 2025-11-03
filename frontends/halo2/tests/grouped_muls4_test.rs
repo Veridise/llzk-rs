@@ -1,6 +1,8 @@
 use group::ff::Field;
+#[cfg(feature = "picus-backend")]
+use halo2_llzk_frontend::PicusParamsBuilder;
 use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
-use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis, PicusParamsBuilder};
+use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis};
 use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::default_group_key;
 use halo2_proofs::plonk::{
@@ -94,6 +96,7 @@ const EXPECTED_OPT_PICUS: &'static str = r"
 (end-module)
 ";
 
+#[cfg(feature = "picus-backend")]
 #[test]
 fn grouped_muls4_circuit_picus() {
     common::setup();
@@ -109,6 +112,7 @@ fn grouped_muls4_circuit_picus() {
     );
 }
 
+#[cfg(feature = "picus-backend")]
 #[test]
 fn grouped_muls4_opt_circuit_picus() {
     common::setup();
