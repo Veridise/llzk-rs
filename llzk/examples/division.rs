@@ -84,9 +84,9 @@ fn witness<'c>(
 
     // Witness generation is represented by creating an instance of the parent struct and filling
     // its fields. And is completed by returning the value of the struct. The `compute_fn` helper
-    // inserts a `struct.new` operation followed by a `function.return` operation represent it.
-    // The specific IR for our circuit needs to go in between this two operations.
-    // We will insert it using the return op as a reference so we need to get a hold of it and the
+    // inserts a `struct.new` operation followed by a `function.return` operation to represent this.
+    // The specific IR for our circuit needs to go in between these two operations.
+    // We will insert it using the return op as reference so we need to get a hold of it and the
     // block that contains it.
     let (block, ret_op) = compute_fn
         .region(0)?
@@ -125,8 +125,8 @@ fn witness<'c>(
     let c = block
         .insert_operation_before(ret_op, felt::div(location, a.into(), b.into())?)
         .result(0)?;
-    // This result needs to be written into the output field and for that we need to get the value
-    // created by `struct.new`.
+    // The result needs to be written into the output field. For that we need to get the value
+    // created by `struct.new` first.
     let self_value = block.first_operation().unwrap().result(0)?;
     // Then use the `struct.writef` operation to commit the value into the signal.
     block.insert_operation_before(
@@ -196,7 +196,7 @@ fn constraints<'c>(
         .result(0)?;
     // The instance that we are constraining is passed as the first argument.
     let self_value = block.argument(0)?;
-    // And then read the witness output from self.
+    // And then read the witness output from the instance.
     let c = block
         .insert_operation_before(
             ret_op,
