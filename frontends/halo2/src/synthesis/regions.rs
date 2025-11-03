@@ -25,6 +25,14 @@ type BlanketFills<F> = Vec<(RangeFrom<usize>, Value<F>)>;
 #[derive(Debug)]
 pub struct RegionStart(usize);
 
+impl Deref for RegionStart {
+    type Target = usize;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl From<usize> for RegionStart {
     fn from(value: usize) -> Self {
         Self(value)
