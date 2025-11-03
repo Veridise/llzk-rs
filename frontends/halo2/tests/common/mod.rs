@@ -14,11 +14,11 @@ use halo2_llzk_frontend::{
     temps::{ExprOrTemp, Temps},
     to_plonk_error,
 };
-use halo2_proofs::plonk::{circuit::groups::GroupKeyInstance, Challenge, FloorPlanner, Any, Column};
+use halo2_proofs::plonk::{Any, Challenge, Column, FloorPlanner};
 use halo2_proofs::{
     circuit::{
         Value,
-        groups::{GroupKey, RegionsGroup},
+        groups::{GroupKey, GroupKeyInstance, RegionsGroup},
     },
     plonk::{
         Advice, Assignment, Circuit, ConstraintSystem, Error, Expression, Fixed, Instance, Selector,

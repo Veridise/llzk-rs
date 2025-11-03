@@ -2,7 +2,7 @@ use group::ff::Field;
 #[cfg(feature = "picus-backend")]
 use halo2_llzk_frontend::PicusParamsBuilder;
 use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
-use halo2_llzk_frontend::{AdviceIO, InstanceIO, PicusParamsBuilder};
+use halo2_llzk_frontend::{AdviceIO, InstanceIO};
 use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Error, Expression, Fixed, Instance, Selector,
