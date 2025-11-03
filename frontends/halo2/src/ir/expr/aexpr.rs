@@ -444,13 +444,13 @@ mod folding_tests {
 
 #[cfg(test)]
 mod lowering_tests {
+    use crate::CircuitIO;
     use crate::expressions::ScopedExpression;
     use crate::info_traits::QueryInfo;
     use crate::ir::equivalency::{EqvRelation as _, SymbolicEqv};
     use crate::resolvers::FixedQueryResolver;
     use crate::synthesis::regions::{RegionData, RegionIndex};
     use crate::synthesis::regions::{RegionRow, Regions};
-    use crate::{CircuitIO, Instance};
     use ff::Field;
     use halo2_proofs::plonk::{
         Advice, Column, ConstraintSystem, Constraints, Expression, Selector,

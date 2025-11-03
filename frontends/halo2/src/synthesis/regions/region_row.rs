@@ -11,7 +11,7 @@ use crate::{
     },
 };
 use anyhow::Result;
-use std::{borrow::Cow, collections::HashSet};
+use std::borrow::Cow;
 
 #[derive(Copy, Clone, Debug)]
 pub struct RegionRow<'r, 'io, 'fq, F: Field> {
