@@ -13,7 +13,7 @@ such as writing custom passes, is limited and not as ergonomic as it is in C++.
 
 ## Usage 
 
-Run `cargo doc -p llzk` to generate the API documentation of the rust API and you can visit check 
+Run `cargo doc -p llzk` to generate the API documentation of the rust API and you can visit  
 [LLZK's documentation](https://veridise.github.io/llzk-lib/) for more information about the IR itself.
 For the high-level usage of the bindings you can check the examples in `llzk/examples`.
 
@@ -25,9 +25,9 @@ We include some optional functionality guarded by feature flags. We currently ha
 
 ## Installation (pre v1 release)
 
-Install LLVM 20 and note the installation path. While building your project the build scripts will look for if using `llvm-config`.
+Install LLVM 20 and note the installation path. While building your project the build scripts will look for LLVM using `llvm-config`.
 If you don't have that tool in your `PATH` or it doesn't point to an LLVM 20 installation set the following environment variables 
-to the path where LLVM is installed and the build scripts will try use `$MLIR_SYS_200_PREFIX/bin/llvm-config` instead.
+to the path where LLVM is installed and the build scripts will then use `$MLIR_SYS_200_PREFIX/bin/llvm-config` instead.
 
 ```
 export MLIR_SYS_200_PREFIX=/path/to/llvm/20/
