@@ -38,6 +38,8 @@ pub(crate) unsafe extern "C" fn print_callback(string: MlirStringRef, data: *mut
 }
 
 /// Creates an [`Identifier`].
+///
+/// [`Identifier`]: [`melior::ir::Identifier`].
 #[macro_export]
 macro_rules! ident {
     ($ctx:expr, $name:expr) => {{

@@ -26,7 +26,7 @@ impl<'c> SymbolRefAttribute<'c> {
     /// Creates a new symbol attribute with the give name and path.
     ///
     /// The path doesn't contain the name of the symbol. Therefore, for symbols defined at the _top
-    /// level_ the [`refs`] slice should be empty.
+    /// level_ the `refs` slice should be empty.
     pub fn new(ctx: &'c Context, name: &str, refs: &[&str]) -> Self {
         let name = StringRef::new(name);
         let refs: Vec<_> = refs
