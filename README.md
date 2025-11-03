@@ -1,20 +1,47 @@
-# LLZK's Rust SDK
-
-This repository is a collection of Rust crates that gives Rust developers access to [LLZK](https://veridise.github.io/llzk-lib/). 
+# Rust bindings for LLZK.
 
 > [!warning]
 > These crates are under active development and things may change unexpectedly.
 
-## Usage (pre v1 release)
+Rust bindings for [LLZK](https://veridise.github.io/llzk-lib/) over its C API. 
+The bindings' API is meant to be more user friendly than the raw C API and more idiomatic. Its design is heavily inspired 
+by [melior](https://github.com/mlir-rs/melior) and depends on it for handling the MLIR parts that are not 
+specific to LLZK.
 
-To use the llzk bindings add the crates to your Cargo.toml:
+The primarily supported use case in this bindings is creating IR and running passes on it. Support for other things, 
+such as writing custom passes, is limited and not as ergonomic as it is in C++.
+
+## Usage 
+
+Run `cargo doc -p llzk` to generate the API documentation of the rust API and you can visit check 
+[LLZK's documentation](https://veridise.github.io/llzk-lib/) for more information about the IR itself.
+For the high-level usage of the bindings you can check the examples in `llzk/examples`.
+
+### Optional features 
+
+We include some optional functionality guarded by feature flags. We currently have the following features:
+
+- `bigint`: Allows creating constant values from [`num-bigint`'s Big integers](https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html).
+
+## Installation (pre v1 release)
+
+Install LLVM 20 and note the installation path. While building your project the build scripts will look for if using `llvm-config`.
+If you don't have that tool in your `PATH` or it doesn't point to an LLVM 20 installation set the following environment variables 
+to the path where LLVM is installed and the build scripts will try use `$MLIR_SYS_200_PREFIX/bin/llvm-config` instead.
+
+```
+export MLIR_SYS_200_PREFIX=/path/to/llvm/20/
+export TABLEGEN_200_PREFIX=/path/to/llvm/20/
+```
+
+In your rust project, add the crates to your Cargo.toml:
 
 ```
 llzk-sys = { git = "https://github.com/Veridise/llzk-rs" }
 llzk = { git = "https://github.com/Veridise/llzk-rs" }
 ```
 
-## Building tips
+### Building tips
 
 If you are using homebrew in macos you can access MLIR 20 by installing `llvm@20` with homebrew.
 Setting the following environment variables configures the build system with the correct versions of MLIR and its dependencies. 
@@ -35,3 +62,4 @@ If working on LLZK via the submodule you can enable dumping the compile commands
 ```
 LLZK_EMIT_COMPILE_COMMANDS=$(pwd) cargo build
 ```
+
