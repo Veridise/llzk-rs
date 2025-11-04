@@ -18,9 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust_version:
-          - stable
-          - 1.85.0
         BUILD_TARGET: 
           - release
           - dev
@@ -49,8 +46,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ matrix.rust_version }}-${{ matrix.BUILD_TARGET }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ matrix.BUILD_TARGET }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Build in "${{ matrix.BUILD_TARGET }}" mode
-        run: cargo +${{ matrix.rust_version }} build --profile ${{ matrix.BUILD_TARGET }} --all-features
+        run: cargo  build --profile ${{ matrix.BUILD_TARGET }} --all-features
       - name: Run tests in "${{ matrix.BUILD_TARGET }}" mode
-        run: cargo +${{ matrix.rust_version }} test --profile ${{ matrix.BUILD_TARGET }} --all-features
+        run: cargo  test --profile ${{ matrix.BUILD_TARGET }} --all-features
