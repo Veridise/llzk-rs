@@ -45,18 +45,6 @@ fn product_patterns<F: Field>(lhs: &Expression<F>, rhs: &Expression<F>) -> Optio
             Some(f) if f == -F::ONE => Some(Expression::Negated(Box::new(rhs.clone()))),
             _ => None,
         }
-        //if let Some(f) = expr_as_const(lhs) {
-        //    if f == F::ZERO {
-        //        return Some(Expression::Constant(F::ZERO));
-        //    }
-        //    if f == F::ONE {
-        //        return Some(rhs.clone());
-        //    }
-        //    if f == -F::ONE {
-        //        return Some(Expression::Negated(Box::new(rhs.clone())));
-        //    }
-        //}
-        //None
     }
 
     patterns_inner(lhs, rhs).or_else(|| patterns_inner(rhs, lhs))
