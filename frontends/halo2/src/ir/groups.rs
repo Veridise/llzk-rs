@@ -10,7 +10,7 @@ use crate::{
     },
     expressions::{ExpressionInRow, ScopedExpression},
     gates::RewritePatternSet,
-    halo2::{Expression, Field, Rotation, RotationExt},
+    halo2::{Expression, Field},
     info_traits::GateInfo,
     ir::{
         CmpOp, IRCtx,
@@ -32,7 +32,7 @@ use crate::{
         groups::{Group, GroupCell, GroupKey},
         regions::{RegionData, RegionRow, Row},
     },
-    table::Any,
+    table::{Any, Rotation, RotationExt},
     temps::{ExprOrTemp, Temps},
     utils,
 };

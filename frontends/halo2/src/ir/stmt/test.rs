@@ -99,8 +99,9 @@ pub mod ff {
     use halo2_proofs::plonk::{Advice, ColumnType as _, Fixed, Instance};
 
     use crate::{
-        halo2::{Expression, Field, Halo2Rotation, Rotation, RotationExt},
+        halo2::{Expression, Field, Halo2Rotation},
         ir::stmt::{IRStmt, test::TestHelper},
+        table::{Rotation, RotationExt},
     };
 
     type F = crate::halo2::Fr;

@@ -2,7 +2,7 @@
 
 use ff::Field;
 
-use crate::{QueryKind, halo2::Rotation, lookups::LookupData, table::Cell};
+use crate::{QueryKind, lookups::LookupData, table::Cell, table::Rotation};
 
 /// Boxed constraints system adaptor.
 pub(crate) type CSI<F> = Box<dyn ConstraintSystemInfo<F>>;

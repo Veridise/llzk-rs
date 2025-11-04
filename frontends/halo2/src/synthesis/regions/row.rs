@@ -1,14 +1,13 @@
 use crate::{
     CircuitIO,
     backend::func::{ArgNo, FieldId, FuncIO},
-    halo2::Rotation,
     info_traits::{QueryInfo, SelectorInfo},
     io::{AdviceIO, IOCell, InstanceIO},
     resolvers::{
         Advice, Fixed, FixedQueryResolver, Instance, QueryResolver, ResolvedQuery,
         ResolvedSelector, SelectorResolver,
     },
-    table::ColumnType,
+    table::{ColumnType, Rotation},
 };
 use anyhow::{Result, bail};
 use ff::Field;

@@ -1,4 +1,5 @@
-use crate::halo2::{Expression, Field, Rotation};
+use crate::halo2::{Expression, Field};
+use crate::table::Rotation;
 
 struct FDebug<F: Field>(F);
 

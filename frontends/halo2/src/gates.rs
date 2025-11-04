@@ -7,6 +7,7 @@ use crate::{
     ir::stmt::IRStmt,
     resolvers::FixedQueryResolver,
     synthesis::regions::{RegionData, RegionIndex, RegionRow},
+    table::Rotation,
 };
 
 /// Error emitted by the patterns that can indicate either that the pattern didn't match or that it

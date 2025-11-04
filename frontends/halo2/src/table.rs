@@ -5,7 +5,7 @@
 use ff::Field;
 
 use crate::{
-    halo2::{Expression, Rotation},
+    halo2::Expression,
     resolvers::{Advice, Fixed, Instance},
     synthesis::regions::RegionIndex,
 };
@@ -236,4 +236,28 @@ pub struct Cell {
     pub row_offset: usize,
     /// The cell's column.
     pub column: Column<Any>,
+}
+
+/// Replacement type for Halo2's `Rotation` type.
+pub type Rotation = i32;
+
+/// Extension methods for [`Rotation`] for helping during the refactor.
+pub(crate) trait RotationExt<O = Self> {
+    /// Returns the current row
+    fn cur() -> O;
+
+    /// Returns the next row
+    #[cfg(test)]
+    fn next() -> O;
+}
+
+impl RotationExt for Rotation {
+    fn cur() -> Self {
+        0
+    }
+
+    #[cfg(test)]
+    fn next() -> Self {
+        1
+    }
 }

@@ -25,7 +25,7 @@ pub use midnight::*;
 use crate::{
     info_traits::{GroupInfo, QueryInfo, SelectorInfo},
     synthesis::regions::RegionIndex,
-    table::Cell,
+    table::{Cell, Rotation, RotationExt},
 };
 //#[cfg(feature = "pse")]
 //pub use pse::*;
@@ -35,30 +35,6 @@ use crate::{
 //pub use scroll::*;
 //#[cfg(feature = "zcash")]
 //pub use zcash::*;
-
-/// Replacement type for Halo2's `Rotation` type.
-pub type Rotation = i32;
-
-/// Extension methods for [`Rotation`] for helping during the refactor.
-pub(crate) trait RotationExt<O = Self> {
-    /// Returns the current row
-    fn cur() -> O;
-
-    /// Returns the next row
-    #[cfg(test)]
-    fn next() -> O;
-}
-
-impl RotationExt for Rotation {
-    fn cur() -> Self {
-        0
-    }
-
-    #[cfg(test)]
-    fn next() -> Self {
-        1
-    }
-}
 
 impl RotationExt<Halo2Rotation> for Rotation {
     fn cur() -> Halo2Rotation {

@@ -2,13 +2,13 @@ use std::{borrow::Borrow, collections::HashMap, ops::Deref};
 
 use crate::{
     Advice, Instance,
-    halo2::{Expression, Field, Rotation, RotationExt},
+    halo2::{Expression, Field},
     info_traits::GateInfo,
     io::{AdviceIO, IOCell, InstanceIO},
     lookups::Lookup,
     resolvers::FixedQueryResolver,
     synthesis::regions::RegionIndex,
-    table::{Any, Cell, Column, ColumnType},
+    table::{Any, Cell, Column, ColumnType, Rotation, RotationExt},
 };
 
 use super::regions::{RegionData, RegionRow, Regions};

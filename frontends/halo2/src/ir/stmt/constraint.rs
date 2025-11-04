@@ -155,7 +155,7 @@ mod test {
     use crate::ir::stmt::test::TestHelper;
 
     use super::*;
-    use crate::halo2::{Halo2Rotation, RotationExt};
+    use crate::{halo2::Halo2Rotation, table::RotationExt};
 
     #[test]
     fn test_partial_eq_on_i32() {
@@ -167,7 +167,10 @@ mod test {
         use halo2_proofs::plonk::{Advice, ColumnType as _, Fixed, Instance};
 
         use super::*;
-        use crate::halo2::{Expression, Field, Rotation};
+        use crate::{
+            halo2::{Expression, Field},
+            table::Rotation,
+        };
 
         type F = crate::halo2::Fr;
 
