@@ -15,11 +15,11 @@ pub enum CmpPredicate {
     Ne = llzk_sys::LlzkCmp_LlzkCmp_NE,
     /// Less than.
     Lt = llzk_sys::LlzkCmp_LlzkCmp_LT,
-    /// Less or equal than.
+    /// Less than or equal to.
     Le = llzk_sys::LlzkCmp_LlzkCmp_LE,
     /// Greater than.
     Gt = llzk_sys::LlzkCmp_LlzkCmp_GT,
-    /// Greater or equal than.
+    /// Greater than or equal to.
     Ge = llzk_sys::LlzkCmp_LlzkCmp_GE,
 }
 

@@ -38,7 +38,7 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     ///
     /// # Panics
     ///
-    /// If the type is not `!struct.type`.
+    /// If the 'struct.def' op type is not `!struct.type`.
     fn r#type(&self) -> StructType<'c> {
         unsafe { Type::from_raw(llzkStructDefOpGetType(self.to_raw())) }
             .try_into()
@@ -49,7 +49,7 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     ///
     /// # Panics
     ///
-    /// If the operation doesn't have an attribute named `sym_name`.
+    /// If the 'struct.def' op doesn't have an attribute named `sym_name`.
     fn name(&'a self) -> &'c str {
         self.attribute("sym_name")
             .and_then(StringAttribute::try_from)
@@ -72,7 +72,7 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     ///
     /// # Panics
     ///
-    /// If the type is not `!struct.type`.
+    /// If the 'struct.def' op type is not `!struct.type`.
     fn type_with_params(&self, params: ArrayAttribute<'c>) -> StructType<'c> {
         unsafe {
             Type::from_raw(llzkStructDefOpGetTypeWithParams(
@@ -88,7 +88,7 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     ///
     /// # Panics
     ///
-    /// If the operation is not a `struct.field`.
+    /// If the nested symbol operation with the given name is not a `struct.field`.
     fn get_field_def(&self, name: &str) -> Option<FieldDefOpRef<'c, 'a>> {
         let name = StringRef::new(name);
         let raw_op = unsafe { llzkStructDefOpGetFieldDef(self.to_raw(), name.to_raw()) };
@@ -152,7 +152,7 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     ///
     /// # Panics
     ///
-    /// If the operation is not a `function.def`.
+    /// If the result operation is not a `function.def`.
     fn get_compute_func<'b>(&self) -> Option<FuncDefOpRef<'c, 'b>> {
         let raw_op = unsafe { llzkStructDefOpGetComputeFuncOp(self.to_raw()) };
         if raw_op.ptr.is_null() {
@@ -169,7 +169,7 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     ///
     /// # Panics
     ///
-    /// If the operation is not a `function.def`.
+    /// If the result operation is not a `function.def`.
     fn get_constrain_func<'b>(&self) -> Option<FuncDefOpRef<'c, 'b>> {
         let raw_op = unsafe { llzkStructDefOpGetConstrainFuncOp(self.to_raw()) };
         if raw_op.ptr.is_null() {
@@ -227,7 +227,7 @@ impl<'a, 'c: 'a> StructDefOpMutLike<'c, 'a> for StructDefOpRefMut<'c, 'a> {}
 
 /// Defines the public API of the 'struct.field' op.
 pub trait FieldDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
-    /// Returns true of the field op as a `llzk.pub` attribute.
+    /// Returns true if the field op has a `llzk.pub` attribute.
     fn has_public_attr(&self) -> bool {
         unsafe { llzkFieldDefOpGetHasPublicAttr(self.to_raw()) }
     }
@@ -243,7 +243,7 @@ pub trait FieldDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     ///
     /// # Panics
     ///
-    /// If the operation doesn't have an attribute named `sym_name`.
+    /// If the 'struct.field' op doesn't have an attribute named `sym_name`.
     fn field_name(&self) -> &'c str {
         self.attribute("sym_name")
             .and_then(StringAttribute::try_from)
@@ -255,7 +255,7 @@ pub trait FieldDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     ///
     /// # Panics
     ///
-    /// If the operation doesn't have a attribute named `type`.
+    /// If the 'struct.field' op doesn't have a attribute named `type`.
     fn field_type(&self) -> Type<'c> {
         self.attribute("type")
             .and_then(TypeAttribute::try_from)

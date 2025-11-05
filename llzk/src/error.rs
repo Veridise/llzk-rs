@@ -18,7 +18,7 @@ pub enum Error {
     OutOfBoundsArgument(Option<String>, usize),
     /// Happens when attempting to cast a type erased operation into the wrong type.
     OperationExpected(&'static str, String),
-    /// Happens when accessing a block in a region by an index ouf of bounds.
+    /// Happens when accessing a block in a region by an index out of bounds.
     BlockExpected(usize),
     /// Happens when attempting to get an operation from a block but the block is empty.
     EmptyBlock,

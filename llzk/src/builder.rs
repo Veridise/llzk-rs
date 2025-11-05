@@ -17,7 +17,7 @@ pub trait OpBuilderLike<'c> {
     /// Returns the raw representation of the builder.
     fn to_raw(&self) -> MlirOpBuilder;
 
-    /// Returns a reference to the context associated with the builde.r
+    /// Returns a reference to the context associated with the builder.
     fn context(&self) -> ContextRef<'c> {
         unsafe { ContextRef::from_raw(mlirOpBuilderGetContext(self.to_raw())) }
     }
@@ -39,7 +39,7 @@ pub trait OpBuilderLike<'c> {
         unsafe { OperationRef::from_raw(mlirOpBuilderGetInsertionPoint(self.to_raw())) }
     }
 
-    /// Inserts the operation returned by the closure and returns a reference to it.
+    /// Inserts the operation produced by the closure and returns a reference to it.
     fn insert<'a, F: FnOnce(ContextRef<'c>, Location<'c>) -> Operation<'c>>(
         &'c self,
         loc: Location<'c>,

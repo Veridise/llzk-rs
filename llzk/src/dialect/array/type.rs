@@ -18,7 +18,7 @@ impl<'c> ArrayType<'c> {
         }
     }
 
-    /// Creates a new type with the given element and dimensions.
+    /// Creates a new type with the given element type and dimensions.
     pub fn new(element_type: Type<'c>, dims: &[Attribute<'c>]) -> Self {
         unsafe {
             Self::from_raw(llzkArrayTypeGet(
@@ -28,8 +28,8 @@ impl<'c> ArrayType<'c> {
             ))
         }
     }
-    /// Creates a new type with the given element and dimensions as integers.
 
+    /// Creates a new type with the given element type and dimensions as integers.
     pub fn new_with_dims(element_type: Type<'c>, dims: &[i64]) -> Self {
         unsafe {
             Self::from_raw(llzkArrayTypeGetWithNumericDims(
@@ -50,7 +50,7 @@ impl<'c> ArrayType<'c> {
         unsafe { llzkArrayTypeGetNumDims(self.to_raw()) }
     }
 
-    /// Returns the attribute containing the dimensions.
+    /// Returns the Attribute specifying the size of dimension `idx`.
     pub fn dim(&self, idx: isize) -> Attribute<'c> {
         unsafe { Attribute::from_raw(llzkArrayTypeGetDim(self.to_raw(), idx)) }
     }

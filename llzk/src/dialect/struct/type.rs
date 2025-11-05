@@ -37,7 +37,7 @@ impl<'c> StructType<'c> {
         Self::new(FlatSymbolRefAttribute::new(context, name), &[])
     }
 
-    /// Creates a new struct type from string references for both its name and parameters.
+    /// Creates a new struct type from string references for both its name and parameter names.
     pub fn from_str_params(context: &'c Context, name: &str, params: &[&str]) -> Self {
         let params: Vec<Attribute> = params
             .iter()

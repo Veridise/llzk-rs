@@ -24,9 +24,11 @@ pub enum ArrayCtor<'c, 'a, 'b, 'd> {
     ///
     /// The list's length must be the same length as the array type.
     Values(&'a [Value<'c, 'b>]),
-    /// Creates an empty array with the given dimensions.
+    /// Creates an empty array by specifying the values needed to instantiate
+    /// AffineMap attributes used as dimension sizes in the result ArrayType.
     MapDimAttr(&'a [ValueRange<'c, 'a, 'b>], DenseI32ArrayAttribute<'c>),
-    /// Creates an empty array with the given dimensions.
+    /// Creates an empty array by specifying the values needed to instantiate
+    /// AffineMap attributes used as dimension sizes in the result ArrayType.
     MapDimSlice(&'a [ValueRange<'c, 'a, 'b>], &'d [i32]),
 }
 

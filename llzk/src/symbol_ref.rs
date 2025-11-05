@@ -1,4 +1,4 @@
-//! Types related to the symbol attribute.
+//! Types related to the SymbolRef attribute.
 
 use std::fmt;
 
@@ -14,7 +14,7 @@ use mlir_sys::{
 
 /// A `SymbolRef` attribute.
 ///
-/// The different between this attribute and [`FlatSymbolRefAttribute`] is that this attribute
+/// The difference between this attribute and [`FlatSymbolRefAttribute`] is that this attribute
 /// contains a path of symbol names, which allows referencing operations defined inside modules,
 /// structs, etc.
 #[derive(Clone, Copy, Debug)]

@@ -10,8 +10,8 @@ pub mod llzk;
 pub mod r#struct;
 pub mod undef;
 
+/// Functions for working with `builtin.module` in LLZK.
 pub mod module {
-    //! Functions for working in `builtin.module` in LLZK.
     use std::ffi::CStr;
 
     use llzk_sys::LLZK_LANG_ATTR_NAME;
