@@ -6,7 +6,6 @@
 
 pub(crate) mod backend;
 pub mod driver;
-mod error;
 pub mod expressions;
 pub mod gates;
 mod halo2;
@@ -21,10 +20,7 @@ pub mod temps;
 mod utils;
 
 pub use crate::io::{AdviceIO, InstanceIO};
-use crate::{
-    halo2::Field,
-    info_traits::ConstraintSystemInfo,
-};
+use crate::{halo2::Field, info_traits::ConstraintSystemInfo};
 #[cfg(feature = "llzk-backend")]
 pub use backend::llzk::{
     LlzkOutput,
@@ -35,7 +31,6 @@ pub use backend::picus::{
     PicusOutput,
     params::{PicusParams, PicusParamsBuilder},
 };
-pub use error::to_plonk_error;
 pub use io::CircuitIO;
 pub use lookups::callbacks::LookupCallbacks;
 pub use resolvers::{Advice, Fixed, Instance, QueryKind};

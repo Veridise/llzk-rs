@@ -4,7 +4,7 @@ pub use halo2_proofs::{
     circuit::{/*Cell,*/ /*RegionIndex, RegionStart,*/ Value /*groups*/},
     plonk::{
         /*Advice,*/ /*Any,*/ /*Assignment,*/ /*Column,*/ /*ColumnType,*/ /*Constraints,*/
-        Error,
+        /*Error,*/
         /*Expression,*/ /*FirstPhase,*/ /*Fixed,*/
         /*FloorPlanner,*/ /*Instance,*/
         /*Phase,*/ /*Selector,*/
