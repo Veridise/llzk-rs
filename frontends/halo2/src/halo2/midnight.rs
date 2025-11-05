@@ -4,8 +4,8 @@ pub use halo2_proofs::plonk::Challenge;
 pub use halo2_proofs::{
     circuit::{Cell, RegionIndex, RegionStart, Value, groups},
     plonk::{
-        Advice, AdviceQuery, Any, Assignment, Column, ColumnType, Constraints, Error, Expression,
-        FirstPhase, Fixed, FixedQuery, FloorPlanner, Instance, InstanceQuery, Phase, Selector,
+        Advice, AdviceQuery, Any, Assignment, Column, ColumnType, Constraints, Error, FirstPhase,
+        Fixed, FixedQuery, FloorPlanner, Instance, InstanceQuery, Phase, Selector,
     },
     poly::Rotation,
     utils::rational::Rational as Assigned,

@@ -1,29 +1,32 @@
+//! Traits and types related to expressions.
+
 use std::borrow::Cow;
 
 use crate::{
-    halo2::{Expression, Field},
+    halo2::Field,
     resolvers::{
-        boxed_resolver, FixedQueryResolver, QueryResolver, ResolversProvider, SelectorResolver,
+        FixedQueryResolver, QueryResolver, ResolversProvider, SelectorResolver, boxed_resolver,
     },
     synthesis::regions::{RegionData, RegionRow},
 };
 
-pub mod constant_folding;
-pub mod rewriter;
-pub mod utils;
+pub(crate) mod constant_folding;
+mod traits;
+
+pub use traits::*;
 
 /// Indicates to the driver that the expression should be scoped in that row of the circuit.
 ///
 /// The expression is internally handled by a [`std::borrow::Cow`] and can be a reference or owned.
 #[derive(Debug, Clone)]
-pub struct ExpressionInRow<'e, F: Clone> {
-    expr: Cow<'e, Expression<F>>,
+pub struct ExpressionInRow<'e, E: Clone> {
+    expr: Cow<'e, E>,
     row: usize,
 }
 
-impl<'e, F: Clone> ExpressionInRow<'e, F> {
+impl<'e, E: Clone> ExpressionInRow<'e, E> {
     /// Creates a new struct owning the expression.
-    pub fn new(row: usize, expr: Expression<F>) -> Self {
+    pub fn new(row: usize, expr: E) -> Self {
         Self {
             expr: Cow::Owned(expr),
             row,
@@ -31,7 +34,7 @@ impl<'e, F: Clone> ExpressionInRow<'e, F> {
     }
 
     /// Creates a new struct from a reference to an expression.
-    pub fn from_ref(expr: &'e Expression<F>, row: usize) -> Self {
+    pub fn from_ref(expr: &'e E, row: usize) -> Self {
         Self {
             expr: Cow::Borrowed(expr),
             row,
@@ -40,13 +43,13 @@ impl<'e, F: Clone> ExpressionInRow<'e, F> {
 
     /// Creates a [`ScopedExpression`] scoped by a
     /// [`crate::synthesis::regions::RegionRow`].
-    pub(crate) fn scoped_in_region_row<'r>(
+    pub(crate) fn scoped_in_region_row<'r, F>(
         self,
         region: RegionData<'r>,
         advice_io: &'r crate::io::AdviceIO,
         instance_io: &'r crate::io::InstanceIO,
         fqr: &'r dyn FixedQueryResolver<F>,
-    ) -> anyhow::Result<ScopedExpression<'e, 'r, F>>
+    ) -> anyhow::Result<ScopedExpression<'e, 'r, F, E>>
     where
         F: Field,
     {
@@ -66,32 +69,28 @@ impl<'e, F: Clone> ExpressionInRow<'e, F> {
     }
 }
 
-impl<F: Clone> From<(usize, Expression<F>)> for ExpressionInRow<'_, F> {
-    fn from((row, expr): (usize, Expression<F>)) -> Self {
-        Self::new(row, expr)
-    }
-}
-
 /// Represents an expression associated to a scope.
 ///
 /// The scope is represented by a [`ResolversProvider`] that returns
 /// the resolvers required for lowering the expression.
 ///
 /// The expression can be either a reference or owned.
-pub struct ScopedExpression<'e, 'r, F>
+pub(crate) struct ScopedExpression<'e, 'r, F, E>
 where
     F: Field,
+    E: Clone,
 {
-    expression: Cow<'e, Expression<F>>,
+    expression: Cow<'e, E>,
     resolvers: Box<dyn ResolversProvider<F> + 'r>,
 }
 
-impl<'e, 'r, F> ScopedExpression<'e, 'r, F>
+impl<'e, 'r, F, E> ScopedExpression<'e, 'r, F, E>
 where
     F: Field,
+    E: Clone,
 {
     /// Creates a new scope owning the expression
-    pub fn new<R>(expression: Expression<F>, resolvers: R) -> Self
+    pub fn new<R>(expression: E, resolvers: R) -> Self
     where
         R: ResolversProvider<F> + 'r,
     {
@@ -102,7 +101,7 @@ where
     }
 
     /// Creates a new scope with a refernece to an expression.
-    pub fn from_ref<R>(expression: &'e Expression<F>, resolvers: R) -> Self
+    pub fn from_ref<R>(expression: &'e E, resolvers: R) -> Self
     where
         R: ResolversProvider<F> + 'r,
     {
@@ -112,7 +111,7 @@ where
         }
     }
 
-    pub(crate) fn from_cow<R>(expression: Cow<'e, Expression<F>>, resolvers: R) -> Self
+    pub(crate) fn from_cow<R>(expression: Cow<'e, E>, resolvers: R) -> Self
     where
         R: ResolversProvider<F> + 'r,
     {
@@ -120,17 +119,6 @@ where
             expression,
             resolvers: boxed_resolver(resolvers),
         }
-    }
-
-    /// Returns a factory method that creates scopes with always the same resolvers.
-    ///
-    /// Use it in situations where you can't create the resolvers when you need to create instances
-    /// of this struct.
-    pub fn make_ctor<R>(resolvers: R) -> impl Fn(Expression<F>) -> Self + 'r
-    where
-        R: Clone + ResolversProvider<F> + 'r,
-    {
-        move |e| Self::new(e, resolvers.clone())
     }
 
     pub(crate) fn resolvers(&self) -> &dyn ResolversProvider<F> {
@@ -146,7 +134,11 @@ where
     }
 }
 
-impl<F: Field> std::fmt::Debug for ScopedExpression<'_, '_, F> {
+impl<F, E> std::fmt::Debug for ScopedExpression<'_, '_, F, E>
+where
+    F: Field,
+    E: std::fmt::Debug + Clone,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ScopedExpression")
             .field("expression", &self.expression)
@@ -154,11 +146,12 @@ impl<F: Field> std::fmt::Debug for ScopedExpression<'_, '_, F> {
     }
 }
 
-impl<F> AsRef<Expression<F>> for ScopedExpression<'_, '_, F>
+impl<F, E> AsRef<E> for ScopedExpression<'_, '_, F, E>
 where
     F: Field,
+    E: Clone,
 {
-    fn as_ref(&self) -> &Expression<F> {
+    fn as_ref(&self) -> &E {
         self.expression.as_ref()
     }
 }

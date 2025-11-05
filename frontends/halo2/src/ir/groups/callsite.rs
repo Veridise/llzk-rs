@@ -4,17 +4,17 @@ use crate::{
     backend::{
         func::FuncIO,
         lowering::{
-            lowerable::{LowerableExpr, LowerableStmt},
             Lowering,
+            lowerable::{LowerableExpr, LowerableStmt},
         },
     },
-    expressions::ScopedExpression,
-    halo2::{groups::GroupKeyInstance, Field},
+    expressions::{ExprBuilder, ScopedExpression},
+    halo2::{Field, groups::GroupKeyInstance},
     ir::{
+        CmpOp,
         equivalency::{EqvRelation, SymbolicEqv},
         expr::{Felt, IRAexpr},
         stmt::IRStmt,
-        CmpOp,
     },
     synthesis::{
         groups::{Group, GroupCell},
@@ -36,12 +36,18 @@ pub struct CallSite<E> {
     outputs: Vec<E>,
 }
 
-fn cells_to_exprs<'e, 's, 'syn: 's, 'cb, 'io: 's, F: Field>(
+fn cells_to_exprs<'e, 's, 'syn, 'cb, 'io, F, E>(
     cells: &[GroupCell],
-    ctx: &super::GroupIRCtx<'cb, '_, 'syn, F>,
+    ctx: &super::GroupIRCtx<'cb, '_, 'syn, F, E>,
     advice_io: &'io crate::io::AdviceIO,
     instance_io: &'io crate::io::InstanceIO,
-) -> anyhow::Result<Vec<ExprOrTemp<ScopedExpression<'e, 's, F>>>> {
+) -> anyhow::Result<Vec<ExprOrTemp<ScopedExpression<'e, 's, F, E>>>>
+where
+    'syn: 's,
+    'io: 's,
+    F: Field,
+    E: Clone + ExprBuilder<F>,
+{
     cells
         .iter()
         .map(|cell| {
@@ -55,7 +61,7 @@ fn cells_to_exprs<'e, 's, 'syn: 's, 'cb, 'io: 's, F: Field>(
                 .transpose()?
                 .copied();
 
-            let expr = cell.to_expr::<F>();
+            let expr = cell.to_expr::<F, E>();
             let row = match cell {
                 GroupCell::Assigned(cell) => {
                     let start = ctx.regions_by_index()[&cell.region_index]
@@ -107,11 +113,17 @@ impl EqvRelation<CallSite<IRAexpr>> for SymbolicEqv {
     }
 }
 
-impl<'s, 'syn: 's, 'ctx: 's, F: Field> CallSite<ExprOrTemp<ScopedExpression<'_, 's, F>>> {
+impl<'s, 'syn, 'ctx, F, E> CallSite<ExprOrTemp<ScopedExpression<'_, 's, F, E>>>
+where
+    'syn: 's,
+    'ctx: 's,
+    F: Field,
+    E: Clone + ExprBuilder<F>,
+{
     pub(super) fn new(
         callee: &Group,
         callee_id: usize,
-        ctx: &super::GroupIRCtx<'_, '_, 'syn, F>,
+        ctx: &super::GroupIRCtx<'_, '_, 'syn, F, E>,
         call_no: usize,
         advice_io: &'ctx crate::io::AdviceIO,
         instance_io: &'ctx crate::io::InstanceIO,

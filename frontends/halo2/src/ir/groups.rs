@@ -3,15 +3,14 @@
 use std::collections::HashMap;
 
 use crate::{
-    GateRewritePattern as _, GateScope, LookupCallbacks, RewriteError,
+    LookupCallbacks,
     backend::{
         func::{CellRef, FuncIO},
         lowering::{Lowering, lowerable::LowerableStmt},
     },
-    expressions::{ExpressionInRow, ScopedExpression},
-    gates::RewritePatternSet,
-    halo2::{Expression, Field, Rotation, groups::GroupKeyInstance},
-    info_traits::GateInfo,
+    expressions::{ExprBuilder, ExpressionInRow, ExpressionInfo, ScopedExpression},
+    gates::{Gate, GateRewritePattern as _, GateScope, RewriteError, RewritePatternSet},
+    halo2::{Field, Rotation, groups::GroupKeyInstance},
     ir::{
         CmpOp, IRCtx,
         ctx::AdviceCells,
@@ -24,7 +23,7 @@ use crate::{
         },
         stmt::IRStmt,
     },
-    lookups::callbacks::{LazyLookupTableGenerator, LookupTableGenerator},
+    lookups::table::{LazyLookupTableGenerator, LookupTableGenerator},
     resolvers::FixedQueryResolver,
     synthesis::{
         SynthesizedCircuit,
@@ -37,7 +36,7 @@ use crate::{
 };
 use anyhow::Result;
 
-pub mod bounds;
+pub(crate) mod bounds;
 pub mod callsite;
 
 /// Group's IR
@@ -57,20 +56,24 @@ pub struct GroupBody<E> {
     generate_debug_comments: bool,
 }
 
-impl<'cb, 'syn, 'ctx, 'sco, F> GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>
+impl<'cb, 'syn, 'ctx, 'sco, F, E> GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>>
 where
     'cb: 'sco + 'syn,
     'syn: 'sco,
     'ctx: 'sco + 'syn,
     F: Field,
+    E: Clone,
 {
     pub(super) fn new(
         group: &'syn Group,
         id: usize,
-        ctx: &GroupIRCtx<'cb, '_, 'syn, F>,
+        ctx: &GroupIRCtx<'cb, '_, 'syn, F, E>,
         advice_io: &'ctx crate::io::AdviceIO,
         instance_io: &'ctx crate::io::InstanceIO,
-    ) -> anyhow::Result<Self> {
+    ) -> anyhow::Result<Self>
+    where
+        E: ExprBuilder<F> + ExpressionInfo,
+    {
         log::debug!("Lowering call-sites for group {:?}", group.name());
         let callsites = {
             group
@@ -151,7 +154,7 @@ where
     pub(super) fn inject_ir<'a>(
         &'a mut self,
         region: RegionData<'syn>,
-        ir: IRStmt<ExpressionInRow<'syn, F>>,
+        ir: IRStmt<ExpressionInRow<'syn, E>>,
         advice_io: &'ctx crate::io::AdviceIO,
         instance_io: &'ctx crate::io::InstanceIO,
         fqr: &'syn dyn FixedQueryResolver<F>,
@@ -482,9 +485,9 @@ impl<E: Clone> Clone for GroupBody<E> {
 }
 
 /// Select the equality constraints that concern this group.
-fn select_equality_constraints<F: Field>(
+fn select_equality_constraints<F: Field, E>(
     group: &Group,
-    ctx: &GroupIRCtx<'_, '_, '_, F>,
+    ctx: &GroupIRCtx<'_, '_, '_, F, E>,
 ) -> Vec<EqConstraint<F>> {
     let bounds = GroupBounds::new(group, ctx.groups(), ctx.regions_by_index());
 
@@ -532,32 +535,36 @@ fn select_equality_constraints<F: Field>(
 ///
 /// This function accepts an iterator of equality constraints to facilitate
 /// filtering the equality constraints of a group from the global equality constraints graph.
-fn inter_region_constraints<'e, 's, F: Field>(
+fn inter_region_constraints<'e, 's, F, E>(
     constraints: impl IntoIterator<Item = EqConstraint<F>>,
     advice_io: &'s crate::io::AdviceIO,
     instance_io: &'s crate::io::InstanceIO,
     fixed_query_resolver: &'s dyn FixedQueryResolver<F>,
-) -> Vec<IRStmt<ScopedExpression<'e, 's, F>>> {
+) -> Vec<IRStmt<ScopedExpression<'e, 's, F, E>>>
+where
+    F: Field,
+    E: Clone + ExprBuilder<F>,
+{
     constraints
         .into_iter()
         .map(|constraint| match constraint {
             EqConstraint::AnyToAny(from, from_row, to, to_row) => (
                 ScopedExpression::new(
-                    from.query_cell(Rotation::cur()),
+                    E::from_column(from, Rotation::cur()),
                     Row::new(from_row, advice_io, instance_io, fixed_query_resolver),
                 ),
                 ScopedExpression::new(
-                    to.query_cell(Rotation::cur()),
+                    E::from_column(to, Rotation::cur()),
                     Row::new(to_row, advice_io, instance_io, fixed_query_resolver),
                 ),
             ),
             EqConstraint::FixedToConst(column, row, f) => (
                 ScopedExpression::new(
-                    column.query_cell(Rotation::cur()),
+                    E::from_column(column, Rotation::cur()),
                     Row::new(row, advice_io, instance_io, fixed_query_resolver),
                 ),
                 ScopedExpression::new(
-                    Expression::Constant(f),
+                    E::constant(f),
                     Row::new(row, advice_io, instance_io, fixed_query_resolver),
                 ),
             ),
@@ -607,17 +614,18 @@ macro_rules! mk_side {
 /// connects the input variable with the output variable.
 ///
 /// Returns a list of statements with the constraints.
-fn search_double_annotated<'e, 'io, 'syn, 'sco, F>(
+fn search_double_annotated<'e, 'io, 'syn, 'sco, F, E>(
     group: &Group,
     advice_io: &'io crate::io::AdviceIO,
     instance_io: &'io crate::io::InstanceIO,
     fqr: &'syn dyn FixedQueryResolver<F>,
     regions_by_index: &RegionByIndex<'syn>,
-) -> Vec<IRStmt<ScopedExpression<'e, 'sco, F>>>
+) -> Vec<IRStmt<ScopedExpression<'e, 'sco, F, E>>>
 where
     'syn: 'sco,
     'io: 'sco + 'syn,
     F: Field,
+    E: Clone + ExprBuilder<F>,
 {
     utils::product(group.inputs(), group.outputs())
         .filter_map(|(i, o)| {
@@ -633,19 +641,20 @@ where
 }
 
 /// Uses the given rewrite patterns to lower the gates on each region.
-fn lower_gates<'sco, 'syn, 'io, F>(
-    gates: Vec<&'syn dyn GateInfo<F>>,
+fn lower_gates<'sco, 'syn, 'io, F, E>(
+    gates: &'syn [Gate<E>],
     regions: &[RegionData<'syn>],
-    patterns: &RewritePatternSet<F>,
+    patterns: &RewritePatternSet<F, E>,
     advice_io: &'io crate::io::AdviceIO,
     instance_io: &'io crate::io::InstanceIO,
     fqr: &'syn dyn FixedQueryResolver<F>,
     generate_debug_comments: bool,
-) -> Result<Vec<IRStmt<ScopedExpression<'syn, 'sco, F>>>>
+) -> Result<Vec<IRStmt<ScopedExpression<'syn, 'sco, F, E>>>>
 where
     'syn: 'sco,
     'io: 'sco + 'syn,
     F: Field,
+    E: Clone,
 {
     log::debug!("Got {} gates and {} regions", gates.len(), regions.len());
     utils::product(regions, gates)
@@ -680,25 +689,25 @@ where
         .collect()
 }
 
-fn codegen_lookup_invocations<'sco, 'syn, 'ctx, 'cb, F>(
-    syn: &'syn SynthesizedCircuit<F>,
+fn codegen_lookup_invocations<'sco, 'syn, 'ctx, 'cb, F, E>(
+    syn: &'syn SynthesizedCircuit<F, E>,
     region_rows: &[RegionRow<'syn, 'ctx, 'syn, F>],
-    lookup_cb: &'cb dyn LookupCallbacks<F>,
+    lookup_cb: &'cb dyn LookupCallbacks<F, E>,
     generate_debug_comments: bool,
-) -> Result<Vec<IRStmt<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>>>
+) -> Result<Vec<IRStmt<ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>>>>
 where
     'syn: 'sco,
     'ctx: 'sco + 'syn,
     'cb: 'sco + 'syn,
     F: Field,
+    E: Clone + ExpressionInfo,
 {
     let lookups = syn.lookups();
     let tables_sto = lookups
         .iter()
-        .copied()
         .map(|lookup| {
             LazyLookupTableGenerator::new(move || {
-                syn.tables_for_lookup(&lookup)
+                syn.tables_for_lookup(lookup)
                     .map(|table| table.into_boxed_slice())
             })
         })
@@ -762,7 +771,7 @@ fn prepend_comment<E>(
 /// that the gate in scope did not match any pattern. If it is [`RewriteError::Err`]
 /// forwards the inner error.
 #[inline]
-fn make_error<F>(e: RewriteError, scope: GateScope<F>) -> anyhow::Error
+fn make_error<F, E>(e: RewriteError, scope: GateScope<F, E>) -> anyhow::Error
 where
     F: Field,
 {
