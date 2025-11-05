@@ -48,6 +48,6 @@ jobs:
             target
           key: ${{ runner.os }}-${{ matrix.BUILD_TARGET }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Build in "${{ matrix.BUILD_TARGET }}" mode
-        run: cargo  build --profile ${{ matrix.BUILD_TARGET }} --all-features
+        run: cargo build --profile ${{ matrix.BUILD_TARGET }} --all-features
       - name: Run tests in "${{ matrix.BUILD_TARGET }}" mode
-        run: cargo  test --profile ${{ matrix.BUILD_TARGET }} --all-features
+        run: cargo test --profile ${{ matrix.BUILD_TARGET }} --all-features

@@ -8,13 +8,6 @@ on:
     branches: 
       - main
 
-env:
-  # /opt/homebrew/opt/llvm@20/ is for macOS
-  MLIR_SYS_200_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@20/
-  TABLEGEN_200_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@20/
-  RUSTFLAGS: '-L /home/linuxbrew/.linuxbrew/opt/llvm@20/lib'
-  LLZK_SYS_ENABLE_WHOLE_ARCHIVE: 1
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,20 +20,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      # - name: Free Disk Space
-      #   uses: jlumbroso/free-disk-space@v1.3.1
-      #   with:
-      #     large-packages: false
-      # - uses: Homebrew/actions/setup-homebrew@master
-      # - name: Cache homebrew downloads
-      #   uses: actions/cache@v4
-      #   with: 
-      #     path: ~/.cache/Homebrew/
-      #     # It's not the greatest key in the world but works
-      #     key: ${{ runner.os }}-homebrew-${{ hashFiles('**/Cargo.lock') }}
-      # - name: Install LLVM & MLIR
-      #   run: brew install llvm@20
-      # - run: /home/linuxbrew/.linuxbrew/opt/llvm@20/bin/llvm-config --version
       - name: Cache cargo crates
         uses: actions/cache@v4
         with:
