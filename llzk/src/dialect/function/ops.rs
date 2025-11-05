@@ -174,7 +174,7 @@ impl<'a, 'c: 'a> CallOpLike<'c, 'a> for CallOpRef<'c, 'a> {}
 impl<'a, 'c: 'a> CallOpLike<'c, 'a> for CallOpRefMut<'c, 'a> {}
 
 //===----------------------------------------------------------------------===//
-// operation factories
+// Operation factories
 //===----------------------------------------------------------------------===//
 
 fn tuple_to_named_attr((name, attr): &NamedAttribute) -> MlirNamedAttribute {
@@ -207,9 +207,9 @@ fn prepare_arg_attrs<'c>(
         .collect()
 }
 
-/// Creates a 'function.def' operation. If the arg_attrs parameter is None creates as many empty argument
-/// attributes as input arguments there are to satisfy the requirement of one DictionaryAttr per
-/// argument.
+/// Creates a 'function.def' operation. If the arg_attrs parameter is None creates as many empty
+/// argument attributes as input arguments there are to satisfy the requirement of one
+/// DictionaryAttr per argument.
 pub fn def<'c>(
     location: Location<'c>,
     name: &str,
@@ -235,10 +235,18 @@ pub fn def<'c>(
     .try_into()
 }
 
+/// Creates a new `function.call` operation.
+///
+/// This factory is not implemented yet.
 pub fn call<'c>() -> CallOp<'c> {
     todo!()
 }
 
+/// Creates a new `function.return` operation.
+///
+/// This operation is the terminator op for `function.def` and must be the last operation of the
+/// last block in it. The values array must match the number of outputs, and their types, of the
+/// parent function.
 pub fn r#return<'c>(location: Location<'c>, values: &[Value<'c, '_>]) -> Operation<'c> {
     OperationBuilder::new("function.return", location)
         .add_operands(values)

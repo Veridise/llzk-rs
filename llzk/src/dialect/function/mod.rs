@@ -1,3 +1,5 @@
+//! `function` dialect.
+
 mod ops;
 
 use llzk_sys::mlirGetDialectHandle__llzk__function__;
@@ -7,6 +9,7 @@ pub use ops::{
     def, r#return,
 };
 
+/// Returns a handle to the `function` dialect.
 pub fn handle() -> DialectHandle {
     unsafe { DialectHandle::from_raw(mlirGetDialectHandle__llzk__function__()) }
 }

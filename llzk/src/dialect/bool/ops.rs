@@ -27,6 +27,7 @@ fn build_cmp_op<'c>(
 
 macro_rules! cmp_binop {
     ($name:ident, $pred:expr) => {
+        #[doc = concat!("Creates a `bool.cmp ", stringify!($name) ,"` operation.")]
         pub fn $name<'c>(
             location: Location<'c>,
             lhs: Value<'c, '_>,
@@ -62,6 +63,7 @@ macro_rules! binop {
         binop!($name, stringify!($name));
     };
     ($name:ident, $opname:expr) => {
+        #[doc = concat!("Creates a `bool.", $opname ,"` operation.")]
         pub fn $name<'c>(
             location: Location<'c>,
             lhs: Value<'c, '_>,
@@ -77,6 +79,7 @@ macro_rules! unop {
         unop!($name, stringify!($name));
     };
     ($name:ident, $opname:expr) => {
+        #[doc = concat!("Creates a `bool.", $opname ,"` operation.")]
         pub fn $name<'c>(
             location: Location<'c>,
             value: Value<'c, '_>,

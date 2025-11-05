@@ -27,9 +27,7 @@ fn expr_as_const<F: Copy>(e: &Expression<F>) -> Option<F> {
 
 fn sum_patterns<F: Field>(lhs: &Expression<F>, rhs: &Expression<F>) -> Option<Expression<F>> {
     fn patterns_inner<F: Field>(lhs: &Expression<F>, rhs: &Expression<F>) -> Option<Expression<F>> {
-        if let Some(f) = expr_as_const(lhs)
-            && f == F::ZERO
-        {
+        if expr_as_const(lhs) == Some(F::ZERO) {
             return Some(rhs.clone());
         }
 
@@ -41,18 +39,12 @@ fn sum_patterns<F: Field>(lhs: &Expression<F>, rhs: &Expression<F>) -> Option<Ex
 
 fn product_patterns<F: Field>(lhs: &Expression<F>, rhs: &Expression<F>) -> Option<Expression<F>> {
     fn patterns_inner<F: Field>(lhs: &Expression<F>, rhs: &Expression<F>) -> Option<Expression<F>> {
-        if let Some(f) = expr_as_const(lhs) {
-            if f == F::ZERO {
-                return Some(Expression::Constant(F::ZERO));
-            }
-            if f == F::ONE {
-                return Some(rhs.clone());
-            }
-            if f == -F::ONE {
-                return Some(Expression::Negated(Box::new(rhs.clone())));
-            }
+        match expr_as_const(lhs) {
+            Some(f) if f == F::ZERO => Some(Expression::Constant(F::ZERO)),
+            Some(f) if f == F::ONE => Some(rhs.clone()),
+            Some(f) if f == -F::ONE => Some(Expression::Negated(Box::new(rhs.clone()))),
+            _ => None,
         }
-        None
     }
 
     patterns_inner(lhs, rhs).or_else(|| patterns_inner(rhs, lhs))

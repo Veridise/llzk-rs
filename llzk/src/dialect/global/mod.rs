@@ -1,8 +1,10 @@
+//! `global` dialect.
+
 use llzk_sys::mlirGetDialectHandle__llzk__global__;
 use melior::{
     dialect::DialectHandle,
     ir::{
-        Attribute, Identifier, Location, Operation, Type, Value,
+        Attribute, Location, Operation, Type, Value,
         attribute::{StringAttribute, TypeAttribute},
         operation::OperationBuilder,
     },
@@ -10,6 +12,7 @@ use melior::{
 
 use crate::{ident, symbol_ref::SymbolRefAttribute};
 
+/// Returns a handle to the `global` dialect.
 pub fn handle() -> DialectHandle {
     unsafe { DialectHandle::from_raw(mlirGetDialectHandle__llzk__global__()) }
 }

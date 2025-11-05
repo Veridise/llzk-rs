@@ -7,6 +7,7 @@ categories = ["api-bindings"]
 description = "Rust bindings to the LLZK C API."
 repository = "https://github.com/Veridise/llzk-rs"
 license = "Apache-2.0"
+readme = "README.md"
 
 [dependencies]
 llzk-sys = { path = "../llzk-sys/", version = "0.1.0"}
@@ -28,3 +29,6 @@ similar-asserts = "1.7"
 [features]
 default = []
 bigint = ["num-bigint"]
+
+[[example]]
+name = "division"
