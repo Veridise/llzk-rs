@@ -67,7 +67,7 @@ LLZK_EMIT_COMPILE_COMMANDS=$(pwd) cargo build
 We also include a nix flake that creates an environment with the right version of LLVM and MLIR. If you are already using nix this may be your prefered method.
 
 You can use this flake for configuring your development environment.
-For example, to work withing a nix developer shell you can use the following command.
+For example, to work within a nix developer shell you can use the following command.
 
 ```text
 nix develop 'github:Veridise/llzk-rs?submodules=1#llzk-rs'
