@@ -10,12 +10,17 @@ use mlir_sys::MlirType;
 
 use crate::utils::FromRaw;
 
+/// Represents the `!struct.type` type.
 #[derive(Copy, Clone, Debug)]
 pub struct StructType<'c> {
     t: Type<'c>,
 }
 
 impl<'c> StructType<'c> {
+    /// Creates a new struct type.
+    ///
+    /// The params array must match the number of params and their kind as defined by the associated
+    /// `struct.def` operation.
     pub fn new(name: FlatSymbolRefAttribute<'c>, params: &[Attribute<'c>]) -> Self {
         unsafe {
             Self::from_raw(llzkStructTypeGetWithArrayAttr(
@@ -25,10 +30,14 @@ impl<'c> StructType<'c> {
         }
     }
 
+    /// Creates a new struct type from a string reference.
+    ///
+    /// The returned type won't have any parameters.
     pub fn from_str(context: &'c Context, name: &str) -> Self {
         Self::new(FlatSymbolRefAttribute::new(context, name), &[])
     }
 
+    /// Creates a new struct type from string references for both its name and parameter names.
     pub fn from_str_params(context: &'c Context, name: &str, params: &[&str]) -> Self {
         let params: Vec<Attribute> = params
             .iter()

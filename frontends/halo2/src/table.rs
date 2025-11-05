@@ -5,7 +5,8 @@
 use ff::Field;
 
 use crate::{
-    halo2::Expression,
+    expressions::ExprBuilder,
+    info_traits::CreateQuery,
     resolvers::{Advice, Fixed, Instance},
     synthesis::regions::RegionIndex,
 };
@@ -13,7 +14,7 @@ use crate::{
 /// Column type
 pub trait ColumnType: std::fmt::Debug + Copy + Clone + PartialEq + Eq + std::hash::Hash {
     /// Constructs a polynomial representing a query to the cell.
-    fn query_cell<F: Field>(&self, index: usize, at: Rotation) -> Expression<F>;
+    fn query_cell<F: Field, E: ExprBuilder<F>>(&self, index: usize, at: Rotation) -> E;
 }
 
 /// Erased column type.
@@ -28,15 +29,12 @@ pub enum Any {
 }
 
 impl ColumnType for Any {
-    fn query_cell<F: Field>(&self, index: usize, at: Rotation) -> Expression<F> {
-        // Temporary implementation
-        use halo2_proofs::plonk::ColumnType as _;
+    fn query_cell<F: Field, E: ExprBuilder<F>>(&self, index: usize, at: Rotation) -> E {
         match self {
-            Any::Fixed => halo2_proofs::plonk::Any::Fixed,
-            Any::Advice => halo2_proofs::plonk::Any::Advice(Default::default()),
-            Any::Instance => halo2_proofs::plonk::Any::Instance,
+            Any::Fixed => Fixed.query_cell(index, at),
+            Any::Advice => Advice.query_cell(index, at),
+            Any::Instance => Instance.query_cell(index, at),
         }
-        .query_cell(index, halo2_proofs::poly::Rotation(at))
     }
 }
 
@@ -73,10 +71,8 @@ impl From<halo2_proofs::plonk::Instance> for Any {
 }
 
 impl ColumnType for Fixed {
-    fn query_cell<F: Field>(&self, index: usize, at: Rotation) -> Expression<F> {
-        // Temporary implementation
-        use halo2_proofs::plonk::ColumnType as _;
-        halo2_proofs::plonk::Fixed.query_cell(index, halo2_proofs::poly::Rotation(at))
+    fn query_cell<F: Field, E: ExprBuilder<F>>(&self, index: usize, at: Rotation) -> E {
+        E::FixedQuery::query_expr(index, at)
     }
 }
 
@@ -88,10 +84,8 @@ impl From<halo2_proofs::plonk::Fixed> for Fixed {
 }
 
 impl ColumnType for Advice {
-    fn query_cell<F: Field>(&self, index: usize, at: Rotation) -> Expression<F> {
-        // Temporary implementation
-        use halo2_proofs::plonk::ColumnType as _;
-        halo2_proofs::plonk::Advice::default().query_cell(index, halo2_proofs::poly::Rotation(at))
+    fn query_cell<F: Field, E: ExprBuilder<F>>(&self, index: usize, at: Rotation) -> E {
+        E::AdviceQuery::query_expr(index, at)
     }
 }
 
@@ -103,10 +97,8 @@ impl From<halo2_proofs::plonk::Advice> for Advice {
 }
 
 impl ColumnType for Instance {
-    fn query_cell<F: Field>(&self, index: usize, at: Rotation) -> Expression<F> {
-        // Temporary implementation
-        use halo2_proofs::plonk::ColumnType as _;
-        halo2_proofs::plonk::Instance.query_cell(index, halo2_proofs::poly::Rotation(at))
+    fn query_cell<F: Field, E: ExprBuilder<F>>(&self, index: usize, at: Rotation) -> E {
+        E::InstanceQuery::query_expr(index, at)
     }
 }
 
@@ -141,7 +133,7 @@ impl<C: ColumnType> Column<C> {
     }
 
     /// Creates an expression representing a query to a cell in this column.
-    pub fn query_cell<F: Field>(&self, at: Rotation) -> Expression<F> {
+    pub fn query_cell<F: Field, E: ExprBuilder<F>>(&self, at: Rotation) -> E {
         self.column_type.query_cell(self.index, at)
     }
 }

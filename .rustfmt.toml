@@ -25,3 +25,7 @@ use_try_shorthand = true
 use_field_init_shorthand = true
 force_explicit_abi = true
 disable_all_formatting = false
+unstable_features = true
+wrap_comments = true
+normalize_comments = true
+comment_width = 100

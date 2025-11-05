@@ -2,7 +2,7 @@ use group::ff::Field;
 use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
 use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::plonk::{
-    Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector,
+    Advice, Circuit, Column, ConstraintSystem, Error, Expression, Fixed, Instance, Selector,
 };
 use halo2_proofs::poly::Rotation;
 use halo2curves_070::bn256::Fr;
@@ -11,7 +11,8 @@ use std::marker::PhantomData;
 #[cfg(feature = "picus-backend")]
 use halo2_llzk_frontend::PicusParamsBuilder;
 use halo2_llzk_frontend::{
-    AdviceIO, InstanceIO, CircuitIO, CircuitSynthesis, GateCallbacks, GateRewritePattern, GateScope, RewriteError,
+    AdviceIO, CircuitIO, CircuitSynthesis, InstanceIO,
+    gates::{GateCallbacks, GateRewritePattern, GateScope, RewriteError},
 };
 
 mod common;
@@ -249,8 +250,8 @@ impl<F: Field> CircuitSynthesis<F> for MulCircuit<F> {
 
 struct DummyPattern;
 
-impl<F> GateRewritePattern<F> for DummyPattern {
-    fn match_gate<'a>(&self, _gate: GateScope<'a, '_, F>) -> Result<(), RewriteError>
+impl<F> GateRewritePattern<F, Expression<F>> for DummyPattern {
+    fn match_gate<'a>(&self, _gate: GateScope<'a, '_, F, Expression<F>>) -> Result<(), RewriteError>
     where
         F: Field,
     {
@@ -260,8 +261,8 @@ impl<F> GateRewritePattern<F> for DummyPattern {
 
 struct GC;
 
-impl<F> GateCallbacks<F> for GC {
-    fn patterns(&self) -> Vec<Box<dyn crate::GateRewritePattern<F>>>
+impl<F> GateCallbacks<F, Expression<F>> for GC {
+    fn patterns(&self) -> Vec<Box<dyn crate::GateRewritePattern<F, Expression<F>>>>
     where
         F: Field,
     {

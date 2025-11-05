@@ -4,7 +4,6 @@ use crate::{
     backend::func::{ArgNo, FuncIO},
     halo2::{Field, Value},
     info_traits::{QueryInfo, SelectorInfo},
-    value::steal,
 };
 use anyhow::Result;
 
@@ -131,17 +130,6 @@ pub enum ResolvedQuery<F> {
     Lit(F),
     // An input or output of a function
     IO(FuncIO),
-}
-
-impl<F: Field> TryFrom<Value<F>> for ResolvedQuery<F> {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Value<F>) -> std::result::Result<Self, Self::Error> {
-        let value = steal(&value).ok_or(anyhow::anyhow!(
-            "Failed to extract literal field element from value"
-        ))?;
-        Ok(Self::Lit(value))
-    }
 }
 
 impl<F: Field> From<ArgNo> for ResolvedQuery<F> {

@@ -7,10 +7,7 @@ use halo2_llzk_frontend::{
     CircuitSynthesis, Synthesizer,
     driver::Driver,
     ir::{ResolvedIRCircuit, generate::IRGenParams, stmt::IRStmt},
-    lookups::{
-        Lookup,
-        callbacks::{LookupCallbacks, LookupTableGenerator},
-    },
+    lookups::{Lookup, callbacks::LookupCallbacks, table::LookupTableGenerator},
     temps::{ExprOrTemp, Temps},
     to_plonk_error,
 };
@@ -38,11 +35,12 @@ pub fn setup() {
 pub fn synthesize_and_generate_ir<'drv, F, C>(
     driver: &'drv mut Driver,
     circuit: C,
-    params: IRGenParams<F>,
+    params: IRGenParams<F, Expression<F>>,
 ) -> ResolvedIRCircuit
 where
     F: PrimeField,
     C: CircuitSynthesis<F>,
+    C: CircuitSynthesis<F, CS = ConstraintSystem<F>>,
 {
     let syn = driver.synthesize(&circuit).unwrap();
     let unresolved = driver.generate_ir(&syn, params).unwrap();
@@ -69,12 +67,12 @@ where
 pub fn picus_test<F, C>(
     circuit: C,
     params: PicusParams,
-    ir_params: IRGenParams<F>,
+    ir_params: IRGenParams<F, Expression<F>>,
     expected: impl AsRef<str>,
     canonicalize: bool,
 ) where
     F: PrimeField,
-    C: CircuitSynthesis<F>,
+    C: CircuitSynthesis<F, CS = ConstraintSystem<F>>,
 {
     let mut driver = Driver::default();
     let mut resolved = synthesize_and_generate_ir(&mut driver, circuit, ir_params);
@@ -139,10 +137,10 @@ fn clean_string(s: &str) -> String {
 #[allow(dead_code)]
 pub struct LookupCallbackHandler;
 
-impl<F: Field> LookupCallbacks<F> for LookupCallbackHandler {
+impl<F: Field> LookupCallbacks<F, Expression<F>> for LookupCallbackHandler {
     fn on_lookup<'a>(
         &self,
-        _lookup: Lookup<'a, F>,
+        _lookup: &'a Lookup<Expression<F>>,
         _table: &dyn LookupTableGenerator<F>,
         _temps: &mut Temps,
     ) -> anyhow::Result<IRStmt<ExprOrTemp<Cow<'a, Expression<F>>>>> {

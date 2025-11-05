@@ -5,7 +5,7 @@ use anyhow::Result;
 use stmt::IRStmt;
 
 use crate::{
-    expressions::{ExpressionInRow, ScopedExpression},
+    expressions::{EvaluableExpr, ExpressionInRow, ScopedExpression},
     halo2::PrimeField,
     ir::{
         expr::{Felt, IRAexpr},
@@ -65,26 +65,28 @@ pub use ctx::IRCtx;
 /// Circuit that has not resolved its expressions yet and is still tied to the lifetime
 /// of the [`CircuitSynthesis`] and the [`crate::driver::Driver`].
 #[derive(Debug)]
-pub struct UnresolvedIRCircuit<'ctx, 'syn, 'sco, F>
+pub struct UnresolvedIRCircuit<'ctx, 'syn, 'sco, F, E>
 where
     F: PrimeField,
     'syn: 'sco,
     'ctx: 'sco + 'syn,
+    E: Clone,
 {
     ctx: &'ctx IRCtx,
-    groups: Vec<GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>>,
+    groups: Vec<GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>>>,
     regions_to_groups: Vec<usize>,
 }
 
-impl<'ctx, 'syn, 'sco, F> UnresolvedIRCircuit<'ctx, 'syn, 'sco, F>
+impl<'ctx, 'syn, 'sco, F, E> UnresolvedIRCircuit<'ctx, 'syn, 'sco, F, E>
 where
     F: PrimeField,
     'syn: 'sco,
     'ctx: 'sco + 'syn,
+    E: Clone,
 {
     pub(crate) fn new(
         ctx: &'ctx IRCtx,
-        groups: Vec<GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F>>>>,
+        groups: Vec<GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>>>,
         regions_to_groups: Vec<usize>,
     ) -> Self {
         Self {
@@ -97,8 +99,8 @@ where
     /// Injects the IR into the specific regions
     pub fn inject_ir<R>(
         &mut self,
-        ir: impl IntoIterator<Item = (R, IRStmt<ExpressionInRow<'syn, F>>)>,
-        syn: &'syn SynthesizedCircuit<F>,
+        ir: impl IntoIterator<Item = (R, IRStmt<ExpressionInRow<'syn, E>>)>,
+        syn: &'syn SynthesizedCircuit<F, E>,
     ) -> anyhow::Result<()>
     where
         R: Into<RegionIndex>,
@@ -120,7 +122,10 @@ where
     }
 
     /// Resolves the IR.
-    pub fn resolve(self) -> anyhow::Result<ResolvedIRCircuit> {
+    pub fn resolve(self) -> anyhow::Result<ResolvedIRCircuit>
+    where
+        E: EvaluableExpr<F>,
+    {
         let mut groups = self
             .groups
             .into_iter()

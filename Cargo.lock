@@ -56,7 +56,7 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 [[package]]
 name = "bench_macros"
 version = "0.1.0"
-source = "git+https://github.com/Veridise/midnight-zk.git#69246ac80d1edc03dd4a2701a63493f46ac4e1ed"
+source = "git+https://github.com/Veridise/midnight-zk.git#202896415a5ff4ea028a0171f20b520ab8b779f0"
 dependencies = [
  "quote",
  "syn 2.0.108",
@@ -67,6 +67,26 @@ name = "bindgen"
 version = "0.71.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f58bf3d7db68cfbac37cfc485a8d711e87e064c3d0fe0435b92f7a407f9d6b3"
+dependencies = [
+ "bitflags",
+ "cexpr",
+ "clang-sys",
+ "itertools",
+ "log",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash",
+ "shlex",
+ "syn 2.0.108",
+]
+
+[[package]]
+name = "bindgen"
+version = "0.72.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "993776b509cfb49c750f11b8f07a46fa23e0a1386ffc01fb1e7d343efc387895"
 dependencies = [
  "bitflags",
  "cexpr",
@@ -293,9 +313,9 @@ dependencies = [
 
 [[package]]
 name = "comrak"
-version = "0.39.1"
+version = "0.42.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fefab951771fc3beeed0773ce66a4f7b706273fc6c4c95b08dd1615744abcf5"
+checksum = "ccde7f074aafedd0dfa210b7df42326927e3b64f499e0ce8dcc5c132ef08baba"
 dependencies = [
  "caseless",
  "entities",
@@ -845,7 +865,7 @@ name = "llzk-sys-build-support"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bindgen",
+ "bindgen 0.71.1",
  "cc",
  "cmake",
  "glob",
@@ -860,9 +880,9 @@ checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 
 [[package]]
 name = "melior"
-version = "0.25.0"
+version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "849459b46a3754be7d0d21b85a866a2a057c0e0a3b8096d8615d21e61e0479ab"
+checksum = "dd600336f22a76d4de41c54c27561a6be90c7a10f4586aab4c564b8da28f2f2a"
 dependencies = [
  "melior-macro",
  "mlir-sys",
@@ -870,9 +890,9 @@ dependencies = [
 
 [[package]]
 name = "melior-macro"
-version = "0.18.0"
+version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d62bfbdc193acc4ee577b027ef9be3a4f8c383bc4388e76f618d021f49ef4330"
+checksum = "41ad461682befe0344538c5ee53ad1da53eef55e1db17071a7e748e74bb7f637"
 dependencies = [
  "comrak",
  "convert_case",
@@ -893,7 +913,7 @@ checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 [[package]]
 name = "midnight-curves"
 version = "0.1.1"
-source = "git+https://github.com/Veridise/midnight-zk.git#69246ac80d1edc03dd4a2701a63493f46ac4e1ed"
+source = "git+https://github.com/Veridise/midnight-zk.git#202896415a5ff4ea028a0171f20b520ab8b779f0"
 dependencies = [
  "bitvec",
  "blst",
@@ -912,7 +932,7 @@ dependencies = [
 [[package]]
 name = "midnight-proofs"
 version = "0.5.1"
-source = "git+https://github.com/Veridise/midnight-zk.git#69246ac80d1edc03dd4a2701a63493f46ac4e1ed"
+source = "git+https://github.com/Veridise/midnight-zk.git#202896415a5ff4ea028a0171f20b520ab8b779f0"
 dependencies = [
  "bench_macros",
  "blake2b_simd",
@@ -942,7 +962,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e9348dd263d2680d657635d9dd084cdcd785d7486a41332ffa4c926d5882b54"
 dependencies = [
- "bindgen",
+ "bindgen 0.71.1",
 ]
 
 [[package]]
@@ -1552,11 +1572,11 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "tblgen"
-version = "0.6.0"
+version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "836472eafcc544aa0167f880c0998d4a77b422d22100186e67fc6daf35cab94c"
+checksum = "7364c3b3e7036cebffcc65895bff60ca160e1c9d98a84fb24f723e8c90b02a60"
 dependencies = [
- "bindgen",
+ "bindgen 0.72.1",
  "cc",
  "paste",
  "thiserror",

@@ -1,6 +1,6 @@
 //! Configuration related to MLIR and LLVM.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use bindgen::Builder;
 use cc::Build;
 use cmake::Config;
@@ -135,7 +135,7 @@ fn llvm_config(argument: &str) -> Result<String> {
         prefix.join(llvm_config_exe).display(),
     );
 
-    Ok(str::from_utf8(
+    Ok(std::str::from_utf8(
         &if cfg!(target_os = "windows") {
             Command::new("cmd").args(["/C", &call]).output()?
         } else {

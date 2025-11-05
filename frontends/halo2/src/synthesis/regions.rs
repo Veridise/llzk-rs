@@ -1,10 +1,7 @@
 use crate::{resolvers::Fixed, table::Column};
 use data::RegionDataImpl;
-use halo2_proofs::circuit::Value;
-use std::{
-    collections::{HashMap, HashSet},
-    ops::{Deref, RangeFrom},
-};
+
+use std::{collections::HashSet, ops::Deref};
 
 pub(super) mod data;
 mod fixed;
@@ -18,8 +15,6 @@ pub use fixed::FixedData;
 pub use region_row::RegionRow;
 pub use row::Row;
 pub use table::TableData;
-
-type BlanketFills<F> = Vec<(RangeFrom<usize>, Value<F>)>;
 
 /// Replacement for Halo2's `RegionStart` type.
 #[derive(Debug)]
@@ -63,8 +58,6 @@ impl From<halo2_proofs::circuit::RegionIndex> for RegionIndex {
         Self(*value)
     }
 }
-
-pub type RegionIndexToStart = HashMap<RegionIndex, RegionStart>;
 
 /// A set of regions
 #[derive(Default, Debug)]

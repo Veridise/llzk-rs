@@ -80,14 +80,11 @@ impl<K: VarKind> Program<K> {
             m.stmts = m
                 .stmts
                 .into_iter()
-                .map(|s| {
-                    if let Some(call) = s.as_call()
-                        && renames.contains_key(call.callee())
-                    {
-                        return call.with_new_callee(renames[call.callee()].clone());
+                .map(|s| match s.as_call() {
+                    Some(call) if renames.contains_key(call.callee()) => {
+                        call.with_new_callee(renames[call.callee()].clone())
                     }
-
-                    s
+                    _ => s,
                 })
                 .collect();
 

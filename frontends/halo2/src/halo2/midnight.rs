@@ -5,9 +5,9 @@ pub use halo2_proofs::{
     plonk::{
         /*Advice,*/ /*Any,*/ /*Assignment,*/ /*Column,*/ /*ColumnType,*/ /*Constraints,*/
         Error,
-        Expression, /*FirstPhase,*/ /*Fixed,*/
-                   /*FloorPlanner,*/ /*Instance,*/
-                   /*Phase,*/ /*Selector,*/
+        /*Expression,*/ /*FirstPhase,*/ /*Fixed,*/
+        /*FloorPlanner,*/ /*Instance,*/
+        /*Phase,*/ /*Selector,*/
     },
     poly::Rotation as Halo2Rotation,
     utils::rational::Rational as Assigned,

@@ -1,19 +1,21 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::RangeFrom,
+};
 
 use crate::{
     halo2::{Assigned, Field, Value},
     info_traits::QueryInfo,
     resolvers::{Fixed, FixedQueryResolver},
     table::Column,
-    value::steal,
 };
 
-use super::BlanketFills;
+type BlanketFills<F> = Vec<(RangeFrom<usize>, F)>;
 
 #[derive(Default, Debug, Clone)]
 pub struct FixedData<F: Copy + std::fmt::Debug + Default> {
     /// Constant values assigned to fixed columns in the region.
-    fixed: HashMap<usize, HashMap<usize, Value<F>>>,
+    fixed: HashMap<usize, HashMap<usize, F>>,
     /// Set of columns for which there is data.
     columns: HashSet<Column<Fixed>>,
     /// Represents the circuit filling rows with a single value.
@@ -22,7 +24,7 @@ pub struct FixedData<F: Copy + std::fmt::Debug + Default> {
     blanket_fills: HashMap<usize, BlanketFills<F>>,
 }
 
-pub type FixedAssigned<F> = HashMap<(usize, usize), Value<F>>;
+pub type FixedAssigned<F> = HashMap<(usize, usize), F>;
 pub type FixedBlanket<F> = HashMap<usize, BlanketFills<F>>;
 
 impl<F: Copy + std::fmt::Debug + Default> FixedData<F> {
@@ -40,7 +42,7 @@ impl<F: Copy + std::fmt::Debug + Default> FixedData<F> {
         )
     }
 
-    pub fn blanket_fill(&mut self, column: Column<Fixed>, row: usize, value: Value<F>) {
+    pub fn blanket_fill(&mut self, column: Column<Fixed>, row: usize, value: F) {
         self.columns.insert(column);
         self.blanket_fills
             .entry(column.index())
@@ -48,12 +50,10 @@ impl<F: Copy + std::fmt::Debug + Default> FixedData<F> {
             .push((row.., value));
     }
 
-    pub fn assign_fixed<VR>(&mut self, fixed: Column<Fixed>, row: usize, value: Value<VR>)
+    pub fn assign_fixed(&mut self, fixed: Column<Fixed>, row: usize, value: F)
     where
         F: Field,
-        VR: Into<Assigned<F>>,
     {
-        let value = value.map(|vr| vr.into());
         log::debug!(
             "Recording fixed assignment @ col = {}, row = {row}, value = {value:?}",
             fixed.index()
@@ -62,10 +62,10 @@ impl<F: Copy + std::fmt::Debug + Default> FixedData<F> {
         self.fixed
             .entry(fixed.index())
             .or_default()
-            .insert(row, value.map(|vr| vr.evaluate()));
+            .insert(row, value);
     }
 
-    fn resolve_from_blanket_fills(&self, column: usize, row: usize) -> Option<Value<F>>
+    fn resolve_from_blanket_fills(&self, column: usize, row: usize) -> Option<F>
     where
         F: Field,
     {
@@ -75,7 +75,7 @@ impl<F: Copy + std::fmt::Debug + Default> FixedData<F> {
             .map(|(_, v)| *v)
     }
 
-    pub fn resolve_fixed(&self, column: usize, row: usize) -> Value<F>
+    pub fn resolve_fixed(&self, column: usize, row: usize) -> F
     where
         F: Field,
     {
@@ -86,7 +86,7 @@ impl<F: Copy + std::fmt::Debug + Default> FixedData<F> {
             .cloned()
             .or_else(|| self.resolve_from_blanket_fills(column, row))
             // Default to zero if all else fails
-            .unwrap_or(Value::known(F::ZERO))
+            .unwrap_or(F::ZERO)
     }
 
     /// Returns a copy of itself by selecting only the given columns.
@@ -113,8 +113,6 @@ impl<F: Copy + std::fmt::Debug + Default> FixedData<F> {
 
 impl<F: Field> FixedQueryResolver<F> for FixedData<F> {
     fn resolve_query(&self, query: &dyn QueryInfo<Kind = Fixed>, row: usize) -> anyhow::Result<F> {
-        let value = self.resolve_fixed(query.column_index(), row);
-
-        steal(&value).ok_or_else(|| anyhow::anyhow!("Fixed cell was assigned an unknown value!"))
+        Ok(self.resolve_fixed(query.column_index(), row))
     }
 }

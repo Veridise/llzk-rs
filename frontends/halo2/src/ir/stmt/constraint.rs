@@ -167,10 +167,8 @@ mod test {
         use halo2_proofs::plonk::{Advice, ColumnType as _, Fixed, Instance};
 
         use super::*;
-        use crate::{
-            halo2::{Expression, Field},
-            table::Rotation,
-        };
+        use crate::{halo2::Field, table::Rotation};
+        use halo2_proofs::plonk::Expression;
 
         type F = crate::halo2::Fr;
 

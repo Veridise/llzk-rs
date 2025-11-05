@@ -7,8 +7,8 @@
 pub(crate) mod backend;
 pub mod driver;
 mod error;
-mod expressions;
-mod gates;
+pub mod expressions;
+pub mod gates;
 mod halo2;
 pub mod info_traits;
 mod io;
@@ -19,7 +19,6 @@ mod synthesis;
 pub mod table;
 pub mod temps;
 mod utils;
-mod value;
 
 pub use crate::io::{AdviceIO, InstanceIO};
 use crate::{
@@ -37,8 +36,6 @@ pub use backend::picus::{
     params::{PicusParams, PicusParamsBuilder},
 };
 pub use error::to_plonk_error;
-pub use expressions::ExpressionInRow;
-pub use gates::{GateCallbacks, GateRewritePattern, GateScope, RewriteError, RewriteOutput};
 pub use io::CircuitIO;
 pub use lookups::callbacks::LookupCallbacks;
 pub use resolvers::{Advice, Fixed, Instance, QueryKind};

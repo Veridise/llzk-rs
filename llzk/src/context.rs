@@ -1,3 +1,5 @@
+//! Types related to MLIR contexts.
+
 use std::{borrow::Borrow, ops::Deref};
 
 use log::Log;

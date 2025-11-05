@@ -96,13 +96,12 @@ fn test_partial_eq_on_i32() {
 }
 
 pub mod ff {
-    use halo2_proofs::plonk::{Advice, ColumnType as _, Fixed, Instance};
-
     use crate::{
-        halo2::{Expression, Field, Halo2Rotation},
+        halo2::{Field, Halo2Rotation},
         ir::stmt::{IRStmt, test::TestHelper},
         table::{Rotation, RotationExt},
     };
+    use halo2_proofs::plonk::{Advice, ColumnType as _, Expression, Fixed, Instance};
 
     type F = crate::halo2::Fr;
 

@@ -2,56 +2,32 @@
 
 use ff::Field;
 
-use crate::{QueryKind, lookups::LookupData, table::Cell, table::Rotation};
-
-/// Boxed constraints system adaptor.
-pub(crate) type CSI<F> = Box<dyn ConstraintSystemInfo<F>>;
+use crate::{
+    QueryKind,
+    expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
+    lookups::LookupData,
+    table::{Cell, Rotation},
+};
 
 /// Trait for querying information about the constraint system derived during configuration.
 pub trait ConstraintSystemInfo<F: Field> {
+    /// Type for polynomial expressions.
+    type Polynomial: EvaluableExpr<F> + Clone + ExpressionInfo + ExprBuilder<F>;
+
     /// Returns the list of gates defined in the system.
-    fn gates(&self) -> Vec<&dyn GateInfo<F>>;
+    fn gates(&self) -> Vec<&dyn GateInfo<Self::Polynomial>>;
 
     /// Returns a list with data about the lookups defined in the system.
-    fn lookups<'cs>(&'cs self) -> Vec<LookupData<'cs, F>>;
-}
-
-/// Temporary implementation of [`ConstraintSystemAdaptor`].
-impl<F: Field> ConstraintSystemInfo<F> for halo2_proofs::plonk::ConstraintSystem<F> {
-    fn gates(&self) -> Vec<&dyn GateInfo<F>> {
-        self.gates().iter().map(|g| g as &dyn GateInfo<F>).collect()
-    }
-
-    fn lookups<'cs>(&'cs self) -> Vec<LookupData<'cs, F>> {
-        self.lookups()
-            .iter()
-            .map(|a| LookupData {
-                name: a.name(),
-                arguments: a.input_expressions(),
-                table: a.table_expressions(),
-            })
-            .collect()
-    }
+    fn lookups<'cs>(&'cs self) -> Vec<LookupData<'cs, Self::Polynomial>>;
 }
 
 /// Trait for querying information about the a gate in the constraint system.
-pub trait GateInfo<F> {
+pub trait GateInfo<P> {
     /// Returns the name of the gate.
     fn name(&self) -> &str;
 
     /// Returns the list of polynomials that make up the gate.
-    fn polynomials(&self) -> &[crate::halo2::Expression<F>];
-}
-
-/// Temporary implementation of [`GateAdaptor`].
-impl<F: Field> GateInfo<F> for halo2_proofs::plonk::Gate<F> {
-    fn name(&self) -> &str {
-        self.name()
-    }
-
-    fn polynomials(&self) -> &[crate::halo2::Expression<F>] {
-        self.polynomials()
-    }
+    fn polynomials(&self) -> &[P];
 }
 
 /// Trait for retrieving information about cell queries.
@@ -64,6 +40,12 @@ pub trait QueryInfo {
 
     /// Returns the index of the column the queried cell belongs to.
     fn column_index(&self) -> usize;
+}
+
+/// Trait for constructing queries as expressions.
+pub trait CreateQuery<E> {
+    /// Constructs an expression representing the query.
+    fn query_expr(index: usize, at: Rotation) -> E;
 }
 
 /// Trait for retrieving information about a selector.

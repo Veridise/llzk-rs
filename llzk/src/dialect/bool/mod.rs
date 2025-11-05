@@ -1,3 +1,5 @@
+//! `bool` dialect.
+
 mod attrs;
 mod ops;
 

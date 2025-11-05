@@ -35,6 +35,10 @@ use super::StructType;
 /// Defines the public API of the 'struct.def' op.
 pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     /// Returns the associated StructType to this op using the const params defined by the op.
+    ///
+    /// # Panics
+    ///
+    /// If the 'struct.def' op type is not `!struct.type`.
     fn r#type(&self) -> StructType<'c> {
         unsafe { Type::from_raw(llzkStructDefOpGetType(self.to_raw())) }
             .try_into()
@@ -42,6 +46,10 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     }
 
     /// Returns the name of the struct
+    ///
+    /// # Panics
+    ///
+    /// If the 'struct.def' op doesn't have an attribute named `sym_name`.
     fn name(&'a self) -> &'c str {
         self.attribute("sym_name")
             .and_then(StringAttribute::try_from)
@@ -61,6 +69,10 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
 
     /// Returns the associated StructType to this op using the given const params instead of the
     /// parameters defined by the op.
+    ///
+    /// # Panics
+    ///
+    /// If the 'struct.def' op type is not `!struct.type`.
     fn type_with_params(&self, params: ArrayAttribute<'c>) -> StructType<'c> {
         unsafe {
             Type::from_raw(llzkStructDefOpGetTypeWithParams(
@@ -73,6 +85,10 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     }
 
     /// Returns the operation that defines the field with the given name, if present.
+    ///
+    /// # Panics
+    ///
+    /// If the nested symbol operation with the given name is not a `struct.field`.
     fn get_field_def(&self, name: &str) -> Option<FieldDefOpRef<'c, 'a>> {
         let name = StringRef::new(name);
         let raw_op = unsafe { llzkStructDefOpGetFieldDef(self.to_raw(), name.to_raw()) };
@@ -86,6 +102,8 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
         )
     }
 
+    /// Returns the operation that defines the field with the given name, creating a new operation
+    /// if not present.
     fn get_or_create_field_def<F>(&self, name: &str, f: F) -> Result<FieldDefOpRef<'c, 'a>, Error>
     where
         F: FnOnce() -> Result<FieldDefOp<'c>, Error>,
@@ -107,6 +125,10 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     }
 
     /// Fills the given array with the FieldDefOp operations inside this struct.  
+    ///
+    /// # Panics
+    ///
+    /// If any of the result operations is not a `struct.field` op.
     fn get_field_defs(&self) -> Vec<FieldDefOpRef<'c, '_>> {
         let num_fields = unsafe { llzkStructDefOpGetNumFieldDefs(self.to_raw()) };
         let mut raw_ops: Vec<MlirOperation> = Vec::with_capacity(num_fields.try_into().unwrap());
@@ -126,7 +148,12 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
         unsafe { llzkStructDefOpGetHasColumns(self.to_raw()) }.value != 0
     }
 
-    /// Returns the FuncDefOp operation that defines the witness computation of the struct.
+    /// Returns a [`FuncDefOpRef`] reference to the operation that defines the witness computation
+    /// of the struct.
+    ///
+    /// # Panics
+    ///
+    /// If the result operation is not a `function.def`.
     fn get_compute_func<'b>(&self) -> Option<FuncDefOpRef<'c, 'b>> {
         let raw_op = unsafe { llzkStructDefOpGetComputeFuncOp(self.to_raw()) };
         if raw_op.ptr.is_null() {
@@ -139,7 +166,12 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
         )
     }
 
-    /// Returns the FuncDefOp operation that defines the constraints of the struct.
+    /// Returns a [`FuncDefOpRef`] reference to the operation that defines the constraints of the
+    /// struct.
+    ///
+    /// # Panics
+    ///
+    /// If the result operation is not a `function.def`.
     fn get_constrain_func<'b>(&self) -> Option<FuncDefOpRef<'c, 'b>> {
         let raw_op = unsafe { llzkStructDefOpGetConstrainFuncOp(self.to_raw()) };
         if raw_op.ptr.is_null() {
@@ -152,7 +184,7 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
         )
     }
 
-    /// Returns true if the struct has a parameter that with the given name.
+    /// Returns true if the struct has a parameter with the given name.
     fn has_param_name(&self, name: &str) -> bool {
         let name = StringRef::new(name);
         unsafe { llzkStructDefOpGetHasParamName(self.to_raw(), name.to_raw()) }
@@ -169,6 +201,7 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     }
 }
 
+/// Defines the mutable public API of the 'struct.def' op.
 pub trait StructDefOpMutLike<'c: 'a, 'a>:
     StructDefOpLike<'c, 'a> + OperationMutLike<'c, 'a>
 {
@@ -196,16 +229,23 @@ impl<'a, 'c: 'a> StructDefOpMutLike<'c, 'a> for StructDefOpRefMut<'c, 'a> {}
 
 /// Defines the public API of the 'struct.field' op.
 pub trait FieldDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
+    /// Returns true if the field op has a `llzk.pub` attribute.
     fn has_public_attr(&self) -> bool {
         unsafe { llzkFieldDefOpGetHasPublicAttr(self.to_raw()) }
     }
 
+    /// Sets or unsets the `llzk.pub` attribute.
     fn set_public_attr(&self, value: bool) {
         unsafe {
             llzkFieldDefOpSetPublicAttr(self.to_raw(), value);
         }
     }
 
+    /// Returns the name of the field.
+    ///
+    /// # Panics
+    ///
+    /// If the 'struct.field' op doesn't have an attribute named `sym_name`.
     fn field_name(&self) -> &'c str {
         self.attribute("sym_name")
             .and_then(StringAttribute::try_from)
@@ -213,6 +253,11 @@ pub trait FieldDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
             .value()
     }
 
+    /// Returns the type of the field.
+    ///
+    /// # Panics
+    ///
+    /// If the 'struct.field' op doesn't have a attribute named `type`.
     fn field_type(&self) -> Type<'c> {
         self.attribute("type")
             .and_then(TypeAttribute::try_from)
@@ -234,7 +279,7 @@ impl<'a, 'c: 'a> FieldDefOpLike<'c, 'a> for FieldDefOpRef<'c, 'a> {}
 impl<'a, 'c: 'a> FieldDefOpLike<'c, 'a> for FieldDefOpRefMut<'c, 'a> {}
 
 //===----------------------------------------------------------------------===//
-// operation factories
+// Operation factories
 //===----------------------------------------------------------------------===//
 
 /// Creates a 'struct.def' op
@@ -341,12 +386,14 @@ pub fn readf<'c>(
     }
 }
 
-/// Creates a 'struct.readf' op
+/// Creates a 'struct.readf' op.
+///
+/// This factory method is not implemented yet.
 pub fn readf_with_offset<'c>() -> Operation<'c> {
     todo!()
 }
 
-/// Creates a 'struct.writef' op
+/// Creates a 'struct.writef' op.
 pub fn writef<'c>(
     location: Location<'c>,
     component: Value<'c, '_>,
