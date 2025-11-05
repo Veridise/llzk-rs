@@ -65,22 +65,24 @@ pub use ctx::IRCtx;
 /// Circuit that has not resolved its expressions yet and is still tied to the lifetime
 /// of the [`CircuitSynthesis`] and the [`crate::driver::Driver`].
 #[derive(Debug)]
-pub struct UnresolvedIRCircuit<'ctx, 'syn, 'sco, F, E: Clone>
+pub struct UnresolvedIRCircuit<'ctx, 'syn, 'sco, F, E>
 where
     F: PrimeField,
     'syn: 'sco,
     'ctx: 'sco + 'syn,
+    E: Clone,
 {
     ctx: &'ctx IRCtx,
     groups: Vec<GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>>>,
     regions_to_groups: Vec<usize>,
 }
 
-impl<'ctx, 'syn, 'sco, F, E: Clone> UnresolvedIRCircuit<'ctx, 'syn, 'sco, F, E>
+impl<'ctx, 'syn, 'sco, F, E> UnresolvedIRCircuit<'ctx, 'syn, 'sco, F, E>
 where
     F: PrimeField,
     'syn: 'sco,
     'ctx: 'sco + 'syn,
+    E: Clone,
 {
     pub(crate) fn new(
         ctx: &'ctx IRCtx,
