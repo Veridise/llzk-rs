@@ -35,6 +35,8 @@ fn main() -> Result<()> {
         .try_into()?;
 
     // We store the output of the division in a data field.
+    // Fields can have two extra annotations; column and public.
+    // The public annotation makes the field an output of the circuit.
     let out_field = r#struct::field(
         location,
         "c",
@@ -94,13 +96,15 @@ fn witness<'c>(
         .and_then(|b| Some((b, b.terminator()?)))
         .unwrap();
 
+    let builder = OpBuilder::new(context);
+
     // To get the inputs we get the arguments and then read the inner value of the signal struct
     // for performing the arithmetic.
     let a = block
         .insert_operation_before(
             ret_op,
             r#struct::readf(
-                &OpBuilder::new(context),
+                &builder,
                 location,
                 FeltType::new(context).into(),
                 block.argument(0)?.into(),
@@ -112,7 +116,7 @@ fn witness<'c>(
         .insert_operation_before(
             ret_op,
             r#struct::readf(
-                &OpBuilder::new(context),
+                &builder,
                 location,
                 FeltType::new(context).into(),
                 block.argument(1)?.into(),
@@ -158,7 +162,9 @@ fn constraints<'c>(
     let constrain_fn =
         r#struct::helpers::constrain_fn(location, main_ty, &inputs, Some(&[&pub_attr, &pub_attr]))?;
 
-    // The constraint system is represented by a function that takes as argument an instance of the parent struct as well as the same inputs the `@compute` function takes. This function returns no values.
+    // The constraint system is represented by a function that takes as argument an instance of
+    // the parent struct as well as the same inputs the `@compute` function takes.
+    // This function returns no values.
     // The `constrain_fn` helper inserts an empty `function.return` operation.
     //
     // Similar to how we generated the IR for `@compute` we need to put the IR before the
@@ -169,12 +175,14 @@ fn constraints<'c>(
         .and_then(|b| Some((b, b.terminator()?)))
         .unwrap();
 
+    let builder = OpBuilder::new(context);
+
     // We follow the same steps for obtaining the inputs but with the offsets increased by 1.
     let a = block
         .insert_operation_before(
             ret_op,
             r#struct::readf(
-                &OpBuilder::new(context),
+                &builder,
                 location,
                 FeltType::new(context).into(),
                 block.argument(1)?.into(),
@@ -186,7 +194,7 @@ fn constraints<'c>(
         .insert_operation_before(
             ret_op,
             r#struct::readf(
-                &OpBuilder::new(context),
+                &builder,
                 location,
                 FeltType::new(context).into(),
                 block.argument(2)?.into(),
@@ -201,7 +209,7 @@ fn constraints<'c>(
         .insert_operation_before(
             ret_op,
             r#struct::readf(
-                &OpBuilder::new(context),
+                &builder,
                 location,
                 FeltType::new(context).into(),
                 self_value.into(),
