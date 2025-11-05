@@ -5,16 +5,10 @@ use std::{
     ops::Range,
 };
 
-#[derive(Debug, Copy, Clone)]
-pub enum RegionKind {
-    Region,
-}
-
 #[derive(Debug)]
 pub struct RegionDataImpl {
     /// The name of the region. Not required to be unique.
     name: String,
-    kind: RegionKind,
     index: Option<RegionIndex>,
     /// The selectors that have been enabled in this region. All other selectors are by
     /// construction not enabled.
@@ -30,7 +24,6 @@ impl RegionDataImpl {
     pub fn new<S: Into<String>>(name: S, index: RegionIndex) -> Self {
         Self {
             name: name.into(),
-            kind: RegionKind::Region,
             index: Some(index),
             enabled_selectors: Default::default(),
             columns: Default::default(),
@@ -153,10 +146,6 @@ impl<'a> RegionData<'a> {
         self.inner.start()
     }
 
-    pub fn kind(&self) -> RegionKind {
-        self.inner.kind
-    }
-
     pub fn selectors_enabled_for_row(&self, row: usize) -> Cow<SelectorSet> {
         self.inner.selectors_enabled_for_row(row)
     }
@@ -171,9 +160,9 @@ impl<'a> RegionData<'a> {
 
     #[inline]
     pub fn header(&self) -> String {
-        match (&self.kind(), &self.index()) {
-            (RegionKind::Region, None) => format!("region <unk> {:?}", self.name()),
-            (RegionKind::Region, Some(index)) => {
+        match &self.index() {
+            None => format!("region <unk> {:?}", self.name()),
+            Some(index) => {
                 format!("region {} {:?}", **index, self.name())
             }
         }
