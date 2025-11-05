@@ -204,9 +204,9 @@ fn prepare_arg_attrs<'c>(
     }
 }
 
-/// Creates a 'function.def' operation. If the arg_attrs parameter is None creates as many empty argument
-/// attributes as input arguments there are to satisfy the requirement of one DictionaryAttr per
-/// argument.
+/// Creates a 'function.def' operation. If the arg_attrs parameter is None creates as many empty
+/// argument attributes as input arguments there are to satisfy the requirement of one
+/// DictionaryAttr per argument.
 pub fn def<'c>(
     location: Location<'c>,
     name: &str,
@@ -242,7 +242,8 @@ pub fn call<'c>() -> CallOp<'c> {
 /// Creates a new `function.return` operation.
 ///
 /// This operation is the terminator op for `function.def` and must be the last operation of the
-/// last block in it. The values array must match the number of outputs, and their types, of the parent function.
+/// last block in it. The values array must match the number of outputs, and their types, of the
+/// parent function.
 pub fn r#return<'c>(location: Location<'c>, values: &[Value<'c, '_>]) -> Operation<'c> {
     OperationBuilder::new("function.return", location)
         .add_operands(values)

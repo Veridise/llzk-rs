@@ -19,8 +19,8 @@ pub struct StructType<'c> {
 impl<'c> StructType<'c> {
     /// Creates a new struct type.
     ///
-    /// The params array must match the number of params and their kind as defined by the associated `struct.def`
-    /// operation.
+    /// The params array must match the number of params and their kind as defined by the associated
+    /// `struct.def` operation.
     pub fn new(name: FlatSymbolRefAttribute<'c>, params: &[Attribute<'c>]) -> Self {
         unsafe {
             Self::from_raw(llzkStructTypeGetWithArrayAttr(

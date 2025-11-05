@@ -148,7 +148,8 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
         unsafe { llzkStructDefOpGetHasColumns(self.to_raw()) }.value != 0
     }
 
-    /// Returns a [`FuncDefOpRef`] reference to the operation that defines the witness computation of the struct.
+    /// Returns a [`FuncDefOpRef`] reference to the operation that defines the witness computation
+    /// of the struct.
     ///
     /// # Panics
     ///
@@ -165,7 +166,8 @@ pub trait StructDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
         )
     }
 
-    /// Returns a [`FuncDefOpRef`] reference to the operation that defines the constraints of the struct.
+    /// Returns a [`FuncDefOpRef`] reference to the operation that defines the constraints of the
+    /// struct.
     ///
     /// # Panics
     ///
