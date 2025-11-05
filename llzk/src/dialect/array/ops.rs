@@ -22,7 +22,7 @@ use super::ArrayType;
 pub enum ArrayCtor<'c, 'a, 'b, 'd> {
     /// Creates the array from a list of values.
     ///
-    /// The list's length must be the same length as the array type.
+    /// The list length must be equal to the length of the flattened/linearized result ArrayType.
     Values(&'a [Value<'c, 'b>]),
     /// Creates an empty array by specifying the values needed to instantiate
     /// AffineMap attributes used as dimension sizes in the result ArrayType.
