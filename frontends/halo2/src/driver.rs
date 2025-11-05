@@ -9,7 +9,6 @@ use crate::backend::picus::{PicusBackend, PicusOutput, PicusParams};
 use crate::{
     CircuitSynthesis,
     expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
-    halo2::PrimeField,
     info_traits::ConstraintSystemInfo,
     io::{AdviceIO, InstanceIO},
     ir::{
@@ -18,6 +17,7 @@ use crate::{
     },
     synthesis::{SynthesizedCircuit, Synthesizer},
 };
+use ff::PrimeField;
 
 /// Controls the different lowering stages of circuits.
 #[derive(Default, Debug)]

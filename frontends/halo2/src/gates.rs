@@ -2,6 +2,8 @@
 
 use std::{borrow::Cow, cell::RefCell, ops::Range};
 
+use ff::{Field, PrimeField};
+
 use crate::{
     expressions::{
         EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes,

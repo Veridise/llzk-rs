@@ -11,7 +11,6 @@ use crate::{
         lowering::{ExprLowering, lowerable::LowerableExpr},
     },
     expressions::{EvalExpression, EvaluableExpr, ExpressionTypes, ScopedExpression},
-    halo2::PrimeField,
     ir::equivalency::{EqvRelation, SymbolicEqv},
     resolvers::{
         ChallengeResolver, QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
@@ -20,6 +19,7 @@ use crate::{
 };
 
 use anyhow::Result;
+use ff::PrimeField;
 use internment::Intern;
 use num_bigint::BigUint;
 

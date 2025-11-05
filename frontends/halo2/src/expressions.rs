@@ -3,7 +3,6 @@
 use std::borrow::Cow;
 
 use crate::{
-    halo2::Field,
     resolvers::{
         ChallengeResolver, FixedQueryResolver, QueryResolver, ResolversProvider, SelectorResolver,
         boxed_resolver,
@@ -14,6 +13,7 @@ use crate::{
 pub(crate) mod constant_folding;
 mod traits;
 
+use ff::Field;
 pub use traits::*;
 
 /// Indicates to the driver that the expression should be scoped in that row of the circuit.

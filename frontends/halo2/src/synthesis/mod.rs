@@ -4,6 +4,7 @@ use std::{collections::HashSet, convert::identity};
 
 use anyhow::{Result, anyhow};
 use constraint::{EqConstraint, EqConstraintArg, EqConstraintGraph};
+use ff::Field;
 use groups::{GroupBuilder, GroupKey, Groups};
 use regions::{FixedData, TableData};
 
@@ -11,7 +12,6 @@ use crate::{
     Advice, Fixed,
     expressions::{ExpressionInfo, ExpressionTypes},
     gates::Gate,
-    halo2::Field,
     info_traits::{ConstraintSystemInfo, GroupInfo, QueryInfo as _, SelectorInfo},
     io::{AdviceIO, InstanceIO},
     lookups::{Lookup, table::LookupTableRow},

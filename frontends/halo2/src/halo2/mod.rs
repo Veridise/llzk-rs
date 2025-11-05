@@ -17,6 +17,7 @@ mod midnight;
 //#[cfg(feature = "zcash")]
 //mod zcash;
 
+use ff::Field;
 //#[cfg(feature = "axiom")]
 //pub use axiom::*;
 //#[cfg(feature = "midnight")]
@@ -30,7 +31,7 @@ use crate::{
     },
     lookups::LookupData,
     synthesis::regions::RegionIndex,
-    table::{Cell, Column, ColumnType, Rotation, RotationExt},
+    table::{Cell, Rotation, RotationExt},
 };
 
 //#[cfg(feature = "pse")]
@@ -42,14 +43,14 @@ use crate::{
 //#[cfg(feature = "zcash")]
 //pub use zcash::*;
 
-impl RotationExt<Halo2Rotation> for Rotation {
-    fn cur() -> Halo2Rotation {
-        Halo2Rotation::cur()
+impl RotationExt<halo2_proofs::poly::Rotation> for Rotation {
+    fn cur() -> halo2_proofs::poly::Rotation {
+        halo2_proofs::poly::Rotation::cur()
     }
 
     #[cfg(test)]
-    fn next() -> Halo2Rotation {
-        Halo2Rotation::next()
+    fn next() -> halo2_proofs::poly::Rotation {
+        halo2_proofs::poly::Rotation::next()
     }
 }
 

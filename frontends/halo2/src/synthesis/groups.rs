@@ -1,9 +1,10 @@
 use std::{borrow::Borrow, collections::HashMap, ops::Deref};
 
+use ff::Field;
+
 use crate::{
     Advice, Instance,
     expressions::ExprBuilder,
-    halo2::Field,
     io::{AdviceIO, CircuitIO, IOCell, InstanceIO},
     resolvers::FixedQueryResolver,
     synthesis::regions::RegionIndex,

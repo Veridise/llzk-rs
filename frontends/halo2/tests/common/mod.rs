@@ -9,7 +9,6 @@ use halo2_llzk_frontend::{
     ir::{ResolvedIRCircuit, generate::IRGenParams, stmt::IRStmt},
     lookups::{Lookup, callbacks::LookupCallbacks, table::LookupTableGenerator},
     temps::{ExprOrTemp, Temps},
-    to_plonk_error,
 };
 use halo2_proofs::plonk::{Any, Challenge, Column, FloorPlanner};
 use halo2_proofs::{
@@ -327,4 +326,11 @@ impl<T: Clone> ValueStealer<T> {
 pub fn steal<T: Clone>(value: &Value<T>) -> Option<T> {
     let stealer = ValueStealer::<T>::new();
     stealer.steal(value.clone())
+}
+
+fn to_plonk_error<E>(error: E) -> Error
+where
+    E: Into<Box<dyn std::error::Error + Send + Sync>>,
+{
+    Error::Transcript(std::io::Error::other(error))
 }

@@ -10,7 +10,6 @@ use crate::{
     },
     expressions::{ExprBuilder, ExpressionInRow, ExpressionInfo, ScopedExpression},
     gates::{Gate, GateRewritePattern as _, GateScope, RewriteError, RewritePatternSet},
-    halo2::Field,
     info_traits::GateInfo,
     ir::{
         CmpOp, IRCtx,
@@ -37,6 +36,7 @@ use crate::{
     utils,
 };
 use anyhow::Result;
+use ff::Field;
 
 pub(crate) mod bounds;
 pub mod callsite;

@@ -3,8 +3,9 @@ use std::{
     ops::RangeFrom,
 };
 
+use ff::Field;
+
 use crate::{
-    halo2::{Assigned, Field, Value},
     info_traits::QueryInfo,
     resolvers::{Fixed, FixedQueryResolver},
     table::Column,

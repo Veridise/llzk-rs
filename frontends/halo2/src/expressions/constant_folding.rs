@@ -1,8 +1,9 @@
 use std::marker::PhantomData;
 
+use ff::Field;
+
 use crate::{
     expressions::{EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes},
-    halo2::Field,
     info_traits::{QueryInfo, SelectorInfo},
     resolvers::{Fixed, ResolvedQuery, ResolvedSelector, ResolversProvider},
 };

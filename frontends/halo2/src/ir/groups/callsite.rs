@@ -9,7 +9,6 @@ use crate::{
         },
     },
     expressions::{ExprBuilder, ScopedExpression},
-    halo2::Field,
     ir::{
         CmpOp,
         equivalency::{EqvRelation, SymbolicEqv},
@@ -23,6 +22,7 @@ use crate::{
     temps::ExprOrTemp,
 };
 use anyhow::Result;
+use ff::Field;
 
 /// Data related to a single callsite
 #[derive(Debug)]

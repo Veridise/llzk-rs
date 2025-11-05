@@ -1,8 +1,9 @@
 //! Structs for checking if cells are within the bounds of a group.
 
+use ff::Field;
+
 use crate::{
     Fixed,
-    halo2::Field,
     ir::generate::RegionByIndex,
     synthesis::{
         constraint::EqConstraint,

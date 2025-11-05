@@ -2,10 +2,11 @@
 
 use std::collections::HashMap;
 
+use ff::{Field, PrimeField};
+
 use crate::{
     expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo, ScopedExpression},
     gates::{DefaultGateCallbacks, GateCallbacks, RewritePatternSet},
-    halo2::{Field, PrimeField},
     ir::{IRCtx, generate::patterns::load_patterns, groups::GroupBody},
     lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
     synthesis::{

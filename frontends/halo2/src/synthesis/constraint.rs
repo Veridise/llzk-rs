@@ -1,6 +1,7 @@
+use ff::Field;
+
 use crate::{
     Fixed,
-    halo2::Field,
     table::{Any, Column},
 };
 use std::collections::BTreeSet;

@@ -1,10 +1,11 @@
+use ff::Field;
+
 use crate::{
     expressions::{EvaluableExpr, ExprBuilder},
     gates::{
         GateCallbacks, GateRewritePattern, GateScope, RewriteError, RewriteOutput,
         RewritePatternSet, find_selectors,
     },
-    halo2::Field,
     ir::{CmpOp, stmt::IRStmt},
 };
 use std::{borrow::Cow, result::Result as StdResult};

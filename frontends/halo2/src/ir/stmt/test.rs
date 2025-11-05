@@ -97,10 +97,10 @@ fn test_partial_eq_on_i32() {
 
 pub mod ff {
     use crate::{
-        halo2::{Field, Halo2Rotation},
         ir::stmt::{IRStmt, test::TestHelper},
         table::{Rotation, RotationExt},
     };
+    use ff::Field;
     use halo2_proofs::plonk::{Advice, ColumnType as _, Expression, Fixed, Instance};
 
     type F = crate::halo2::Fr;
@@ -111,15 +111,15 @@ pub mod ff {
         Expression::Constant(f)
     }
 
-    pub fn f(col: usize, rot: Halo2Rotation) -> Expression<F> {
+    pub fn f(col: usize, rot: halo2_proofs::poly::Rotation) -> Expression<F> {
         Fixed.query_cell(col, rot)
     }
 
-    pub fn a(col: usize, rot: Halo2Rotation) -> Expression<F> {
+    pub fn a(col: usize, rot: halo2_proofs::poly::Rotation) -> Expression<F> {
         Advice::default().query_cell(col, rot)
     }
 
-    pub fn i(col: usize, rot: Halo2Rotation) -> Expression<F> {
+    pub fn i(col: usize, rot: halo2_proofs::poly::Rotation) -> Expression<F> {
         Instance.query_cell(col, rot)
     }
 

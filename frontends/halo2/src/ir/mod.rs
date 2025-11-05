@@ -1,12 +1,8 @@
 //! Intermediate representation of circuits. Synthesized circuits get transformed into the structs
 //! defined in this module and then the backend uses them to generate the final output.
 
-use anyhow::Result;
-use stmt::IRStmt;
-
 use crate::{
     expressions::{EvaluableExpr, ExpressionInRow, ScopedExpression},
-    halo2::PrimeField,
     ir::{
         expr::{Felt, IRAexpr},
         generate::region_data,
@@ -16,6 +12,9 @@ use crate::{
     synthesis::{SynthesizedCircuit, regions::RegionIndex},
     temps::ExprOrTemp,
 };
+use anyhow::Result;
+use ff::PrimeField;
+use stmt::IRStmt;
 
 /// Comparison operators between arithmetic expressions.
 #[derive(Copy, Clone, PartialEq, Eq, Debug, PartialOrd, Ord, Hash)]

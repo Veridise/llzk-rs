@@ -2,10 +2,10 @@ use std::borrow::Cow;
 
 use crate::{
     backend::func::{ArgNo, FuncIO},
-    halo2::{Field, Value},
     info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
 };
 use anyhow::Result;
+use ff::Field;
 
 mod sealed {
     /// Sealed trait pattern to avoid clients implementing the trait [`super::QueryKind`] on

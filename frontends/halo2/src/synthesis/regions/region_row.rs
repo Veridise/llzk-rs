@@ -11,6 +11,7 @@ use crate::{
     },
 };
 use anyhow::Result;
+use ff::Field;
 use std::borrow::Cow;
 
 #[derive(Copy, Clone, Debug)]

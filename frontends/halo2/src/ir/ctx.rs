@@ -1,8 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 
+use ff::Field;
+
 use crate::CircuitIO;
-use crate::halo2::Field;
 use crate::io::IOCell;
 use crate::ir::generate::region_data;
 use crate::resolvers::{Advice, Instance};

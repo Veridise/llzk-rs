@@ -19,8 +19,8 @@ pub mod table;
 pub mod temps;
 mod utils;
 
+use crate::info_traits::ConstraintSystemInfo;
 pub use crate::io::{AdviceIO, InstanceIO};
-use crate::{halo2::Field, info_traits::ConstraintSystemInfo};
 #[cfg(feature = "llzk-backend")]
 pub use backend::llzk::{
     LlzkOutput,
@@ -31,6 +31,7 @@ pub use backend::picus::{
     PicusOutput,
     params::{PicusParams, PicusParamsBuilder},
 };
+use ff::Field;
 pub use io::CircuitIO;
 pub use lookups::callbacks::LookupCallbacks;
 pub use resolvers::{Advice, Fixed, Instance, QueryKind};

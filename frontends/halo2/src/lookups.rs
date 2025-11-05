@@ -2,10 +2,10 @@
 
 use crate::{
     expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
-    halo2::Field,
     info_traits::{ConstraintSystemInfo, QueryInfo as _},
 };
 use anyhow::Result;
+use ff::Field;
 
 pub mod callbacks;
 pub mod table;
