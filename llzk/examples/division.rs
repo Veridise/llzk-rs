@@ -1,6 +1,7 @@
 //! Heavily commented example of creating IR representing a circuit for a division gadget.
 //!
-//! The gadget performs the division and constrains the dividend to be equal to the quotient times the divisor.
+//! The gadget performs the division and constrains the dividend to be equal to the quotient times
+//! the divisor.
 //!
 //! Creates a single struct with two inputs and one output.
 
@@ -37,13 +38,11 @@ fn main() -> Result<()> {
     // We store the output of the division in a data field.
     // Fields can have two extra annotations; column and public.
     // The public annotation makes the field an output of the circuit.
-    let out_field = r#struct::field(
-        location,
-        "c",
-        FeltType::new(&context),
-        /*is_column=*/ false,
-        /*is_public=*/ true,
-    )?;
+    let out_field = {
+        let is_column = false;
+        let is_public = true;
+        r#struct::field(location, "c", FeltType::new(&context), is_column, is_public)?
+    };
     let compute_fn = witness(&context, location, signal_st.r#type().into(), &out_field)?;
     let constrain_fn = constraints(&context, location, signal_st.r#type().into(), &out_field)?;
 
