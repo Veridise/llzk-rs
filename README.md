@@ -22,7 +22,7 @@ We include some optional functionality guarded by feature flags. We currently ha
 
 - `bigint`: Allows creating constant values from [`num-bigint`'s Big integers](https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html).
 
-## Installation (pre v1 release)
+## Manual installation (pre v1 release)
 
 Install LLVM 20 and note the installation path. While building your project the build scripts will look for LLVM using `llvm-config`.
 If you don't have that tool in your `PATH` or it doesn't point to an LLVM 20 installation set the following environment variables 
@@ -62,3 +62,24 @@ If working on LLZK via the submodule you can enable dumping the compile commands
 LLZK_EMIT_COMPILE_COMMANDS=$(pwd) cargo build
 ```
 
+## Nix installation 
+
+We also include a nix flake that creates an environment with the right version of LLVM and MLIR. If you are already using nix this may be your prefered method.
+
+You can use this flake for configuring your development environment.
+For example, to work withing a nix developer shell you can use the following command.
+
+```text
+nix develop 'github:Veridise/llzk-rs?submodules=1#llzk-rs'
+```
+
+Another alternative is to use [direnv](https://direnv.net/) with the following `.envrc` to automatically enter 
+the developer environment when you enter your project's directory.
+
+```text
+if ! has nix_direnv_version || ! nix_direnv_version 3.0.4; then
+  source_url "https://raw.githubusercontent.com/nix-community/nix-direnv/3.0.4/direnvrc" "sha256-DzlYZ33mWF/Gs8DDeyjr8mnVmQGx7ASYqA5WlxwvBG4="
+fi
+
+use flake 'github:Veridise/llzk-rs?submodules=1#llzk-rs'
+```
