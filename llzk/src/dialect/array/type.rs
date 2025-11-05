@@ -5,6 +5,7 @@ use llzk_sys::{
 use melior::ir::{Attribute, Type, TypeLike};
 use mlir_sys::MlirType;
 
+/// Represents the `!array.type` type.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ArrayType<'c> {
     r#type: Type<'c>,
@@ -17,6 +18,7 @@ impl<'c> ArrayType<'c> {
         }
     }
 
+    /// Creates a new type with the given element type and dimensions.
     pub fn new(element_type: Type<'c>, dims: &[Attribute<'c>]) -> Self {
         unsafe {
             Self::from_raw(llzkArrayTypeGet(
@@ -27,6 +29,7 @@ impl<'c> ArrayType<'c> {
         }
     }
 
+    /// Creates a new type with the given element type and dimensions as integers.
     pub fn new_with_dims(element_type: Type<'c>, dims: &[i64]) -> Self {
         unsafe {
             Self::from_raw(llzkArrayTypeGetWithNumericDims(
@@ -37,14 +40,17 @@ impl<'c> ArrayType<'c> {
         }
     }
 
+    /// Returns the element type of the array.
     pub fn element_type(&self) -> Type<'c> {
         unsafe { Type::from_raw(llzkArrayTypeGetElementType(self.to_raw())) }
     }
 
+    /// Returns the number of dimensions of the array.
     pub fn num_dims(&self) -> isize {
         unsafe { llzkArrayTypeGetNumDims(self.to_raw()) }
     }
 
+    /// Returns the Attribute specifying the size of dimension `idx`.
     pub fn dim(&self, idx: isize) -> Attribute<'c> {
         unsafe { Attribute::from_raw(llzkArrayTypeGetDim(self.to_raw(), idx)) }
     }

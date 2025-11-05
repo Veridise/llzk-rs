@@ -1,6 +1,8 @@
 /// Defines an operation type for a concrete operation along with reference types.
 ///
-/// Mimics [`Operation`] and the reference types mimic [`OperationRef`] and [`OperationRefMut`].
+/// Mimics [Operation][`melior::ir::operation::Operation`] and the reference types mimic
+/// [OperationRef][`melior::ir::operation::OperationRef`] and
+/// [OperationRefMut][`melior::ir::operation::OperationRefMut`].
 ///
 /// Not all operations need to be defined. Only the ones that have operations beyond the basics.
 macro_rules! llzk_op_type {

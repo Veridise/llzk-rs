@@ -1,7 +1,7 @@
 use crate::{error::Error, ident};
 
 use super::{FeltConstAttribute, FeltType};
-use melior::ir::{Identifier, Location, Operation, Value, operation::OperationBuilder};
+use melior::ir::{Location, Operation, Value, operation::OperationBuilder};
 
 fn build_op<'c>(
     name: &str,
@@ -21,6 +21,7 @@ macro_rules! binop {
         binop!($name, stringify!($name));
     };
     ($name:ident, $opname:expr) => {
+        #[doc = concat!("Creates a `felt.", $opname ,"` operation.")]
         pub fn $name<'c>(
             location: Location<'c>,
             lhs: Value<'c, '_>,
@@ -36,6 +37,7 @@ macro_rules! unop {
         unop!($name, stringify!($name));
     };
     ($name:ident, $opname:expr) => {
+        #[doc = concat!("Creates a `felt.", $opname ,"` operation.")]
         pub fn $name<'c>(
             location: Location<'c>,
             value: Value<'c, '_>,
@@ -59,6 +61,7 @@ unop!(bit_not);
 unop!(inv);
 unop!(neg);
 
+/// Creates a `felt.const` operation.
 pub fn constant<'c>(
     location: Location<'c>,
     value: FeltConstAttribute<'c>,

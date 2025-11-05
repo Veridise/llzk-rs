@@ -5,6 +5,7 @@ use melior::{
 };
 use mlir_sys::MlirType;
 
+/// Represents the `!felt.type` type.
 #[derive(Debug, Eq, PartialEq)]
 pub struct FeltType<'c> {
     r#type: Type<'c>,
@@ -17,6 +18,7 @@ impl<'c> FeltType<'c> {
         }
     }
 
+    /// Creates a new felt type.
     pub fn new(ctx: &'c Context) -> Self {
         unsafe { Self::from_raw(llzkFeltTypeGet(ctx.to_raw())) }
     }
