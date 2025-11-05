@@ -7,7 +7,7 @@ The bindings' API is meant to be more user friendly than the raw C API and more 
 by [melior](https://github.com/mlir-rs/melior) and depends on it for handling the MLIR parts that are not 
 specific to LLZK.
 
-The primarily supported use case in this bindings is creating IR and running passes on it. Support for other things, 
+The primary supported use case of these bindings is creating IR and running passes on it. Support for other things, 
 such as writing custom passes, is limited and not as ergonomic as it is in C++.
 
 ## Usage 

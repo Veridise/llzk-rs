@@ -1,6 +1,6 @@
 //! Heavily commented example of creating IR representing a circuit for a division gadget.
 //!
-//! The gadget performs the division and constraints the dividend to be equal to the quotient times the divisor.
+//! The gadget performs the division and constrains the dividend to be equal to the quotient times the divisor.
 //!
 //! Creates a single struct with two inputs and one output.
 
@@ -82,11 +82,11 @@ fn witness<'c>(
     let compute_fn =
         r#struct::helpers::compute_fn(location, main_ty, &inputs, Some(&[&pub_attr, &pub_attr]))?;
 
-    // Witness generation is represented by creating an instance of the parent struct and filling
-    // its fields. And is completed by returning the value of the struct. The `compute_fn` helper
+    // Witness generation is represented by creating an instance of the containing struct, filling
+    // its fields, and returning the value of the struct. The `compute_fn` helper
     // inserts a `struct.new` operation followed by a `function.return` operation to represent this.
     // The specific IR for our circuit needs to go in between these two operations.
-    // We will insert it using the return op as reference so we need to get a hold of it and the
+    // We will insert it using the return op as reference so we need to get ahold of it and the
     // block that contains it.
     let (block, ret_op) = compute_fn
         .region(0)?
