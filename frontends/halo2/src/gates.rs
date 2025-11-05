@@ -17,7 +17,7 @@ use crate::{
 
 /// Information about a gate in the constraint system.
 ///
-/// Is parametrized by the expression type used to represent polynomials.
+/// Is parameterized by the expression type used to represent polynomials.
 pub(crate) struct Gate<E> {
     name: String,
     polynomials: Vec<E>,
