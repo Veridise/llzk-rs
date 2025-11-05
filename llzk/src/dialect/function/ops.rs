@@ -1,7 +1,12 @@
-use std::ptr::null;
-
+use crate::{
+    builder::{OpBuilder, OpBuilderLike as _},
+    dialect::r#struct::StructType,
+    error::Error,
+    macros::llzk_op_type,
+    symbol_ref::SymbolRefAttribute,
+};
 use llzk_sys::{
-    llzkFuncDefOpCreateWithAttrsAndArgAttrs, llzkFuncDefOpGetFullyQualifiedName,
+    llzkCallOpBuild, llzkFuncDefOpCreateWithAttrsAndArgAttrs, llzkFuncDefOpGetFullyQualifiedName,
     llzkFuncDefOpGetHasAllowConstraintAttr, llzkFuncDefOpGetHasAllowWitnessAttr,
     llzkFuncDefOpGetHasArgIsPub, llzkFuncDefOpGetIsInStruct, llzkFuncDefOpGetIsStructCompute,
     llzkFuncDefOpGetIsStructConstrain, llzkFuncDefOpGetNameIsCompute,
@@ -14,18 +19,14 @@ use melior::{
     ir::{
         Attribute, AttributeLike, BlockLike as _, Identifier, Location, Operation, RegionLike as _,
         Type, TypeLike, Value,
-        attribute::ArrayAttribute,
+        attribute::{ArrayAttribute, FlatSymbolRefAttribute},
         block::BlockArgument,
         operation::{OperationBuilder, OperationLike},
         r#type::FunctionType,
     },
 };
 use mlir_sys::{MlirAttribute, MlirNamedAttribute, mlirDictionaryAttrGet, mlirNamedAttributeGet};
-
-use crate::{
-    dialect::r#struct::StructType, error::Error, macros::llzk_op_type,
-    symbol_ref::SymbolRefAttribute,
-};
+use std::ptr::null;
 
 //===----------------------------------------------------------------------===//
 // Helpers
@@ -233,10 +234,28 @@ pub fn def<'c>(
 }
 
 /// Creates a new `function.call` operation.
-///
-/// This factory is not implemented yet.
-pub fn call<'c>() -> CallOp<'c> {
-    todo!()
+pub fn call<'c>(
+    builder: &OpBuilder<'c>,
+    location: Location<'c>,
+    name: &str,
+    args: &[Value<'c, '_>],
+    return_type: impl TypeLike<'c>,
+) -> Result<CallOp<'c>, Error> {
+    let ctx = location.context();
+    let name = FlatSymbolRefAttribute::new(unsafe { ctx.to_ref() }, name);
+    unsafe {
+        Operation::from_raw(llzkCallOpBuild(
+            builder.to_raw(),
+            location.to_raw(),
+            1 as isize,
+            // &return_type.to_raw(),
+            [return_type].as_ptr() as *const _,
+            name.to_raw(),
+            args.len() as isize,
+            args.as_ptr() as *const _,
+        ))
+    }
+    .try_into()
 }
 
 /// Creates a new `function.return` operation.
