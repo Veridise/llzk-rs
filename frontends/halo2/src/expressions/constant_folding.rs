@@ -90,7 +90,7 @@ where
         Err(E::instance(*instance_query))
     }
 
-    fn challenge(&self, challenge: &crate::halo2::Challenge) -> Self::Output {
+    fn challenge(&self, challenge: &E::Challenge) -> Self::Output {
         Err(E::challenge(*challenge))
     }
 

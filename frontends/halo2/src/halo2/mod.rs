@@ -25,7 +25,8 @@ pub use midnight::*;
 use crate::{
     expressions::{EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes},
     info_traits::{
-        ConstraintSystemInfo, CreateQuery, GateInfo, GroupInfo, QueryInfo, SelectorInfo,
+        ChallengeInfo, ConstraintSystemInfo, CreateQuery, GateInfo, GroupInfo, QueryInfo,
+        SelectorInfo,
     },
     lookups::LookupData,
     synthesis::regions::RegionIndex,
@@ -138,6 +139,17 @@ impl SelectorInfo for halo2_proofs::plonk::Selector {
     }
 }
 
+/// Temporary implementation of [`ChallengeInfo`] for [`halo2_proofs::plonk::Challenge`]
+impl ChallengeInfo for halo2_proofs::plonk::Challenge {
+    fn index(&self) -> usize {
+        self.index()
+    }
+
+    fn phase(&self) -> u8 {
+        self.phase()
+    }
+}
+
 /// Temporary implementation of [`GroupInfo`] for [`halo2_proofs::circuit::groups::RegionsGroup`].
 impl GroupInfo for halo2_proofs::circuit::groups::RegionsGroup {
     fn inputs(&self) -> impl Iterator<Item = Cell> + '_ {
@@ -197,6 +209,7 @@ impl<F: Field> ExpressionTypes for halo2_proofs::plonk::Expression<F> {
     type FixedQuery = halo2_proofs::plonk::FixedQuery;
     type AdviceQuery = halo2_proofs::plonk::AdviceQuery;
     type InstanceQuery = halo2_proofs::plonk::InstanceQuery;
+    type Challenge = halo2_proofs::plonk::Challenge;
 }
 
 /// Temporary implementation of [`ExpressionInfo`].
@@ -256,7 +269,7 @@ impl<F: Field> ExprBuilder<F> for halo2_proofs::plonk::Expression<F> {
         Self::Instance(instance_query)
     }
 
-    fn challenge(challenge: crate::halo2::Challenge) -> Self {
+    fn challenge(challenge: <Self as ExpressionTypes>::Challenge) -> Self {
         Self::Challenge(challenge)
     }
 

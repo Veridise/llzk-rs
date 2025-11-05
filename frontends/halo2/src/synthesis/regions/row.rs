@@ -1,11 +1,11 @@
 use crate::{
     CircuitIO,
     backend::func::{ArgNo, FieldId, FuncIO},
-    info_traits::{QueryInfo, SelectorInfo},
+    info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
     io::{AdviceIO, IOCell, InstanceIO},
     resolvers::{
-        Advice, Fixed, FixedQueryResolver, Instance, QueryResolver, ResolvedQuery,
-        ResolvedSelector, SelectorResolver,
+        Advice, ChallengeResolver, Fixed, FixedQueryResolver, Instance, QueryResolver,
+        ResolvedQuery, ResolvedSelector, SelectorResolver,
     },
     table::{ColumnType, Rotation},
 };
@@ -188,6 +188,18 @@ impl<F: Field> QueryResolver<F> for Row<'_, '_, F> {
 impl<F: Field> SelectorResolver for Row<'_, '_, F> {
     fn resolve_selector(&self, _selector: &dyn SelectorInfo) -> Result<ResolvedSelector> {
         unreachable!()
+    }
+}
+
+impl<F: Field> ChallengeResolver for Row<'_, '_, F> {
+    fn resolve_challenge(&self, challenge: &dyn ChallengeInfo) -> Result<FuncIO> {
+        Ok(FuncIO::Challenge(
+            challenge.index(),
+            challenge.phase(),
+            ArgNo::from(
+                self.advice_io.inputs_count() + self.instance_io.inputs_count() + challenge.index(),
+            ),
+        ))
     }
 }
 

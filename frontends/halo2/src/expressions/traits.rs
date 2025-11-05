@@ -1,5 +1,5 @@
 use crate::{
-    info_traits::{CreateQuery, QueryInfo, SelectorInfo},
+    info_traits::{ChallengeInfo, CreateQuery, QueryInfo, SelectorInfo},
     resolvers::{Advice, Fixed, Instance},
     table::{Column, ColumnType, Rotation},
 };
@@ -14,6 +14,8 @@ pub trait ExpressionTypes: Sized {
     type AdviceQuery: QueryInfo<Kind = Advice> + CreateQuery<Self> + Copy + std::fmt::Debug;
     /// Type used for Expression::Instance.
     type InstanceQuery: QueryInfo<Kind = Instance> + CreateQuery<Self> + Copy + std::fmt::Debug;
+    /// Type used for Expression::Challenge.
+    type Challenge: ChallengeInfo + Copy + std::fmt::Debug;
 }
 
 /// Trait for querying information about expressions.
@@ -45,7 +47,7 @@ pub trait ExprBuilder<F>: ExpressionTypes {
     fn instance(instance_query: Self::InstanceQuery) -> Self;
 
     /// Create the Expression::Challenge case.
-    fn challenge(challenge: crate::halo2::Challenge) -> Self;
+    fn challenge(challenge: Self::Challenge) -> Self;
 
     /// Create the Expression::Negated case.
     fn negated(expr: Self) -> Self;
@@ -90,7 +92,7 @@ where
     fn instance(&self, instance_query: &E::InstanceQuery) -> Self::Output;
 
     /// Evaluate the [`Expression::Challenge`] case.
-    fn challenge(&self, challenge: &crate::halo2::Challenge) -> Self::Output;
+    fn challenge(&self, challenge: &E::Challenge) -> Self::Output;
 
     /// Evaluate the [`Expression::Negated`] case.
     fn negated(&self, expr: Self::Output) -> Self::Output;

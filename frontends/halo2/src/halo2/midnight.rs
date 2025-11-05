@@ -1,5 +1,5 @@
 pub use ff::{Field, PrimeField};
-pub use halo2_proofs::plonk::Challenge;
+//pub use halo2_proofs::plonk::Challenge;
 pub use halo2_proofs::{
     circuit::{/*Cell,*/ /*RegionIndex, RegionStart,*/ Value /*groups*/},
     plonk::{

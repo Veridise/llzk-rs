@@ -54,6 +54,15 @@ pub trait SelectorInfo {
     fn id(&self) -> usize;
 }
 
+/// Trait for retrieving information about a challenge.
+pub trait ChallengeInfo {
+    /// Returns the index of the challenge.
+    fn index(&self) -> usize;
+
+    /// Returns the phase number of the challenge.
+    fn phase(&self) -> u8;
+}
+
 /// Trait for retrieving information about group annotations.
 pub trait GroupInfo {
     /// Returns the inputs of the group.

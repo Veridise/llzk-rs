@@ -3,11 +3,11 @@ use crate::{
     backend::func::FuncIO,
     gates::SelectorSet,
     halo2::*,
-    info_traits::{QueryInfo, SelectorInfo},
+    info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
     io::{AdviceIO, InstanceIO},
     resolvers::{
-        Advice, Fixed, FixedQueryResolver, Instance, QueryResolver, ResolvedQuery,
-        ResolvedSelector, SelectorResolver,
+        Advice, ChallengeResolver, Fixed, FixedQueryResolver, Instance, QueryResolver,
+        ResolvedQuery, ResolvedSelector, SelectorResolver,
     },
 };
 use anyhow::Result;
@@ -114,5 +114,11 @@ impl<F: Field> SelectorResolver for RegionRow<'_, '_, '_, F> {
             .get(&self.row_number())
             .is_some_and(|selectors| selectors.contains(selector.id()));
         Ok(ResolvedSelector::Const(selected.into()))
+    }
+}
+
+impl<F: Field> ChallengeResolver for RegionRow<'_, '_, '_, F> {
+    fn resolve_challenge(&self, challenge: &dyn ChallengeInfo) -> Result<FuncIO> {
+        self.row.resolve_challenge(challenge)
     }
 }

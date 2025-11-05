@@ -1,9 +1,6 @@
 use std::ops::Range;
 
-use crate::{
-    halo2::Challenge,
-    ir::{CmpOp, expr::Felt},
-};
+use crate::ir::{CmpOp, expr::Felt};
 use anyhow::{Result, bail};
 
 use super::func::FuncIO;
@@ -64,8 +61,6 @@ pub trait ExprLowering {
     ) -> Result<Self::CellOutput>;
 
     fn lower_neg(&self, expr: &Self::CellOutput) -> Result<Self::CellOutput>;
-
-    fn lower_challenge(&self, challenge: &Challenge) -> Result<Self::CellOutput>;
 
     fn lower_constant(&self, f: Felt) -> Result<Self::CellOutput>;
 

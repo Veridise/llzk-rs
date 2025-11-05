@@ -11,9 +11,11 @@ use crate::{
         lowering::{ExprLowering, lowerable::LowerableExpr},
     },
     expressions::{EvalExpression, EvaluableExpr, ExpressionTypes, ScopedExpression},
-    halo2::{Challenge, PrimeField},
+    halo2::PrimeField,
     ir::equivalency::{EqvRelation, SymbolicEqv},
-    resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
+    resolvers::{
+        ChallengeResolver, QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
+    },
     temps::ExprOrTemp,
 };
 
@@ -142,8 +144,6 @@ pub enum IRAexpr {
     Constant(Felt),
     /// IO element of the circuit; inputs, outputs, cells, etc.
     IO(FuncIO),
-    /// A challenge.
-    Challenge(Challenge),
     /// Represents the negation of the inner expression.
     Negated(Box<IRAexpr>),
     /// Represents the sum of the inner expressions.
@@ -153,12 +153,17 @@ pub enum IRAexpr {
 }
 
 impl IRAexpr {
-    fn new<F, E>(expr: &E, sr: &dyn SelectorResolver, qr: &dyn QueryResolver<F>) -> Result<Self>
+    fn new<F, E>(
+        expr: &E,
+        sr: &dyn SelectorResolver,
+        qr: &dyn QueryResolver<F>,
+        cr: &dyn ChallengeResolver,
+    ) -> Result<Self>
     where
         F: PrimeField,
         E: EvaluableExpr<F>,
     {
-        expr.evaluate(&PolyToAexpr::new(sr, qr))
+        expr.evaluate(&PolyToAexpr::new(sr, qr, cr))
     }
 
     /// Returns `Some(_)` if the expression is a constant value. None otherwise.
@@ -174,7 +179,6 @@ impl IRAexpr {
         match self {
             IRAexpr::Constant(felt) => *felt %= prime,
             IRAexpr::IO(_) => {}
-            IRAexpr::Challenge(_) => {}
             IRAexpr::Negated(expr) => {
                 expr.constant_fold(prime);
                 if let Some(f) = expr.const_value().and_then(|f| prime - f) {
@@ -257,7 +261,6 @@ impl std::fmt::Debug for IRAexpr {
         match self {
             Self::Constant(arg0) => write!(f, "{arg0:?}"),
             Self::IO(arg0) => write!(f, "{arg0:?}"),
-            Self::Challenge(arg0) => write!(f, "(chall {arg0:?})"),
             Self::Negated(arg0) => write!(f, "(- {arg0:?})"),
             Self::Sum(arg0, arg1) => write!(f, "(+ {arg0:?} {arg1:?})"),
             Self::Product(arg0, arg1) => write!(f, "(* {arg0:?} {arg1:?})"),
@@ -272,7 +275,6 @@ impl EqvRelation<IRAexpr> for SymbolicEqv {
         match (lhs, rhs) {
             (IRAexpr::Constant(lhs), IRAexpr::Constant(rhs)) => lhs == rhs,
             (IRAexpr::IO(lhs), IRAexpr::IO(rhs)) => Self::equivalent(lhs, rhs),
-            (IRAexpr::Challenge(lhs), IRAexpr::Challenge(rhs)) => lhs == rhs,
             (IRAexpr::Negated(lhs), IRAexpr::Negated(rhs)) => Self::equivalent(lhs, rhs),
             (IRAexpr::Sum(lhs0, lhs1), IRAexpr::Sum(rhs0, rhs1)) => {
                 Self::equivalent(lhs0, rhs0) && Self::equivalent(lhs1, rhs1)
@@ -297,6 +299,7 @@ where
             expr.as_ref(),
             expr.selector_resolver(),
             expr.query_resolver(),
+            expr.challenge_resolver(),
         )
     }
 }
@@ -323,7 +326,6 @@ impl LowerableExpr for IRAexpr {
         match self {
             IRAexpr::Constant(f) => l.lower_constant(f),
             IRAexpr::IO(io) => l.lower_funcio(io),
-            IRAexpr::Challenge(challenge) => l.lower_challenge(&challenge),
             IRAexpr::Negated(expr) => l.lower_neg(&expr.lower(l)?),
             IRAexpr::Sum(lhs, rhs) => l.lower_sum(&lhs.lower(l)?, &rhs.lower(l)?),
             IRAexpr::Product(lhs, rhs) => l.lower_product(&lhs.lower(l)?, &rhs.lower(l)?),
@@ -335,14 +337,20 @@ impl LowerableExpr for IRAexpr {
 struct PolyToAexpr<'r, F, E> {
     sr: &'r dyn SelectorResolver,
     qr: &'r dyn QueryResolver<F>,
+    cr: &'r dyn ChallengeResolver,
     _marker: PhantomData<E>,
 }
 
 impl<'r, F, E> PolyToAexpr<'r, F, E> {
-    pub fn new(sr: &'r dyn SelectorResolver, qr: &'r dyn QueryResolver<F>) -> Self {
+    pub fn new(
+        sr: &'r dyn SelectorResolver,
+        qr: &'r dyn QueryResolver<F>,
+        cr: &'r dyn ChallengeResolver,
+    ) -> Self {
         Self {
             sr,
             qr,
+            cr,
             _marker: Default::default(),
         }
     }
@@ -383,8 +391,8 @@ impl<F: PrimeField, E: ExpressionTypes> EvalExpression<F, E> for PolyToAexpr<'_,
         })
     }
 
-    fn challenge(&self, challenge: &crate::halo2::Challenge) -> Self::Output {
-        Ok(IRAexpr::Challenge(*challenge))
+    fn challenge(&self, challenge: &E::Challenge) -> Self::Output {
+        Ok(IRAexpr::IO(self.cr.resolve_challenge(challenge)?))
     }
 
     fn negated(&self, expr: Self::Output) -> Self::Output {

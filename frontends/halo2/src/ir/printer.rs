@@ -145,6 +145,7 @@ impl<'a> IRPrinter<'a> {
             }
             FuncIO::CallOutput(call, idx) => write!(ctx, "(call-result {call} {idx})"),
             FuncIO::Temp(temp) => write!(ctx, "(temp {})", **temp),
+            FuncIO::Challenge(index, phase, _) => write!(ctx, "(challenge {index} {phase})"),
         }
     }
 
@@ -260,9 +261,6 @@ impl<'a> IRPrinter<'a> {
         match aexpr {
             IRAexpr::Constant(felt) => self.list("const", ctx, |ctx| write!(ctx, "{}", felt)),
             IRAexpr::IO(func_io) => self.fmt_func_io(func_io, ctx),
-            IRAexpr::Challenge(challenge) => {
-                self.list("challenge", ctx, |ctx| write!(ctx, "{}", challenge.index()))
-            }
             IRAexpr::Negated(expr) => self.block("-", ctx, |ctx| self.fmt_aexpr(&expr, ctx)),
             IRAexpr::Sum(lhs, rhs) => self.block("+", ctx, |ctx| {
                 let do_nl = self.aexpr_depth(&lhs) > 1 || self.aexpr_depth(&rhs) > 1;
@@ -322,7 +320,7 @@ impl<'a> IRPrinter<'a> {
     /// The depth is used for the heuristic used for deciding when to indentate or not.
     fn aexpr_depth(&self, aexpr: &IRAexpr) -> usize {
         match aexpr {
-            IRAexpr::Constant(_) | IRAexpr::IO(_) | IRAexpr::Challenge(_) => 1,
+            IRAexpr::Constant(_) | IRAexpr::IO(_) => 1,
             IRAexpr::Negated(expr) => 1 + self.aexpr_depth(&expr),
             IRAexpr::Sum(lhs, rhs) | IRAexpr::Product(lhs, rhs) => {
                 1 + std::cmp::max(self.aexpr_depth(&lhs), self.aexpr_depth(&rhs))

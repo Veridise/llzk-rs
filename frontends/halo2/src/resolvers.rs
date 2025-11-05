@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::{
     backend::func::{ArgNo, FuncIO},
     halo2::{Field, Value},
-    info_traits::{QueryInfo, SelectorInfo},
+    info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
 };
 use anyhow::Result;
 
@@ -40,6 +40,7 @@ impl QueryKind for Instance {}
 pub trait ResolversProvider<F> {
     fn query_resolver(&self) -> &dyn QueryResolver<F>;
     fn selector_resolver(&self) -> &dyn SelectorResolver;
+    fn challenge_resolver(&self) -> &dyn ChallengeResolver;
 }
 
 pub(crate) fn boxed_resolver<'a, F: Field, T: ResolversProvider<F> + 'a>(
@@ -48,11 +49,12 @@ pub(crate) fn boxed_resolver<'a, F: Field, T: ResolversProvider<F> + 'a>(
     Box::new(t)
 }
 
-impl<Q, F, S> ResolversProvider<F> for (Q, S)
+impl<Q, F, S, C> ResolversProvider<F> for (Q, S, C)
 where
     Q: QueryResolver<F> + Clone,
     F: Field,
     S: SelectorResolver + Clone,
+    C: ChallengeResolver,
 {
     fn query_resolver(&self) -> &dyn QueryResolver<F> {
         &self.0
@@ -61,11 +63,15 @@ where
     fn selector_resolver(&self) -> &dyn SelectorResolver {
         &self.1
     }
+
+    fn challenge_resolver(&self) -> &dyn ChallengeResolver {
+        &self.2
+    }
 }
 
 impl<T, F> ResolversProvider<F> for T
 where
-    T: QueryResolver<F> + SelectorResolver + Clone,
+    T: QueryResolver<F> + SelectorResolver + Clone + ChallengeResolver,
     F: Field,
 {
     fn query_resolver(&self) -> &dyn QueryResolver<F> {
@@ -73,6 +79,10 @@ where
     }
 
     fn selector_resolver(&self) -> &dyn SelectorResolver {
+        self
+    }
+
+    fn challenge_resolver(&self) -> &dyn ChallengeResolver {
         self
     }
 }
@@ -168,6 +178,12 @@ pub trait QueryResolver<F: Field> {
     ) -> Result<ResolvedQuery<F>>;
 }
 
+/// Resolver trait for computing the IO information about a challenge.
+pub trait ChallengeResolver {
+    /// Resolves a challenge.
+    fn resolve_challenge(&self, challenge: &dyn ChallengeInfo) -> Result<FuncIO>;
+}
+
 impl<F: Field, Q: QueryResolver<F> + Clone> QueryResolver<F> for Cow<'_, Q> {
     fn resolve_fixed_query(&self, query: &dyn QueryInfo<Kind = Fixed>) -> Result<ResolvedQuery<F>> {
         self.as_ref().resolve_fixed_query(query)
@@ -191,5 +207,11 @@ impl<F: Field, Q: QueryResolver<F> + Clone> QueryResolver<F> for Cow<'_, Q> {
 impl<S: SelectorResolver + Clone> SelectorResolver for Cow<'_, S> {
     fn resolve_selector(&self, selector: &dyn SelectorInfo) -> Result<ResolvedSelector> {
         self.as_ref().resolve_selector(selector)
+    }
+}
+
+impl<C: ChallengeResolver + Clone> ChallengeResolver for Cow<'_, C> {
+    fn resolve_challenge(&self, challenge: &dyn ChallengeInfo) -> Result<FuncIO> {
+        self.as_ref().resolve_challenge(challenge)
     }
 }

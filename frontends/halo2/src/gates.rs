@@ -401,7 +401,7 @@ pub(crate) fn find_selectors<F: Field, E: EvaluableExpr<F>>(poly: &E) -> Selecto
         fn fixed(&self, _: &E::FixedQuery) -> Self::Output {}
         fn advice(&self, _: &E::AdviceQuery) -> Self::Output {}
         fn instance(&self, _: &E::InstanceQuery) -> Self::Output {}
-        fn challenge(&self, _: &crate::halo2::Challenge) -> Self::Output {}
+        fn challenge(&self, _: &E::Challenge) -> Self::Output {}
         fn negated(&self, _: Self::Output) -> Self::Output {}
         fn sum(&self, _: Self::Output, _: Self::Output) -> Self::Output {}
         fn product(&self, _: Self::Output, _: Self::Output) -> Self::Output {}
