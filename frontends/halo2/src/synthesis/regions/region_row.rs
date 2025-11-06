@@ -2,7 +2,6 @@ use super::{RegionData, Row};
 use crate::{
     backend::func::FuncIO,
     gates::SelectorSet,
-    halo2::*,
     info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
     io::{AdviceIO, InstanceIO},
     resolvers::{

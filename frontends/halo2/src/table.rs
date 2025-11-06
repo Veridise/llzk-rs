@@ -38,48 +38,9 @@ impl ColumnType for Any {
     }
 }
 
-/// Temporary implementation
-impl From<halo2_proofs::plonk::Any> for Any {
-    fn from(value: halo2_proofs::plonk::Any) -> Self {
-        match value {
-            halo2_proofs::plonk::Any::Advice(_) => Self::Advice,
-            halo2_proofs::plonk::Any::Fixed => Self::Fixed,
-            halo2_proofs::plonk::Any::Instance => Self::Instance,
-        }
-    }
-}
-
-/// Temporary implementation
-impl From<halo2_proofs::plonk::Fixed> for Any {
-    fn from(_: halo2_proofs::plonk::Fixed) -> Self {
-        Self::Fixed
-    }
-}
-
-/// Temporary implementation
-impl From<halo2_proofs::plonk::Advice> for Any {
-    fn from(_: halo2_proofs::plonk::Advice) -> Self {
-        Self::Advice
-    }
-}
-
-/// Temporary implementation
-impl From<halo2_proofs::plonk::Instance> for Any {
-    fn from(_: halo2_proofs::plonk::Instance) -> Self {
-        Self::Instance
-    }
-}
-
 impl ColumnType for Fixed {
     fn query_cell<F: Field, E: ExprBuilder<F>>(&self, index: usize, at: Rotation) -> E {
         E::FixedQuery::query_expr(index, at)
-    }
-}
-
-/// Temporary implementation
-impl From<halo2_proofs::plonk::Fixed> for Fixed {
-    fn from(_: halo2_proofs::plonk::Fixed) -> Self {
-        Self
     }
 }
 
@@ -89,23 +50,9 @@ impl ColumnType for Advice {
     }
 }
 
-/// Temporary implementation
-impl From<halo2_proofs::plonk::Advice> for Advice {
-    fn from(_: halo2_proofs::plonk::Advice) -> Self {
-        Self
-    }
-}
-
 impl ColumnType for Instance {
     fn query_cell<F: Field, E: ExprBuilder<F>>(&self, index: usize, at: Rotation) -> E {
         E::InstanceQuery::query_expr(index, at)
-    }
-}
-
-/// Temporary implementation
-impl From<halo2_proofs::plonk::Instance> for Instance {
-    fn from(_: halo2_proofs::plonk::Instance) -> Self {
-        Self
     }
 }
 
@@ -203,18 +150,6 @@ impl TryFrom<Column<Any>> for Column<Instance> {
                 column_type: Instance,
             }),
             c => Err(anyhow::anyhow!("Expected Any::Instance. Got {c:?}")),
-        }
-    }
-}
-
-/// Temporary implementation
-impl<FC: halo2_proofs::plonk::ColumnType + Into<TC>, TC: ColumnType>
-    From<halo2_proofs::plonk::Column<FC>> for Column<TC>
-{
-    fn from(value: halo2_proofs::plonk::Column<FC>) -> Self {
-        Self {
-            index: value.index(),
-            column_type: (*value.column_type()).into(),
         }
     }
 }

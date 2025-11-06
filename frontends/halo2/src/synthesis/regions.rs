@@ -52,13 +52,6 @@ impl From<usize> for RegionIndex {
     }
 }
 
-/// Temporary conversion.
-impl From<halo2_proofs::circuit::RegionIndex> for RegionIndex {
-    fn from(value: halo2_proofs::circuit::RegionIndex) -> Self {
-        Self(*value)
-    }
-}
-
 /// A set of regions
 #[derive(Default, Debug)]
 pub struct Regions {

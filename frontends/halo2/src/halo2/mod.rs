@@ -3,6 +3,7 @@
 use ff::Field;
 
 use crate::{
+    Advice, Fixed, Instance,
     expressions::{EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes},
     info_traits::{
         ChallengeInfo, ConstraintSystemInfo, CreateQuery, GateInfo, GroupInfo, QueryInfo,
@@ -10,8 +11,77 @@ use crate::{
     },
     lookups::LookupData,
     synthesis::regions::RegionIndex,
-    table::{Cell, Rotation, RotationExt},
+    table::{Any, Cell, Column, ColumnType, Rotation, RotationExt},
 };
+
+/// Temporary conversion.
+impl From<halo2_proofs::circuit::RegionIndex> for RegionIndex {
+    fn from(value: halo2_proofs::circuit::RegionIndex) -> Self {
+        Self::from(*value)
+    }
+}
+
+/// Temporary implementation
+impl From<halo2_proofs::plonk::Any> for Any {
+    fn from(value: halo2_proofs::plonk::Any) -> Self {
+        match value {
+            halo2_proofs::plonk::Any::Advice(_) => Self::Advice,
+            halo2_proofs::plonk::Any::Fixed => Self::Fixed,
+            halo2_proofs::plonk::Any::Instance => Self::Instance,
+        }
+    }
+}
+
+/// Temporary implementation
+impl From<halo2_proofs::plonk::Fixed> for Any {
+    fn from(_: halo2_proofs::plonk::Fixed) -> Self {
+        Self::Fixed
+    }
+}
+
+/// Temporary implementation
+impl From<halo2_proofs::plonk::Advice> for Any {
+    fn from(_: halo2_proofs::plonk::Advice) -> Self {
+        Self::Advice
+    }
+}
+
+/// Temporary implementation
+impl From<halo2_proofs::plonk::Instance> for Any {
+    fn from(_: halo2_proofs::plonk::Instance) -> Self {
+        Self::Instance
+    }
+}
+
+/// Temporary implementation
+impl From<halo2_proofs::plonk::Fixed> for Fixed {
+    fn from(_: halo2_proofs::plonk::Fixed) -> Self {
+        Self
+    }
+}
+
+/// Temporary implementation
+impl From<halo2_proofs::plonk::Advice> for Advice {
+    fn from(_: halo2_proofs::plonk::Advice) -> Self {
+        Self
+    }
+}
+
+/// Temporary implementation
+impl From<halo2_proofs::plonk::Instance> for Instance {
+    fn from(_: halo2_proofs::plonk::Instance) -> Self {
+        Self
+    }
+}
+
+/// Temporary implementation
+impl<FC: halo2_proofs::plonk::ColumnType + Into<TC>, TC: ColumnType>
+    From<halo2_proofs::plonk::Column<FC>> for Column<TC>
+{
+    fn from(value: halo2_proofs::plonk::Column<FC>) -> Self {
+        Self::new(value.index(), (*value.column_type()).into())
+    }
+}
 
 impl RotationExt<halo2_proofs::poly::Rotation> for Rotation {
     fn cur() -> halo2_proofs::poly::Rotation {

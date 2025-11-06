@@ -9,7 +9,6 @@ use crate::{
         EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes,
         ScopedExpression, constant_folding::ConstantFolding,
     },
-    halo2::*,
     info_traits::{GateInfo, SelectorInfo as _},
     io::{AdviceIO, InstanceIO},
     ir::stmt::IRStmt,

@@ -676,11 +676,9 @@ dependencies = [
  "picus",
  "quickcheck",
  "quickcheck_macros",
- "rand_core",
  "rstest 0.26.1",
  "similar-asserts",
  "simplelog",
- "subtle",
 ]
 
 [[package]]
