@@ -10,6 +10,8 @@ quickcheck = "1"
 quickcheck_macros = "1"
 rstest = "0.26"
 group = "0.13"
+subtle = "2.6"
+rand_core = { version = "0.6", default-features = false }
 
 [dependencies]
 melior = { workspace = true, optional = true }
@@ -77,7 +79,7 @@ features = [
 # tag = "0.2.1"
 # optional = true
 #
-[dependencies.halo2curves_070]
+[dependencies.halo2curves]
 package = "halo2curves"
 version = "0.7.0"
 default-features = false 

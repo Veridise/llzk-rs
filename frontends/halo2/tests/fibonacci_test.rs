@@ -9,8 +9,8 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "picus-backend")]
 use halo2_llzk_frontend::PicusParamsBuilder;
-use halo2_llzk_frontend::{AdviceIO, InstanceIO, CircuitIO, CircuitSynthesis};
-use halo2curves_070::bn256::Fr;
+use halo2_llzk_frontend::{AdviceIO, CircuitIO, CircuitSynthesis, InstanceIO};
+use halo2curves::bn256::Fr;
 
 mod common;
 

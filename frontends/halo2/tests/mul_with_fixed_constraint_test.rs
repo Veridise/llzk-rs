@@ -8,7 +8,7 @@ use halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Error, Expression, Fixed, Instance, Selector,
 };
 use halo2_proofs::poly::Rotation;
-use halo2curves_070::bn256::Fr;
+use halo2curves::bn256::Fr;
 use std::marker::PhantomData;
 
 use halo2_llzk_frontend::{CircuitIO, CircuitSynthesis};

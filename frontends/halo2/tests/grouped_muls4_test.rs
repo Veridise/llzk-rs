@@ -2,14 +2,14 @@ use group::ff::Field;
 #[cfg(feature = "picus-backend")]
 use halo2_llzk_frontend::PicusParamsBuilder;
 use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
-use halo2_llzk_frontend::{AdviceIO, InstanceIO, CircuitIO, CircuitSynthesis};
+use halo2_llzk_frontend::{AdviceIO, CircuitIO, CircuitSynthesis, InstanceIO};
 use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::default_group_key;
 use halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Constraints, Error, Fixed, Instance, Selector,
 };
 use halo2_proofs::poly::Rotation;
-use halo2curves_070::bn256::Fr;
+use halo2curves::bn256::Fr;
 use std::marker::PhantomData;
 
 mod common;

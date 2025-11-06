@@ -502,48 +502,38 @@ mod lowering_tests {
     use crate::expressions::ScopedExpression;
     use crate::info_traits::QueryInfo;
     use crate::ir::equivalency::{EqvRelation as _, SymbolicEqv};
-    use crate::resolvers::FixedQueryResolver;
+    use crate::ir::expr::aexpr::lowering_tests::mocks::{Expr, Selector};
+    use crate::resolvers::{Advice, Fixed, FixedQueryResolver};
     use crate::synthesis::regions::{RegionData, RegionIndex};
     use crate::synthesis::regions::{RegionRow, Regions};
+    use crate::table::Column;
     use ff::Field;
-    use halo2_proofs::plonk::{
-        Advice, Column, ConstraintSystem, Constraints, Expression, Selector,
-    };
-    use halo2_proofs::poly::Rotation;
     use rstest::{fixture, rstest};
 
-    type F = crate::halo2::Fr;
+    type F = halo2curves::bn256::Fr;
 
-    #[allow(dead_code)]
     struct MulCfg {
-        cs: ConstraintSystem<F>,
         advices: [Column<Advice>; 3],
         selector: Selector,
+        gates: Vec<Expr>,
     }
 
     #[fixture]
-    fn cs() -> ConstraintSystem<F> {
-        ConstraintSystem::default()
-    }
+    fn mul_gate() -> MulCfg {
+        let col_a = Column::new(0, Advice);
+        let col_b = Column::new(1, Advice);
+        let col_c = Column::new(2, Advice);
+        let selector = Selector(0);
 
-    #[fixture]
-    fn mul_gate(mut cs: ConstraintSystem<F>) -> MulCfg {
-        let col_a = cs.advice_column();
-        let col_b = cs.advice_column();
-        let col_c = cs.advice_column();
-        let selector = cs.selector();
+        let a = Expr::Advice(col_a, 0);
+        let b = Expr::Advice(col_b, 0);
+        let c = Expr::Advice(col_c, 0);
 
-        cs.create_gate("mul", |meta| {
-            let a = meta.query_advice(col_a, Rotation::cur());
-            let b = meta.query_advice(col_b, Rotation::cur());
-            let c = meta.query_advice(col_c, Rotation::cur());
-
-            Constraints::with_selector(selector, vec![a * b - c])
-        });
+        let gates = vec![Expr::Selector(selector) * (a * b - c)];
         MulCfg {
-            cs,
             advices: [col_a, col_b, col_c],
             selector,
+            gates,
         }
     }
 
@@ -570,10 +560,7 @@ mod lowering_tests {
 
     /// Lowers the expression in the scope of the region.
     /// Returns one expression per row.
-    fn lower_exprs(
-        poly: &Expression<F>,
-        region: RegionData,
-    ) -> anyhow::Result<Vec<super::IRAexpr>> {
+    fn lower_exprs(poly: &Expr, region: RegionData) -> anyhow::Result<Vec<super::IRAexpr>> {
         let advice_io = CircuitIO::<crate::Advice>::empty();
         let instance_io = CircuitIO::<crate::Instance>::empty();
         let zero = ZeroResolver {};
@@ -592,20 +579,18 @@ mod lowering_tests {
         let regions = two_regions(&mul_gate);
 
         assert_eq!(regions.regions().len(), 2);
-        for gate in mul_gate.cs.gates() {
-            for poly in gate.polynomials() {
-                let exprs0 = lower_exprs(poly, regions.regions()[0]).unwrap();
-                log::debug!("expr0:");
-                for e in &exprs0 {
-                    log::debug!("  {e:?}");
-                }
-                let exprs1 = lower_exprs(poly, regions.regions()[1]).unwrap();
-                log::debug!("expr1:");
-                for e in &exprs1 {
-                    log::debug!("  {e:?}");
-                }
-                assert!(SymbolicEqv::equivalent(&exprs0, &exprs1));
+        for poly in &mul_gate.gates {
+            let exprs0 = lower_exprs(poly, regions.regions()[0]).unwrap();
+            log::debug!("expr0:");
+            for e in &exprs0 {
+                log::debug!("  {e:?}");
             }
+            let exprs1 = lower_exprs(poly, regions.regions()[1]).unwrap();
+            log::debug!("expr1:");
+            for e in &exprs1 {
+                log::debug!("  {e:?}");
+            }
+            assert!(SymbolicEqv::equivalent(&exprs0, &exprs1));
         }
     }
 
@@ -615,10 +600,159 @@ mod lowering_tests {
     impl FixedQueryResolver<F> for ZeroResolver {
         fn resolve_query(
             &self,
-            _query: &dyn QueryInfo<Kind = crate::resolvers::Fixed>,
+            _query: &dyn QueryInfo<Kind = Fixed>,
             _row: usize,
         ) -> anyhow::Result<F> {
             Ok(F::ZERO)
+        }
+    }
+
+    mod mocks {
+        use std::ops::{Mul, Sub};
+
+        use ff::Field;
+
+        use crate::{
+            Advice, Fixed, Instance,
+            expressions::{EvalExpression, EvaluableExpr, ExpressionTypes},
+            info_traits::{ChallengeInfo, CreateQuery, QueryInfo, SelectorInfo},
+            table::{Column, Rotation},
+        };
+
+        #[derive(Copy, Clone, Debug)]
+        pub struct Selector(pub usize);
+
+        impl SelectorInfo for Selector {
+            fn id(&self) -> usize {
+                self.0
+            }
+        }
+
+        #[derive(Copy, Clone, Debug)]
+        pub enum Binop {
+            Mul,
+            Sub,
+        }
+
+        #[derive(Clone, Debug)]
+        pub enum Expr {
+            Selector(Selector),
+            Advice(Column<Advice>, i32),
+            Binop(Binop, Box<Expr>, Box<Expr>),
+        }
+
+        impl ExpressionTypes for Expr {
+            type Selector = Selector;
+
+            type FixedQuery = MockFixedQuery;
+
+            type AdviceQuery = (Column<Advice>, i32);
+
+            type InstanceQuery = MockInstanceQuery;
+
+            type Challenge = ();
+        }
+
+        impl<F: Field> EvaluableExpr<F> for Expr {
+            fn evaluate<E: EvalExpression<F, Self>>(&self, evaluator: &E) -> E::Output {
+                match self {
+                    Expr::Selector(selector) => evaluator.selector(selector),
+                    Expr::Advice(column, rot) => evaluator.advice(&(*column, *rot)),
+                    Expr::Binop(Binop::Mul, expr, expr1) => {
+                        evaluator.product(expr.evaluate(evaluator), expr1.evaluate(evaluator))
+                    }
+                    Expr::Binop(Binop::Sub, expr, expr1) => evaluator.sum(
+                        expr.evaluate(evaluator),
+                        evaluator.negated(expr1.evaluate(evaluator)),
+                    ),
+                }
+            }
+        }
+
+        impl Mul for Expr {
+            type Output = Self;
+
+            fn mul(self, rhs: Self) -> Self::Output {
+                Expr::Binop(Binop::Mul, Box::new(self), Box::new(rhs))
+            }
+        }
+
+        impl Sub for Expr {
+            type Output = Self;
+
+            fn sub(self, rhs: Self) -> Self::Output {
+                Expr::Binop(Binop::Sub, Box::new(self), Box::new(rhs))
+            }
+        }
+
+        impl QueryInfo for (Column<Advice>, i32) {
+            type Kind = Advice;
+
+            fn rotation(&self) -> Rotation {
+                self.1
+            }
+
+            fn column_index(&self) -> usize {
+                self.0.index()
+            }
+        }
+
+        impl CreateQuery<Expr> for (Column<Advice>, i32) {
+            fn query_expr(index: usize, at: Rotation) -> Expr {
+                Expr::Advice(Column::new(index, Advice), at)
+            }
+        }
+
+        #[derive(Copy, Clone, Debug)]
+        pub struct MockFixedQuery;
+
+        impl QueryInfo for MockFixedQuery {
+            type Kind = Fixed;
+
+            fn rotation(&self) -> Rotation {
+                unreachable!()
+            }
+
+            fn column_index(&self) -> usize {
+                unreachable!()
+            }
+        }
+
+        impl CreateQuery<Expr> for MockFixedQuery {
+            fn query_expr(_index: usize, _at: Rotation) -> Expr {
+                unreachable!()
+            }
+        }
+
+        #[derive(Copy, Clone, Debug)]
+        pub struct MockInstanceQuery;
+
+        impl QueryInfo for MockInstanceQuery {
+            type Kind = Instance;
+
+            fn rotation(&self) -> Rotation {
+                unreachable!()
+            }
+
+            fn column_index(&self) -> usize {
+                unreachable!()
+            }
+        }
+
+        impl CreateQuery<Expr> for MockInstanceQuery {
+            fn query_expr(_index: usize, _at: Rotation) -> Expr {
+                unreachable!()
+            }
+        }
+
+        impl ChallengeInfo for () {
+            fn index(&self) -> usize {
+                unreachable!()
+            }
+
+            fn phase(&self) -> u8 {
+                unreachable!()
+            }
         }
     }
 }

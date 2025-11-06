@@ -4,12 +4,12 @@ use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
 use halo2_proofs::default_group_key;
 use halo2_proofs::plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector};
 use halo2_proofs::poly::Rotation;
-use halo2curves_070::bn256::Fr;
+use halo2curves::bn256::Fr;
 use std::marker::PhantomData;
 
 #[cfg(feature = "picus-backend")]
 use halo2_llzk_frontend::PicusParamsBuilder;
-use halo2_llzk_frontend::{AdviceIO, InstanceIO, CircuitIO, CircuitSynthesis};
+use halo2_llzk_frontend::{AdviceIO, CircuitIO, CircuitSynthesis, InstanceIO};
 
 mod common;
 
