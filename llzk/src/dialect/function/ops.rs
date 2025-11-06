@@ -239,7 +239,7 @@ pub fn call<'c>(
     location: Location<'c>,
     name: &str,
     args: &[Value<'c, '_>],
-    return_type: impl TypeLike<'c>,
+    return_types: &[impl TypeLike<'c>],
 ) -> Result<CallOp<'c>, Error> {
     let ctx = location.context();
     let name = FlatSymbolRefAttribute::new(unsafe { ctx.to_ref() }, name);
@@ -247,9 +247,8 @@ pub fn call<'c>(
         Operation::from_raw(llzkCallOpBuild(
             builder.to_raw(),
             location.to_raw(),
-            1 as isize,
-            // &return_type.to_raw(),
-            [return_type].as_ptr() as *const _,
+            return_types.len() as isize,
+            return_types.as_ptr() as *const _,
             name.to_raw(),
             args.len() as isize,
             args.as_ptr() as *const _,

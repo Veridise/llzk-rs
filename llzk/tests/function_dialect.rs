@@ -52,8 +52,6 @@ fn function_call() {
         None,
     )
     .unwrap();
-
-    println!("Function def created. Adding block...");
     {
         let block = Block::new(&[]);
         let builder =
@@ -61,7 +59,7 @@ fn function_call() {
         // Build call to itself
         let v = block
             .append_operation(
-                function::call(&builder, loc, "recursive", &[], felt_type)
+                function::call(&builder, loc, "recursive", &[], &[felt_type])
                     .unwrap()
                     .into(),
             )
