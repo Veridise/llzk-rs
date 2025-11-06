@@ -1,0 +1,19 @@
+[package]
+name = "halo2-midnight-integration"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+halo2-llzk-frontend = { path = "../halo2" }
+ff = {workspace = true }
+
+[dependencies.midnight-proofs]
+git = "https://github.com/Veridise/midnight-zk.git"
+default-features = false
+features = [
+    "bits",
+    "cost-estimator",
+    "circuit-params",
+    "committed-instances",
+    "region-groups"
+]

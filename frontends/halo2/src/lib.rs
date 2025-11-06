@@ -8,7 +8,7 @@ pub(crate) mod backend;
 pub mod driver;
 pub mod expressions;
 pub mod gates;
-mod halo2;
+//mod halo2;
 pub mod info_traits;
 mod io;
 pub mod ir;
@@ -35,7 +35,7 @@ use ff::Field;
 pub use io::CircuitIO;
 pub use lookups::callbacks::LookupCallbacks;
 pub use resolvers::{Advice, Fixed, Instance, QueryKind};
-pub use synthesis::Synthesizer;
+pub use synthesis::{Synthesizer, regions::RegionIndex};
 
 /// Implementations of this trait define how a circuit is synthesized.
 ///

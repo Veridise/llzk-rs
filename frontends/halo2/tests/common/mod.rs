@@ -6,23 +6,85 @@ use halo2_llzk_frontend::PicusParams;
 use halo2_llzk_frontend::{
     CircuitSynthesis, Synthesizer,
     driver::Driver,
-    ir::{ResolvedIRCircuit, generate::IRGenParams, stmt::IRStmt},
+    expressions::{EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes},
+    info_traits::{
+        ChallengeInfo, ConstraintSystemInfo, CreateQuery, GateInfo, GroupInfo, QueryInfo,
+        SelectorInfo,
+    },
+    ir::{
+        ResolvedIRCircuit,
+        generate::{IRGenParams, IRGenParamsBuilder},
+        stmt::IRStmt,
+    },
     lookups::{Lookup, callbacks::LookupCallbacks, table::LookupTableGenerator},
     temps::{ExprOrTemp, Temps},
 };
+use halo2_midnight_integration::plonk::{_Expression, ConstraintSystem};
 use halo2_proofs::plonk::{Any, Challenge, Column, FloorPlanner};
 use halo2_proofs::{
     circuit::{
         Value,
         groups::{GroupKey, GroupKeyInstance, RegionsGroup},
     },
-    plonk::{
-        Advice, Assignment, Circuit, ConstraintSystem, Error, Expression, Fixed, Instance, Selector,
-    },
+    plonk::{Advice, Assignment, Circuit, Error, Expression, Fixed, Instance, Selector},
     utils::rational::Rational,
 };
 use log::LevelFilter;
 use simplelog::{Config, TestLogger};
+
+macro_rules! basic_picus_test {
+    ($name:ident, $circuit:expr, $expected:expr, $expected_opt:expr) => {
+        mod $name {
+            use super::*;
+            #[cfg(feature = "picus-backend")]
+            #[test]
+            fn picus() {
+                common::setup();
+                common::picus_test(
+                    $circuit,
+                    common::picus_params(),
+                    common::no_ir_gen_params(),
+                    $expected,
+                    false,
+                );
+            }
+
+            #[cfg(feature = "picus-backend")]
+            #[test]
+            fn opt_picus() {
+                common::setup();
+                common::picus_test(
+                    $circuit,
+                    common::opt_picus_params(),
+                    common::no_ir_gen_params(),
+                    $expected_opt,
+                    true,
+                );
+            }
+        }
+    };
+}
+
+pub(crate) use basic_picus_test;
+
+#[cfg(feature = "picus-backend")]
+pub fn picus_params() -> PicusParams {
+    halo2_llzk_frontend::PicusParamsBuilder::new()
+        .short_names()
+        .no_optimize()
+        .build()
+}
+
+#[cfg(feature = "picus-backend")]
+pub fn opt_picus_params() -> PicusParams {
+    halo2_llzk_frontend::PicusParamsBuilder::new()
+        .short_names()
+        .build()
+}
+
+pub fn no_ir_gen_params<F: Field>() -> IRGenParams<'static, 'static, F, _Expression<F>> {
+    IRGenParamsBuilder::new().build()
+}
 
 pub fn setup() {
     let _ = TestLogger::init(LevelFilter::Debug, Config::default());
@@ -34,7 +96,7 @@ pub fn setup() {
 pub fn synthesize_and_generate_ir<'drv, F, C>(
     driver: &'drv mut Driver,
     circuit: C,
-    params: IRGenParams<F, Expression<F>>,
+    params: IRGenParams<F, _Expression<F>>,
 ) -> ResolvedIRCircuit
 where
     F: PrimeField,
@@ -66,7 +128,7 @@ where
 pub fn picus_test<F, C>(
     circuit: C,
     params: PicusParams,
-    ir_params: IRGenParams<F, Expression<F>>,
+    ir_params: IRGenParams<F, _Expression<F>>,
     expected: impl AsRef<str>,
     canonicalize: bool,
 ) where
@@ -134,176 +196,6 @@ fn clean_string(s: &str) -> String {
 }
 
 #[allow(dead_code)]
-pub struct LookupCallbackHandler;
-
-impl<F: Field> LookupCallbacks<F, Expression<F>> for LookupCallbackHandler {
-    fn on_lookup<'a>(
-        &self,
-        _lookup: &'a Lookup<Expression<F>>,
-        _table: &dyn LookupTableGenerator<F>,
-        _temps: &mut Temps,
-    ) -> anyhow::Result<IRStmt<ExprOrTemp<Cow<'a, Expression<F>>>>> {
-        Ok(IRStmt::comment("Ignored lookup"))
-    }
-}
-
-/// Implementation of Assignment for testing.
-pub struct SynthesizerAssignment<'a, F: Field> {
-    synthetizer: &'a mut Synthesizer<F>,
-}
-
-impl<'a, F: Field> SynthesizerAssignment<'a, F> {
-    pub fn synthesize<C: Circuit<F>>(
-        circuit: &C,
-        config: C::Config,
-        synthetizer: &'a mut Synthesizer<F>,
-        cs: &ConstraintSystem<F>,
-    ) -> Result<(), Error> {
-        let mut assign = Self { synthetizer };
-        let constants = cs.constants().clone();
-        C::FloorPlanner::synthesize(&mut assign, circuit, config, constants)?;
-
-        Ok(())
-    }
-}
-
-impl<F: Field> Assignment<F> for SynthesizerAssignment<'_, F> {
-    fn enter_region<NR, N>(&mut self, region_name: N)
-    where
-        NR: Into<String>,
-        N: FnOnce() -> NR,
-    {
-        self.synthetizer.enter_region(region_name().into());
-    }
-
-    fn exit_region(&mut self) {
-        self.synthetizer.exit_region();
-    }
-
-    fn enable_selector<A, AR>(&mut self, _: A, selector: &Selector, row: usize) -> Result<(), Error>
-    where
-        AR: Into<String>,
-        A: FnOnce() -> AR,
-    {
-        self.synthetizer.enable_selector(selector, row);
-        Ok(())
-    }
-
-    fn query_instance(&self, _column: Column<Instance>, _row: usize) -> Result<Value<F>, Error> {
-        Ok(Value::unknown())
-    }
-
-    fn assign_advice<V, VR, A, AR>(
-        &mut self,
-        _name: A,
-        advice: Column<Advice>,
-        row: usize,
-        _value: V,
-    ) -> Result<(), Error>
-    where
-        VR: Into<Rational<F>>,
-        AR: Into<String>,
-        V: FnOnce() -> Value<VR>,
-        A: FnOnce() -> AR,
-    {
-        self.synthetizer.on_advice_assigned(advice, row);
-        Ok(())
-    }
-
-    fn assign_fixed<V, VR, A, AR>(
-        &mut self,
-        _: A,
-        fixed: Column<Fixed>,
-        row: usize,
-        value: V,
-    ) -> Result<(), Error>
-    where
-        VR: Into<Rational<F>>,
-        AR: Into<String>,
-        V: FnOnce() -> Value<VR>,
-        A: FnOnce() -> AR,
-    {
-        let value = value().map(|f| f.into().evaluate());
-        self.synthetizer.on_fixed_assigned(
-            fixed,
-            row,
-            steal(&value).ok_or_else(|| {
-                to_plonk_error(anyhow::anyhow!(
-                    "Unknown value in fixed cell ({}, {row})",
-                    fixed.index()
-                ))
-            })?,
-        );
-        Ok(())
-    }
-
-    fn copy(
-        &mut self,
-        from: Column<Any>,
-        from_row: usize,
-        to: Column<Any>,
-        to_row: usize,
-    ) -> Result<(), Error> {
-        self.synthetizer.copy(from, from_row, to, to_row);
-        Ok(())
-    }
-
-    fn fill_from_row(
-        &mut self,
-        column: Column<Fixed>,
-        row: usize,
-        value: Value<Rational<F>>,
-    ) -> Result<(), Error> {
-        self.synthetizer.fill_table(
-            column,
-            row,
-            steal(&value.map(|f| f.evaluate())).ok_or_else(|| {
-                to_plonk_error(anyhow::anyhow!(
-                    "Unknown value in fixed cell ({}, {row})",
-                    column.index()
-                ))
-            })?,
-        );
-        Ok(())
-    }
-
-    fn push_namespace<NR, N>(&mut self, name: N)
-    where
-        NR: Into<String>,
-        N: FnOnce() -> NR,
-    {
-        self.synthetizer.push_namespace(name().into());
-    }
-
-    fn pop_namespace(&mut self, name: Option<String>) {
-        self.synthetizer.pop_namespace(name);
-    }
-
-    fn annotate_column<A, AR>(&mut self, _: A, _: Column<Any>)
-    where
-        AR: Into<String>,
-        A: FnOnce() -> AR,
-    {
-    }
-
-    fn get_challenge(&self, _: Challenge) -> Value<F> {
-        Value::unknown()
-    }
-
-    fn enter_group<NR, N, K>(&mut self, name: N, key: K)
-    where
-        NR: Into<String>,
-        N: FnOnce() -> NR,
-        K: GroupKey,
-    {
-        self.synthetizer
-            .enter_group(name().into(), *GroupKeyInstance::from(key));
-    }
-
-    fn exit_group(&mut self, meta: RegionsGroup) {
-        self.synthetizer.exit_group(meta)
-    }
-}
 
 struct ValueStealer<T> {
     data: RefCell<Option<T>>,
@@ -334,3 +226,60 @@ where
 {
     Error::Transcript(std::io::Error::other(error))
 }
+
+macro_rules! synthesis_impl {
+    ($name:ident, $circuit:ty, $inputs:expr, $outputs:expr) => {
+        #[derive(Default)]
+        struct $name($circuit);
+
+        impl halo2_llzk_frontend::CircuitSynthesis<halo2curves::bn256::Fr> for $name {
+            type Circuit = $circuit;
+            type Config =
+                <$circuit as halo2_proofs::plonk::Circuit<halo2curves::bn256::Fr>>::Config;
+
+            type CS = halo2_midnight_integration::plonk::ConstraintSystem<halo2curves::bn256::Fr>;
+
+            type Error = halo2_proofs::plonk::Error;
+
+            fn circuit(&self) -> &Self::Circuit {
+                &self.0
+            }
+            fn configure(cs: &mut Self::CS) -> Self::Config {
+                <$circuit as halo2_proofs::plonk::Circuit<halo2curves::bn256::Fr>>::configure(
+                    cs.inner_mut(),
+                )
+            }
+
+            fn advice_io(_: &Self::Config) -> anyhow::Result<halo2_llzk_frontend::AdviceIO> {
+                Ok(halo2_llzk_frontend::CircuitIO::empty())
+            }
+            fn instance_io(
+                config: &Self::Config,
+            ) -> anyhow::Result<halo2_llzk_frontend::InstanceIO> {
+                halo2_llzk_frontend::CircuitIO::new::<
+                    halo2_midnight_integration::plonk::_Column<
+                        halo2_midnight_integration::plonk::_Instance,
+                    >,
+                >(
+                    &[(config.instance.into(), &$inputs)],
+                    &[(config.instance.into(), &$outputs)],
+                )
+            }
+            fn synthesize(
+                circuit: &Self::Circuit,
+                config: Self::Config,
+                synthesizer: &mut halo2_llzk_frontend::Synthesizer<halo2curves::bn256::Fr>,
+                cs: &Self::CS,
+            ) -> Result<(), Self::Error> {
+                halo2_midnight_integration::synthesizer::SynthesizerAssignment::synthesize(
+                    circuit,
+                    config,
+                    synthesizer,
+                    cs.inner(),
+                )
+            }
+        }
+    };
+}
+
+pub(crate) use synthesis_impl;

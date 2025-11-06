@@ -14,6 +14,9 @@ pub trait ConstraintSystemInfo<F: Field> {
     /// Type for polynomial expressions.
     type Polynomial: EvaluableExpr<F> + Clone + ExpressionInfo + ExprBuilder<F>;
 
+    /// Notifies the constraint system that the circuit has completed synthesis.
+    fn synthesis_completed(&mut self) {}
+
     /// Returns the list of gates defined in the system.
     fn gates(&self) -> Vec<&dyn GateInfo<Self::Polynomial>>;
 

@@ -10,6 +10,8 @@ quickcheck = "1"
 quickcheck_macros = "1"
 rstest = "0.26"
 group = "0.13"
+halo2-test-circuits = { path = "../halo2-circuits" }
+halo2-midnight-integration = { path = "../halo2-midnight" }
 
 [dependencies]
 melior = { workspace = true, optional = true }
@@ -18,7 +20,7 @@ llzk-sys = { path = "../../llzk-sys/", version = "0.1.0", optional = true }
 llzk = { path = "../../llzk/", version = "0.1.0", features =["bigint"], optional = true}
 picus = { path = "../../picus", version = "0.1.0", features=["bigint-felt"], optional = true }
 anyhow = "^1"
-ff = "0.13"
+ff = {workspace = true }
 num-bigint = "0.4"
 log = "0.4"
 disjoint = "0.8"
@@ -33,7 +35,7 @@ bit-set = "0.8"
 # package = "halo2-axiom"
 # optional = true
 
-[dependencies.halo2_proofs]
+[dev-dependencies.halo2_proofs]
 # git = "https://github.com/midnightntwrk/halo2.git"
 # git = "https://github.com/Veridise/halo2-midnight.git"
 git = "https://github.com/Veridise/midnight-zk.git"
@@ -77,7 +79,7 @@ features = [
 # tag = "0.2.1"
 # optional = true
 #
-[dependencies.halo2curves]
+[dev-dependencies.halo2curves]
 package = "halo2curves"
 version = "0.7.0"
 default-features = false 

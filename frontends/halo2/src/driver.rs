@@ -47,6 +47,7 @@ impl Driver {
         syn.configure_io(advice_io, instance_io);
         log::debug!("Starting synthesis");
         C::synthesize(circuit.circuit(), config, &mut syn, &cs)?;
+        cs.synthesis_completed();
         let synthesized = syn.build(cs)?;
         log::debug!("Synthesis completed successfuly");
         Ok(synthesized)

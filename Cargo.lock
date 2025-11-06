@@ -663,6 +663,8 @@ dependencies = [
  "disjoint",
  "ff",
  "group",
+ "halo2-midnight-integration",
+ "halo2-test-circuits",
  "halo2curves",
  "internment",
  "llzk",
@@ -679,6 +681,24 @@ dependencies = [
  "rstest 0.26.1",
  "similar-asserts",
  "simplelog",
+]
+
+[[package]]
+name = "halo2-midnight-integration"
+version = "0.1.0"
+dependencies = [
+ "ff",
+ "halo2-llzk-frontend",
+ "midnight-proofs",
+]
+
+[[package]]
+name = "halo2-test-circuits"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ff",
+ "midnight-proofs",
 ]
 
 [[package]]
