@@ -501,14 +501,17 @@ mod folding_tests {
 mod lowering_tests {
     use crate::CircuitIO;
     use crate::expressions::ScopedExpression;
-    use crate::info_traits::QueryInfo;
     use crate::ir::equivalency::{EqvRelation as _, SymbolicEqv};
     use crate::ir::expr::aexpr::lowering_tests::mocks::{Expr, Selector};
-    use crate::resolvers::{Advice, Fixed, FixedQueryResolver};
-    use crate::synthesis::regions::{RegionData, RegionIndex};
+    use crate::resolvers::FixedQueryResolver;
+    use crate::synthesis::regions::RegionData;
     use crate::synthesis::regions::{RegionRow, Regions};
-    use crate::table::Column;
     use ff::Field;
+    use halo2_frontend_core::{
+        info_traits::QueryInfo,
+        query::{Advice, Fixed, Instance},
+        table::{Column, RegionIndex},
+    };
     use rstest::{fixture, rstest};
 
     type F = halo2curves::bn256::Fr;
@@ -562,8 +565,8 @@ mod lowering_tests {
     /// Lowers the expression in the scope of the region.
     /// Returns one expression per row.
     fn lower_exprs(poly: &Expr, region: RegionData) -> anyhow::Result<Vec<super::IRAexpr>> {
-        let advice_io = CircuitIO::<crate::Advice>::empty();
-        let instance_io = CircuitIO::<crate::Instance>::empty();
+        let advice_io = CircuitIO::<Advice>::empty();
+        let instance_io = CircuitIO::<Instance>::empty();
         let zero = ZeroResolver {};
 
         region
@@ -613,10 +616,10 @@ mod lowering_tests {
 
         use ff::Field;
 
-        use crate::{
-            Advice, Fixed, Instance,
+        use halo2_frontend_core::{
             expressions::{EvalExpression, EvaluableExpr, ExpressionTypes},
             info_traits::{ChallengeInfo, CreateQuery, QueryInfo, SelectorInfo},
+            query::{Advice, Fixed, Instance},
             table::{Column, Rotation},
         };
 
@@ -647,18 +650,18 @@ mod lowering_tests {
 
             type FixedQuery = MockFixedQuery;
 
-            type AdviceQuery = (Column<Advice>, i32);
+            type AdviceQuery = MockAdviceQuery;
 
             type InstanceQuery = MockInstanceQuery;
 
-            type Challenge = ();
+            type Challenge = MockChallenge;
         }
 
         impl<F: Field> EvaluableExpr<F> for Expr {
             fn evaluate<E: EvalExpression<F, Self>>(&self, evaluator: &E) -> E::Output {
                 match self {
                     Expr::Selector(selector) => evaluator.selector(selector),
-                    Expr::Advice(column, rot) => evaluator.advice(&(*column, *rot)),
+                    Expr::Advice(column, rot) => evaluator.advice(&MockAdviceQuery(*column, *rot)),
                     Expr::Binop(Binop::Mul, expr, expr1) => {
                         evaluator.product(expr.evaluate(evaluator), expr1.evaluate(evaluator))
                     }
@@ -686,7 +689,9 @@ mod lowering_tests {
             }
         }
 
-        impl QueryInfo for (Column<Advice>, i32) {
+        #[derive(Copy, Clone, Debug)]
+        pub struct MockAdviceQuery(Column<Advice>, i32);
+        impl QueryInfo for MockAdviceQuery {
             type Kind = Advice;
 
             fn rotation(&self) -> Rotation {
@@ -698,7 +703,7 @@ mod lowering_tests {
             }
         }
 
-        impl CreateQuery<Expr> for (Column<Advice>, i32) {
+        impl CreateQuery<Expr> for MockAdviceQuery {
             fn query_expr(index: usize, at: Rotation) -> Expr {
                 Expr::Advice(Column::new(index, Advice), at)
             }
@@ -746,7 +751,10 @@ mod lowering_tests {
             }
         }
 
-        impl ChallengeInfo for () {
+        #[derive(Copy, Clone, Debug)]
+        pub struct MockChallenge;
+
+        impl ChallengeInfo for MockChallenge {
             fn index(&self) -> usize {
                 unreachable!()
             }

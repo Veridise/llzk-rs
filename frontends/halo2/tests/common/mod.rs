@@ -1,16 +1,18 @@
 use std::{borrow::Cow, cell::RefCell};
 
 use ff::{Field, PrimeField};
-#[cfg(feature = "picus-backend")]
-use halo2_llzk_frontend::PicusParams;
-use halo2_llzk_frontend::{
-    CircuitSynthesis, Synthesizer,
-    driver::Driver,
+use halo2_frontend_core::{
     expressions::{EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes},
     info_traits::{
         ChallengeInfo, ConstraintSystemInfo, CreateQuery, GateInfo, GroupInfo, QueryInfo,
         SelectorInfo,
     },
+};
+#[cfg(feature = "picus-backend")]
+use halo2_llzk_frontend::PicusParams;
+use halo2_llzk_frontend::{
+    CircuitSynthesis, Synthesizer,
+    driver::Driver,
     ir::{
         ResolvedIRCircuit,
         generate::{IRGenParams, IRGenParamsBuilder},
@@ -275,7 +277,7 @@ macro_rules! synthesis_impl {
                     circuit,
                     config,
                     synthesizer,
-                    cs.inner(),
+                    cs,
                 )
             }
         }

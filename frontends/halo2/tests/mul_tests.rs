@@ -1,15 +1,10 @@
 use common::synthesis_impl;
 use group::ff::Field;
+use halo2_llzk_frontend::CircuitSynthesis;
 #[cfg(feature = "picus-backend")]
 use halo2_llzk_frontend::PicusParamsBuilder;
 use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
-use halo2_llzk_frontend::{AdviceIO, CircuitIO, CircuitSynthesis, InstanceIO};
-use halo2_midnight_integration::Wrapped;
-use halo2_midnight_integration::plonk::{_Column, _Instance, ConstraintSystem};
-use halo2_midnight_integration::synthesizer::SynthesizerAssignment;
-use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
-use halo2_proofs::plonk::{Advice, Circuit, Column, Error, Fixed, Instance, Selector};
-use halo2_proofs::poly::Rotation;
+use halo2_midnight_integration::plonk::ConstraintSystem;
 use halo2curves::bn256::Fr;
 use std::marker::PhantomData;
 
@@ -139,8 +134,8 @@ mod mul_rewriter {
 }
 
 mod mul_inject {
+    use halo2_frontend_core::table::RegionIndex;
     use halo2_llzk_frontend::{
-        RegionIndex,
         expressions::ExpressionInRow,
         ir::{CmpOp, stmt::IRStmt},
     };
