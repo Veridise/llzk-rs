@@ -7,8 +7,8 @@ use crate::{
         func::FuncIO,
         lowering::{ExprLowering, lowerable::LowerableExpr},
     },
-    expressions::ScopedExpression,
-    halo2::{Challenge, Expression, PrimeField},
+    expressions::{EvalExpression, EvaluableExpr, ScopedExpression},
+    halo2::{Challenge, PrimeField},
     ir::equivalency::{EqvRelation, SymbolicEqv},
     resolvers::{QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver},
     temps::ExprOrTemp,
@@ -150,46 +150,12 @@ pub enum IRAexpr {
 }
 
 impl IRAexpr {
-    fn new<F: PrimeField>(
-        expr: &Expression<F>,
-        sr: &dyn SelectorResolver,
-        qr: &dyn QueryResolver<F>,
-    ) -> Result<Self> {
-        Ok(match expr {
-            Expression::Constant(f) => Self::Constant(Felt::new(*f)),
-            Expression::Selector(selector) => match sr.resolve_selector(selector)? {
-                ResolvedSelector::Const(bool) => Self::Constant(Felt::new::<F>(bool.to_f())),
-                ResolvedSelector::Arg(arg) => Self::IO(arg.into()),
-            },
-            Expression::Fixed(fixed_query) => match qr.resolve_fixed_query(fixed_query)? {
-                ResolvedQuery::IO(io) => Self::IO(io),
-                ResolvedQuery::Lit(f) => Self::Constant(Felt::new(f)),
-            },
-            Expression::Advice(advice_query) => match qr.resolve_advice_query(advice_query)? {
-                ResolvedQuery::IO(io) => Self::IO(io),
-                ResolvedQuery::Lit(f) => Self::Constant(Felt::new(f)),
-            },
-            Expression::Instance(instance_query) => {
-                match qr.resolve_instance_query(instance_query)? {
-                    ResolvedQuery::IO(io) => Self::IO(io),
-                    ResolvedQuery::Lit(f) => Self::Constant(Felt::new(f)),
-                }
-            }
-            Expression::Challenge(challenge) => Self::Challenge(*challenge),
-            Expression::Negated(expr) => Self::Negated(Box::new(Self::new(expr, sr, qr)?)),
-            Expression::Sum(lhs, rhs) => Self::Sum(
-                Box::new(Self::new(lhs, sr, qr)?),
-                Box::new(Self::new(rhs, sr, qr)?),
-            ),
-            Expression::Product(lhs, rhs) => Self::Product(
-                Box::new(Self::new(lhs, sr, qr)?),
-                Box::new(Self::new(rhs, sr, qr)?),
-            ),
-            Expression::Scaled(lhs, rhs) => Self::Product(
-                Box::new(Self::new(lhs, sr, qr)?),
-                Box::new(Self::Constant(Felt::new(*rhs))),
-            ),
-        })
+    fn new<F, E>(expr: &E, sr: &dyn SelectorResolver, qr: &dyn QueryResolver<F>) -> Result<Self>
+    where
+        F: PrimeField,
+        E: EvaluableExpr<F>,
+    {
+        expr.evaluate(&PolyToAexpr { sr, qr })
     }
 
     /// Returns `Some(_)` if the expression is a constant value. None otherwise.
@@ -316,13 +282,14 @@ impl EqvRelation<IRAexpr> for SymbolicEqv {
     }
 }
 
-impl<F> TryFrom<ScopedExpression<'_, '_, F>> for IRAexpr
+impl<F, E> TryFrom<ScopedExpression<'_, '_, F, E>> for IRAexpr
 where
     F: PrimeField,
+    E: EvaluableExpr<F> + Clone,
 {
     type Error = anyhow::Error;
 
-    fn try_from(expr: ScopedExpression<'_, '_, F>) -> Result<Self, Self::Error> {
+    fn try_from(expr: ScopedExpression<'_, '_, F, E>) -> Result<Self, Self::Error> {
         Self::new(
             expr.as_ref(),
             expr.selector_resolver(),
@@ -359,6 +326,71 @@ impl LowerableExpr for IRAexpr {
             IRAexpr::Sum(lhs, rhs) => l.lower_sum(&lhs.lower(l)?, &rhs.lower(l)?),
             IRAexpr::Product(lhs, rhs) => l.lower_product(&lhs.lower(l)?, &rhs.lower(l)?),
         }
+    }
+}
+
+/// Implements the conversion logic between an expression and [`IRAexpr`].
+struct PolyToAexpr<'r, F> {
+    sr: &'r dyn SelectorResolver,
+    qr: &'r dyn QueryResolver<F>,
+}
+
+impl<F: PrimeField> EvalExpression<F> for PolyToAexpr<'_, F> {
+    type Output = Result<IRAexpr>;
+
+    fn constant(&self, f: &F) -> Self::Output {
+        Ok(IRAexpr::Constant(Felt::new(*f)))
+    }
+
+    fn selector(&self, selector: &crate::halo2::Selector) -> Self::Output {
+        Ok(match self.sr.resolve_selector(selector)? {
+            ResolvedSelector::Const(bool) => IRAexpr::Constant(Felt::new::<F>(bool.to_f())),
+            ResolvedSelector::Arg(arg) => IRAexpr::IO(arg.into()),
+        })
+    }
+
+    fn fixed(&self, fixed_query: &crate::halo2::FixedQuery) -> Self::Output {
+        Ok(match self.qr.resolve_fixed_query(fixed_query)? {
+            ResolvedQuery::IO(io) => IRAexpr::IO(io),
+            ResolvedQuery::Lit(f) => IRAexpr::Constant(Felt::new(f)),
+        })
+    }
+
+    fn advice(&self, advice_query: &crate::halo2::AdviceQuery) -> Self::Output {
+        Ok(match self.qr.resolve_advice_query(advice_query)? {
+            ResolvedQuery::IO(io) => IRAexpr::IO(io),
+            ResolvedQuery::Lit(f) => IRAexpr::Constant(Felt::new(f)),
+        })
+    }
+
+    fn instance(&self, instance_query: &crate::halo2::InstanceQuery) -> Self::Output {
+        Ok(match self.qr.resolve_instance_query(instance_query)? {
+            ResolvedQuery::IO(io) => IRAexpr::IO(io),
+            ResolvedQuery::Lit(f) => IRAexpr::Constant(Felt::new(f)),
+        })
+    }
+
+    fn challenge(&self, challenge: &crate::halo2::Challenge) -> Self::Output {
+        Ok(IRAexpr::Challenge(*challenge))
+    }
+
+    fn negated(&self, expr: Self::Output) -> Self::Output {
+        Ok(IRAexpr::Negated(Box::new(expr?)))
+    }
+
+    fn sum(&self, lhs: Self::Output, rhs: Self::Output) -> Self::Output {
+        Ok(IRAexpr::Sum(Box::new(lhs?), Box::new(rhs?)))
+    }
+
+    fn product(&self, lhs: Self::Output, rhs: Self::Output) -> Self::Output {
+        Ok(IRAexpr::Product(Box::new(lhs?), Box::new(rhs?)))
+    }
+
+    fn scaled(&self, lhs: Self::Output, rhs: &F) -> Self::Output {
+        Ok(IRAexpr::Product(
+            Box::new(lhs?),
+            Box::new(self.constant(rhs)?),
+        ))
     }
 }
 
@@ -451,7 +483,7 @@ mod lowering_tests {
     use crate::resolvers::FixedQueryResolver;
     use crate::synthesis::regions::{RegionRow, Regions};
     use crate::{halo2::*, synthesis::regions::RegionData};
-    use halo2_proofs::plonk::ConstraintSystem;
+    use halo2_proofs::plonk::{ConstraintSystem, Expression};
     use rstest::{fixture, rstest};
     type F = Fr;
 

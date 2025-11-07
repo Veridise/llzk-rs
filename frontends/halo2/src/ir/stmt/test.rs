@@ -96,8 +96,10 @@ fn test_partial_eq_on_i32() {
 }
 
 pub mod ff {
+    use halo2_proofs::plonk::Expression;
+
     use crate::{
-        halo2::{ColumnType, Expression, Field, Fixed, Rotation},
+        halo2::{ColumnType, Field, Fixed, Rotation},
         ir::stmt::{IRStmt, test::TestHelper},
     };
 

@@ -2,15 +2,15 @@ use anyhow::Result;
 
 use crate::{
     backend::lowering::{
-        lowerable::{LowerableExpr, LowerableStmt},
         Lowering,
+        lowerable::{LowerableExpr, LowerableStmt},
     },
     ir::{
+        CmpOp,
         canon::canonicalize_constraint,
         equivalency::EqvRelation,
         expr::{Felt, IRAexpr},
         stmt::IRStmt,
-        CmpOp,
     },
 };
 
@@ -169,8 +169,10 @@ mod test {
     }
 
     mod ff {
+        use halo2_proofs::plonk::Expression;
+
         use super::*;
-        use crate::halo2::{ColumnType, Expression, Field, Fixed, Rotation};
+        use crate::halo2::{ColumnType, Field, Fixed, Rotation};
 
         type F = crate::halo2::Fr;
 
