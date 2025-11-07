@@ -28,11 +28,17 @@ pub enum Error {
     Melior(MeliorError),
     /// Happens when an IR object doesn't have an attribute by that name.
     AttributeNotFound(String),
+    /// Set of diagnostics considered errors.
     Diagnostics(DiagnosticErrors),
+    /// Happens when an operation failed to verify.
     OpVerificationFailed {
+        /// Operation name.
         name: String,
+        /// String representation of the IR.
         ir: String,
+        /// Location of the operation.
         location: String,
+        /// Optional list of diagnostics related to the verification failure.
         diags: Option<DiagnosticErrors>,
     },
 }

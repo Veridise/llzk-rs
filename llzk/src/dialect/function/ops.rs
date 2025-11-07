@@ -136,6 +136,7 @@ pub trait FuncDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     }
 }
 
+/// Mutable operations for the `function.def` op.
 pub trait FuncDefOpMutLike<'c: 'a, 'a>: FuncDefOpLike<'c, 'a> + OperationMutLike<'c, 'a> {}
 
 //===----------------------------------------------------------------------===//
