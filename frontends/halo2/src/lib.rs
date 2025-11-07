@@ -8,7 +8,6 @@ pub(crate) mod backend;
 pub mod driver;
 pub mod expressions;
 pub mod gates;
-//mod halo2;
 mod io;
 pub mod ir;
 pub mod lookups;
