@@ -37,7 +37,6 @@ use anyhow::Result;
 use ff::Field;
 use halo2_frontend_core::{
     expressions::{ExprBuilder, ExpressionInfo},
-    info_traits::GateInfo,
     table::{Any, Rotation, RotationExt},
 };
 

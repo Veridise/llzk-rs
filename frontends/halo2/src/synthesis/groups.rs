@@ -9,7 +9,7 @@ use crate::{
 use halo2_frontend_core::{
     expressions::ExprBuilder,
     query::{Advice, Instance},
-    table::{Any, Cell, Column, ColumnType, RegionIndex, Rotation, RotationExt},
+    table::{Any, Cell, ColumnType, RegionIndex, Rotation, RotationExt},
 };
 
 use super::regions::{RegionData, RegionRow, Regions};

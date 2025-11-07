@@ -1,9 +1,9 @@
 use ff::Field;
-use midnight_proofs::circuit::{AssignedCell, Layouter, RegionIndex, SimpleFloorPlanner, Value};
-use midnight_proofs::plonk::{
-    Advice, Circuit, Column, ConstraintSystem, Error, Expression, Fixed, Instance, Selector,
+use midnight_proofs::{
+    circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value},
+    plonk::{Circuit, ConstraintSystem, Error},
+    poly::Rotation,
 };
-use midnight_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
 use crate::mul::MulConfig;

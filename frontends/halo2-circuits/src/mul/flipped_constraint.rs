@@ -1,8 +1,6 @@
 use ff::Field;
 use midnight_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
-use midnight_proofs::plonk::{
-    Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector,
-};
+use midnight_proofs::plonk::{Circuit, ConstraintSystem, Error};
 use midnight_proofs::poly::Rotation;
 use std::marker::PhantomData;
 

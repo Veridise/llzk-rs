@@ -4,7 +4,7 @@ use anyhow::{Error, Result};
 use ff::Field;
 use std::{cell::LazyCell, ops::Index};
 
-use halo2_frontend_core::{expressions::ExpressionInfo, info_traits::QueryInfo, query::Fixed};
+use halo2_frontend_core::{info_traits::QueryInfo, query::Fixed};
 
 /// Type alias for a result of creating a boxed slice representing the rows in the table.
 pub type LookupTableBox<F> = Result<Box<[LookupTableRow<F>]>>;

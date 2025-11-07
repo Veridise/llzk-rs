@@ -1,10 +1,10 @@
 use ff::Field;
-use midnight_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
-use midnight_proofs::default_group_key;
-use midnight_proofs::plonk::{
-    Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector,
-};
 use midnight_proofs::poly::Rotation;
+use midnight_proofs::{
+    circuit::{AssignedCell, Layouter, SimpleFloorPlanner},
+    default_group_key,
+    plonk::{Circuit, ConstraintSystem, Error},
+};
 use std::marker::PhantomData;
 
 use crate::mul::MulConfig;

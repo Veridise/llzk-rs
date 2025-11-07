@@ -2,7 +2,7 @@
 
 use crate::{
     macros::*,
-    plonk::helper_traits::{ColumnConversion, ColumnWrapper, RotationExt as _, WrappedColumn},
+    plonk::helper_traits::{ColumnConversion, ColumnWrapper, RotationExt as _},
 };
 use ff::Field;
 use halo2_frontend_core::{
@@ -24,15 +24,6 @@ mod helper_traits {
 
     pub trait ColumnWrapper: Sized {
         type Src: ColumnType + Into<Self>;
-    }
-
-    pub trait WrappedColumn<W: ColumnWrapper<Src = Self>>: Sized {}
-
-    impl<T, W> WrappedColumn<W> for T
-    where
-        W: ColumnWrapper<Src = T>,
-        T: ColumnType + Into<W>,
-    {
     }
 
     pub trait ColumnConversion<Dst: halo2_frontend_core::table::ColumnType>: Sized {

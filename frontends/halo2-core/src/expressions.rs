@@ -3,7 +3,6 @@
 use crate::{
     info_traits::{ChallengeInfo, CreateQuery, QueryInfo, SelectorInfo},
     query::{Advice, Fixed, Instance},
-    table::{Column, ColumnType, Rotation},
 };
 
 /// Trait with types associated to expressions.

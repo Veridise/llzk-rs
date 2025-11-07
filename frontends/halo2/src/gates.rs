@@ -14,7 +14,7 @@ use crate::{
 use halo2_frontend_core::{
     expressions::{EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes},
     info_traits::{GateInfo, SelectorInfo as _},
-    table::{RegionIndex, Rotation},
+    table::RegionIndex,
 };
 
 /// Information about a gate in the constraint system.
