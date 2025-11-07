@@ -6,6 +6,7 @@ use halo2_proofs::plonk::{
 };
 use halo2_proofs::poly::Rotation;
 use halo2curves_070::bn256::Fr;
+#[cfg(feature = "llzk-backend")]
 use llzk::prelude::LlzkContext;
 use std::marker::PhantomData;
 

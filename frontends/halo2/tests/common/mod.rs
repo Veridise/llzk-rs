@@ -25,8 +25,10 @@ use halo2_proofs::{
     },
     utils::rational::Rational,
 };
+#[cfg(feature = "llzk-backend")]
 use llzk::prelude::*;
 use log::LevelFilter;
+#[cfg(feature = "llzk-backend")]
 use melior::ir::Module;
 use simplelog::{Config, TestLogger};
 
