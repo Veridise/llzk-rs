@@ -5,8 +5,22 @@ use melior::{
     ir::{Identifier, Location, Operation, Type},
 };
 
+fn filename(name: &str, section: Option<&str>) -> String {
+    use std::fmt::Write;
+    const STRUCT: &str = "struct ";
+    const SEP: &str = " | ";
+    let mut s = String::with_capacity(
+        STRUCT.len() + name.len() + section.map(|s| s.len() + SEP.len()).unwrap_or_default(),
+    );
+    write!(s, "{STRUCT}{name}").expect("write to string");
+    if let Some(section) = section {
+        write!(s, "{SEP}{section}").expect("write to string");
+    }
+    s
+}
+
 fn struct_def_op_location<'c>(context: &'c Context, name: &str, index: usize) -> Location<'c> {
-    Location::new(context, format!("struct {name}").as_str(), index, 0)
+    Location::new(context, filename(name, None).as_str(), index, 0)
 }
 
 pub struct StructIO {
@@ -22,8 +36,8 @@ impl StructIO {
         context: &'c Context,
         header: &str,
     ) -> impl Iterator<Item = Result<FieldDefOp<'c>, LlzkError>> {
-        let public_filename = format!("struct {header} | public outputs");
-        let private_filename = format!("struct {header} | private outputs");
+        let public_filename = filename(header, Some("public outputs"));
+        let private_filename = filename(header, Some("private outputs"));
         std::iter::repeat_n(true, self.public_outputs)
             .enumerate()
             .chain(std::iter::repeat_n(false, self.private_outputs).enumerate())
@@ -48,8 +62,8 @@ impl StructIO {
         is_main: bool,
         struct_name: &str,
     ) -> Vec<(Type<'c>, Location<'c>)> {
-        let public_filename = format!("struct {struct_name} | public inputs");
-        let private_filename = format!("struct {struct_name} | private inputs");
+        let public_filename = filename(struct_name, Some("public inputs"));
+        let private_filename = filename(struct_name, Some("private inputs"));
         let public_locs = std::iter::repeat(&public_filename)
             .enumerate()
             .take(self.public_inputs);
