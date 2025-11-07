@@ -881,7 +881,7 @@ mod tests {
     /// The expected behavior is defined in textual MLIR IR as the fragment. This fragment is
     /// injected into a textual representation of the final module and compared against the emitted
     /// module. To avoid whitespacing issues or other formatting issues the textual IR is parsed
-    /// into a [`Module`] and then reprinted to standarize the syntax.
+    /// into a [`Module`] and then reprinted to standardize the syntax.
     fn fragment_test(
         cfg: FragmentCfg,
         frag: &str,
