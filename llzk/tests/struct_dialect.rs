@@ -3,6 +3,26 @@ use melior::ir::Location;
 
 mod common;
 
+macro_rules! assert_test {
+    ($op:expr, $module:expr, @file $expected:literal ) => {{
+        let s = $module.body().append_operation($op.into());
+        verify_operation_with_diags(&s).unwrap();
+        log::info!("Op passed verification");
+
+        mlir_testutils::assert_module_eq_to_file!(&$module, $expected);
+    }};
+}
+
+fn default_funcs<'c>(
+    loc: Location<'c>,
+    typ: StructType<'c>,
+) -> [Result<Operation<'c>, LlzkError>; 2] {
+    [
+        r#struct::helpers::compute_fn(loc, typ, &[], None).map(Into::into),
+        r#struct::helpers::constrain_fn(loc, typ, &[], None).map(Into::into),
+    ]
+}
+
 #[test]
 fn empty_struct() {
     common::setup();
@@ -11,28 +31,9 @@ fn empty_struct() {
     let loc = Location::unknown(&context);
     let typ = StructType::from_str(&context, "empty");
 
-    let s = r#struct::def(loc, "empty", &[], {
-        [
-            r#struct::helpers::compute_fn(loc, typ, &[], None).map(Into::into),
-            r#struct::helpers::constrain_fn(loc, typ, &[], None).map(Into::into),
-        ]
-    })
-    .unwrap();
+    let s = r#struct::def(loc, "empty", &[], default_funcs(loc, typ)).unwrap();
 
-    let s = module.body().append_operation(s.into());
-    assert!(s.verify());
-    log::info!("Op passed verification");
-    let ir = format!("{s}");
-    let expected = r"struct.def @empty<[]> {
-  function.def @compute() -> !struct.type<@empty<[]>> attributes {function.allow_witness} {
-    %self = struct.new : <@empty<[]>>
-    function.return %self : !struct.type<@empty<[]>>
-  }
-  function.def @constrain(%arg0: !struct.type<@empty<[]>>) attributes {function.allow_constraint} {
-    function.return
-  }
-}";
-    similar_asserts::assert_eq!(ir, expected);
+    assert_test!(s, module, @file "expected/empty_struct.mlir" );
 }
 
 #[test]
@@ -43,28 +44,9 @@ fn empty_struct_with_one_param() {
     let loc = Location::unknown(&context);
     let typ = StructType::from_str_params(&context, "empty", &["T"]);
 
-    let s = r#struct::def(loc, "empty", &["T"], {
-        [
-            r#struct::helpers::compute_fn(loc, typ, &[], None).map(Into::into),
-            r#struct::helpers::constrain_fn(loc, typ, &[], None).map(Into::into),
-        ]
-    })
-    .unwrap();
+    let s = r#struct::def(loc, "empty", &["T"], default_funcs(loc, typ)).unwrap();
 
-    let s = module.body().append_operation(s.into());
-    assert!(s.verify());
-    log::info!("Op passed verification");
-    let ir = format!("{s}");
-    let expected = r"struct.def @empty<[@T]> {
-  function.def @compute() -> !struct.type<@empty<[@T]>> attributes {function.allow_witness} {
-    %self = struct.new : <@empty<[@T]>>
-    function.return %self : !struct.type<@empty<[@T]>>
-  }
-  function.def @constrain(%arg0: !struct.type<@empty<[@T]>>) attributes {function.allow_constraint} {
-    function.return
-  }
-}";
-    similar_asserts::assert_eq!(ir, expected);
+    assert_test!(s, module, @file "expected/empty_struct_with_one_param.mlir");
 }
 
 #[test]
@@ -92,20 +74,7 @@ fn empty_struct_with_pub_inputs() {
     })
     .unwrap();
 
-    let s = module.body().append_operation(s.into());
-    assert!(s.verify());
-    log::info!("Op passed verification");
-    let ir = format!("{s}");
-    let expected = r"struct.def @empty<[]> {
-  function.def @compute(%arg0: !felt.type {llzk.pub}) -> !struct.type<@empty<[]>> attributes {function.allow_witness} {
-    %self = struct.new : <@empty<[]>>
-    function.return %self : !struct.type<@empty<[]>>
-  }
-  function.def @constrain(%arg0: !struct.type<@empty<[]>>, %arg1: !felt.type {llzk.pub}) attributes {function.allow_constraint} {
-    function.return
-  }
-}";
-    similar_asserts::assert_eq!(ir, expected);
+    assert_test!(s, module, @file "expected/empty_struct_with_pub_inputs.mlir");
 }
 
 #[test]
@@ -116,20 +85,5 @@ fn signal_struct() {
 
     let s = r#struct::helpers::define_signal_struct(&context).unwrap();
 
-    let s = module.body().append_operation(s.into());
-    assert!(s.verify());
-    log::info!("Op passed verification");
-    let ir = format!("{s}");
-    let expected = r"struct.def @Signal<[]> {
-  struct.field @reg : !felt.type {llzk.pub}
-  function.def @compute(%arg0: !felt.type) -> !struct.type<@Signal<[]>> attributes {function.allow_witness} {
-    %self = struct.new : <@Signal<[]>>
-    struct.writef %self[@reg] = %arg0 : <@Signal<[]>>, !felt.type
-    function.return %self : !struct.type<@Signal<[]>>
-  }
-  function.def @constrain(%arg0: !struct.type<@Signal<[]>>, %arg1: !felt.type) attributes {function.allow_constraint} {
-    function.return
-  }
-}";
-    similar_asserts::assert_eq!(ir, expected);
+    assert_test!(s, module, @file "expected/signal_struct.mlir");
 }

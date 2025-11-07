@@ -7,6 +7,8 @@ module attributes {veridise.lang = "llzk"} {
       function.return %self : !struct.type<@Signal<[]>>
     }
     function.def @constrain(%arg0: !struct.type<@Signal<[]>>, %arg1: !felt.type) attributes {function.allow_constraint} {
+      %0 = struct.readf %arg0[@reg] : <@Signal<[]>>, !felt.type
+      constrain.eq %0, %arg1 : !felt.type, !felt.type
       function.return
     }
   }

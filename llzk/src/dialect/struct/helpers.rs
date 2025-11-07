@@ -10,7 +10,11 @@ use melior::{
 
 use crate::{
     attributes::NamedAttribute,
-    dialect::function::{self, FuncDefOp},
+    builder::OpBuilder,
+    dialect::{
+        constrain,
+        function::{self, FuncDefOp},
+    },
     error::Error,
     prelude::{FeltType, FuncDefOpLike as _, StructDefOp},
 };
@@ -114,7 +118,36 @@ pub fn define_signal_struct<'c>(context: &'c Context) -> Result<StructDefOp<'c>,
                     Ok(compute)
                 })
                 .map(Into::into),
-            constrain_fn(loc, typ, &[(FeltType::new(context).into(), loc)], None).map(Into::into),
+            constrain_fn(loc, typ, &[(FeltType::new(context).into(), loc)], None)
+                .and_then(|constrain| {
+                    let block = constrain
+                        .region(0)?
+                        .first_block()
+                        .ok_or(Error::BlockExpected(0))?;
+                    let fst = block.first_operation().ok_or(Error::EmptyBlock)?;
+                    if fst.name() != Identifier::new(context, "function.return") {
+                        return Err(Error::OperationExpected(
+                            "function.return",
+                            fst.name().as_string_ref().as_str()?.to_owned(),
+                        ));
+                    }
+                    let reg = block.insert_operation_before(
+                        fst,
+                        super::readf(
+                            &OpBuilder::new(context),
+                            loc,
+                            FeltType::new(context).into(),
+                            block.argument(0)?.into(),
+                            "reg",
+                        )?,
+                    );
+                    block.insert_operation_after(
+                        reg,
+                        constrain::eq(loc, reg.result(0)?.into(), block.argument(1)?.into()),
+                    );
+                    Ok(constrain)
+                })
+                .map(Into::into),
         ]
     })
 }

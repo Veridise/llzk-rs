@@ -912,10 +912,8 @@ mod tests {
         let out = codegen.generate_output().unwrap();
         verify_operation_with_diags(&out.module().as_operation()).unwrap();
 
-        let fragment = expected_fragment(&context, &cfg, frag);
-        let out_str = format!("{}", out.module().as_operation());
-        let frag_str = format!("{}", fragment.as_operation());
-        similar_asserts::assert_eq!(out_str, frag_str)
+        let fragment = expected_fragment(&cfg, frag);
+        mlir_testutils::assert_module_eq(out.module(), &fragment);
     }
 
     struct FragmentCfg {
@@ -1004,25 +1002,10 @@ mod tests {
                 })
                 .collect()
         }
-
-        fn signal(&self) -> &'static str {
-            r#"
-  struct.def @Signal<[]> {
-    struct.field @reg : !felt.type {llzk.pub}
-    function.def @compute(%arg0: !felt.type) -> !struct.type<@Signal<[]>> attributes {function.allow_witness} {
-      %self = struct.new : <@Signal<[]>>
-      struct.writef %self[@reg] = %arg0 : <@Signal<[]>>, !felt.type
-      function.return %self : !struct.type<@Signal<[]>>
-    }
-    function.def @constrain(%arg0: !struct.type<@Signal<[]>>, %arg1: !felt.type) attributes {function.allow_constraint} {
-      function.return
-    }
-  }"#
-        }
     }
 
-    fn expected_fragment<'c>(ctx: &'c Context, cfg: &FragmentCfg, frag: &str) -> Module<'c> {
-        let src = format!(
+    fn expected_fragment(cfg: &FragmentCfg, frag: &str) -> String {
+        format!(
             r#"module attributes {{veridise.lang = "llzk"}} {{
   {signal}
   struct.def @{name}<[]> {{
@@ -1041,10 +1024,9 @@ mod tests {
             name = cfg.struct_name,
             inputs = cfg.inputs(),
             fields = cfg.fields(),
-            signal = cfg.signal(),
+            signal = include_str!("test_files/signal_fragment.mlir"),
             self_name = cfg.self_name,
             cells = cfg.cells()
-        );
-        Module::parse(ctx, src.as_str()).unwrap_or_else(|| panic!("Failed to parse check: {src}"))
+        )
     }
 }

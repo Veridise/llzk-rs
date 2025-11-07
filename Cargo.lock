@@ -671,6 +671,7 @@ dependencies = [
  "melior",
  "midnight-proofs",
  "mlir-sys",
+ "mlir-testutils",
  "num-bigint",
  "paste",
  "picus",
@@ -830,6 +831,7 @@ dependencies = [
  "melior",
  "melior-macro",
  "mlir-sys",
+ "mlir-testutils",
  "num-bigint",
  "paste",
  "quickcheck",
@@ -963,6 +965,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e9348dd263d2680d657635d9dd084cdcd785d7486a41332ffa4c926d5882b54"
 dependencies = [
  "bindgen 0.71.1",
+]
+
+[[package]]
+name = "mlir-testutils"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "945c1a4486b8d6c5d93a8064e317d419d42397a00d30f1754688b9d7ab450227"
+dependencies = [
+ "melior",
+ "similar-asserts",
 ]
 
 [[package]]

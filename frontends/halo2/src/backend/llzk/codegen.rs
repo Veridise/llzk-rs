@@ -142,136 +142,79 @@ mod tests {
         LlzkContext::new()
     }
 
-    #[rstest]
-    fn define_main_function_empty_io(ctx: LlzkContext) {
-        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).no_optimize().build().into();
-        let codegen = LlzkCodegen::initialize(&state);
-        let advice_io = AdviceIO::empty();
-        let instance_io = InstanceIO::empty();
-        let main = codegen
-            .define_main_function(&advice_io, &instance_io)
-            .unwrap();
-        codegen.on_scope_end(main).unwrap();
+    macro_rules! main_function_test {
+        ($test_name:ident, $expected:literal, $io:expr $(,)?) => {
+            #[rstest]
+            fn $test_name(ctx: LlzkContext) {
+                let state: LlzkCodegenState =
+                    LlzkParamsBuilder::new(&ctx).no_optimize().build().into();
+                let codegen = LlzkCodegen::initialize(&state);
+                let mut cs = ConstraintSystem::<Fr>::default();
+                let (advice_io, instance_io) = ($io)(&mut cs);
+                let main = codegen
+                    .define_main_function(&advice_io, &instance_io)
+                    .unwrap();
+                codegen.on_scope_end(main).unwrap();
 
-        let op = codegen.generate_output().unwrap();
-        assert!(
-            op.module().as_operation().verify(),
-            "Top level module failed verification"
-        );
-        let op_str = format!("{}", op);
-        similar_asserts::assert_eq!(op_str, include_str!("test_files/empty_io.mlir"));
+                let op = codegen.generate_output().unwrap();
+                verify_operation_with_diags(&op.module().as_operation()).unwrap();
+                mlir_testutils::assert_module_eq_to_file!(op.module(), $expected);
+            }
+        };
     }
 
-    #[rstest]
-    fn define_main_function_public_inputs(ctx: LlzkContext) {
-        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).no_optimize().build().into();
-        let codegen = LlzkCodegen::initialize(&state);
-        let mut cs = ConstraintSystem::<Fr>::default();
-        let instance_col = cs.instance_column();
-        let advice_io = AdviceIO::empty();
-        let instance_io = InstanceIO::new(&[(instance_col, &[0, 1, 2])], &[]).unwrap();
-        let main = codegen
-            .define_main_function(&advice_io, &instance_io)
-            .unwrap();
-        codegen.on_scope_end(main).unwrap();
-
-        let op = codegen.generate_output().unwrap();
-        assert!(
-            op.module().as_operation().verify(),
-            "Top level module failed verification"
-        );
-        let op_str = format!("{}", op);
-        similar_asserts::assert_eq!(op_str, include_str!("test_files/public_inputs.mlir"));
+    main_function_test! {
+        define_main_function_empty_io,
+        "test_files/empty_io.mlir",
+        |_| (AdviceIO::empty(), InstanceIO::empty()),
     }
 
-    #[rstest]
-    fn define_main_function_private_inputs(ctx: LlzkContext) {
-        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).no_optimize().build().into();
-        let codegen = LlzkCodegen::initialize(&state);
-        let mut cs = ConstraintSystem::<Fr>::default();
-        let advice_col = cs.advice_column();
-        let advice_io = AdviceIO::new(&[(advice_col, &[0, 1, 2])], &[]).unwrap();
-        let instance_io = InstanceIO::new(&[], &[]).unwrap();
-        let main = codegen
-            .define_main_function(&advice_io, &instance_io)
-            .unwrap();
-        codegen.on_scope_end(main).unwrap();
-
-        let op = codegen.generate_output().unwrap();
-        assert!(
-            op.module().as_operation().verify(),
-            "Top level module failed verification"
-        );
-        let op_str = format!("{}", op);
-        similar_asserts::assert_eq!(op_str, include_str!("test_files/private_inputs.mlir"));
+    main_function_test! {
+        define_main_function_public_inputs,
+        "test_files/public_inputs.mlir",
+        |cs: &mut ConstraintSystem<Fr>| (
+            AdviceIO::empty(),
+            InstanceIO::new(&[(cs.instance_column(), &[0, 1, 2])], &[]).unwrap()
+        )
     }
 
-    #[rstest]
-    fn define_main_function_public_outputs(ctx: LlzkContext) {
-        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).no_optimize().build().into();
-        let codegen = LlzkCodegen::initialize(&state);
-        let mut cs = ConstraintSystem::<Fr>::default();
-        let instance_col = cs.instance_column();
-        let advice_io = AdviceIO::empty();
-        let instance_io = InstanceIO::new(&[], &[(instance_col, &[0, 1, 2])]).unwrap();
-        let main = codegen
-            .define_main_function(&advice_io, &instance_io)
-            .unwrap();
-        codegen.on_scope_end(main).unwrap();
-
-        let op = codegen.generate_output().unwrap();
-        assert!(
-            op.module().as_operation().verify(),
-            "Top level module failed verification"
-        );
-        let op_str = format!("{}", op);
-        similar_asserts::assert_eq!(op_str, include_str!("test_files/public_outputs.mlir"));
+    main_function_test! {
+        define_main_function_private_inputs,
+        "test_files/private_inputs.mlir",
+        |cs: &mut ConstraintSystem<Fr>| (
+            AdviceIO::new(&[(cs.advice_column(), &[0, 1, 2])], &[]).unwrap(),
+            InstanceIO::empty()
+        )
     }
 
-    #[rstest]
-    fn define_main_function_private_outputs(ctx: LlzkContext) {
-        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).no_optimize().build().into();
-        let codegen = LlzkCodegen::initialize(&state);
-        let mut cs = ConstraintSystem::<Fr>::default();
-        let advice_col = cs.advice_column();
-        let advice_io = AdviceIO::new(&[], &[(advice_col, &[0, 1, 2])]).unwrap();
-        let instance_io = InstanceIO::new(&[], &[]).unwrap();
-        let main = codegen
-            .define_main_function(&advice_io, &instance_io)
-            .unwrap();
-        codegen.on_scope_end(main).unwrap();
-
-        let op = codegen.generate_output().unwrap();
-        assert!(
-            op.module().as_operation().verify(),
-            "Top level module failed verification"
-        );
-        let op_str = format!("{}", op);
-        similar_asserts::assert_eq!(op_str, include_str!("test_files/private_outputs.mlir"));
+    main_function_test! {
+        define_main_function_public_outputs,
+        "test_files/public_outputs.mlir",
+        |cs: &mut ConstraintSystem<Fr>| (
+                AdviceIO::empty(),
+                InstanceIO::new(&[], &[(cs.instance_column(), &[0, 1, 2])]).unwrap()
+        )
     }
 
-    #[rstest]
-    fn define_main_function_mixed_io(ctx: LlzkContext) {
-        let state: LlzkCodegenState = LlzkParamsBuilder::new(&ctx).no_optimize().build().into();
-        let codegen = LlzkCodegen::initialize(&state);
-        let mut cs = ConstraintSystem::<Fr>::default();
-        let advice_col = cs.advice_column();
-        let instance_col = cs.instance_column();
-        let advice_io =
-            AdviceIO::new(&[(advice_col, &[0, 1, 2])], &[(advice_col, &[3, 4])]).unwrap();
-        let instance_io =
-            InstanceIO::new(&[(instance_col, &[0, 1])], &[(instance_col, &[2, 3])]).unwrap();
-        let main = codegen
-            .define_main_function(&advice_io, &instance_io)
-            .unwrap();
-        codegen.on_scope_end(main).unwrap();
+    main_function_test! {
+        define_main_function_private_outputs,
+        "test_files/private_outputs.mlir",
+        |cs: &mut ConstraintSystem<Fr>| (
+                AdviceIO::new(&[], &[(cs.advice_column(), &[0, 1, 2])]).unwrap(),
+                InstanceIO::empty()
+        )
+    }
 
-        let op = codegen.generate_output().unwrap();
-        assert!(
-            op.module().as_operation().verify(),
-            "Top level module failed verification"
-        );
-        let op_str = format!("{}", op);
-        similar_asserts::assert_eq!(op_str, include_str!("test_files/mixed_io.mlir"));
+    main_function_test! {
+        define_main_function_mixed_io,
+        "test_files/mixed_io.mlir",
+        |cs: &mut ConstraintSystem<Fr>| {
+            let advice_col = cs.advice_column();
+            let instance_col = cs.instance_column();
+            (
+                AdviceIO::new(&[(advice_col, &[0, 1, 2])], &[(advice_col, &[3, 4])]).unwrap(),
+                InstanceIO::new(&[(instance_col, &[0, 1])], &[(instance_col, &[2, 3])]).unwrap()
+            )
+        }
     }
 }
