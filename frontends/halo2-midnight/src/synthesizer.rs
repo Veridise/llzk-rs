@@ -168,6 +168,7 @@ impl<F: Field, S: SynthesizerLike<F>> Assignment<F> for SynthesizerAssignment<'_
         AR: Into<String>,
         A: FnOnce() -> AR,
     {
+        // Do nothing.
     }
 
     fn get_challenge(&self, _: Challenge) -> Value<F> {
