@@ -4,7 +4,7 @@ use crate::{
     macros::newtype,
     plonk::{_Any, _Column},
 };
-use halo2_llzk_frontend::{RegionIndex, info_traits::GroupInfo, table::Cell};
+use halo2_frontend_core::{info_traits::GroupInfo, table::Cell, table::RegionIndex};
 use midnight_proofs::circuit::groups::RegionsGroup;
 
 //===----------------------------------------------------------------------===//

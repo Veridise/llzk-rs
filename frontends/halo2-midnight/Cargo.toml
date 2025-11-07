@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-halo2-llzk-frontend = { path = "../halo2" }
+halo2-frontend-core = { path = "../halo2-core" }
 ff = {workspace = true }
 
 [dependencies.midnight-proofs]

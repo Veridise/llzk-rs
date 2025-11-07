@@ -1,45 +1,50 @@
 //! Types for supporting circuit synthesis.
 
 use std::cell::RefCell;
+use std::marker::PhantomData;
 
 use ff::Field;
-use halo2_llzk_frontend::Synthesizer;
+use halo2_frontend_core::synthesis::SynthesizerLike;
 use midnight_proofs::plonk::{Advice, Challenge, FloorPlanner};
 use midnight_proofs::{
     circuit::{
         Value,
         groups::{GroupKey, GroupKeyInstance, RegionsGroup},
     },
-    plonk::{Any, Assignment, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector},
+    plonk::{Any, Assignment, Circuit, Column, Error, Fixed, Instance, Selector},
     utils::rational::Rational,
 };
 
 use crate::circuit::groups::_RegionsGroup;
-use crate::plonk::{_Advice, _Any, _Column, _Fixed, _Selector};
+use crate::plonk::{_Advice, _Any, _Column, _Fixed, _Selector, ConstraintSystem};
 
 /// Implementation of [`Assignment`] compatible with [`Synthesizer`].
 #[derive(Debug)]
-pub struct SynthesizerAssignment<'a, F: Field> {
-    synthetizer: &'a mut Synthesizer<F>,
+pub struct SynthesizerAssignment<'a, F: Field, S: SynthesizerLike<F>> {
+    synthetizer: &'a mut S,
+    _marker: PhantomData<F>,
 }
 
-impl<'a, F: Field> SynthesizerAssignment<'a, F> {
+impl<'a, F: Field, S: SynthesizerLike<F>> SynthesizerAssignment<'a, F, S> {
     /// Synthesizes the given circuit, recording the synthesis information in the synthetizer.
     pub fn synthesize<C: Circuit<F>>(
         circuit: &C,
         config: C::Config,
-        synthetizer: &'a mut Synthesizer<F>,
+        synthetizer: &'a mut S,
         cs: &ConstraintSystem<F>,
     ) -> Result<(), Error> {
-        let mut assign = Self { synthetizer };
-        let constants = cs.constants().clone();
+        let mut assign = Self {
+            synthetizer,
+            _marker: Default::default(),
+        };
+        let constants = cs.inner().constants().clone();
         C::FloorPlanner::synthesize(&mut assign, circuit, config, constants)?;
 
         Ok(())
     }
 }
 
-impl<F: Field> Assignment<F> for SynthesizerAssignment<'_, F> {
+impl<F: Field, S: SynthesizerLike<F>> Assignment<F> for SynthesizerAssignment<'_, F, S> {
     fn enter_region<NR, N>(&mut self, region_name: N)
     where
         NR: Into<String>,

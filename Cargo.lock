@@ -696,7 +696,7 @@ name = "halo2-midnight-integration"
 version = "0.1.0"
 dependencies = [
  "ff",
- "halo2-llzk-frontend",
+ "halo2-frontend-core",
  "midnight-proofs",
 ]
 

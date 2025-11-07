@@ -9,7 +9,7 @@ pub mod groups;
 
 crate::macros::newtype!(RegionIndex, _RegionIndex with Debug, Copy, Clone);
 
-impl From<_RegionIndex> for halo2_llzk_frontend::RegionIndex {
+impl From<_RegionIndex> for halo2_frontend_core::table::RegionIndex {
     fn from(value: _RegionIndex) -> Self {
         (*value.0).into()
     }

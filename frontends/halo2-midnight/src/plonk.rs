@@ -1,14 +1,11 @@
 //! Bridge types for types in the [`midnight_proofs::plonk`] module.
 
-use std::borrow::{Borrow, BorrowMut};
-
 use crate::{
-    Wrapped,
     macros::*,
     plonk::helper_traits::{ColumnConversion, ColumnWrapper, RotationExt as _, WrappedColumn},
 };
 use ff::Field;
-use halo2_llzk_frontend::{
+use halo2_frontend_core::{
     expressions::{EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes},
     info_traits::{
         ChallengeInfo, ConstraintSystemInfo, CreateQuery, GateInfo, QueryInfo, SelectorInfo,
@@ -38,7 +35,7 @@ mod helper_traits {
     {
     }
 
-    pub trait ColumnConversion<Dst: halo2_llzk_frontend::table::ColumnType>: Sized {
+    pub trait ColumnConversion<Dst: halo2_frontend_core::table::ColumnType>: Sized {
         fn convert(&self) -> Dst;
     }
 
@@ -46,7 +43,7 @@ mod helper_traits {
         fn to_halo2(self) -> Rotation;
     }
 
-    impl RotationExt for halo2_llzk_frontend::table::Rotation {
+    impl RotationExt for halo2_frontend_core::table::Rotation {
         fn to_halo2(self) -> Rotation {
             Rotation(self)
         }
@@ -63,9 +60,9 @@ impl ColumnWrapper for _Advice {
     type Src = Advice;
 }
 
-impl ColumnConversion<halo2_llzk_frontend::Advice> for _Advice {
-    fn convert(&self) -> halo2_llzk_frontend::Advice {
-        halo2_llzk_frontend::Advice
+impl ColumnConversion<halo2_frontend_core::query::Advice> for _Advice {
+    fn convert(&self) -> halo2_frontend_core::query::Advice {
+        halo2_frontend_core::query::Advice
     }
 }
 
@@ -76,7 +73,7 @@ impl ColumnConversion<halo2_llzk_frontend::Advice> for _Advice {
 newtype!(AdviceQuery, _AdviceQuery with Copy, Clone, Debug);
 
 impl QueryInfo for _AdviceQuery {
-    type Kind = halo2_llzk_frontend::Advice;
+    type Kind = halo2_frontend_core::query::Advice;
 
     fn rotation(&self) -> Rotation {
         self.0.rotation().0
@@ -103,12 +100,12 @@ impl ColumnWrapper for _Any {
     type Src = Any;
 }
 
-impl ColumnConversion<halo2_llzk_frontend::table::Any> for _Any {
-    fn convert(&self) -> halo2_llzk_frontend::table::Any {
+impl ColumnConversion<halo2_frontend_core::table::Any> for _Any {
+    fn convert(&self) -> halo2_frontend_core::table::Any {
         match self.0 {
-            Any::Advice(_) => halo2_llzk_frontend::table::Any::Advice,
-            Any::Fixed => halo2_llzk_frontend::table::Any::Fixed,
-            Any::Instance => halo2_llzk_frontend::table::Any::Instance,
+            Any::Advice(_) => halo2_frontend_core::table::Any::Advice,
+            Any::Fixed => halo2_frontend_core::table::Any::Fixed,
+            Any::Instance => halo2_frontend_core::table::Any::Instance,
         }
     }
 }
@@ -143,8 +140,8 @@ impl<C: ColumnWrapper> From<Column<C::Src>> for _Column<C> {
     }
 }
 
-impl<FC: ColumnWrapper + ColumnConversion<TC>, TC: halo2_llzk_frontend::table::ColumnType>
-    From<_Column<FC>> for halo2_llzk_frontend::table::Column<TC>
+impl<FC: ColumnWrapper + ColumnConversion<TC>, TC: halo2_frontend_core::table::ColumnType>
+    From<_Column<FC>> for halo2_frontend_core::table::Column<TC>
 {
     fn from(value: _Column<FC>) -> Self {
         let inner_column: FC::Src = *value.0.column_type();
@@ -349,9 +346,9 @@ impl ColumnWrapper for _Fixed {
     type Src = Fixed;
 }
 
-impl ColumnConversion<halo2_llzk_frontend::Fixed> for _Fixed {
-    fn convert(&self) -> halo2_llzk_frontend::Fixed {
-        halo2_llzk_frontend::Fixed
+impl ColumnConversion<halo2_frontend_core::query::Fixed> for _Fixed {
+    fn convert(&self) -> halo2_frontend_core::query::Fixed {
+        halo2_frontend_core::query::Fixed
     }
 }
 
@@ -362,7 +359,7 @@ impl ColumnConversion<halo2_llzk_frontend::Fixed> for _Fixed {
 newtype!(FixedQuery, _FixedQuery with Copy, Clone, Debug);
 
 impl QueryInfo for _FixedQuery {
-    type Kind = halo2_llzk_frontend::Fixed;
+    type Kind = halo2_frontend_core::query::Fixed;
 
     fn rotation(&self) -> Rotation {
         self.0.rotation().0
@@ -419,9 +416,9 @@ impl ColumnWrapper for _Instance {
     type Src = Instance;
 }
 
-impl ColumnConversion<halo2_llzk_frontend::Instance> for _Instance {
-    fn convert(&self) -> halo2_llzk_frontend::Instance {
-        halo2_llzk_frontend::Instance
+impl ColumnConversion<halo2_frontend_core::query::Instance> for _Instance {
+    fn convert(&self) -> halo2_frontend_core::query::Instance {
+        halo2_frontend_core::query::Instance
     }
 }
 
@@ -432,7 +429,7 @@ impl ColumnConversion<halo2_llzk_frontend::Instance> for _Instance {
 newtype!(InstanceQuery, _InstanceQuery with Copy, Clone, Debug);
 
 impl QueryInfo for _InstanceQuery {
-    type Kind = halo2_llzk_frontend::Instance;
+    type Kind = halo2_frontend_core::query::Instance;
 
     fn rotation(&self) -> Rotation {
         self.0.rotation().0
