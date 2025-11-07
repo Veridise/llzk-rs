@@ -1,39 +1,34 @@
-use common::synthesis_impl;
-use group::ff::Field;
-use halo2_llzk_frontend::CircuitSynthesis;
 #[cfg(feature = "picus-backend")]
-use halo2_llzk_frontend::PicusParamsBuilder;
+use common::picus::basic_picus_test;
+use common::synthesis_impl;
 use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
-use halo2_midnight_integration::plonk::ConstraintSystem;
-use halo2curves::bn256::Fr;
-use std::marker::PhantomData;
-
 use halo2_test_circuits::mul;
+use halo2curves::bn256::Fr;
 
 mod common;
 
-common::basic_picus_test! {
+basic_picus_test! {
     mul_circuit,
     MulCircuitSynthesis::default(),
     include_str!("expected/picus/mul_circuit.picus"),
     include_str!("expected/picus/mul_circuit_opt.picus")
 }
 
-common::basic_picus_test! {
+basic_picus_test! {
     mul_flipped,
     MulFlippedCircuitSynthesis::default(),
     include_str!("expected/picus/mul_flipped_constraint.picus"),
     include_str!("expected/picus/mul_flipped_constraint_opt.picus")
 }
 
-common::basic_picus_test! {
+basic_picus_test! {
     mul_fixed,
     MulFixedConstraintCircuitSynthesis::default(),
     include_str!("expected/picus/mul_with_fixed_constraint.picus"),
     include_str!("expected/picus/mul_with_fixed_constraint_opt.picus")
 }
 
-common::basic_picus_test! {
+basic_picus_test! {
     recursive_groups,
     RecursiveMulCircuitSynthesis::default(),
     include_str!("expected/picus/recursive_groups.picus"),
@@ -42,104 +37,60 @@ common::basic_picus_test! {
 
 // This test makes sure that the order in which input and output variables are printed is
 // the same as their declaration order.
-common::basic_picus_test! {
+basic_picus_test! {
     ten_plus_io,
     TenPlusIOCircuitSynthesis::default(),
     include_str!("expected/picus/ten_plus_io.picus"),
     include_str!("expected/picus/ten_plus_io_opt.picus")
 }
 
-common::basic_picus_test! {
+basic_picus_test! {
     grouped,
     GroupedMulsCircuitSynthesis::default(),
     include_str!("expected/picus/grouped_muls.picus"),
     include_str!("expected/picus/grouped_muls_opt.picus")
 }
 
-common::basic_picus_test! {
+basic_picus_test! {
     different_bodies,
     DifferentBodiesCircuitSynthesis::default(),
     include_str!("expected/picus/different_bodies.picus"),
     include_str!("expected/picus/different_bodies_opt.picus")
 }
 
-common::basic_picus_test! {
+basic_picus_test! {
     same_body,
     SameBodyCircuitSynthesis::default(),
     include_str!("expected/picus/same_body.picus"),
     include_str!("expected/picus/same_body_opt.picus")
 }
 
-common::basic_picus_test! {
+basic_picus_test! {
     deep_callstack,
     DeepCallstackCircuitSynthesis::default(),
     include_str!("expected/picus/deep_callstack.picus"),
     include_str!("expected/picus/deep_callstack_opt.picus")
 }
 
-mod mul_rewriter {
-    use halo2_llzk_frontend::gates::{GateCallbacks, GateRewritePattern, GateScope, RewriteError};
-    use halo2_midnight_integration::plonk::_Expression;
-
-    use super::*;
-    struct DummyPattern;
-
-    impl<F: Field> GateRewritePattern<F, _Expression<F>> for DummyPattern {
-        fn match_gate<'a>(
-            &self,
-            _gate: GateScope<'a, '_, F, _Expression<F>>,
-        ) -> Result<(), RewriteError>
-        where
-            F: Field,
-        {
-            Err(RewriteError::NoMatch)
-        }
-    }
-
-    struct GC;
-
-    impl<F: Field> GateCallbacks<F, _Expression<F>> for GC {
-        fn patterns(&self) -> Vec<Box<dyn GateRewritePattern<F, _Expression<F>>>>
-        where
-            F: Field,
-        {
-            vec![Box::new(DummyPattern)]
-        }
-    }
-
-    #[cfg(feature = "picus-backend")]
-    #[test]
-    fn picus() {
-        common::setup();
-        common::picus_test(
-            MulCircuitSynthesis::default(),
-            common::picus_params(),
-            IRGenParamsBuilder::new().gate_callbacks(&GC).build(),
-            include_str!("expected/picus/mul_with_rewriter.picus"),
-            false,
-        );
-    }
-    #[cfg(feature = "picus-backend")]
-    #[test]
-    fn opt_picus() {
-        common::setup();
-        common::picus_test(
-            MulCircuitSynthesis::default(),
-            common::opt_picus_params(),
-            IRGenParamsBuilder::new().gate_callbacks(&GC).build(),
-            include_str!("expected/picus/mul_with_rewriter_opt.picus"),
-            true,
-        );
-    }
+basic_picus_test! {
+    mul_rewriter,
+    MulCircuitSynthesis::default(),
+    include_str!("expected/picus/mul_with_rewriter.picus"),
+    include_str!("expected/picus/mul_with_rewriter_opt.picus"),
+    IRGenParamsBuilder::new().gate_callbacks(&common::GC).build()
 }
 
+#[cfg(feature = "picus-backend")]
 mod mul_inject {
     use halo2_frontend_core::table::RegionIndex;
+    use halo2_llzk_frontend::CircuitSynthesis;
     use halo2_llzk_frontend::{
+        driver::Driver,
         expressions::ExpressionInRow,
-        ir::{CmpOp, stmt::IRStmt},
+        ir::{CmpOp, ResolvedIRCircuit, stmt::IRStmt},
     };
     use halo2_midnight_integration::plonk::_Expression;
+    use halo2_midnight_integration::plonk::ConstraintSystem;
     use halo2_proofs::plonk::Expression;
 
     use super::*;
@@ -171,105 +122,65 @@ mod mul_inject {
         injected
     }
 
-    use halo2_llzk_frontend::driver::Driver;
-    #[cfg(feature = "picus-backend")]
+    macro_rules! ensure_validation {
+        ($x:expr) => {{
+            let (status, errs) = $x.validate();
+
+            if status.is_err() {
+                for err in errs {
+                    log::error!("{err}");
+                }
+                panic!("Test failed due to validation errors");
+            }
+        }};
+    }
+
+    fn generate_ir(driver: &mut Driver) -> ResolvedIRCircuit {
+        let circuit = MulInjectCircuitSynthesis::default();
+        let syn = driver.synthesize(&circuit).unwrap();
+
+        let mut unresolved = driver
+            .generate_ir(&syn, IRGenParamsBuilder::new().build())
+            .unwrap();
+        let ir = ir_to_inject();
+        unresolved.inject_ir(ir, &syn).unwrap();
+        ensure_validation!(unresolved);
+        let resolved = unresolved.resolve().unwrap();
+        ensure_validation!(resolved);
+        resolved
+    }
+
     #[test]
     fn picus() {
         common::setup();
-        let circuit = MulInjectCircuitSynthesis::default();
         let mut driver = Driver::default();
-        let resolved = {
-            let syn = driver.synthesize(&circuit).unwrap();
+        let resolved = generate_ir(&mut driver);
 
-            let mut unresolved = driver
-                .generate_ir(&syn, IRGenParamsBuilder::new().build())
-                .unwrap();
-            let ir = ir_to_inject();
-            unresolved.inject_ir(ir, &syn).unwrap();
-            let (status, errs) = unresolved.validate();
-            if status.is_err() {
-                for err in errs {
-                    log::error!("{err}");
-                }
-                panic!("Test failed due to validation errors");
-            }
-            let resolved = unresolved.resolve().unwrap();
-            let (status, errs) = resolved.validate();
-            if status.is_err() {
-                for err in errs {
-                    log::error!("{err}");
-                }
-                panic!("Test failed due to validation errors");
-            }
-            resolved
-        };
-
-        common::check_picus(
+        common::picus::check_picus(
             &driver,
             &resolved,
-            PicusParamsBuilder::new()
-                .short_names()
-                .no_optimize()
-                .build(),
+            common::picus::picus_params(),
             EXPECTED_PICUS,
         );
     }
 
-    #[cfg(feature = "picus-backend")]
     #[test]
     fn opt_picus() {
         common::setup();
-        {
-            let circuit = MulInjectCircuitSynthesis::default();
-            let mut driver = Driver::default();
-            let mut resolved = {
-                let syn = driver.synthesize(&circuit).unwrap();
+        let mut driver = Driver::default();
+        let mut resolved = generate_ir(&mut driver);
 
-                let mut unresolved = driver
-                    .generate_ir(&syn, IRGenParamsBuilder::new().build())
-                    .unwrap();
-                let ir = ir_to_inject();
-                unresolved.inject_ir(ir, &syn).unwrap();
-                let (status, errs) = unresolved.validate();
-                if status.is_err() {
-                    for err in errs {
-                        log::error!("{err}");
-                    }
-                    panic!("Test failed due to validation errors");
-                }
-                let resolved = unresolved.resolve().unwrap();
-                let (status, errs) = resolved.validate();
-                if status.is_err() {
-                    for err in errs {
-                        log::error!("{err}");
-                    }
-                    panic!("Test failed due to validation errors");
-                }
-                resolved
-            };
-            resolved.constant_fold().unwrap();
-            let (status, errs) = resolved.validate();
-            if status.is_err() {
-                for err in errs {
-                    log::error!("{err}");
-                }
-                panic!("Test failed due to validation errors");
-            }
-            resolved.canonicalize();
-            let (status, errs) = resolved.validate();
-            if status.is_err() {
-                for err in errs {
-                    log::error!("{err}");
-                }
-                panic!("Test failed due to validation errors");
-            }
-            common::check_picus(
-                &driver,
-                &resolved,
-                PicusParamsBuilder::new().short_names().build(),
-                EXPECTED_OPT_PICUS,
-            );
-        };
+        resolved.constant_fold().unwrap();
+        ensure_validation!(resolved);
+        resolved.canonicalize();
+        ensure_validation!(resolved);
+
+        common::picus::check_picus(
+            &driver,
+            &resolved,
+            common::picus::opt_picus_params(),
+            EXPECTED_OPT_PICUS,
+        );
     }
 }
 

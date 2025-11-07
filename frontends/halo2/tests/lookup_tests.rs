@@ -1,84 +1,58 @@
+#[cfg(feature = "picus-backend")]
+use common::picus::basic_picus_test;
 use common::synthesis_impl;
 use group::ff::Field;
 use halo2_llzk_frontend::{
     LookupCallbacks,
-    ir::stmt::IRStmt,
+    ir::{generate::IRGenParamsBuilder, stmt::IRStmt},
     lookups::{Lookup, table::LookupTableGenerator},
     temps::{ExprOrTemp, Temps},
 };
 use halo2_midnight_integration::plonk::_Expression;
-use halo2curves::bn256::Fr;
-use std::{borrow::Cow, marker::PhantomData};
-
 use halo2_test_circuits::lookup;
+use halo2curves::bn256::Fr;
+use std::borrow::Cow;
 
 mod common;
 
-macro_rules! lookup_picus_test {
-    ($name:ident, $circuit:expr, $expected:expr, $expected_opt:expr) => {
-        mod $name {
-            use super::*;
-
-            use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
-            #[cfg(feature = "picus-backend")]
-            #[test]
-            fn picus() {
-                common::setup();
-                common::picus_test(
-                    $circuit,
-                    common::picus_params(),
-                    IRGenParamsBuilder::new()
-                        .lookup_callbacks(&LookupCallbackHandler)
-                        .build(),
-                    $expected,
-                    false,
-                );
-            }
-
-            #[cfg(feature = "picus-backend")]
-            #[test]
-            fn opt_picus() {
-                common::setup();
-                common::picus_test(
-                    $circuit,
-                    common::opt_picus_params(),
-                    IRGenParamsBuilder::new()
-                        .lookup_callbacks(&LookupCallbackHandler)
-                        .build(),
-                    $expected_opt,
-                    true,
-                );
-            }
-        }
-    };
-}
-
-lookup_picus_test! {
+basic_picus_test! {
     lookup_circuit,
     LookupCircuitSynthesis::default(),
     include_str!("expected/picus/lookup.picus"),
-    include_str!("expected/picus/lookup_opt.picus")
+    include_str!("expected/picus/lookup_opt.picus"),
+    IRGenParamsBuilder::new()
+                        .lookup_callbacks(&LookupCallbackHandler)
+                        .build()
 }
 
-lookup_picus_test! {
+basic_picus_test! {
     lookup_2x3_circuit,
     Lookup2x3CircuitSynthesis::default(),
     include_str!("expected/picus/lookup_2x3.picus"),
-    include_str!("expected/picus/lookup_2x3_opt.picus")
+    include_str!("expected/picus/lookup_2x3_opt.picus"),
+    IRGenParamsBuilder::new()
+                        .lookup_callbacks(&LookupCallbackHandler)
+                        .build(),
 }
 
-lookup_picus_test! {
+basic_picus_test! {
     lookup_2x3_fixed_circuit,
     Lookup2x3FixedCircuitSynthesis::default(),
     include_str!("expected/picus/lookup_2x3.picus"),
-    include_str!("expected/picus/lookup_2x3_opt.picus")
+    include_str!("expected/picus/lookup_2x3_opt.picus"),
+    IRGenParamsBuilder::new()
+                        .lookup_callbacks(&LookupCallbackHandler)
+                        .build(),
 }
 
-lookup_picus_test! {
+basic_picus_test! {
     lookup_2x3_zerosel_circuit,
     Lookup2x3ZeroSelCircuitSynthesis::default(),
     include_str!("expected/picus/lookup_2x3.picus"),
-    include_str!("expected/picus/lookup_2x3_opt.picus")
+    include_str!("expected/picus/lookup_2x3_opt.picus"),
+    IRGenParamsBuilder::new()
+                        .lookup_callbacks(&LookupCallbackHandler)
+                        .build(),
 }
 
 synthesis_impl!(LookupCircuitSynthesis, lookup::LookupCircuit<Fr>, [0], [1]);

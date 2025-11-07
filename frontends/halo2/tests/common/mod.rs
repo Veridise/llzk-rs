@@ -1,95 +1,17 @@
-use std::{borrow::Cow, cell::RefCell};
-
 use ff::{Field, PrimeField};
-use halo2_frontend_core::{
-    expressions::{EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes},
-    info_traits::{
-        ChallengeInfo, ConstraintSystemInfo, CreateQuery, GateInfo, GroupInfo, QueryInfo,
-        SelectorInfo,
-    },
-};
-#[cfg(feature = "picus-backend")]
-use halo2_llzk_frontend::PicusParams;
 use halo2_llzk_frontend::{
-    CircuitSynthesis, Synthesizer,
+    CircuitSynthesis,
     driver::Driver,
-    ir::{
-        ResolvedIRCircuit,
-        generate::{IRGenParams, IRGenParamsBuilder},
-        stmt::IRStmt,
-    },
-    lookups::{Lookup, callbacks::LookupCallbacks, table::LookupTableGenerator},
-    temps::{ExprOrTemp, Temps},
+    gates::{GateCallbacks, GateRewritePattern, GateScope, RewriteError},
+    ir::{ResolvedIRCircuit, generate::IRGenParams},
 };
 use halo2_midnight_integration::plonk::{_Expression, ConstraintSystem};
-use halo2_proofs::plonk::{Any, Challenge, Column, FloorPlanner};
-use halo2_proofs::{
-    circuit::{
-        Value,
-        groups::{GroupKey, GroupKeyInstance, RegionsGroup},
-    },
-    plonk::{Advice, Assignment, Circuit, Error, Expression, Fixed, Instance, Selector},
-    utils::rational::Rational,
-};
-use log::LevelFilter;
-use simplelog::{Config, TestLogger};
-
-macro_rules! basic_picus_test {
-    ($name:ident, $circuit:expr, $expected:expr, $expected_opt:expr) => {
-        mod $name {
-            use super::*;
-            #[cfg(feature = "picus-backend")]
-            #[test]
-            fn picus() {
-                common::setup();
-                common::picus_test(
-                    $circuit,
-                    common::picus_params(),
-                    common::no_ir_gen_params(),
-                    $expected,
-                    false,
-                );
-            }
-
-            #[cfg(feature = "picus-backend")]
-            #[test]
-            fn opt_picus() {
-                common::setup();
-                common::picus_test(
-                    $circuit,
-                    common::opt_picus_params(),
-                    common::no_ir_gen_params(),
-                    $expected_opt,
-                    true,
-                );
-            }
-        }
-    };
-}
-
-pub(crate) use basic_picus_test;
 
 #[cfg(feature = "picus-backend")]
-pub fn picus_params() -> PicusParams {
-    halo2_llzk_frontend::PicusParamsBuilder::new()
-        .short_names()
-        .no_optimize()
-        .build()
-}
-
-#[cfg(feature = "picus-backend")]
-pub fn opt_picus_params() -> PicusParams {
-    halo2_llzk_frontend::PicusParamsBuilder::new()
-        .short_names()
-        .build()
-}
-
-pub fn no_ir_gen_params<F: Field>() -> IRGenParams<'static, 'static, F, _Expression<F>> {
-    IRGenParamsBuilder::new().build()
-}
+pub mod picus;
 
 pub fn setup() {
-    let _ = TestLogger::init(LevelFilter::Debug, Config::default());
+    let _ = simplelog::TestLogger::init(log::LevelFilter::Debug, simplelog::Config::default());
 }
 
 /// We run the synthesis separately to test that the lifetimes of the values
@@ -125,59 +47,6 @@ where
     resolved
 }
 
-#[cfg(feature = "picus-backend")]
-#[allow(dead_code)]
-pub fn picus_test<F, C>(
-    circuit: C,
-    params: PicusParams,
-    ir_params: IRGenParams<F, _Expression<F>>,
-    expected: impl AsRef<str>,
-    canonicalize: bool,
-) where
-    F: PrimeField,
-    C: CircuitSynthesis<F, CS = ConstraintSystem<F>>,
-{
-    let mut driver = Driver::default();
-    let mut resolved = synthesize_and_generate_ir(&mut driver, circuit, ir_params);
-    if canonicalize {
-        resolved.constant_fold().unwrap();
-        let (status, errs) = resolved.validate();
-        if status.is_err() {
-            for err in errs {
-                log::error!("{err}");
-            }
-            panic!("Test failed due to validation errors");
-        }
-        resolved.canonicalize();
-        let (status, errs) = resolved.validate();
-        if status.is_err() {
-            for err in errs {
-                log::error!("{err}");
-            }
-            panic!("Test failed due to validation errors");
-        }
-    }
-    check_picus(&driver, &resolved, params, expected);
-}
-
-#[cfg(feature = "picus-backend")]
-pub fn check_picus(
-    driver: &Driver,
-    circuit: &ResolvedIRCircuit,
-    params: PicusParams,
-    expected: impl AsRef<str>,
-) {
-    let output = clean_string(
-        &driver
-            .picus(&circuit, params)
-            .unwrap()
-            .display()
-            .to_string(),
-    );
-    let expected = clean_string(expected.as_ref());
-    similar_asserts::assert_eq!(expected, output);
-}
-
 fn clean_string(s: &str) -> String {
     let mut r = String::with_capacity(s.len());
     for line in s.lines() {
@@ -197,36 +66,29 @@ fn clean_string(s: &str) -> String {
     r
 }
 
-#[allow(dead_code)]
+struct DummyPattern;
 
-struct ValueStealer<T> {
-    data: RefCell<Option<T>>,
-}
-
-impl<T: Clone> ValueStealer<T> {
-    fn new() -> Self {
-        Self {
-            data: RefCell::new(None),
-        }
-    }
-
-    fn steal(&self, value: Value<T>) -> Option<T> {
-        value.map(|t| self.data.replace(Some(t)));
-        self.data.replace(None)
+impl<F: Field> GateRewritePattern<F, _Expression<F>> for DummyPattern {
+    fn match_gate<'a>(
+        &self,
+        _gate: GateScope<'a, '_, F, _Expression<F>>,
+    ) -> Result<(), RewriteError>
+    where
+        F: Field,
+    {
+        Err(RewriteError::NoMatch)
     }
 }
 
-/// Transforms a [`Value`] into an [`Option`], returning None if the value is unknown.
-pub fn steal<T: Clone>(value: &Value<T>) -> Option<T> {
-    let stealer = ValueStealer::<T>::new();
-    stealer.steal(value.clone())
-}
+pub struct GC;
 
-fn to_plonk_error<E>(error: E) -> Error
-where
-    E: Into<Box<dyn std::error::Error + Send + Sync>>,
-{
-    Error::Transcript(std::io::Error::other(error))
+impl<F: Field> GateCallbacks<F, _Expression<F>> for GC {
+    fn patterns(&self) -> Vec<Box<dyn GateRewritePattern<F, _Expression<F>>>>
+    where
+        F: Field,
+    {
+        vec![Box::new(DummyPattern)]
+    }
 }
 
 macro_rules! synthesis_impl {
