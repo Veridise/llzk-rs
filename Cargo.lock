@@ -655,6 +655,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "halo2-frontend-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ff",
+]
+
+[[package]]
 name = "halo2-llzk-frontend"
 version = "0.1.0"
 dependencies = [
