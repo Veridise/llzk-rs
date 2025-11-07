@@ -5,7 +5,7 @@ use melior::{
     ir::{Identifier, Location, Operation, Type},
 };
 
-fn filename(name: &str, section: Option<&str>) -> String {
+pub fn filename(name: &str, section: Option<&str>) -> String {
     use std::fmt::Write;
     const STRUCT: &str = "struct ";
     const SEP: &str = " | ";

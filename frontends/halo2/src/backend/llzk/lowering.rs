@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::backend::llzk::factory::filename;
 use crate::backend::lowering::ExprLowering;
 use crate::halo2::Challenge;
 use anyhow::{Result, anyhow};
@@ -55,7 +56,7 @@ impl<'c, 's> LlzkStructLowering<'c, 's> {
     fn get_cell_field(&self, kind: &str, col: usize, row: usize) -> Result<FieldDefOpRef<'c, '_>> {
         let name = format!("{kind}_{col}_{row}");
         Ok(self.struct_op.get_or_create_field_def(&name, || {
-            let filename = format!("struct {} | advice cell", self.struct_name(),);
+            let filename = filename(self.struct_name(), Some("advice cell"));
             let loc = Location::new(self.context(), &filename, col, row);
             r#struct::field(loc, &name, FeltType::new(self.context()), false, false)
         })?)
@@ -194,7 +195,7 @@ impl<'c> Lowering for LlzkStructLowering<'c, '_> {
     ) -> Result<()> {
         let loc = Location::new(
             self.context(),
-            format!("struct {} | constraints", self.struct_name()).as_str(),
+            filename(self.struct_name(), Some("constraints")).as_str(),
             self.constraints_counter.next(),
             0,
         );
