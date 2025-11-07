@@ -3,12 +3,14 @@
 use ff::Field;
 
 use crate::{
-    Fixed,
     ir::generate::RegionByIndex,
     synthesis::{
         constraint::EqConstraint,
         groups::{Group, GroupCell},
     },
+};
+use halo2_frontend_core::{
+    query::Fixed,
     table::{Any, Column},
 };
 use std::{collections::HashSet, ops::Range};

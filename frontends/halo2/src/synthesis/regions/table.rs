@@ -4,7 +4,7 @@ use std::{
     convert::identity,
 };
 
-use crate::{info_traits::QueryInfo, resolvers::Fixed};
+use halo2_frontend_core::{info_traits::QueryInfo, query::Fixed};
 
 use super::fixed::FixedData;
 

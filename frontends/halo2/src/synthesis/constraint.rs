@@ -1,7 +1,7 @@
 use ff::Field;
 
-use crate::{
-    Fixed,
+use halo2_frontend_core::{
+    query::Fixed,
     table::{Any, Column},
 };
 use std::collections::BTreeSet;

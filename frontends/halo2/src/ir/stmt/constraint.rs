@@ -155,7 +155,7 @@ mod test {
     use crate::ir::stmt::test::TestHelper;
 
     use super::*;
-    use crate::table::RotationExt;
+    use halo2_frontend_core::table::RotationExt;
 
     #[test]
     fn test_partial_eq_on_i32() {
@@ -166,10 +166,8 @@ mod test {
     mod ff {
 
         use super::*;
-        use crate::{
-            ir::stmt::test::ff::{MockExpr, a, c, f, i},
-            table::Rotation,
-        };
+        use crate::ir::stmt::test::ff::{MockExpr, a, c, f, i};
+        use halo2_frontend_core::table::Rotation;
 
         #[test]
         fn test_partial_eq_on_expressions() {

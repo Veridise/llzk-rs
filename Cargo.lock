@@ -671,6 +671,7 @@ dependencies = [
  "disjoint",
  "ff",
  "group",
+ "halo2-frontend-core",
  "halo2-midnight-integration",
  "halo2-test-circuits",
  "halo2curves",

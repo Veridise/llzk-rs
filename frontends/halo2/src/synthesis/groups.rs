@@ -3,12 +3,13 @@ use std::{borrow::Borrow, collections::HashMap, ops::Deref};
 use ff::Field;
 
 use crate::{
-    Advice, Instance,
-    expressions::ExprBuilder,
     io::{AdviceIO, CircuitIO, IOCell, InstanceIO},
     resolvers::FixedQueryResolver,
-    synthesis::regions::RegionIndex,
-    table::{Any, Cell, Column, ColumnType, Rotation, RotationExt},
+};
+use halo2_frontend_core::{
+    expressions::ExprBuilder,
+    query::{Advice, Instance},
+    table::{Any, Cell, Column, ColumnType, RegionIndex, Rotation, RotationExt},
 };
 
 use super::regions::{RegionData, RegionRow, Regions};

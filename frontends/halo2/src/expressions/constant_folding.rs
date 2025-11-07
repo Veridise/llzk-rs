@@ -2,10 +2,11 @@ use std::marker::PhantomData;
 
 use ff::Field;
 
-use crate::{
+use crate::resolvers::{ResolvedQuery, ResolvedSelector, ResolversProvider};
+use halo2_frontend_core::{
     expressions::{EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes},
     info_traits::{QueryInfo, SelectorInfo},
-    resolvers::{Fixed, ResolvedQuery, ResolvedSelector, ResolversProvider},
+    query::Fixed,
 };
 
 pub struct ConstantFolding<'a, F: Field, E> {

@@ -5,11 +5,8 @@ use std::{
 
 use ff::Field;
 
-use crate::{
-    info_traits::QueryInfo,
-    resolvers::{Fixed, FixedQueryResolver},
-    table::Column,
-};
+use crate::resolvers::FixedQueryResolver;
+use halo2_frontend_core::{info_traits::QueryInfo, query::Fixed, table::Column};
 
 type BlanketFills<F> = Vec<(RangeFrom<usize>, F)>;
 

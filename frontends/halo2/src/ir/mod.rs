@@ -2,18 +2,19 @@
 //! defined in this module and then the backend uses them to generate the final output.
 
 use crate::{
-    expressions::{EvaluableExpr, ExpressionInRow, ScopedExpression},
+    expressions::{ExpressionInRow, ScopedExpression},
     ir::{
         expr::{Felt, IRAexpr},
         generate::region_data,
         groups::GroupBody,
         printer::IRPrinter,
     },
-    synthesis::{SynthesizedCircuit, regions::RegionIndex},
+    synthesis::SynthesizedCircuit,
     temps::ExprOrTemp,
 };
 use anyhow::Result;
 use ff::PrimeField;
+use halo2_frontend_core::{expressions::EvaluableExpr, table::RegionIndex};
 use stmt::IRStmt;
 
 /// Comparison operators between arithmetic expressions.

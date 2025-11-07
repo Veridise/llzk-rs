@@ -1,8 +1,7 @@
-use crate::{
-    gates::SelectorSet,
+use crate::gates::SelectorSet;
+use halo2_frontend_core::{
     info_traits::SelectorInfo,
-    synthesis::regions::RegionIndex,
-    table::{Any, Column, ColumnType},
+    table::{Any, Column, ColumnType, RegionIndex},
 };
 
 use std::{

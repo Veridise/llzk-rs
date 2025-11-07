@@ -8,8 +8,6 @@ use crate::backend::llzk::{LlzkBackend, LlzkOutput, LlzkParams};
 use crate::backend::picus::{PicusBackend, PicusOutput, PicusParams};
 use crate::{
     CircuitSynthesis,
-    expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
-    info_traits::ConstraintSystemInfo,
     io::{AdviceIO, InstanceIO},
     ir::{
         IRCtx, ResolvedIRCircuit, UnresolvedIRCircuit,
@@ -18,6 +16,10 @@ use crate::{
     synthesis::{SynthesizedCircuit, Synthesizer},
 };
 use ff::PrimeField;
+use halo2_frontend_core::{
+    expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
+    info_traits::ConstraintSystemInfo,
+};
 
 /// Controls the different lowering stages of circuits.
 #[derive(Default, Debug)]

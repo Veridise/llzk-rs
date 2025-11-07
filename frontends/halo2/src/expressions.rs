@@ -11,10 +11,8 @@ use crate::{
 };
 
 pub(crate) mod constant_folding;
-mod traits;
 
 use ff::Field;
-pub use traits::*;
 
 /// Indicates to the driver that the expression should be scoped in that row of the circuit.
 ///

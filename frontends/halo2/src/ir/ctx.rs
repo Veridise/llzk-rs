@@ -6,11 +6,11 @@ use ff::Field;
 use crate::CircuitIO;
 use crate::io::IOCell;
 use crate::ir::generate::region_data;
-use crate::resolvers::{Advice, Instance};
 use crate::synthesis::SynthesizedCircuit;
 use crate::synthesis::groups::GroupCell;
-use crate::synthesis::regions::{RegionData, RegionIndex};
-use crate::table::{Any, Column};
+use crate::synthesis::regions::RegionData;
+use halo2_frontend_core::query::{Advice, Instance};
+use halo2_frontend_core::table::{Any, Column, RegionIndex};
 
 /// Contains information related to the IR of a circuit. Is used by the driver to lower the
 /// circuit.

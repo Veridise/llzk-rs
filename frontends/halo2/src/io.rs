@@ -1,6 +1,8 @@
-use crate::resolvers::{Advice, Instance};
-use crate::table::{Column, ColumnType};
 use anyhow::{Result, bail};
+use halo2_frontend_core::{
+    query::{Advice, Instance},
+    table::{Column, ColumnType},
+};
 use std::collections::HashSet;
 use std::hash::Hash;
 

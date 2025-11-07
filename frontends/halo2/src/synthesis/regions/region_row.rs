@@ -2,15 +2,18 @@ use super::{RegionData, Row};
 use crate::{
     backend::func::FuncIO,
     gates::SelectorSet,
-    info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
     io::{AdviceIO, InstanceIO},
     resolvers::{
-        Advice, ChallengeResolver, Fixed, FixedQueryResolver, Instance, QueryResolver,
-        ResolvedQuery, ResolvedSelector, SelectorResolver,
+        ChallengeResolver, FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector,
+        SelectorResolver,
     },
 };
 use anyhow::Result;
 use ff::Field;
+use halo2_frontend_core::{
+    info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
+    query::{Advice, Fixed, Instance},
+};
 use std::borrow::Cow;
 
 #[derive(Copy, Clone, Debug)]

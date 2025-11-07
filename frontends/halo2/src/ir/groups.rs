@@ -8,9 +8,8 @@ use crate::{
         func::{CellRef, FuncIO},
         lowering::{Lowering, lowerable::LowerableStmt},
     },
-    expressions::{ExprBuilder, ExpressionInRow, ExpressionInfo, ScopedExpression},
+    expressions::{ExpressionInRow, ScopedExpression},
     gates::{Gate, GateRewritePattern as _, GateScope, RewriteError, RewritePatternSet},
-    info_traits::GateInfo,
     ir::{
         CmpOp, IRCtx,
         ctx::AdviceCells,
@@ -31,12 +30,16 @@ use crate::{
         groups::{Group, GroupCell, GroupKey},
         regions::{RegionData, RegionRow, Row},
     },
-    table::{Any, Rotation, RotationExt},
     temps::{ExprOrTemp, Temps},
     utils,
 };
 use anyhow::Result;
 use ff::Field;
+use halo2_frontend_core::{
+    expressions::{ExprBuilder, ExpressionInfo},
+    info_traits::GateInfo,
+    table::{Any, Rotation, RotationExt},
+};
 
 pub(crate) mod bounds;
 pub mod callsite;

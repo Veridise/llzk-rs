@@ -1,41 +1,12 @@
 use std::borrow::Cow;
 
-use crate::{
-    backend::func::{ArgNo, FuncIO},
-    info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
-};
+use crate::backend::func::{ArgNo, FuncIO};
 use anyhow::Result;
 use ff::Field;
-
-mod sealed {
-    /// Sealed trait pattern to avoid clients implementing the trait [`super::QueryKind`] on
-    /// external types.
-    pub trait QK {}
-}
-
-/// Marker trait for defining the kind of a query.
-pub trait QueryKind: sealed::QK {}
-
-/// Marker for fixed cell queries.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Fixed;
-
-impl sealed::QK for Fixed {}
-impl QueryKind for Fixed {}
-
-/// Marker for advice cell queries.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Advice;
-
-impl sealed::QK for Advice {}
-impl QueryKind for Advice {}
-
-/// Marker for instance cell queries.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Instance;
-
-impl sealed::QK for Instance {}
-impl QueryKind for Instance {}
+use halo2_frontend_core::{
+    info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
+    query::{Advice, Fixed, Instance},
+};
 
 pub trait ResolversProvider<F> {
     fn query_resolver(&self) -> &dyn QueryResolver<F>;

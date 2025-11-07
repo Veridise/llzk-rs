@@ -9,17 +9,14 @@ pub mod driver;
 pub mod expressions;
 pub mod gates;
 //mod halo2;
-pub mod info_traits;
 mod io;
 pub mod ir;
 pub mod lookups;
 mod resolvers;
 mod synthesis;
-pub mod table;
 pub mod temps;
 mod utils;
 
-use crate::info_traits::ConstraintSystemInfo;
 pub use crate::io::{AdviceIO, InstanceIO};
 #[cfg(feature = "llzk-backend")]
 pub use backend::llzk::{
@@ -32,10 +29,10 @@ pub use backend::picus::{
     params::{PicusParams, PicusParamsBuilder},
 };
 use ff::Field;
+use halo2_frontend_core::info_traits::ConstraintSystemInfo;
 pub use io::CircuitIO;
 pub use lookups::callbacks::LookupCallbacks;
-pub use resolvers::{Advice, Fixed, Instance, QueryKind};
-pub use synthesis::{Synthesizer, regions::RegionIndex};
+pub use synthesis::Synthesizer;
 
 /// Implementations of this trait define how a circuit is synthesized.
 ///

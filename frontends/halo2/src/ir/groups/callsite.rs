@@ -8,7 +8,7 @@ use crate::{
             lowerable::{LowerableExpr, LowerableStmt},
         },
     },
-    expressions::{ExprBuilder, ScopedExpression},
+    expressions::ScopedExpression,
     ir::{
         CmpOp,
         equivalency::{EqvRelation, SymbolicEqv},
@@ -23,6 +23,7 @@ use crate::{
 };
 use anyhow::Result;
 use ff::Field;
+use halo2_frontend_core::expressions::ExprBuilder;
 
 /// Data related to a single callsite
 #[derive(Debug)]

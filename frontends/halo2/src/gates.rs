@@ -5,16 +5,16 @@ use std::{borrow::Cow, cell::RefCell, ops::Range};
 use ff::{Field, PrimeField};
 
 use crate::{
-    expressions::{
-        EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes,
-        ScopedExpression, constant_folding::ConstantFolding,
-    },
-    info_traits::{GateInfo, SelectorInfo as _},
+    expressions::{ScopedExpression, constant_folding::ConstantFolding},
     io::{AdviceIO, InstanceIO},
     ir::stmt::IRStmt,
     resolvers::FixedQueryResolver,
-    synthesis::regions::{RegionData, RegionIndex, RegionRow},
-    table::Rotation,
+    synthesis::regions::{RegionData, RegionRow},
+};
+use halo2_frontend_core::{
+    expressions::{EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes},
+    info_traits::{GateInfo, SelectorInfo as _},
+    table::{RegionIndex, Rotation},
 };
 
 /// Information about a gate in the constraint system.

@@ -9,15 +9,18 @@ use groups::{GroupBuilder, GroupKey, Groups};
 use regions::{FixedData, TableData};
 
 use crate::{
-    Advice, Fixed,
-    expressions::{ExpressionInfo, ExpressionTypes},
     gates::Gate,
-    info_traits::{ConstraintSystemInfo, GroupInfo, QueryInfo as _, SelectorInfo},
     io::{AdviceIO, InstanceIO},
     lookups::{Lookup, table::LookupTableRow},
     resolvers::FixedQueryResolver,
-    synthesis::regions::RegionIndex,
-    table::{Any, Column},
+};
+
+use halo2_frontend_core::{
+    expressions::{ExpressionInfo, ExpressionTypes},
+    info_traits::{ConstraintSystemInfo, GroupInfo, QueryInfo as _, SelectorInfo},
+    query::{Advice, Fixed},
+    synthesis::SynthesizerLike,
+    table::{Any, Column, RegionIndex},
 };
 
 pub(crate) mod constraint;
@@ -200,11 +203,13 @@ impl<F: Field> Synthesizer<F> {
             groups: self.groups.into_root().flatten(),
         })
     }
+}
 
+impl<F: Field> SynthesizerLike<F> for Synthesizer<F> {
     /// Enters a new region of the circuit.
     ///
     /// Panics if the synthesizer entered a region already and didn't exit.
-    pub fn enter_region(&mut self, region_name: String) {
+    fn enter_region(&mut self, region_name: String) {
         self.groups
             .regions_mut()
             .push(|| region_name, &mut self.next_index, &mut self.tables);
@@ -213,19 +218,19 @@ impl<F: Field> Synthesizer<F> {
     /// Exits the current region of the circuit.
     ///
     /// Panics if the synthesizer didn't entered a region prior.
-    pub fn exit_region(&mut self) {
+    fn exit_region(&mut self) {
         self.groups.regions_mut().commit();
     }
 
     /// Marks the given selector as enabled for the table row.
-    pub fn enable_selector(&mut self, selector: &dyn SelectorInfo, row: usize) {
+    fn enable_selector(&mut self, selector: &dyn SelectorInfo, row: usize) {
         self.groups.regions_mut().edit(|region| {
             region.enable_selector(selector, row);
         });
     }
 
     /// Process that inside the entered region the circuit assigned a value to an advice cell.
-    pub fn on_advice_assigned(&mut self, advice: impl Into<Column<Advice>>, row: usize) {
+    fn on_advice_assigned(&mut self, advice: impl Into<Column<Advice>>, row: usize) {
         let advice = advice.into();
         self.groups.regions_mut().edit(|region| {
             region.update_extent(advice.into(), row);
@@ -233,7 +238,7 @@ impl<F: Field> Synthesizer<F> {
     }
 
     /// Process that inside the entered region the circuit assigned a value to a fixed cell.
-    pub fn on_fixed_assigned(&mut self, fixed: impl Into<Column<Fixed>>, row: usize, value: F) {
+    fn on_fixed_assigned(&mut self, fixed: impl Into<Column<Fixed>>, row: usize, value: F) {
         let fixed = fixed.into();
         // Assignments to fixed cells can happen outside a region so we write those on the last
         // region if available
@@ -244,7 +249,7 @@ impl<F: Field> Synthesizer<F> {
     }
 
     /// Annotates that the two given cells have a copy constraint between them.
-    pub fn copy(
+    fn copy(
         &mut self,
         from: impl Into<Column<Any>>,
         from_row: usize,
@@ -260,7 +265,7 @@ impl<F: Field> Synthesizer<F> {
     }
 
     /// Annotates that starting from the given row the given fixed column has that value.
-    pub fn fill_from_row(&mut self, column: impl Into<Column<Fixed>>, row: usize, value: F) {
+    fn fill_from_row(&mut self, column: impl Into<Column<Fixed>>, row: usize, value: F) {
         let column = column.into();
         log::debug!("fill_from_row{:?}", (column, row, value));
         self.fixed.blanket_fill(column, row, value);
@@ -268,27 +273,20 @@ impl<F: Field> Synthesizer<F> {
         r.edit(|region| region.update_extent(column.into(), row));
     }
 
-    /// Annotates that starting from the given row the given fixed column has that value and marks
-    /// the current region as a table.
-    pub fn fill_table(&mut self, column: impl Into<Column<Fixed>>, row: usize, value: F) {
-        self.fill_from_row(column, row, value);
-        self.mark_region_as_table();
-    }
-
     /// Marks the current region as a table.
-    pub fn mark_region_as_table(&mut self) {
+    fn mark_region_as_table(&mut self) {
         self.groups.regions_mut().mark_region()
     }
 
     /// Pushes a new namespace.
-    pub fn push_namespace(&mut self, name: String) {
+    fn push_namespace(&mut self, name: String) {
         self.groups
             .regions_mut()
             .edit(|region| region.push_namespace(|| name));
     }
 
     /// Pops the most recent namespace.
-    pub fn pop_namespace(&mut self, name: Option<String>) {
+    fn pop_namespace(&mut self, name: Option<String>) {
         self.groups
             .regions_mut()
             .edit(|region| region.pop_namespace(name));
@@ -297,7 +295,7 @@ impl<F: Field> Synthesizer<F> {
     /// Enters a new group, pushing it to the top of the stack.
     ///
     /// This group is then the new active group.
-    pub fn enter_group(&mut self, name: String, key: impl Into<GroupKey>) {
+    fn enter_group(&mut self, name: String, key: impl Into<GroupKey>) {
         log::debug!("Entering group '{name}'");
         self.groups.push(name, key.into())
     }
@@ -307,7 +305,7 @@ impl<F: Field> Synthesizer<F> {
     /// The next group becomes the new active group.
     ///
     /// Panics if attempted to pop a group without pushing one prior.
-    pub fn exit_group(&mut self, meta: impl GroupInfo) {
+    fn exit_group(&mut self, meta: impl GroupInfo) {
         for input in meta.inputs() {
             self.groups.add_input(input);
         }

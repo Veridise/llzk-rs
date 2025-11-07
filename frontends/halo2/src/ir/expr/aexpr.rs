@@ -10,13 +10,14 @@ use crate::{
         func::FuncIO,
         lowering::{ExprLowering, lowerable::LowerableExpr},
     },
-    expressions::{EvalExpression, EvaluableExpr, ExpressionTypes, ScopedExpression},
+    expressions::ScopedExpression,
     ir::equivalency::{EqvRelation, SymbolicEqv},
     resolvers::{
         ChallengeResolver, QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
     },
     temps::ExprOrTemp,
 };
+use halo2_frontend_core::expressions::{EvalExpression, EvaluableExpr, ExpressionTypes};
 
 use anyhow::Result;
 use ff::PrimeField;

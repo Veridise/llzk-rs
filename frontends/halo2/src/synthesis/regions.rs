@@ -1,5 +1,8 @@
-use crate::{resolvers::Fixed, table::Column};
 use data::RegionDataImpl;
+use halo2_frontend_core::{
+    query::Fixed,
+    table::{Column, RegionIndex},
+};
 
 use std::{collections::HashSet, ops::Deref};
 
@@ -29,24 +32,6 @@ impl Deref for RegionStart {
 }
 
 impl From<usize> for RegionStart {
-    fn from(value: usize) -> Self {
-        Self(value)
-    }
-}
-
-/// Replacement for Halo2's `RegionIndex` type.
-#[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
-pub struct RegionIndex(usize);
-
-impl Deref for RegionIndex {
-    type Target = usize;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<usize> for RegionIndex {
     fn from(value: usize) -> Self {
         Self(value)
     }

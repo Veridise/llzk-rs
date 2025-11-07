@@ -1,16 +1,19 @@
 use crate::{
     CircuitIO,
     backend::func::{ArgNo, FieldId, FuncIO},
-    info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
     io::{AdviceIO, IOCell, InstanceIO},
     resolvers::{
-        Advice, ChallengeResolver, Fixed, FixedQueryResolver, Instance, QueryResolver,
-        ResolvedQuery, ResolvedSelector, SelectorResolver,
+        ChallengeResolver, FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector,
+        SelectorResolver,
     },
-    table::{ColumnType, Rotation},
 };
 use anyhow::{Result, bail};
 use ff::Field;
+use halo2_frontend_core::{
+    info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
+    query::{Advice, Fixed, Instance},
+    table::{ColumnType, Rotation},
+};
 
 /// When resolving a query it is possible that the same cell is in the input and the output set.
 /// This enum configures what kind will be chosen in the case of conflicting.
