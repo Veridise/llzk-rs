@@ -68,7 +68,7 @@ impl<'c, 's> LlzkStructLowering<'c, 's> {
         self.get_cell_field("adv", col, row)
     }
 
-    /// Tries to fetch an advice cell field, if it doesn't exist creates a field that represents
+    /// Tries to fetch a fixed cell field, if it doesn't exist creates a field that represents
     /// it.
     #[inline]
     fn get_fix_cell(&self, col: usize, row: usize) -> Result<FieldDefOpRef<'c, '_>> {
