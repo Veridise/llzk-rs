@@ -139,8 +139,7 @@ mod tests {
     #[fixture]
     #[allow(unused_variables)]
     fn ctx(common: ()) -> LlzkContext {
-        let context = LlzkContext::new();
-        context
+        LlzkContext::new()
     }
 
     #[rstest]
