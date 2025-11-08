@@ -8,15 +8,17 @@ use crate::backend::llzk::{LlzkBackend, LlzkOutput, LlzkParams};
 use crate::backend::picus::{PicusBackend, PicusOutput, PicusParams};
 use crate::{
     CircuitSynthesis,
-    expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
-    halo2::PrimeField,
-    info_traits::ConstraintSystemInfo,
     io::{AdviceIO, InstanceIO},
     ir::{
         IRCtx, ResolvedIRCircuit, UnresolvedIRCircuit,
         generate::{IRGenParams, generate_ir},
     },
     synthesis::{SynthesizedCircuit, Synthesizer},
+};
+use ff::PrimeField;
+use halo2_frontend_core::{
+    expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
+    info_traits::ConstraintSystemInfo,
 };
 
 /// Controls the different lowering stages of circuits.
@@ -47,6 +49,7 @@ impl Driver {
         syn.configure_io(advice_io, instance_io);
         log::debug!("Starting synthesis");
         C::synthesize(circuit.circuit(), config, &mut syn, &cs)?;
+        cs.synthesis_completed();
         let synthesized = syn.build(cs)?;
         log::debug!("Synthesis completed successfuly");
         Ok(synthesized)

@@ -155,6 +155,7 @@ mod test {
     use crate::ir::stmt::test::TestHelper;
 
     use super::*;
+    use halo2_frontend_core::table::RotationExt;
 
     #[test]
     fn test_partial_eq_on_i32() {
@@ -163,34 +164,15 @@ mod test {
     }
 
     mod ff {
-        use halo2_proofs::plonk::Expression;
 
         use super::*;
-        use crate::halo2::{ColumnType, Field, Fixed, Rotation};
-
-        type F = crate::halo2::Fr;
-
-        fn c(n: usize) -> Expression<F> {
-            let one = F::ONE;
-            let f = vec![one; n].into_iter().sum();
-            Expression::Constant(f)
-        }
-
-        fn f(col: usize, rot: Rotation) -> Expression<F> {
-            Fixed.query_cell(col, rot)
-        }
-
-        fn a(col: usize, rot: Rotation) -> Expression<F> {
-            crate::halo2::Advice::default().query_cell(col, rot)
-        }
-
-        fn i(col: usize, rot: Rotation) -> Expression<F> {
-            crate::halo2::Instance.query_cell(col, rot)
-        }
+        use crate::ir::stmt::test::ff::{MockExpr, a, c, f, i};
+        use halo2_frontend_core::table::Rotation;
 
         #[test]
         fn test_partial_eq_on_expressions() {
-            let h = TestHelper::<Expression<F>, Constraint<Expression<F>>>::constraints();
+            let h = TestHelper::<MockExpr, Constraint<MockExpr>>::constraints();
+
             use Rotation as R;
             h.helper_with(|| c(1), || c(2), || c(3), || c(4));
             h.helper_with(|| f(1, R::cur()), || c(2), || c(3), || c(4));
@@ -200,7 +182,7 @@ mod test {
 
         #[test]
         fn test_partial_eq_on_row_expressions() {
-            let h = TestHelper::<(usize, Expression<F>), Constraint<(usize, Expression<F>)>>::constraints();
+            let h = TestHelper::<(usize, MockExpr), Constraint<(usize, MockExpr)>>::constraints();
             use Rotation as R;
 
             let x = || (0, a(0, R::cur()));

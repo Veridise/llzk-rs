@@ -96,36 +96,56 @@ fn test_partial_eq_on_i32() {
 }
 
 pub mod ff {
-    use halo2_proofs::plonk::Expression;
+    use std::ops::{Add, Mul};
 
-    use crate::{
-        halo2::{ColumnType, Field, Fixed, Rotation},
-        ir::stmt::{IRStmt, test::TestHelper},
-    };
+    use crate::ir::stmt::{IRStmt, test::TestHelper};
+    use halo2_frontend_core::table::{Rotation, RotationExt};
 
-    type F = crate::halo2::Fr;
-
-    pub fn c(n: usize) -> Expression<F> {
-        let one = F::ONE;
-        let f = vec![one; n].into_iter().sum();
-        Expression::Constant(f)
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    pub enum MockExpr {
+        Constant(usize),
+        Fixed(usize, i32),
+        Advice(usize, i32),
+        Instance(usize, i32),
+        Add(Box<MockExpr>, Box<MockExpr>),
+        Mul(Box<MockExpr>, Box<MockExpr>),
     }
 
-    pub fn f(col: usize, rot: Rotation) -> Expression<F> {
-        Fixed.query_cell(col, rot)
+    impl Mul for MockExpr {
+        type Output = Self;
+
+        fn mul(self, rhs: Self) -> Self::Output {
+            MockExpr::Mul(Box::new(self), Box::new(rhs))
+        }
     }
 
-    pub fn a(col: usize, rot: Rotation) -> Expression<F> {
-        crate::halo2::Advice::default().query_cell(col, rot)
+    impl Add for MockExpr {
+        type Output = Self;
+
+        fn add(self, rhs: Self) -> Self::Output {
+            MockExpr::Add(Box::new(self), Box::new(rhs))
+        }
     }
 
-    pub fn i(col: usize, rot: Rotation) -> Expression<F> {
-        crate::halo2::Instance.query_cell(col, rot)
+    pub fn c(n: usize) -> MockExpr {
+        MockExpr::Constant(n)
+    }
+
+    pub fn f(col: usize, rot: Rotation) -> MockExpr {
+        MockExpr::Fixed(col, rot)
+    }
+
+    pub fn a(col: usize, rot: Rotation) -> MockExpr {
+        MockExpr::Advice(col, rot)
+    }
+
+    pub fn i(col: usize, rot: Rotation) -> MockExpr {
+        MockExpr::Instance(col, rot)
     }
 
     #[test]
     fn test_partial_eq_on_expressions() {
-        let h = TestHelper::<Expression<F>, IRStmt<Expression<F>>>::stmts();
+        let h = TestHelper::<MockExpr, IRStmt<MockExpr>>::stmts();
         use Rotation as R;
         h.helper_with(|| c(1), || c(2), || c(3), || c(4));
         h.helper_with(|| f(1, R::cur()), || c(2), || c(3), || c(4));

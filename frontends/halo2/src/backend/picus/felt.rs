@@ -3,7 +3,7 @@ use std::ops::Deref;
 use num_bigint::BigUint;
 use picus::felt::Felt;
 
-use crate::halo2::PrimeField;
+use ff::PrimeField;
 
 #[derive(Default, Debug)]
 pub struct FeltWrap<F: PrimeField>(F);

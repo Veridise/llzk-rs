@@ -1,6 +1,6 @@
 # This job checks that picus and the halo2 frontend without the llzk deps builds for 1.85
 
-name: Continuous Integration (1.85)
+name: Continuous Integration (rust 1.85)
 
 on:
   pull_request:

@@ -2,17 +2,19 @@
 
 use std::{borrow::Cow, cell::RefCell, ops::Range};
 
+use ff::{Field, PrimeField};
+
 use crate::{
-    expressions::{
-        EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ScopedExpression,
-        constant_folding::ConstantFolding,
-    },
-    halo2::*,
-    info_traits::GateInfo,
+    expressions::{ScopedExpression, constant_folding::ConstantFolding},
     io::{AdviceIO, InstanceIO},
     ir::stmt::IRStmt,
     resolvers::FixedQueryResolver,
     synthesis::regions::{RegionData, RegionRow},
+};
+use halo2_frontend_core::{
+    expressions::{EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes},
+    info_traits::{GateInfo, SelectorInfo as _},
+    table::RegionIndex,
 };
 
 /// Information about a gate in the constraint system.
@@ -389,18 +391,18 @@ pub(crate) type SelectorSet = bit_set::BitSet;
 pub(crate) fn find_selectors<F: Field, E: EvaluableExpr<F>>(poly: &E) -> SelectorSet {
     struct Eval(RefCell<SelectorSet>);
 
-    impl<F> EvalExpression<F> for Eval {
+    impl<F, E: ExpressionTypes> EvalExpression<F, E> for Eval {
         type Output = ();
 
-        fn selector(&self, selector: &crate::halo2::Selector) -> Self::Output {
-            self.0.borrow_mut().insert(selector.index());
+        fn selector(&self, selector: &E::Selector) -> Self::Output {
+            self.0.borrow_mut().insert(selector.id());
         }
 
         fn constant(&self, _: &F) -> Self::Output {}
-        fn fixed(&self, _: &crate::halo2::FixedQuery) -> Self::Output {}
-        fn advice(&self, _: &crate::halo2::AdviceQuery) -> Self::Output {}
-        fn instance(&self, _: &crate::halo2::InstanceQuery) -> Self::Output {}
-        fn challenge(&self, _: &crate::halo2::Challenge) -> Self::Output {}
+        fn fixed(&self, _: &E::FixedQuery) -> Self::Output {}
+        fn advice(&self, _: &E::AdviceQuery) -> Self::Output {}
+        fn instance(&self, _: &E::InstanceQuery) -> Self::Output {}
+        fn challenge(&self, _: &E::Challenge) -> Self::Output {}
         fn negated(&self, _: Self::Output) -> Self::Output {}
         fn sum(&self, _: Self::Output, _: Self::Output) -> Self::Output {}
         fn product(&self, _: Self::Output, _: Self::Output) -> Self::Output {}

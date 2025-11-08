@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
 use crate::backend::lowering::ExprLowering;
-use crate::halo2::Challenge;
 use anyhow::{Result, anyhow};
 use llzk::builder::OpBuilder;
 use llzk::prelude::*;
@@ -270,10 +269,6 @@ impl<'c> ExprLowering for LlzkStructLowering<'c> {
 
     fn lower_neg(&self, expr: &Self::CellOutput) -> Result<Self::CellOutput> {
         wrap! { self.append_expr(felt::neg(Location::unknown(self.context()), expr.into())?) }
-    }
-
-    fn lower_challenge(&self, _challenge: &Challenge) -> Result<Self::CellOutput> {
-        unimplemented!()
     }
 
     fn lower_constant(&self, f: Felt) -> Result<Self::CellOutput> {

@@ -4,7 +4,7 @@ use anyhow::{Error, Result};
 use ff::Field;
 use std::{cell::LazyCell, ops::Index};
 
-use crate::expressions::ExpressionInfo;
+use halo2_frontend_core::{info_traits::QueryInfo, query::Fixed};
 
 /// Type alias for a result of creating a boxed slice representing the rows in the table.
 pub type LookupTableBox<F> = Result<Box<[LookupTableRow<F>]>>;
@@ -73,35 +73,16 @@ impl<F> LookupTableRow<F> {
     }
 }
 
-impl<F> Index<usize> for LookupTableRow<F> {
+impl<F, Q: QueryInfo<Kind = Fixed>> Index<Q> for LookupTableRow<F> {
     type Output = F;
 
-    fn index(&self, index: usize) -> &Self::Output {
-        let index = self.col_to_index(index).unwrap_or_else(|| {
+    fn index(&self, index: Q) -> &Self::Output {
+        let index = self.col_to_index(index.column_index()).unwrap_or_else(|| {
             panic!(
                 "Can't index with a column outside of the valid range {:?}",
                 self.columns
             )
         });
         &self.table[index]
-    }
-}
-
-impl<F> Index<crate::halo2::FixedQuery> for LookupTableRow<F> {
-    type Output = F;
-
-    fn index(&self, index: crate::halo2::FixedQuery) -> &Self::Output {
-        &self[index.column_index()]
-    }
-}
-
-impl<F: std::fmt::Debug, E: ExpressionInfo + std::fmt::Debug> Index<E> for LookupTableRow<F> {
-    type Output = F;
-
-    fn index(&self, index: E) -> &Self::Output {
-        match index.as_fixed_query() {
-            Some(query) => &self[*query],
-            _ => panic!("Cannot index a lookup table row with expression {index:?}"),
-        }
     }
 }

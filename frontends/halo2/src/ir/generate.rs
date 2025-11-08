@@ -2,14 +2,19 @@
 
 use std::collections::HashMap;
 
+use ff::{Field, PrimeField};
+
 use crate::{
-    expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo, ScopedExpression},
+    expressions::ScopedExpression,
     gates::{DefaultGateCallbacks, GateCallbacks, RewritePatternSet},
-    halo2::{Field, PrimeField, RegionIndex},
     ir::{IRCtx, generate::patterns::load_patterns, groups::GroupBody},
     lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
     synthesis::{SynthesizedCircuit, groups::Group, regions::RegionData},
     temps::ExprOrTemp,
+};
+use halo2_frontend_core::{
+    expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
+    table::RegionIndex,
 };
 
 mod patterns;

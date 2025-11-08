@@ -1,12 +1,8 @@
 //! Intermediate representation of circuits. Synthesized circuits get transformed into the structs
 //! defined in this module and then the backend uses them to generate the final output.
 
-use anyhow::Result;
-use stmt::IRStmt;
-
 use crate::{
-    expressions::{EvaluableExpr, ExpressionInRow, ScopedExpression},
-    halo2::{PrimeField, RegionIndex},
+    expressions::{ExpressionInRow, ScopedExpression},
     ir::{
         expr::{Felt, IRAexpr},
         generate::region_data,
@@ -16,6 +12,10 @@ use crate::{
     synthesis::SynthesizedCircuit,
     temps::ExprOrTemp,
 };
+use anyhow::Result;
+use ff::PrimeField;
+use halo2_frontend_core::{expressions::EvaluableExpr, table::RegionIndex};
+use stmt::IRStmt;
 
 /// Comparison operators between arithmetic expressions.
 #[derive(Copy, Clone, PartialEq, Eq, Debug, PartialOrd, Ord, Hash)]
@@ -97,13 +97,17 @@ where
     }
 
     /// Injects the IR into the specific regions
-    pub fn inject_ir(
+    pub fn inject_ir<R>(
         &mut self,
-        ir: impl IntoIterator<Item = (RegionIndex, IRStmt<ExpressionInRow<'syn, E>>)>,
+        ir: impl IntoIterator<Item = (R, IRStmt<ExpressionInRow<'syn, E>>)>,
         syn: &'syn SynthesizedCircuit<F, E>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<()>
+    where
+        R: Into<RegionIndex>,
+    {
         let regions = region_data(syn);
         for (index, stmt) in ir {
+            let index = index.into();
             let region = regions[&index];
             let group_idx = self.regions_to_groups[*index];
             self.groups[group_idx].inject_ir(

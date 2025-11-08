@@ -1,4 +1,9 @@
-use crate::halo2::{Any, Column, Field, Fixed};
+use ff::Field;
+
+use halo2_frontend_core::{
+    query::Fixed,
+    table::{Any, Column},
+};
 use std::collections::BTreeSet;
 
 /// Possible nodes in the graph.

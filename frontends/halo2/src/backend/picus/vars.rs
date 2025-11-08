@@ -67,6 +67,7 @@ impl NamingConvention {
                 }
                 FuncIO::CallOutput(module, out) => format!("cout_{module}_{out}"),
                 FuncIO::Temp(temp) => format!("t{}", *temp),
+                FuncIO::Challenge(index, phase, _) => format!("chall_{index}_{phase}"),
             },
         }
     }
@@ -129,7 +130,7 @@ impl From<VarKeySeed> for VarStr {
 impl VarKind for VarKey {
     fn is_input(&self) -> bool {
         match self {
-            VarKey::IO(func_io) => matches!(func_io, FuncIO::Arg(_)),
+            VarKey::IO(func_io) => matches!(func_io, FuncIO::Arg(_) | FuncIO::Challenge(_, _, _)),
             VarKey::Lifted(_) => true,
             _ => false,
         }
@@ -156,6 +157,7 @@ impl VarKind for VarKey {
     fn get_input_no(&self) -> Option<usize> {
         match self {
             VarKey::IO(FuncIO::Arg(n)) => Some(**n),
+            VarKey::IO(FuncIO::Challenge(_, _, n)) => Some(**n),
             _ => None,
         }
     }
@@ -167,12 +169,6 @@ impl VarKind for VarKey {
         }
     }
 }
-
-//impl<'a> From<(FuncIO, Option<Cow<'a, FQN>>)> for VarKeySeedInner {
-//    fn from(value: (FuncIO, Option<Cow<'a, FQN>>)) -> Self {
-//        Self::IO(value.0, value.1)
-//    }
-//}
 
 impl<T: Into<FuncIO>> From<T> for VarKeySeedInner {
     fn from(value: T) -> Self {

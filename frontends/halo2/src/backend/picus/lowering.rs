@@ -5,7 +5,6 @@ use crate::{
         func::{ArgNo, FieldId, FuncIO},
         lowering::{ExprLowering, Lowering},
     },
-    halo2::Challenge,
     ir::CmpOp,
 };
 use anyhow::Result;
@@ -122,10 +121,6 @@ impl ExprLowering for PicusModuleLowering {
 
     fn lower_neg(&self, expr: &Self::CellOutput) -> Result<Self::CellOutput> {
         Ok(expr::neg(expr))
-    }
-
-    fn lower_challenge(&self, _challenge: &Challenge) -> Result<Self::CellOutput> {
-        unimplemented!()
     }
 
     fn lower_constant(&self, f: Felt) -> Result<Self::CellOutput> {

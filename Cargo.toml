@@ -1,6 +1,9 @@
 [workspace]
 members = [ 
   "frontends/halo2", 
+  "frontends/halo2-core", 
+  "frontends/halo2-midnight", 
+  "frontends/halo2-circuits", 
   "llzk",
   "llzk-sys",
   "llzk-sys/build-support",
@@ -13,3 +16,4 @@ resolver = "2"
 melior-macro = "0.18.0"
 melior = "0.25"
 mlir-sys = "0.5.0"
+ff = "0.13"
