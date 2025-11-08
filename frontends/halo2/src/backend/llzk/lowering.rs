@@ -2,7 +2,6 @@ use std::rc::Rc;
 
 use crate::backend::llzk::factory::filename;
 use crate::backend::lowering::ExprLowering;
-use crate::halo2::Challenge;
 use anyhow::{Result, anyhow};
 use llzk::builder::OpBuilder;
 use llzk::prelude::*;
@@ -305,10 +304,6 @@ impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
         wrap! { self.append_expr(felt::neg(Location::unknown(self.context()), expr.into())?) }
     }
 
-    fn lower_challenge(&self, _challenge: &Challenge) -> Result<Self::CellOutput> {
-        unimplemented!()
-    }
-
     fn lower_constant(&self, f: Felt) -> Result<Self::CellOutput> {
         wrap! {self.lower_constant_impl(f)}
     }
@@ -365,6 +360,7 @@ impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
             FuncIO::TableLookup(_, _, _, _, _) => todo!(),
             FuncIO::CallOutput(_, _) => todo!(),
             FuncIO::Temp(_) => todo!(),
+            FuncIO::Challenge(_, _, _) => todo!(),
         }
     }
 
@@ -489,6 +485,10 @@ impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
 #[cfg(test)]
 mod tests {
     use ff::Field as _;
+    use halo2_frontend_core::{
+        query::{Advice, Instance},
+        table::Column,
+    };
     use halo2_proofs::plonk::ConstraintSystem;
     use log::LevelFilter;
     use melior::ir::Module;
@@ -862,7 +862,7 @@ mod tests {
     #[rstest]
     fn lower_constant(fragment_main: FragmentCfg) {
         fragment_test(fragment_main, "%felt_const_1 = felt.const 1", |l| {
-            l.lower_constant(Felt::new(crate::halo2::Fr::ONE))?;
+            l.lower_constant(Felt::new_from(1usize))?;
             Ok(())
         })
     }
@@ -930,23 +930,22 @@ mod tests {
 
     impl FragmentCfg {
         fn advice_io(&self) -> AdviceIO {
-            let mut cs = ConstraintSystem::<crate::halo2::Fr>::default();
             let inputs = Vec::from_iter(self.n_public_inputs..self.n_inputs);
             let outputs = Vec::from_iter(self.n_public_outputs..self.n_outputs);
             AdviceIO::new(
-                &[(cs.advice_column(), &inputs)],
-                &[(cs.advice_column(), &outputs)],
+                &[(Column::new(0, Advice), &inputs)],
+                &[(Column::new(1, Advice), &outputs)],
             )
             .unwrap()
         }
 
         fn instance_io(&self) -> InstanceIO {
-            let mut cs = ConstraintSystem::<crate::halo2::Fr>::default();
+            //let mut cs = ConstraintSystem::<crate::halo2::Fr>::default();
             let inputs = Vec::from_iter(0..self.n_public_inputs);
             let outputs = Vec::from_iter(0..self.n_public_outputs);
             InstanceIO::new(
-                &[(cs.instance_column(), &inputs)],
-                &[(cs.instance_column(), &outputs)],
+                &[(Column::new(0, Instance), &inputs)],
+                &[(Column::new(1, Instance), &outputs)],
             )
             .unwrap()
         }

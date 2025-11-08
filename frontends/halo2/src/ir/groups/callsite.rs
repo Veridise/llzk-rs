@@ -8,8 +8,7 @@ use crate::{
             lowerable::{LowerableExpr, LowerableStmt},
         },
     },
-    expressions::{ExprBuilder, ScopedExpression},
-    halo2::{Field, groups::GroupKeyInstance},
+    expressions::ScopedExpression,
     ir::{
         CmpOp,
         equivalency::{EqvRelation, SymbolicEqv},
@@ -17,18 +16,20 @@ use crate::{
         stmt::IRStmt,
     },
     synthesis::{
-        groups::{Group, GroupCell},
+        groups::{Group, GroupCell, GroupKey},
         regions::{RegionData, RegionRow, Row},
     },
     temps::ExprOrTemp,
 };
 use anyhow::Result;
+use ff::Field;
+use halo2_frontend_core::expressions::ExprBuilder;
 
 /// Data related to a single callsite
 #[derive(Debug)]
 pub struct CallSite<E> {
     name: String,
-    callee: GroupKeyInstance,
+    callee: GroupKey,
     /// The index in the original groups array to the called group.
     callee_id: usize,
     inputs: Vec<E>,
@@ -64,7 +65,7 @@ where
             let expr = cell.to_expr::<F, E>();
             let row = match cell {
                 GroupCell::Assigned(cell) => {
-                    let start = ctx.regions_by_index()[&cell.region_index]
+                    let start = ctx.regions_by_index()[&cell.region_index.into()]
                         .start()
                         .ok_or_else(|| {
                             anyhow::anyhow!("Region {} does not have a start", *cell.region_index)

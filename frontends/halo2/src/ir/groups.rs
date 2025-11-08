@@ -8,9 +8,8 @@ use crate::{
         func::{CellRef, FuncIO},
         lowering::{Lowering, lowerable::LowerableStmt},
     },
-    expressions::{ExprBuilder, ExpressionInRow, ExpressionInfo, ScopedExpression},
+    expressions::{ExpressionInRow, ScopedExpression},
     gates::{Gate, GateRewritePattern as _, GateScope, RewriteError, RewritePatternSet},
-    halo2::{Field, Rotation, groups::GroupKeyInstance},
     ir::{
         CmpOp, IRCtx,
         ctx::AdviceCells,
@@ -28,13 +27,18 @@ use crate::{
     synthesis::{
         SynthesizedCircuit,
         constraint::EqConstraint,
-        groups::{Group, GroupCell},
+        groups::{Group, GroupCell, GroupKey},
         regions::{RegionData, RegionRow, Row},
     },
     temps::{ExprOrTemp, Temps},
     utils,
 };
 use anyhow::Result;
+use ff::Field;
+use halo2_frontend_core::{
+    expressions::{ExprBuilder, ExpressionInfo},
+    table::{Any, Rotation, RotationExt},
+};
 
 pub(crate) mod bounds;
 pub mod callsite;
@@ -47,7 +51,7 @@ pub struct GroupBody<E> {
     id: usize,
     input_count: usize,
     output_count: usize,
-    key: Option<GroupKeyInstance>,
+    key: Option<GroupKey>,
     gates: IRStmt<E>,
     eq_constraints: IRStmt<E>,
     callsites: Vec<CallSite<E>>,
@@ -284,7 +288,7 @@ impl<E> GroupBody<E> {
     }
 
     /// Returns the group key. Returns `None` if the group is the top-level.
-    pub fn key(&self) -> Option<GroupKeyInstance> {
+    pub fn key(&self) -> Option<GroupKey> {
         self.key
     }
 
@@ -520,11 +524,11 @@ fn select_equality_constraints<F: Field, E>(
                     (Bound::IO, Bound::Outside) => false,
                     (Bound::Outside, Bound::IO) => false,
                     (Bound::Within, Bound::Outside) => match r.0.column_type() {
-                        crate::halo2::Any::Fixed => true,
+                        Any::Fixed => true,
                         _ => false,
                     },
                     (Bound::Outside, Bound::Within) => match l.0.column_type() {
-                        crate::halo2::Any::Fixed => true,
+                        Any::Fixed => true,
                         _ => false,
                     },
                 },
@@ -556,17 +560,17 @@ where
         .map(|constraint| match constraint {
             EqConstraint::AnyToAny(from, from_row, to, to_row) => (
                 ScopedExpression::new(
-                    E::from_column(from, Rotation::cur()),
+                    from.query_cell(Rotation::cur()),
                     Row::new(from_row, advice_io, instance_io, fixed_query_resolver),
                 ),
                 ScopedExpression::new(
-                    E::from_column(to, Rotation::cur()),
+                    to.query_cell(Rotation::cur()),
                     Row::new(to_row, advice_io, instance_io, fixed_query_resolver),
                 ),
             ),
             EqConstraint::FixedToConst(column, row, f) => (
                 ScopedExpression::new(
-                    E::from_column(column, Rotation::cur()),
+                    column.query_cell(Rotation::cur()),
                     Row::new(row, advice_io, instance_io, fixed_query_resolver),
                 ),
                 ScopedExpression::new(

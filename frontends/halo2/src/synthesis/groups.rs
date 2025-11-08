@@ -1,23 +1,27 @@
 use std::{borrow::Borrow, collections::HashMap, ops::Deref};
 
+use ff::Field;
+
 use crate::{
-    expressions::ExprBuilder,
-    halo2::{
-        Advice, Any, Cell, ColumnType, Field, Instance, RegionIndex, Rotation,
-        groups::{GroupKey, GroupKeyInstance},
-    },
     io::{AdviceIO, CircuitIO, IOCell, InstanceIO},
     resolvers::FixedQueryResolver,
 };
+use halo2_frontend_core::{
+    expressions::ExprBuilder,
+    query::{Advice, Instance},
+    table::{Any, Cell, ColumnType, RegionIndex, Rotation, RotationExt},
+};
 
 use super::regions::{RegionData, RegionRow, Regions};
+
+pub type GroupKey = u64;
 
 /// A group can either represent the circuit itself (the top level)
 /// or a group declared during synthesis, identified by its key.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum GroupKind {
     TopLevel,
-    Group(GroupKeyInstance),
+    Group(GroupKey),
 }
 
 /// A cell that could be either assigned during synthesis or declared as circuit IO.
@@ -34,9 +38,9 @@ pub enum GroupCell {
 impl GroupCell {
     pub fn to_expr<F: Field, E: ExprBuilder<F>>(self) -> E {
         match self {
-            GroupCell::Assigned(cell) => E::from_column(cell.column, Rotation::cur()),
-            GroupCell::InstanceIO((column, _)) => E::from_column(column, Rotation::cur()),
-            GroupCell::AdviceIO((column, _)) => E::from_column(column, Rotation::cur()),
+            GroupCell::Assigned(cell) => cell.column.query_cell(Rotation::cur()),
+            GroupCell::InstanceIO((column, _)) => column.query_cell(Rotation::cur()),
+            GroupCell::AdviceIO((column, _)) => column.query_cell(Rotation::cur()),
         }
     }
 
@@ -50,7 +54,7 @@ impl GroupCell {
 
     pub fn region_index(&self) -> Option<RegionIndex> {
         match self {
-            GroupCell::Assigned(cell) => Some(cell.region_index),
+            GroupCell::Assigned(cell) => Some(cell.region_index.into()),
             _ => None,
         }
     }
@@ -174,7 +178,7 @@ impl Group {
     }
 
     /// Returns the group key
-    pub fn key(&self) -> Option<GroupKeyInstance> {
+    pub fn key(&self) -> Option<GroupKey> {
         match self.kind {
             GroupKind::TopLevel => None,
             GroupKind::Group(group_key_instance) => Some(group_key_instance),
@@ -258,9 +262,9 @@ impl GroupTree {
     }
 
     /// Constructs an empty group
-    fn new(name: String, key: impl GroupKey) -> Self {
+    fn new(name: String, key: GroupKey) -> Self {
         Self {
-            kind: GroupKind::Group(key.into()),
+            kind: GroupKind::Group(key),
             name: Some(name),
             inputs: Default::default(),
             outputs: Default::default(),
@@ -351,13 +355,8 @@ impl GroupBuilder {
     }
 
     /// Pushes a new group group into the stack.
-    pub fn push<N, NR, K>(&mut self, name: N, key: K)
-    where
-        NR: Into<String>,
-        N: FnOnce() -> NR,
-        K: GroupKey,
-    {
-        self.stack.push(GroupTree::new(name().into(), key))
+    pub fn push(&mut self, name: String, key: GroupKey) {
+        self.stack.push(GroupTree::new(name, key))
     }
 
     /// Pops the top of the stack and moves it to the list of children of the parent element.

@@ -1,6 +1,10 @@
-use crate::halo2::*;
 use data::RegionDataImpl;
-use std::collections::HashSet;
+use halo2_frontend_core::{
+    query::Fixed,
+    table::{Column, RegionIndex},
+};
+
+use std::{collections::HashSet, ops::Deref};
 
 pub(super) mod data;
 mod fixed;
@@ -14,6 +18,24 @@ pub use fixed::FixedData;
 pub use region_row::RegionRow;
 pub use row::Row;
 pub use table::TableData;
+
+/// Replacement for Halo2's `RegionStart` type.
+#[derive(Debug)]
+pub struct RegionStart(usize);
+
+impl Deref for RegionStart {
+    type Target = usize;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<usize> for RegionStart {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
 
 /// A set of regions
 #[derive(Default, Debug)]

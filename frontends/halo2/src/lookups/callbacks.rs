@@ -3,12 +3,12 @@
 use std::borrow::Cow;
 
 use crate::{
-    halo2::Field,
     ir::stmt::IRStmt,
     lookups::table::LookupTableGenerator,
     temps::{ExprOrTemp, Temps},
 };
 use anyhow::Result;
+use ff::Field;
 
 use super::Lookup;
 

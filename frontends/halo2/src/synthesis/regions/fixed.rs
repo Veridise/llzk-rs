@@ -3,10 +3,10 @@ use std::{
     ops::RangeFrom,
 };
 
-use crate::{
-    halo2::{Column, Field, Fixed, FixedQuery},
-    resolvers::FixedQueryResolver,
-};
+use ff::Field;
+
+use crate::resolvers::FixedQueryResolver;
+use halo2_frontend_core::{info_traits::QueryInfo, query::Fixed, table::Column};
 
 type BlanketFills<F> = Vec<(RangeFrom<usize>, F)>;
 
@@ -110,7 +110,7 @@ impl<F: Copy + std::fmt::Debug + Default> FixedData<F> {
 }
 
 impl<F: Field> FixedQueryResolver<F> for FixedData<F> {
-    fn resolve_query(&self, query: &FixedQuery, row: usize) -> anyhow::Result<F> {
+    fn resolve_query(&self, query: &dyn QueryInfo<Kind = Fixed>, row: usize) -> anyhow::Result<F> {
         Ok(self.resolve_fixed(query.column_index(), row))
     }
 }

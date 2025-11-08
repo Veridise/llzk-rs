@@ -212,6 +212,8 @@ pub enum FuncIO {
     CallOutput(usize, usize),
     /// Temporary value
     Temp(Temp),
+    /// Challenge argument (index, phase, n-th arg)
+    Challenge(usize, u8, ArgNo),
 }
 
 impl FuncIO {
@@ -252,6 +254,10 @@ impl EqvRelation<FuncIO> for SymbolicEqv {
             ) => col0 == col1 && row0 == row1,
             (FuncIO::CallOutput(_, o0), FuncIO::CallOutput(_, o1)) => o0 == o1,
             (FuncIO::Temp(lhs), FuncIO::Temp(rhs)) => lhs == rhs,
+            (
+                FuncIO::Challenge(lhs_index, lhs_phase, _),
+                FuncIO::Challenge(rhs_index, rhs_phase, _),
+            ) => lhs_index == rhs_index && lhs_phase == rhs_phase,
             _ => false,
         }
     }
@@ -269,6 +275,7 @@ impl std::fmt::Debug for FuncIO {
             }
             Self::CallOutput(call, out) => write!(f, "call{call}->{out}"),
             Self::Temp(id) => write!(f, "t{}", **id),
+            Self::Challenge(index, phase, _) => write!(f, "challenge{index}@{phase}"),
         }
     }
 }
@@ -285,6 +292,7 @@ impl std::fmt::Display for FuncIO {
             }
             Self::CallOutput(call, out) => write!(f, "call{call}->{out}"),
             Self::Temp(id) => write!(f, "t{}", **id),
+            Self::Challenge(index, phase, _) => write!(f, "chall{index}@{phase}"),
         }
     }
 }

@@ -3,17 +3,16 @@
 use std::borrow::Cow;
 
 use crate::{
-    halo2::Field,
     resolvers::{
-        FixedQueryResolver, QueryResolver, ResolversProvider, SelectorResolver, boxed_resolver,
+        ChallengeResolver, FixedQueryResolver, QueryResolver, ResolversProvider, SelectorResolver,
+        boxed_resolver,
     },
     synthesis::regions::{RegionData, RegionRow},
 };
 
 pub(crate) mod constant_folding;
-mod traits;
 
-pub use traits::*;
+use ff::Field;
 
 /// Indicates to the driver that the expression should be scoped in that row of the circuit.
 ///
@@ -131,6 +130,10 @@ where
 
     pub(crate) fn query_resolver(&self) -> &dyn QueryResolver<F> {
         self.resolvers.query_resolver()
+    }
+
+    pub(crate) fn challenge_resolver(&self) -> &dyn ChallengeResolver {
+        self.resolvers.challenge_resolver()
     }
 }
 

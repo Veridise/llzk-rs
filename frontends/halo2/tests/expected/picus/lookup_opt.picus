@@ -1,0 +1,7 @@
+(prime-number 21888242871839275222246405745257275088548364400416034343698204186575808495617)
+(begin-module Main)
+(input in_0)
+(output out_0)
+(assert (= (* adv_1_0 in_0) adv_2_0))
+(assert (= (* in_0 adv_2_0) out_0))
+(end-module)

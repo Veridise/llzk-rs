@@ -1,13 +1,19 @@
 use crate::{
+    CircuitIO,
     backend::func::{ArgNo, FieldId, FuncIO},
-    halo2::*,
     io::{AdviceIO, IOCell, InstanceIO},
     resolvers::{
-        FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
+        ChallengeResolver, FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector,
+        SelectorResolver,
     },
-    CircuitIO,
 };
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
+use ff::Field;
+use halo2_frontend_core::{
+    info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
+    query::{Advice, Fixed, Instance},
+    table::{ColumnType, Rotation},
+};
 
 /// When resolving a query it is possible that the same cell is in the input and the output set.
 /// This enum configures what kind will be chosen in the case of conflicting.
@@ -59,7 +65,7 @@ impl<'io, 'fq, F: Field> Row<'io, 'fq, F> {
 
     pub(super) fn resolve_rotation(&self, rot: Rotation) -> Result<usize> {
         let row: isize = self.row.try_into()?;
-        let rot: isize = rot.0.try_into()?;
+        let rot: isize = rot.try_into()?;
         if -rot > row {
             bail!("Row underflow");
         }
@@ -142,7 +148,7 @@ impl<'io, 'fq, F: Field> Row<'io, 'fq, F> {
     /// Is pub(super) because is used by RegionRow as well.
     pub(super) fn resolve_advice_query_impl(
         &self,
-        query: &AdviceQuery,
+        query: &dyn QueryInfo<Kind = Advice>,
         fallback: impl FnOnce(usize, usize) -> FuncIO,
     ) -> Result<FuncIO> {
         let rot = self.resolve_rotation(query.rotation())?;
@@ -158,17 +164,23 @@ impl<'io, 'fq, F: Field> Row<'io, 'fq, F> {
 }
 
 impl<F: Field> QueryResolver<F> for Row<'_, '_, F> {
-    fn resolve_fixed_query(&self, query: &FixedQuery) -> Result<ResolvedQuery<F>> {
+    fn resolve_fixed_query(&self, query: &dyn QueryInfo<Kind = Fixed>) -> Result<ResolvedQuery<F>> {
         let row = self.resolve_rotation(query.rotation())?;
         self.fqr.resolve_query(query, row).map(ResolvedQuery::Lit)
     }
 
-    fn resolve_advice_query(&self, query: &AdviceQuery) -> Result<ResolvedQuery<F>> {
+    fn resolve_advice_query(
+        &self,
+        query: &dyn QueryInfo<Kind = Advice>,
+    ) -> Result<ResolvedQuery<F>> {
         let r = self.resolve_advice_query_impl(query, FuncIO::advice_abs)?;
         Ok(r.into())
     }
 
-    fn resolve_instance_query(&self, query: &InstanceQuery) -> Result<ResolvedQuery<F>> {
+    fn resolve_instance_query(
+        &self,
+        query: &dyn QueryInfo<Kind = Instance>,
+    ) -> Result<ResolvedQuery<F>> {
         let rot = self.resolve_rotation(query.rotation())?;
         let col = query.column_index();
         let r = self.resolve(self.instance_io, col, rot, None)?;
@@ -177,8 +189,20 @@ impl<F: Field> QueryResolver<F> for Row<'_, '_, F> {
 }
 
 impl<F: Field> SelectorResolver for Row<'_, '_, F> {
-    fn resolve_selector(&self, _selector: &Selector) -> Result<ResolvedSelector> {
+    fn resolve_selector(&self, _selector: &dyn SelectorInfo) -> Result<ResolvedSelector> {
         unreachable!()
+    }
+}
+
+impl<F: Field> ChallengeResolver for Row<'_, '_, F> {
+    fn resolve_challenge(&self, challenge: &dyn ChallengeInfo) -> Result<FuncIO> {
+        Ok(FuncIO::Challenge(
+            challenge.index(),
+            challenge.phase(),
+            ArgNo::from(
+                self.advice_io.inputs_count() + self.instance_io.inputs_count() + challenge.index(),
+            ),
+        ))
     }
 }
 

@@ -1,25 +1,14 @@
 //! Structs for handling lookups.
 
-use crate::{
-    expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
-    halo2::{Field, FixedQuery},
-    info_traits::ConstraintSystemInfo,
-};
 use anyhow::Result;
+use ff::Field;
+use halo2_frontend_core::{
+    expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
+    info_traits::{ConstraintSystemInfo, QueryInfo as _},
+};
 
 pub mod callbacks;
 pub mod table;
-
-/// Lightweight representation of a lookup that is cheap to copy
-#[derive(Debug, Copy, Clone)]
-pub struct LookupData<'syn, E> {
-    /// Name of the lookup.
-    pub name: &'syn str,
-    /// Expressions representing the arguments of the lookup.
-    pub arguments: &'syn [E],
-    /// Expressions representing the columns of the table.
-    pub table: &'syn [E],
-}
 
 /// Defines a lookup as a list of pairs of expressions.
 #[derive(Debug)]
@@ -76,7 +65,7 @@ impl<E> Lookup<E> {
     }
 
     /// Returns the queries to the lookup table.
-    pub fn table_queries(&self) -> Result<Vec<FixedQuery>>
+    pub fn table_queries(&self) -> Result<Vec<E::FixedQuery>>
     where
         E: ExpressionInfo,
     {

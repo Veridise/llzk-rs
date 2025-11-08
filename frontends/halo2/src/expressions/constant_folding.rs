@@ -1,9 +1,12 @@
 use std::marker::PhantomData;
 
-use crate::{
-    expressions::{EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo},
-    halo2::Field,
-    resolvers::{ResolvedQuery, ResolvedSelector, ResolversProvider},
+use ff::Field;
+
+use crate::resolvers::{ResolvedQuery, ResolvedSelector, ResolversProvider};
+use halo2_frontend_core::{
+    expressions::{EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes},
+    info_traits::{QueryInfo, SelectorInfo},
+    query::Fixed,
 };
 
 pub struct ConstantFolding<'a, F: Field, E> {
@@ -22,9 +25,9 @@ impl<'a, F: Field, E> ConstantFolding<'a, F, E> {
 
 impl<F: Field, E> ConstantFolding<'_, F, E>
 where
-    E: ExprBuilder<F> + ExpressionInfo + Clone,
+    E: ExprBuilder<F> + ExpressionInfo + Clone + ExpressionTypes,
 {
-    fn resolve_selector(&self, selector: &crate::halo2::Selector) -> Option<F> {
+    fn resolve_selector(&self, selector: &dyn SelectorInfo) -> Option<F> {
         match self
             .resolvers
             .selector_resolver()
@@ -36,7 +39,7 @@ where
         }
     }
 
-    fn resolve_fixed_query(&self, fixed_query: &crate::halo2::FixedQuery) -> Option<F> {
+    fn resolve_fixed_query(&self, fixed_query: &dyn QueryInfo<Kind = Fixed>) -> Option<F> {
         match self
             .resolvers
             .query_resolver()
@@ -59,9 +62,9 @@ where
     }
 }
 
-impl<F: Field, E> EvalExpression<F> for ConstantFolding<'_, F, E>
+impl<F: Field, E> EvalExpression<F, E> for ConstantFolding<'_, F, E>
 where
-    E: ExprBuilder<F> + ExpressionInfo + Clone,
+    E: ExprBuilder<F> + ExpressionInfo + Clone + ExpressionTypes,
 {
     type Output = Result<F, E>;
 
@@ -69,27 +72,27 @@ where
         Ok(*f)
     }
 
-    fn selector(&self, selector: &crate::halo2::Selector) -> Self::Output {
+    fn selector(&self, selector: &E::Selector) -> Self::Output {
         self.resolve_selector(selector)
             .inspect(|f| log::debug!("Folded selector {selector:?} to constant {f:?}"))
             .ok_or_else(|| E::selector(*selector))
     }
 
-    fn fixed(&self, fixed_query: &crate::halo2::FixedQuery) -> Self::Output {
+    fn fixed(&self, fixed_query: &E::FixedQuery) -> Self::Output {
         self.resolve_fixed_query(fixed_query)
             .inspect(|f| log::debug!("Folded fixed query {fixed_query:?} to constant {f:?}"))
             .ok_or_else(|| E::fixed(*fixed_query))
     }
 
-    fn advice(&self, advice_query: &crate::halo2::AdviceQuery) -> Self::Output {
+    fn advice(&self, advice_query: &E::AdviceQuery) -> Self::Output {
         Err(E::advice(*advice_query))
     }
 
-    fn instance(&self, instance_query: &crate::halo2::InstanceQuery) -> Self::Output {
+    fn instance(&self, instance_query: &E::InstanceQuery) -> Self::Output {
         Err(E::instance(*instance_query))
     }
 
-    fn challenge(&self, challenge: &crate::halo2::Challenge) -> Self::Output {
+    fn challenge(&self, challenge: &E::Challenge) -> Self::Output {
         Err(E::challenge(*challenge))
     }
 

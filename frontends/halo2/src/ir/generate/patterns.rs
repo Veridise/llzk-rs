@@ -1,12 +1,13 @@
+use ff::Field;
+
 use crate::{
-    expressions::{EvaluableExpr, ExprBuilder},
     gates::{
         GateCallbacks, GateRewritePattern, GateScope, RewriteError, RewriteOutput,
         RewritePatternSet, find_selectors,
     },
-    halo2::Field,
     ir::{CmpOp, stmt::IRStmt},
 };
+use halo2_frontend_core::expressions::{EvaluableExpr, ExprBuilder};
 use std::{borrow::Cow, result::Result as StdResult};
 
 /// Default gate pattern that transforms each polynomial in a gate into an equality statement for

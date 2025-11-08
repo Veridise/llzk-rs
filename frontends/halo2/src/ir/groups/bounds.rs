@@ -1,12 +1,17 @@
 //! Structs for checking if cells are within the bounds of a group.
 
+use ff::Field;
+
 use crate::{
-    halo2::{Any, Column, Field, Fixed},
     ir::generate::RegionByIndex,
     synthesis::{
         constraint::EqConstraint,
         groups::{Group, GroupCell},
     },
+};
+use halo2_frontend_core::{
+    query::Fixed,
+    table::{Any, Column},
 };
 use std::{collections::HashSet, ops::Range};
 
@@ -48,7 +53,7 @@ impl<'a> GroupBounds<'a> {
                 GroupCell::Assigned(cell) => {
                     // Copy constraints use absolute rows but the labels have relative
                     // rows.
-                    if let Some(start) = region_by_index[&cell.region_index].start() {
+                    if let Some(start) = region_by_index[&cell.region_index.into()].start() {
                         let abs_row = cell.row_offset + start;
                         if region_indices.contains(&cell.region_index) {
                             io.insert((cell.column, abs_row));
@@ -72,7 +77,7 @@ impl<'a> GroupBounds<'a> {
         {
             match cell {
                 GroupCell::Assigned(cell) => {
-                    if let Some(start) = region_by_index[&cell.region_index].start() {
+                    if let Some(start) = region_by_index[&cell.region_index.into()].start() {
                         let abs_row = cell.row_offset + start;
                         children_output.insert((cell.column, abs_row));
                     }

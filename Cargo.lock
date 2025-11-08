@@ -56,7 +56,7 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 [[package]]
 name = "bench_macros"
 version = "0.1.0"
-source = "git+https://github.com/Veridise/midnight-zk.git#a27e5d010651fd978f6c97a622a45734a0105ec4"
+source = "git+https://github.com/Veridise/midnight-zk.git#202896415a5ff4ea028a0171f20b520ab8b779f0"
 dependencies = [
  "quote",
  "syn 2.0.108",
@@ -655,6 +655,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "halo2-frontend-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ff",
+]
+
+[[package]]
 name = "halo2-llzk-frontend"
 version = "0.1.0"
 dependencies = [
@@ -663,6 +671,9 @@ dependencies = [
  "disjoint",
  "ff",
  "group",
+ "halo2-frontend-core",
+ "halo2-midnight-integration",
+ "halo2-test-circuits",
  "halo2curves",
  "internment",
  "llzk",
@@ -680,6 +691,24 @@ dependencies = [
  "rstest 0.26.1",
  "similar-asserts",
  "simplelog",
+]
+
+[[package]]
+name = "halo2-midnight-integration"
+version = "0.1.0"
+dependencies = [
+ "ff",
+ "halo2-frontend-core",
+ "midnight-proofs",
+]
+
+[[package]]
+name = "halo2-test-circuits"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ff",
+ "midnight-proofs",
 ]
 
 [[package]]
@@ -915,7 +944,7 @@ checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 [[package]]
 name = "midnight-curves"
 version = "0.1.1"
-source = "git+https://github.com/Veridise/midnight-zk.git#a27e5d010651fd978f6c97a622a45734a0105ec4"
+source = "git+https://github.com/Veridise/midnight-zk.git#202896415a5ff4ea028a0171f20b520ab8b779f0"
 dependencies = [
  "bitvec",
  "blst",
@@ -934,7 +963,7 @@ dependencies = [
 [[package]]
 name = "midnight-proofs"
 version = "0.5.1"
-source = "git+https://github.com/Veridise/midnight-zk.git#a27e5d010651fd978f6c97a622a45734a0105ec4"
+source = "git+https://github.com/Veridise/midnight-zk.git#202896415a5ff4ea028a0171f20b520ab8b779f0"
 dependencies = [
  "bench_macros",
  "blake2b_simd",

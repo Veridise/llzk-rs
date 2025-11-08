@@ -6,11 +6,8 @@
 
 pub(crate) mod backend;
 pub mod driver;
-mod error;
 pub mod expressions;
 pub mod gates;
-mod halo2;
-pub mod info_traits;
 mod io;
 pub mod ir;
 pub mod lookups;
@@ -19,11 +16,7 @@ mod synthesis;
 pub mod temps;
 mod utils;
 
-use crate::{
-    halo2::Field,
-    info_traits::ConstraintSystemInfo,
-    io::{AdviceIO, InstanceIO},
-};
+pub use crate::io::{AdviceIO, InstanceIO};
 #[cfg(feature = "llzk-backend")]
 pub use backend::llzk::{
     LlzkOutput,
@@ -34,7 +27,8 @@ pub use backend::picus::{
     PicusOutput,
     params::{PicusParams, PicusParamsBuilder},
 };
-pub use error::to_plonk_error;
+use ff::Field;
+use halo2_frontend_core::info_traits::ConstraintSystemInfo;
 pub use io::CircuitIO;
 pub use lookups::callbacks::LookupCallbacks;
 pub use synthesis::Synthesizer;

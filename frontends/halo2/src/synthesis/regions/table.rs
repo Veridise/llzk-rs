@@ -1,9 +1,10 @@
-use crate::halo2::FixedQuery;
 use std::{
     cmp::Ordering,
     collections::{BTreeMap, HashMap, HashSet},
     convert::identity,
 };
+
+use halo2_frontend_core::{info_traits::QueryInfo, query::Fixed};
 
 use super::fixed::FixedData;
 
@@ -49,9 +50,9 @@ pub struct TableData<F: Copy> {
     values: HashMap<usize, BTreeMap<Fill, F>>,
 }
 
-pub enum ColumnMatch {
+pub enum ColumnMatch<Q> {
     Contained,
-    Missing(Vec<FixedQuery>),
+    Missing(Vec<Q>),
 }
 
 impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
@@ -75,7 +76,7 @@ impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
         Self { values }
     }
 
-    pub fn check_columns(&self, cols: &[FixedQuery]) -> ColumnMatch {
+    pub fn check_columns<Q: QueryInfo<Kind = Fixed> + Copy>(&self, cols: &[Q]) -> ColumnMatch<Q> {
         assert!(!cols.is_empty());
         let col_set = self.collect_columns();
         cols.iter()
@@ -83,7 +84,7 @@ impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
                 if col_set.contains(&q.column_index()) {
                     ColumnMatch::Contained
                 } else {
-                    ColumnMatch::Missing(vec![q.clone()])
+                    ColumnMatch::Missing(vec![*q])
                 }
             })
             .fold(ColumnMatch::Contained, |acc, m| match (acc, m) {
@@ -117,7 +118,10 @@ impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
             .ok_or_else(|| anyhow::anyhow!("Could not get the largest row fill of table"))
     }
 
-    fn get_rows_impl(&self, cols: &[FixedQuery]) -> anyhow::Result<Vec<Vec<F>>> {
+    fn get_rows_impl(
+        &self,
+        cols: &[impl QueryInfo<Kind = Fixed> + Copy],
+    ) -> anyhow::Result<Vec<Vec<F>>> {
         let tables = cols
             .iter()
             .map(|c| &self.values[&c.column_index()])
@@ -133,7 +137,10 @@ impl<F: Copy + Default + std::fmt::Debug> TableData<F> {
 
     /// Returns the rows the table has for the given columns. The columns have to have
     /// the same number of rows
-    pub fn get_rows(&self, cols: &[FixedQuery]) -> Option<anyhow::Result<Vec<Vec<F>>>> {
+    pub fn get_rows(
+        &self,
+        cols: &[impl QueryInfo<Kind = Fixed> + Copy],
+    ) -> Option<anyhow::Result<Vec<Vec<F>>>> {
         if matches!(self.check_columns(cols), ColumnMatch::Missing(_)) {
             return None;
         }

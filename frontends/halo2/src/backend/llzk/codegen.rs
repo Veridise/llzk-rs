@@ -123,10 +123,13 @@ fn create_pipeline<'c>(context: &'c Context) -> PassManager<'c> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{LlzkParamsBuilder, halo2::Fr};
+    use crate::LlzkParamsBuilder;
 
     use super::*;
-    use halo2_proofs::plonk::ConstraintSystem;
+    use halo2_frontend_core::{
+        query::{Advice, Instance},
+        table::Column,
+    };
     use log::LevelFilter;
     use rstest::{fixture, rstest};
     use simplelog::{Config, TestLogger};
@@ -149,8 +152,7 @@ mod tests {
                 let state: LlzkCodegenState =
                     LlzkParamsBuilder::new(&ctx).no_optimize().build().into();
                 let codegen = LlzkCodegen::initialize(&state);
-                let mut cs = ConstraintSystem::<Fr>::default();
-                let (advice_io, instance_io) = ($io)(&mut cs);
+                let (advice_io, instance_io) = $io;
                 let main = codegen
                     .define_main_function(&advice_io, &instance_io)
                     .unwrap();
@@ -166,23 +168,23 @@ mod tests {
     main_function_test! {
         define_main_function_empty_io,
         "test_files/empty_io.mlir",
-        |_| (AdviceIO::empty(), InstanceIO::empty()),
+         (AdviceIO::empty(), InstanceIO::empty()),
     }
 
     main_function_test! {
         define_main_function_public_inputs,
         "test_files/public_inputs.mlir",
-        |cs: &mut ConstraintSystem<Fr>| (
+         (
             AdviceIO::empty(),
-            InstanceIO::new(&[(cs.instance_column(), &[0, 1, 2])], &[]).unwrap()
+            InstanceIO::new(&[(Column::new(0, Instance), &[0, 1, 2])], &[]).unwrap()
         )
     }
 
     main_function_test! {
         define_main_function_private_inputs,
         "test_files/private_inputs.mlir",
-        |cs: &mut ConstraintSystem<Fr>| (
-            AdviceIO::new(&[(cs.advice_column(), &[0, 1, 2])], &[]).unwrap(),
+         (
+            AdviceIO::new(&[(Column::new(0, Advice), &[0, 1, 2])], &[]).unwrap(),
             InstanceIO::empty()
         )
     }
@@ -190,17 +192,17 @@ mod tests {
     main_function_test! {
         define_main_function_public_outputs,
         "test_files/public_outputs.mlir",
-        |cs: &mut ConstraintSystem<Fr>| (
+         (
                 AdviceIO::empty(),
-                InstanceIO::new(&[], &[(cs.instance_column(), &[0, 1, 2])]).unwrap()
+                InstanceIO::new(&[], &[(Column::new(0, Instance), &[0, 1, 2])]).unwrap()
         )
     }
 
     main_function_test! {
         define_main_function_private_outputs,
         "test_files/private_outputs.mlir",
-        |cs: &mut ConstraintSystem<Fr>| (
-                AdviceIO::new(&[], &[(cs.advice_column(), &[0, 1, 2])]).unwrap(),
+         (
+                AdviceIO::new(&[], &[(Column::new(0, Advice), &[0, 1, 2])]).unwrap(),
                 InstanceIO::empty()
         )
     }
@@ -208,9 +210,9 @@ mod tests {
     main_function_test! {
         define_main_function_mixed_io,
         "test_files/mixed_io.mlir",
-        |cs: &mut ConstraintSystem<Fr>| {
-            let advice_col = cs.advice_column();
-            let instance_col = cs.instance_column();
+         {
+            let advice_col = Column::new(0, Advice);
+            let instance_col = Column::new(0, Instance);
             (
                 AdviceIO::new(&[(advice_col, &[0, 1, 2])], &[(advice_col, &[3, 4])]).unwrap(),
                 InstanceIO::new(&[(instance_col, &[0, 1])], &[(instance_col, &[2, 3])]).unwrap()

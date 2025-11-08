@@ -1,4 +1,9 @@
-use crate::{gates::SelectorSet, halo2::*};
+use crate::gates::SelectorSet;
+use halo2_frontend_core::{
+    info_traits::SelectorInfo,
+    table::{Any, Column, ColumnType, RegionIndex},
+};
+
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
@@ -76,11 +81,11 @@ impl RegionDataImpl {
         );
     }
 
-    pub fn enable_selector(&mut self, s: Selector, row: usize) {
+    pub fn enable_selector(&mut self, s: &dyn SelectorInfo, row: usize) {
         self.enabled_selectors
             .entry(row)
             .or_default()
-            .insert(s.index());
+            .insert(s.id());
     }
 
     pub fn rows(&self) -> Range<usize> {

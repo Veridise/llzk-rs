@@ -1,14 +1,16 @@
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 
+use ff::Field;
+
 use crate::CircuitIO;
-use crate::halo2::{Advice, Any, Column, Instance};
-use crate::halo2::{Field, RegionIndex};
 use crate::io::IOCell;
 use crate::ir::generate::region_data;
 use crate::synthesis::SynthesizedCircuit;
 use crate::synthesis::groups::GroupCell;
 use crate::synthesis::regions::RegionData;
+use halo2_frontend_core::query::{Advice, Instance};
+use halo2_frontend_core::table::{Any, Column, RegionIndex};
 
 /// Contains information related to the IR of a circuit. Is used by the driver to lower the
 /// circuit.
@@ -70,7 +72,7 @@ impl AdviceCells {
             columns: region
                 .columns()
                 .iter()
-                .filter(|c| matches!(c.column_type(), Any::Advice(_)))
+                .filter(|c| matches!(c.column_type(), Any::Advice))
                 .copied()
                 .collect(),
             rows: region.rows(),
@@ -100,8 +102,8 @@ fn mk_advice_io(
     let filter_fn = |input: &GroupCell| -> Option<IOCell<Advice>> {
         match input {
             GroupCell::Assigned(cell) => match cell.column.column_type() {
-                Any::Advice(_) => {
-                    let row = cell.row_offset + regions[&cell.region_index];
+                Any::Advice => {
+                    let row = cell.row_offset + regions[&cell.region_index.into()];
                     Some((cell.column.try_into().unwrap(), row))
                 }
                 Any::Instance => None,
@@ -127,10 +129,10 @@ fn mk_instance_io(
         match input {
             GroupCell::Assigned(cell) => match cell.column.column_type() {
                 Any::Instance => {
-                    let row = cell.row_offset + regions[&cell.region_index];
+                    let row = cell.row_offset + regions[&cell.region_index.into()];
                     Some((cell.column.try_into().unwrap(), row))
                 }
-                Any::Advice(_) => None,
+                Any::Advice => None,
                 Any::Fixed => unreachable!(),
             },
             GroupCell::InstanceIO(cell) => Some(*cell),
