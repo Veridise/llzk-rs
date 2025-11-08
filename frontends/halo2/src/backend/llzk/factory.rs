@@ -5,6 +5,7 @@ use melior::{
     ir::{Identifier, Location, Operation, Type},
 };
 
+/// Generates a pseudo-filename for use in location metadata in the generated IR.
 pub fn filename(name: &str, section: Option<&str>) -> String {
     use std::fmt::Write;
     const STRUCT: &str = "struct ";
