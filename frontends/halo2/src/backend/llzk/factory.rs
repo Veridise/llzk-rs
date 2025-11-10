@@ -1,60 +1,27 @@
-use std::{borrow::Cow, iter};
-
-use llzk::prelude::*;
+use llzk::{attributes::NamedAttribute, prelude::*};
 
 use melior::{
-    ir::{r#type::FunctionType, Location, Operation, Type},
     Context,
+    ir::{Identifier, Location, Operation, Type},
 };
 
+/// Generates a pseudo-filename for use in location metadata in the generated IR.
+pub fn filename(name: &str, section: Option<&str>) -> String {
+    use std::fmt::Write;
+    const STRUCT: &str = "struct ";
+    const SEP: &str = " | ";
+    let mut s = String::with_capacity(
+        STRUCT.len() + name.len() + section.map(|s| s.len() + SEP.len()).unwrap_or_default(),
+    );
+    write!(s, "{STRUCT}{name}").expect("write to string");
+    if let Some(section) = section {
+        write!(s, "{SEP}{section}").expect("write to string");
+    }
+    s
+}
+
 fn struct_def_op_location<'c>(context: &'c Context, name: &str, index: usize) -> Location<'c> {
-    Location::new(context, format!("struct {name}").as_str(), index, 0)
-}
-
-fn create_field<'c>(
-    context: &'c Context,
-    header: &str,
-    name: &str,
-    public: bool,
-) -> Result<FieldDefOp<'c>, LlzkError> {
-    let filename = format!("struct {header} | field {name}");
-    let loc = Location::new(context, &filename, 0, 0);
-
-    r#struct::field(loc, name, FeltType::new(context), false, public)
-}
-
-fn struct_type<'c>(context: &'c Context, name: &str) -> Type<'c> {
-    StructType::from_str(context, name).into()
-}
-
-struct Field {
-    name: Cow<'static, str>,
-    public: bool,
-}
-
-impl From<(&'static str, bool)> for Field {
-    fn from(value: (&'static str, bool)) -> Self {
-        Self {
-            name: Cow::Borrowed(value.0),
-            public: value.1,
-        }
-    }
-}
-
-impl Field {
-    pub fn renamed(mut self, f: impl FnOnce(&str) -> String) -> Self {
-        let new = f(self.name.as_ref());
-        self.name = Cow::Owned(new);
-        self
-    }
-
-    pub fn name(&self) -> &str {
-        self.name.as_ref()
-    }
-
-    pub fn is_public(&self) -> bool {
-        self.public
-    }
+    Location::new(context, filename(name, None).as_str(), index, 0)
 }
 
 pub struct StructIO {
@@ -64,33 +31,72 @@ pub struct StructIO {
     public_outputs: usize,
 }
 
-macro_rules! field_iter {
-    ($name:ident, $base:expr) => {
-        fn $name(&self) -> impl Iterator<Item = Field> {
-            iter::repeat($base)
-                .map(Field::from)
-                .zip(0..self.$name)
-                .map(|(f, n)| f.renamed(|name| format!("{name}_{n}")))
-        }
-    };
-}
-
 impl StructIO {
-    fn fields(&self) -> impl IntoIterator<Item = Field> {
-        self.private_inputs()
-            .chain(self.private_outputs())
-            .chain(self.public_outputs())
+    fn fields<'c>(
+        &self,
+        context: &'c Context,
+        header: &str,
+    ) -> impl Iterator<Item = Result<FieldDefOp<'c>, LlzkError>> {
+        let public_filename = filename(header, Some("public outputs"));
+        let private_filename = filename(header, Some("private outputs"));
+        std::iter::repeat_n(true, self.public_outputs)
+            .enumerate()
+            .chain(std::iter::repeat_n(false, self.private_outputs).enumerate())
+            .map(move |(n, public)| {
+                let filename = if public {
+                    &public_filename
+                } else {
+                    &private_filename
+                };
+                (public, Location::new(context, filename, n, 0))
+            })
+            .enumerate()
+            .map(|(n, (public, loc))| {
+                let name = format!("out_{n}");
+                r#struct::field(loc, &name, FeltType::new(context), false, public)
+            })
     }
 
-    field_iter!(private_inputs, ("in", false));
-    field_iter!(private_outputs, ("out", false));
-    field_iter!(public_outputs, ("out", true));
+    pub fn args<'c>(
+        &self,
+        ctx: &'c Context,
+        is_main: bool,
+        struct_name: &str,
+    ) -> Vec<(Type<'c>, Location<'c>)> {
+        let public_filename = filename(struct_name, Some("public inputs"));
+        let private_filename = filename(struct_name, Some("private inputs"));
+        let public_locs = std::iter::repeat(&public_filename)
+            .enumerate()
+            .take(self.public_inputs);
+        let private_locs = std::iter::repeat(&private_filename)
+            .enumerate()
+            .take(self.private_inputs);
+        let locs = public_locs
+            .chain(private_locs)
+            .map(|(n, filename)| Location::new(ctx, filename, n, 0));
 
-    pub fn public_inputs<'c>(&self, ctx: &'c Context) -> impl IntoIterator<Item = Type<'c>> {
-        iter::repeat_with(|| FeltType::new(ctx).into()).take(self.public_inputs)
+        let ty: Type<'c> = if is_main {
+            StructType::from_str(ctx, "Signal").into()
+        } else {
+            FeltType::new(ctx).into()
+        };
+        let types = std::iter::repeat(ty).take(self.public_inputs + self.private_inputs);
+
+        std::iter::zip(types, locs).collect()
     }
 
-    pub fn new_from_io(advice: &crate::io::AdviceIO, instance: &crate::io::InstanceIO) -> Self {
+    /// Returns the list of argument attributes for the struct's functions.
+    pub fn arg_attrs<'c>(&self, ctx: &'c Context) -> Vec<Vec<NamedAttribute<'c>>> {
+        let pub_attr = (
+            Identifier::new(ctx, "llzk.pub"),
+            PublicAttribute::new(ctx).into(),
+        );
+        std::iter::repeat_n(vec![pub_attr], self.public_inputs)
+            .chain(std::iter::repeat_n(vec![], self.private_inputs))
+            .collect()
+    }
+
+    pub fn from_io(advice: &crate::io::AdviceIO, instance: &crate::io::InstanceIO) -> Self {
         Self {
             private_inputs: advice.inputs().len(),
             public_inputs: instance.inputs().len(),
@@ -99,10 +105,10 @@ impl StructIO {
         }
     }
 
-    pub fn new_from_io_count(inputs: usize, outputs: usize) -> Self {
+    pub fn from_io_count(inputs: usize, outputs: usize) -> Self {
         Self {
-            private_inputs: 0,
-            public_inputs: inputs,
+            private_inputs: inputs,
+            public_inputs: 0,
             private_outputs: outputs,
             public_outputs: 0,
         }
@@ -114,37 +120,36 @@ pub fn create_struct<'c>(
     struct_name: &str,
     idx: usize,
     io: StructIO,
+    is_main: bool,
 ) -> Result<StructDefOp<'c>, LlzkError> {
     log::debug!("context = {context:?}");
     let loc = struct_def_op_location(context, struct_name, idx);
     log::debug!("Struct location: {loc:?}");
     let fields = io
-        .fields()
-        .into_iter()
-        .map(|field| -> Result<Operation<'c>, LlzkError> {
-            create_field(context, struct_name, field.name(), field.is_public()).map(Into::into)
-        });
+        .fields(context, struct_name)
+        .map(|r| r.map(Operation::from));
 
-    let func_args = [struct_type(context, struct_name)]
-        .into_iter()
-        .chain(io.public_inputs(context))
-        .collect::<Vec<_>>();
+    let func_args = io.args(context, is_main, struct_name);
+    let arg_attrs = io.arg_attrs(context);
 
     log::debug!("Creating function with arguments: {func_args:?}");
-    let constrain = function::def(
-        loc,
-        "constrain",
-        FunctionType::new(context, &func_args, &[]),
-        &[],
-        None,
-    )
-    .inspect(|f| f.set_allow_constraint_attr(true));
 
-    log::debug!("Creating constraint op");
-    r#struct::def(
-        loc,
-        struct_name,
-        &[],
-        fields.chain([constrain.map(Into::into)]),
-    )
+    let funcs = [
+        r#struct::helpers::compute_fn(
+            loc,
+            StructType::from_str(context, struct_name),
+            &func_args,
+            Some(&arg_attrs),
+        )
+        .map(Operation::from),
+        r#struct::helpers::constrain_fn(
+            loc,
+            StructType::from_str(context, struct_name),
+            &func_args,
+            Some(&arg_attrs),
+        )
+        .map(Operation::from),
+    ];
+
+    r#struct::def(loc, struct_name, &[], fields.chain(funcs))
 }

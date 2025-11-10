@@ -1,4 +1,4 @@
-#[cfg(feature = "picus-backend")]
+use common::llzk::basic_llzk_test;
 use common::picus::basic_picus_test;
 use common::synthesis_impl;
 use halo2_llzk_frontend::ir::generate::IRGenParamsBuilder;
@@ -12,6 +12,13 @@ basic_picus_test! {
     MulCircuitSynthesis::default(),
     include_str!("expected/picus/mul_circuit.picus"),
     include_str!("expected/picus/mul_circuit_opt.picus")
+}
+
+basic_llzk_test! {
+    mul_circuit,
+    MulCircuitSynthesis::default(),
+    include_str!("expected/llzk/mul_circuit.mlir"),
+    include_str!("expected/llzk/mul_circuit_opt.mlir")
 }
 
 basic_picus_test! {
@@ -82,6 +89,7 @@ basic_picus_test! {
 
 #[cfg(feature = "picus-backend")]
 mod mul_inject {
+    use crate::ensure_validation;
     use halo2_frontend_core::table::RegionIndex;
     use halo2_llzk_frontend::CircuitSynthesis;
     use halo2_llzk_frontend::{
@@ -120,19 +128,6 @@ mod mul_inject {
             injected.push(payload);
         }
         injected
-    }
-
-    macro_rules! ensure_validation {
-        ($x:expr) => {{
-            let (status, errs) = $x.validate();
-
-            if status.is_err() {
-                for err in errs {
-                    log::error!("{err}");
-                }
-                panic!("Test failed due to validation errors");
-            }
-        }};
     }
 
     fn generate_ir(driver: &mut Driver) -> ResolvedIRCircuit {

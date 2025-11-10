@@ -25,6 +25,7 @@ simplelog = {version = "0.12", features = ["test"] }
 quickcheck = "1"
 quickcheck_macros = "1"
 similar-asserts = "1.7"
+mlir-testutils = {version = "0.1", features = ["similar-asserts"]}
 
 [features]
 default = []

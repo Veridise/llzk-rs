@@ -19,7 +19,12 @@ pub trait Codegen<'c: 's, 's>: Sized + 's {
     fn initialize(state: &'s Self::State) -> Self;
 
     /// Sets the prime field used by the circuit.
-    fn set_prime_field(&self, prime: Felt) -> Result<()>;
+    ///
+    /// By default does nothing.
+    #[allow(unused_variables)]
+    fn set_prime_field(&self, prime: Felt) -> Result<()> {
+        Ok(())
+    }
 
     fn define_function(
         &self,
@@ -63,11 +68,12 @@ pub trait Codegen<'c: 's, 's>: Sized + 's {
         stmts: impl IntoIterator<Item = L>,
     ) -> Result<()>
     where
-        L: LowerableStmt,
+        L: LowerableStmt + std::fmt::Debug,
     {
         let main = self.define_main_function(advice_io, instance_io)?;
         log::debug!("Defined main function");
         for stmt in stmts {
+            log::debug!("Lowering statement {stmt:?}");
             stmt.lower(&main)?;
         }
         log::debug!("Lowered function body");

@@ -80,8 +80,12 @@ fn witness<'c>(
 
     // The functions inside a struct need to have a particular structure. This helper creates the
     // `@compute` function with its proper structure.
-    let compute_fn =
-        r#struct::helpers::compute_fn(location, main_ty, &inputs, Some(&[&pub_attr, &pub_attr]))?;
+    let compute_fn = r#struct::helpers::compute_fn(
+        location,
+        main_ty,
+        &inputs,
+        Some(&[pub_attr.to_vec(), pub_attr.to_vec()]),
+    )?;
 
     // Witness generation is represented by creating an instance of the containing struct, filling
     // its fields, and returning the value of the struct. The `compute_fn` helper
@@ -158,8 +162,12 @@ fn constraints<'c>(
 
     // The functions inside a struct need to have a particular structure. This helper creates the
     // `@constrain` function with its proper structure.
-    let constrain_fn =
-        r#struct::helpers::constrain_fn(location, main_ty, &inputs, Some(&[&pub_attr, &pub_attr]))?;
+    let constrain_fn = r#struct::helpers::constrain_fn(
+        location,
+        main_ty,
+        &inputs,
+        Some(&[pub_attr.to_vec(), pub_attr.to_vec()]),
+    )?;
 
     // The constraint system is represented by a function that takes as argument an instance of
     // the parent struct as well as the same inputs the `@compute` function takes.

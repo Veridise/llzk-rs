@@ -6,12 +6,14 @@
 use llzk_sys::llzkRegisterAllDialects;
 use melior::dialect::DialectRegistry;
 
+pub mod attributes;
 pub mod builder;
 pub mod context;
 mod diagnostics;
 pub mod dialect;
 pub mod error;
 mod macros;
+pub mod operation;
 pub mod passes;
 pub mod prelude;
 pub mod symbol_ref;

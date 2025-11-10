@@ -441,27 +441,33 @@ impl LowerableStmt for GroupBody<IRAexpr> {
     where
         L: Lowering + ?Sized,
     {
+        log::debug!("Lowering {self:?}");
         if self.generate_debug_comments {
             l.generate_comment("Calls to subgroups".to_owned())?;
         }
+        log::debug!("  Lowering callsites");
         for callsite in self.callsites {
             callsite.lower(l)?;
         }
         if self.generate_debug_comments {
             l.generate_comment("Gate constraints".to_owned())?;
         }
+        log::debug!("  Lowering gates");
         self.gates.lower(l)?;
         if self.generate_debug_comments {
             l.generate_comment("Equality constraints".to_owned())?;
         }
+        log::debug!("  Lowering equality constraints");
         self.eq_constraints.lower(l)?;
         if self.generate_debug_comments {
             l.generate_comment("Lookups".to_owned())?;
         }
+        log::debug!("  Lowering lookups");
         self.lookups.lower(l)?;
         if self.generate_debug_comments {
             l.generate_comment("Injected".to_owned())?;
         }
+        log::debug!("  Lowering injected IR");
         for stmt in self.injected {
             stmt.lower(l)?;
         }

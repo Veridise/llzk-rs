@@ -41,6 +41,14 @@ impl Felt {
             BigUint::from_bytes_le(f.to_repr().as_ref()) + 1usize,
         ))
     }
+
+    /// Creates a felt from anything that can become a [`BigUint`].
+    ///
+    /// Use this method only during testing.
+    #[cfg(test)]
+    pub fn new_from<I: Into<BigUint>>(i: I) -> Self {
+        Self(Intern::new(i.into()))
+    }
 }
 
 impl std::fmt::Debug for Felt {
@@ -324,6 +332,7 @@ impl LowerableExpr for IRAexpr {
     where
         L: ExprLowering + ?Sized,
     {
+        log::debug!("Lowering expr: {self:?}");
         match self {
             IRAexpr::Constant(f) => l.lower_constant(f),
             IRAexpr::IO(io) => l.lower_funcio(io),

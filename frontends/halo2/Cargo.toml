@@ -10,8 +10,10 @@ quickcheck = "1"
 quickcheck_macros = "1"
 rstest = "0.26"
 group = "0.13"
+mlir-testutils = {version = "0.1.0", features = ["similar-asserts"]}
 halo2-test-circuits = { path = "../halo2-circuits" }
 halo2-midnight-integration = { path = "../halo2-midnight" }
+paste = "1"
 
 [dependencies]
 melior = { workspace = true, optional = true }

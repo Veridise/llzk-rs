@@ -106,7 +106,13 @@ impl<T: LowerableExpr> LowerableStmt for Constraint<T> {
     where
         L: Lowering + ?Sized,
     {
-        l.checked_generate_constraint(self.op, &self.lhs.lower(l)?, &self.rhs.lower(l)?)
+        let lhs = self.lhs.lower(l)?;
+        log::trace!("Lowered lhs");
+        let rhs = self.rhs.lower(l)?;
+        log::trace!("Lowered rhs");
+        l.checked_generate_constraint(self.op, &lhs, &rhs)?;
+        log::trace!("Lowered constraint");
+        Ok(())
     }
 }
 

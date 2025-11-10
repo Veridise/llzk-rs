@@ -7,11 +7,25 @@ use halo2_llzk_frontend::{
 };
 use halo2_midnight_integration::plonk::{_Expression, ConstraintSystem};
 
-#[cfg(feature = "picus-backend")]
+pub mod llzk;
 pub mod picus;
 
 pub fn setup() {
     let _ = simplelog::TestLogger::init(log::LevelFilter::Debug, simplelog::Config::default());
+}
+
+#[macro_export]
+macro_rules! ensure_validation {
+    ($x:expr) => {{
+        let (status, errs) = $x.validate();
+
+        if status.is_err() {
+            for err in errs {
+                log::error!("{err}");
+            }
+            panic!("Test failed due to validation errors");
+        }
+    }};
 }
 
 /// We run the synthesis separately to test that the lifetimes of the values
@@ -29,20 +43,28 @@ where
 {
     let syn = driver.synthesize(&circuit).unwrap();
     let unresolved = driver.generate_ir(&syn, params).unwrap();
-    let (status, errs) = unresolved.validate();
-    if status.is_err() {
-        for err in errs {
-            log::error!("{err}");
-        }
-        panic!("Test failed due to validation errors");
-    }
+    ensure_validation!(unresolved);
     let resolved = unresolved.resolve().unwrap();
-    let (status, errs) = resolved.validate();
-    if status.is_err() {
-        for err in errs {
-            log::error!("{err}");
-        }
-        panic!("Test failed due to validation errors");
+    ensure_validation!(resolved);
+    resolved
+}
+
+fn common_lowering<F, C>(
+    circuit: C,
+    driver: &mut Driver,
+    ir_params: IRGenParams<F, _Expression<F>>,
+    canonicalize: bool,
+) -> ResolvedIRCircuit
+where
+    F: PrimeField,
+    C: CircuitSynthesis<F, CS = ConstraintSystem<F>>,
+{
+    let mut resolved = synthesize_and_generate_ir(driver, circuit, ir_params);
+    if canonicalize {
+        resolved.constant_fold().unwrap();
+        ensure_validation!(resolved);
+        resolved.canonicalize();
+        ensure_validation!(resolved);
     }
     resolved
 }
