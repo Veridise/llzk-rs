@@ -166,6 +166,12 @@ impl<T> IRBexpr<T> {
         Self::Cmp(CmpOp::Ge, lhs, rhs)
     }
 
+    #[inline]
+    /// Creates an implication expression.
+    pub fn implies(lhs: Self, rhs: Self) -> Self {
+        Self::Implies(Box::new(lhs), Box::new(rhs))
+    }
+
     /// Maps the statement's inner type to a tuple with the passed value.
     pub fn with<O>(self, other: O) -> IRBexpr<(O, T)>
     where
