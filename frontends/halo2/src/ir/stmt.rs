@@ -105,6 +105,36 @@ impl<T> IRStmt<T> {
         Constraint::new(op, lhs, rhs).into()
     }
 
+    #[inline]
+    /// Creates a constraint with [`CmpOp::Eq`] between two expressions.
+    pub fn eq(lhs: T, rhs: T) -> Self {
+        Self::constraint(CmpOp::Eq, lhs, rhs)
+    }
+
+    #[inline]
+    /// Creates a constraint with [`CmpOp::Lt`] between two expressions.
+    pub fn lt(lhs: T, rhs: T) -> Self {
+        Self::constraint(CmpOp::Lt, lhs, rhs)
+    }
+
+    #[inline]
+    /// Creates a constraint with [`CmpOp::Le`] between two expressions.
+    pub fn le(lhs: T, rhs: T) -> Self {
+        Self::constraint(CmpOp::Le, lhs, rhs)
+    }
+
+    #[inline]
+    /// Creates a constraint with [`CmpOp::Gt`] between two expressions.
+    pub fn gt(lhs: T, rhs: T) -> Self {
+        Self::constraint(CmpOp::Gt, lhs, rhs)
+    }
+
+    #[inline]
+    /// Creates a constraint with [`CmpOp::Ge`] between two expressions.
+    pub fn ge(lhs: T, rhs: T) -> Self {
+        Self::constraint(CmpOp::Ge, lhs, rhs)
+    }
+
     /// Creates a text comment.
     pub fn comment(s: impl AsRef<str>) -> Self {
         Comment::new(s).into()
@@ -152,6 +182,19 @@ impl<T> IRStmt<T> {
             IRStmt::PostCond(pc) => pc.map(f).into(),
             IRStmt::Seq(seq) => Seq::new(seq.into_iter().map(|s| s.map(f))).into(),
         }
+    }
+
+    /// Maps the statement's inner type to a tuple with the passed value.
+    pub fn with<O>(self, other: O) -> IRStmt<(O, T)>
+    where
+        O: Clone,
+    {
+        self.map(&|t| (other.clone(), t))
+    }
+
+    /// Maps the statement's inner type to a tuple with the result of the closure.
+    pub fn with_fn<O>(self, other: impl Fn() -> O) -> IRStmt<(O, T)> {
+        self.map(&|t| (other(), t))
     }
 
     /// Transforms the inner expression type using [`Into::into`].
