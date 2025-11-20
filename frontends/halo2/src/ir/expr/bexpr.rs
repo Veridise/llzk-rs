@@ -1,8 +1,8 @@
 //! Structs for handling boolean expressions.
 
-use super::super::{equivalency::EqvRelation, CmpOp};
+use super::super::{CmpOp, equivalency::EqvRelation};
 use crate::{
-    backend::lowering::{lowerable::LowerableExpr, ExprLowering},
+    backend::lowering::{ExprLowering, lowerable::LowerableExpr},
     ir::{
         canon::canonicalize_constraint,
         expr::{Felt, IRAexpr},
@@ -134,6 +134,49 @@ impl<T> IRBexpr<T> {
                 rhs.try_map_inplace(f)
             }
         }
+    }
+
+    #[inline]
+    /// Creates a constraint with [`CmpOp::Eq`] between two expressions.
+    pub fn eq(lhs: T, rhs: T) -> Self {
+        Self::Cmp(CmpOp::Eq, lhs, rhs)
+    }
+
+    #[inline]
+    /// Creates a constraint with [`CmpOp::Lt`] between two expressions.
+    pub fn lt(lhs: T, rhs: T) -> Self {
+        Self::Cmp(CmpOp::Lt, lhs, rhs)
+    }
+
+    #[inline]
+    /// Creates a constraint with [`CmpOp::Le`] between two expressions.
+    pub fn le(lhs: T, rhs: T) -> Self {
+        Self::Cmp(CmpOp::Le, lhs, rhs)
+    }
+
+    #[inline]
+    /// Creates a constraint with [`CmpOp::Gt`] between two expressions.
+    pub fn gt(lhs: T, rhs: T) -> Self {
+        Self::Cmp(CmpOp::Gt, lhs, rhs)
+    }
+
+    #[inline]
+    /// Creates a constraint with [`CmpOp::Ge`] between two expressions.
+    pub fn ge(lhs: T, rhs: T) -> Self {
+        Self::Cmp(CmpOp::Ge, lhs, rhs)
+    }
+
+    /// Maps the statement's inner type to a tuple with the passed value.
+    pub fn with<O>(self, other: O) -> IRBexpr<(O, T)>
+    where
+        O: Clone,
+    {
+        self.map(&|t| (other.clone(), t))
+    }
+
+    /// Maps the statement's inner type to a tuple with the result of the closure.
+    pub fn with_fn<O>(self, other: impl Fn() -> O) -> IRBexpr<(O, T)> {
+        self.map(&|t| (other(), t))
     }
 }
 
@@ -359,11 +402,7 @@ impl IRBexpr<IRAexpr> {
 
 impl<T> From<bool> for IRBexpr<T> {
     fn from(value: bool) -> Self {
-        if value {
-            IRBexpr::True
-        } else {
-            IRBexpr::False
-        }
+        if value { IRBexpr::True } else { IRBexpr::False }
     }
 }
 
