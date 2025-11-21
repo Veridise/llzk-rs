@@ -13,8 +13,10 @@ pub mod ir;
 pub mod lookups;
 mod resolvers;
 mod synthesis;
-pub mod temps;
+//pub mod temps;
 mod utils;
+
+pub use haloumi_ir_base::temps;
 
 pub use crate::io::{AdviceIO, InstanceIO};
 #[cfg(feature = "llzk-backend")]

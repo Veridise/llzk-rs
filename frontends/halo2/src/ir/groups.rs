@@ -1,20 +1,14 @@
 //! Structs for handling the IR of groups of regions inside the circuit.
 
-use std::collections::HashMap;
-
 use crate::{
     LookupCallbacks,
-    backend::{
-        func::{CellRef, FuncIO},
-        lowering::{Lowering, lowerable::LowerableStmt},
-    },
     expressions::{ExpressionInRow, ScopedExpression},
     gates::{Gate, GateRewritePattern as _, GateScope, RewriteError, RewritePatternSet},
     ir::{
         CmpOp, IRCtx,
         ctx::AdviceCells,
         equivalency::{EqvRelation, SymbolicEqv},
-        expr::{Felt, IRAexpr},
+        expr::IRAexpr,
         generate::{GroupIRCtx, RegionByIndex},
         groups::{
             bounds::{Bound, EqConstraintCheck, GroupBounds},
@@ -39,6 +33,11 @@ use halo2_frontend_core::{
     expressions::{ExprBuilder, ExpressionInfo},
     table::{Any, Rotation, RotationExt},
 };
+use haloumi_ir_base::felt::Felt;
+use haloumi_ir_base::func::CellRef;
+use haloumi_ir_base::func::FuncIO;
+use haloumi_lowering::{Lowering, lowerable::LowerableStmt};
+use std::collections::HashMap;
 
 pub(crate) mod bounds;
 pub mod callsite;

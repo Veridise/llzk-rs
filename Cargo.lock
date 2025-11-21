@@ -655,14 +655,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "halo2-frontend-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "ff",
-]
-
-[[package]]
 name = "halo2-llzk-frontend"
 version = "0.1.0"
 dependencies = [
@@ -671,11 +663,13 @@ dependencies = [
  "disjoint",
  "ff",
  "group",
- "halo2-frontend-core",
  "halo2-midnight-integration",
  "halo2-test-circuits",
  "halo2curves",
- "internment",
+ "haloumi-core",
+ "haloumi-ir",
+ "haloumi-ir-base",
+ "haloumi-lowering",
  "llzk",
  "llzk-sys",
  "log",
@@ -698,7 +692,7 @@ name = "halo2-midnight-integration"
 version = "0.1.0"
 dependencies = [
  "ff",
- "halo2-frontend-core",
+ "haloumi-core",
  "midnight-proofs",
 ]
 
@@ -750,6 +744,49 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "haloumi-core"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a539e4ddc3b6754c7e0854369b7af4562d3097cba8b6dff01eb711cc7af7cccb"
+dependencies = [
+ "ff",
+ "thiserror",
+]
+
+[[package]]
+name = "haloumi-ir"
+version = "0.1.0"
+dependencies = [
+ "ff",
+ "haloumi-core",
+ "haloumi-ir-base",
+ "haloumi-lowering",
+ "log",
+ "thiserror",
+]
+
+[[package]]
+name = "haloumi-ir-base"
+version = "0.1.0"
+dependencies = [
+ "ff",
+ "haloumi-core",
+ "internment",
+ "log",
+ "num-bigint",
+]
+
+[[package]]
+name = "haloumi-lowering"
+version = "0.1.0"
+dependencies = [
+ "ff",
+ "haloumi-core",
+ "haloumi-ir-base",
+ "thiserror",
 ]
 
 [[package]]

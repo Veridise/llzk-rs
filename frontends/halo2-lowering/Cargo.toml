@@ -1,0 +1,10 @@
+[package]
+name = "haloumi-lowering"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ff = { workspace = true }
+haloumi-core = {version = "0"}
+haloumi-ir-base = {path = "../halo2-ir-base/", version = "0"}
+thiserror = "2"

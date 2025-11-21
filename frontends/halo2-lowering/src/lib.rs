@@ -1,12 +1,15 @@
+#![doc = include_str!("../README.md")]
+//#![deny(rustdoc::broken_intra_doc_links)]
+//#![deny(missing_debug_implementations)]
+//#![deny(missing_docs)]
+
+use haloumi_ir_base::{cmp::CmpOp, felt::Felt, func::FuncIO};
 use std::ops::Range;
 
-//use crate::ir::{CmpOp, expr::Felt};
-use anyhow::{Result, bail};
-use haloumi_ir_base::{cmp::CmpOp, expr::Felt, func::FuncIO};
-
-//use super::func::FuncIO;
-
+pub mod error;
 pub mod lowerable;
+
+pub type Result<T> = std::result::Result<T, error::Error>;
 
 pub trait Lowering: ExprLowering {
     fn generate_constraint(
@@ -28,7 +31,7 @@ pub trait Lowering: ExprLowering {
         self.generate_constraint(op, lhs, rhs)?;
         let after = self.num_constraints();
         if before >= after {
-            bail!("Last constraint was not generated!");
+            return Err(error::Error::LastConstraintNotGenerated);
         }
         Ok(())
     }

@@ -3,62 +3,26 @@
 
 use crate::{
     expressions::{ExpressionInRow, ScopedExpression},
-    ir::{
-        expr::{Felt, IRAexpr},
-        generate::region_data,
-        groups::GroupBody,
-        printer::IRPrinter,
-    },
+    ir::{expr::IRAexpr, generate::region_data, groups::GroupBody, printer::IRPrinter},
     synthesis::SynthesizedCircuit,
     temps::ExprOrTemp,
 };
 use anyhow::Result;
 use ff::PrimeField;
 use halo2_frontend_core::{expressions::EvaluableExpr, table::RegionIndex};
+use haloumi_ir_base::felt::Felt;
 use stmt::IRStmt;
 
-/// Comparison operators between arithmetic expressions.
-#[derive(Copy, Clone, PartialEq, Eq, Debug, PartialOrd, Ord, Hash)]
-pub enum CmpOp {
-    /// Equality
-    Eq,
-    /// Less than
-    Lt,
-    /// Less of equal than
-    Le,
-    /// Greater than
-    Gt,
-    /// Greater or equal than
-    Ge,
-    /// Not equal
-    Ne,
-}
-
-impl std::fmt::Display for CmpOp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                CmpOp::Eq => "==",
-                CmpOp::Lt => "<",
-                CmpOp::Le => "<=",
-                CmpOp::Gt => ">",
-                CmpOp::Ge => ">=",
-                CmpOp::Ne => "!=",
-            }
-        )
-    }
-}
+pub use haloumi_ir::{expr, stmt};
+pub use haloumi_ir_base::cmp::CmpOp;
+pub use haloumi_ir_base::equivalency;
 
 mod canon;
 mod ctx;
-pub mod equivalency;
-pub mod expr;
+//pub mod equivalency;
 pub mod generate;
 pub mod groups;
 pub mod printer;
-pub mod stmt;
 
 pub use ctx::IRCtx;
 

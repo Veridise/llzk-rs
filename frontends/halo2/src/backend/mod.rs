@@ -6,11 +6,12 @@ use crate::{
 };
 use anyhow::Result;
 
+pub use haloumi_ir_base::func;
+pub use haloumi_lowering as lowering;
 pub mod codegen;
-pub mod func;
+//pub mod func;
 #[cfg(feature = "llzk-backend")]
 pub mod llzk;
-pub mod lowering;
 #[cfg(feature = "picus-backend")]
 pub mod picus;
 

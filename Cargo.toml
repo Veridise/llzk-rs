@@ -1,7 +1,10 @@
 [workspace]
 members = [ 
   "frontends/halo2", 
-  "frontends/halo2-core", 
+  #"frontends/halo2-core", 
+  "frontends/halo2-ir",
+  "frontends/halo2-ir-base",
+  "frontends/halo2-lowering",
   "frontends/halo2-midnight", 
   "frontends/halo2-circuits", 
   "llzk",

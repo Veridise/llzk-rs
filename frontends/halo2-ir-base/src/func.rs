@@ -4,7 +4,7 @@ use std::{fmt, ops::Deref};
 //    ir::equivalency::{EqvRelation, SymbolicEqv},
 //    temps::Temp,
 //};
-use haloumi_ir_base::{
+use crate::{
     equivalency::{EqvRelation, SymbolicEqv},
     temps::Temp,
 };
