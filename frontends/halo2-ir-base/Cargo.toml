@@ -2,6 +2,12 @@
 name = "haloumi-ir-base"
 version = "0.1.0"
 edition = "2024"
+readme = "README.md"
+description = "Types used by the IR and by some modules that the IR depends on."
+keywords = ["halo2", "llzk", "haloumi"]
+categories = ["compilers"]
+repository = "https://github.com/Veridise/haloumi"
+license = "Apache-2.0"
 
 [dependencies]
 ff = { workspace = true }
