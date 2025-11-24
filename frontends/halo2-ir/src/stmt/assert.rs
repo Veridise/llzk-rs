@@ -3,8 +3,10 @@ use crate::{
     expr::{IRAexpr, IRBexpr},
     stmt::IRStmt,
 };
+use eqv::{EqvRelation, equiv};
 use haloumi_ir_base::{
-    equivalency::{EqvRelation, SymbolicEqv},
+    SymbolicEqv,
+    //equivalency::{EqvRelation, SymbolicEqv},
     felt::Felt,
 };
 use haloumi_lowering::{
@@ -103,6 +105,7 @@ where
     SymbolicEqv: EqvRelation<L, R>,
 {
     fn equivalent(lhs: &Assert<L>, rhs: &Assert<R>) -> bool {
-        <SymbolicEqv as EqvRelation<IRBexpr<L>, IRBexpr<R>>>::equivalent(&lhs.0, &rhs.0)
+        equiv! { SymbolicEqv | &lhs.0, &rhs.0 }
+        //<SymbolicEqv as EqvRelation<IRBexpr<L>, IRBexpr<R>>>::equivalent(&lhs.0, &rhs.0)
     }
 }

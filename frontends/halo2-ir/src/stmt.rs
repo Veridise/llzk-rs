@@ -2,10 +2,10 @@
 
 use super::expr::IRBexpr;
 use crate::{error::Error, expr::IRAexpr};
-//use anyhow::Result;
+use eqv::{EqvRelation, equiv};
 use haloumi_ir_base::{
+    SymbolicEqv,
     cmp::CmpOp,
-    equivalency::{EqvRelation, SymbolicEqv},
     felt::Felt,
     func::FuncIO,
     temps::{ExprOrTemp, Temp},
@@ -405,22 +405,27 @@ where
     fn equivalent(lhs: &IRStmt<L>, rhs: &IRStmt<R>) -> bool {
         std::iter::zip(lhs.iter(), rhs.iter()).all(|(lhs, rhs)| match (lhs, rhs) {
             (IRStmt::ConstraintCall(lhs), IRStmt::ConstraintCall(rhs)) => {
-                <SymbolicEqv as EqvRelation<Call<L>, Call<R>>>::equivalent(lhs, rhs)
+                equiv! { SymbolicEqv | lhs, rhs }
+                //<SymbolicEqv as EqvRelation<Call<L>, Call<R>>>::equivalent(lhs, rhs)
             }
             (IRStmt::Constraint(lhs), IRStmt::Constraint(rhs)) => {
-                <SymbolicEqv as EqvRelation<Constraint<L>, Constraint<R>>>::equivalent(lhs, rhs)
+                equiv! { SymbolicEqv | lhs, rhs }
+                //<SymbolicEqv as EqvRelation<Constraint<L>, Constraint<R>>>::equivalent(lhs, rhs)
             }
             (IRStmt::Comment(_), IRStmt::Comment(_)) => true,
             (IRStmt::AssumeDeterministic(lhs), IRStmt::AssumeDeterministic(rhs)) => {
-                <SymbolicEqv as EqvRelation<AssumeDeterministic, AssumeDeterministic>>::equivalent(
-                    lhs, rhs,
-                )
+                equiv! { SymbolicEqv | lhs, rhs }
+                //<SymbolicEqv as EqvRelation<AssumeDeterministic, AssumeDeterministic>>::equivalent(
+                //    lhs, rhs,
+                //)
             }
             (IRStmt::Assert(lhs), IRStmt::Assert(rhs)) => {
-                <SymbolicEqv as EqvRelation<Assert<L>, Assert<R>>>::equivalent(lhs, rhs)
+                equiv! { SymbolicEqv | lhs, rhs }
+                //<SymbolicEqv as EqvRelation<Assert<L>, Assert<R>>>::equivalent(lhs, rhs)
             }
             (IRStmt::PostCond(lhs), IRStmt::PostCond(rhs)) => {
-                <SymbolicEqv as EqvRelation<PostCond<L>, PostCond<R>>>::equivalent(lhs, rhs)
+                equiv! { SymbolicEqv | lhs, rhs }
+                //<SymbolicEqv as EqvRelation<PostCond<L>, PostCond<R>>>::equivalent(lhs, rhs)
             }
             (IRStmt::Seq(_), _) | (_, IRStmt::Seq(_)) => unreachable!(),
             _ => false,

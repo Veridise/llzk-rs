@@ -1,13 +1,9 @@
+//! Types related to inputs, outputs, and other locations in the circuit.
+
 use std::{fmt, ops::Deref};
 
-//use crate::{
-//    ir::equivalency::{EqvRelation, SymbolicEqv},
-//    temps::Temp,
-//};
-use crate::{
-    equivalency::{EqvRelation, SymbolicEqv},
-    temps::Temp,
-};
+use crate::{SymbolicEqv, temps::Temp};
+use eqv::EqvRelation;
 
 /// Argument number of a function
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -28,6 +24,7 @@ impl Deref for ArgNo {
 }
 
 impl ArgNo {
+    /// Offsets the argument number by the given amount.
     pub fn offset_by(self, offset: usize) -> Self {
         Self(self.0 + offset)
     }
@@ -45,7 +42,7 @@ impl fmt::Debug for ArgNo {
     }
 }
 
-/// An identifier that Backend::FuncOutput will use to identify an output field in the function.
+/// An identifier that backends use to identify an output in the circuit.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FieldId(usize);
 
@@ -56,6 +53,7 @@ impl From<usize> for FieldId {
 }
 
 impl FieldId {
+    /// Offsets the field number by the given amount.
     pub fn offset_by(self, offset: usize) -> Self {
         Self(self.0 + offset)
     }
@@ -97,6 +95,7 @@ pub struct CellRef {
 }
 
 impl CellRef {
+    /// Creates a new cell reference using absolute coordinates.
     pub fn absolute(col: usize, row: usize) -> Self {
         Self {
             col,
@@ -105,6 +104,8 @@ impl CellRef {
         }
     }
 
+    /// Creates a new cell reference using coordinates relative to a row (usually the region's
+    /// first row).
     pub fn relative(col: usize, base: usize, offset: usize) -> Self {
         log::debug!("Creating relative reference (col: {col}, base: {base}, offset: {offset})");
         Self {
@@ -127,6 +128,7 @@ impl CellRef {
         }
     }
 
+    /// Returns the column number.
     pub fn col(&self) -> usize {
         self.col
     }
@@ -200,6 +202,7 @@ impl EqvRelation<CellRef> for SymbolicEqv {
     }
 }
 
+/// The types of input and outputs used by a circuit.
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum FuncIO {
     /// Points to the n-th input argument
@@ -221,18 +224,30 @@ pub enum FuncIO {
 }
 
 impl FuncIO {
+    /// Creates the [`FuncIO::Advice`] case using absolute coordinates.
+    ///
+    /// See [`CellRef::absolute`] for more details.
     pub fn advice_abs(col: usize, row: usize) -> Self {
         Self::Advice(CellRef::absolute(col, row))
     }
 
+    /// Creates the [`FuncIO::Advice`] case using relative coordinates.
+    ///
+    /// See [`CellRef::relative`] for more details.
     pub fn advice_rel(col: usize, base: usize, offset: usize) -> Self {
         Self::Advice(CellRef::relative(col, base, offset))
     }
 
+    /// Creates the [`FuncIO::Fixed`] case using absolute coordinates.
+    ///
+    /// See [`CellRef::absolute`] for more details.
     pub fn fixed_abs(col: usize, row: usize) -> Self {
         Self::Fixed(CellRef::absolute(col, row))
     }
 
+    /// Creates the [`FuncIO::Fixed`] case using relative coordinates.
+    ///
+    /// See [`CellRef::relative`] for more details.
     pub fn fixed_rel(col: usize, base: usize, offset: usize) -> Self {
         Self::Fixed(CellRef::relative(col, base, offset))
     }

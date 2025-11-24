@@ -10,7 +10,9 @@ use haloumi_lowering::{ExprLowering, lowerable::LowerableExpr};
 //use crate::resolvers::{
 //        ChallengeResolver, QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
 //    };
-use haloumi_ir_base::equivalency::{EqvRelation, SymbolicEqv};
+use haloumi_ir_base::SymbolicEqv;
+
+use eqv::{EqvRelation, equiv};
 //use crate::expressions::ScopedExpression;
 use haloumi_core::expressions::{EvalExpression, EvaluableExpr, ExpressionTypes};
 use haloumi_ir_base::felt::Felt;
@@ -156,13 +158,13 @@ impl EqvRelation<IRAexpr> for SymbolicEqv {
     fn equivalent(lhs: &IRAexpr, rhs: &IRAexpr) -> bool {
         match (lhs, rhs) {
             (IRAexpr::Constant(lhs), IRAexpr::Constant(rhs)) => lhs == rhs,
-            (IRAexpr::IO(lhs), IRAexpr::IO(rhs)) => Self::equivalent(lhs, rhs),
-            (IRAexpr::Negated(lhs), IRAexpr::Negated(rhs)) => Self::equivalent(lhs, rhs),
+            (IRAexpr::IO(lhs), IRAexpr::IO(rhs)) => equiv!(Self | lhs, rhs),
+            (IRAexpr::Negated(lhs), IRAexpr::Negated(rhs)) => equiv!(Self | lhs, rhs),
             (IRAexpr::Sum(lhs0, lhs1), IRAexpr::Sum(rhs0, rhs1)) => {
-                Self::equivalent(lhs0, rhs0) && Self::equivalent(lhs1, rhs1)
+                equiv!(Self | lhs0, rhs0) && equiv!(Self | lhs1, rhs1)
             }
             (IRAexpr::Product(lhs0, lhs1), IRAexpr::Product(rhs0, rhs1)) => {
-                Self::equivalent(lhs0, rhs0) && Self::equivalent(lhs1, rhs1)
+                equiv!(Self | lhs0, rhs0) && equiv!(Self | lhs1, rhs1)
             }
             _ => false,
         }

@@ -4,9 +4,11 @@ use crate::{
     expr::{IRAexpr, IRBexpr},
     stmt::IRStmt,
 };
+use eqv::{EqvRelation, equiv};
 use haloumi_ir_base::{
+    SymbolicEqv,
     cmp::CmpOp,
-    equivalency::{EqvRelation, SymbolicEqv},
+    //equivalency::{EqvRelation, SymbolicEqv},
     felt::Felt,
 };
 use haloumi_lowering::{
@@ -151,8 +153,10 @@ where
     /// equivalent to the other.
     fn equivalent(lhs: &Constraint<L>, rhs: &Constraint<R>) -> bool {
         lhs.op == rhs.op
-            && <SymbolicEqv as EqvRelation<L, R>>::equivalent(&lhs.lhs, &rhs.lhs)
-            && <SymbolicEqv as EqvRelation<L, R>>::equivalent(&lhs.rhs, &rhs.rhs)
+            && equiv! { SymbolicEqv | &lhs.lhs, &rhs.lhs }
+            && equiv! { SymbolicEqv | &lhs.rhs, &rhs.rhs }
+        //&& <SymbolicEqv as EqvRelation<L, R>>::equivalent(&lhs.lhs, &rhs.lhs)
+        //&& <SymbolicEqv as EqvRelation<L, R>>::equivalent(&lhs.rhs, &rhs.rhs)
     }
 }
 

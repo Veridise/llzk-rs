@@ -10,3 +10,4 @@ haloumi-lowering = {path = "../halo2-lowering", version = "0"}
 haloumi-ir-base = {path = "../halo2-ir-base", version = "0"}
 log = "0.4"
 thiserror = "2"
+eqv = "0.1"

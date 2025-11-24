@@ -1,8 +1,10 @@
 //use anyhow::Result;
 
 use crate::expr::IRAexpr;
+use eqv::{EqvRelation, equiv};
 use haloumi_ir_base::{
-    equivalency::{EqvRelation, SymbolicEqv},
+    SymbolicEqv,
+    //equivalency::{EqvRelation, SymbolicEqv},
     felt::Felt,
     func::FuncIO,
 };
@@ -146,10 +148,12 @@ where
     /// point to the same callee.
     fn equivalent(lhs: &Call<L>, rhs: &Call<R>) -> bool {
         lhs.callee == rhs.callee
-            && <SymbolicEqv as EqvRelation<Vec<L>, Vec<R>>>::equivalent(&lhs.inputs, &rhs.inputs)
-            && <SymbolicEqv as EqvRelation<Vec<FuncIO>, Vec<FuncIO>>>::equivalent(
-                &lhs.outputs,
-                &rhs.outputs,
-            )
+            && equiv! { SymbolicEqv | &lhs.inputs, &rhs.inputs }
+            && equiv! { SymbolicEqv | &lhs.outputs, &rhs.outputs }
+        //&& <SymbolicEqv as EqvRelation<Vec<L>, Vec<R>>>::equivalent(&lhs.inputs, &rhs.inputs)
+        //&& <SymbolicEqv as EqvRelation<Vec<FuncIO>, Vec<FuncIO>>>::equivalent(
+        //    &lhs.outputs,
+        //    &rhs.outputs,
+        //)
     }
 }

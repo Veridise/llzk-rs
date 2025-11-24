@@ -2,10 +2,11 @@
 
 use crate::error::Error;
 use crate::{canon::canonicalize_constraint, expr::IRAexpr};
-use haloumi_ir_base::equivalency::SymbolicEqv;
+use eqv::{EqvRelation, equiv};
+use haloumi_ir_base::SymbolicEqv;
 //use anyhow::Result;
+use haloumi_ir_base::cmp::CmpOp;
 use haloumi_ir_base::felt::Felt;
-use haloumi_ir_base::{cmp::CmpOp, equivalency::EqvRelation};
 use haloumi_lowering::lowering_err;
 use haloumi_lowering::{ExprLowering, lowerable::LowerableExpr};
 use std::{
@@ -421,34 +422,24 @@ where
     fn equivalent(lhs: &IRBexpr<L>, rhs: &IRBexpr<R>) -> bool {
         match (lhs, rhs) {
             (IRBexpr::Cmp(op1, lhs1, rhs1), IRBexpr::Cmp(op2, lhs2, rhs2)) => {
-                op1 == op2
-                    && SymbolicEqv::equivalent(lhs1, lhs2)
-                    && SymbolicEqv::equivalent(rhs1, rhs2)
+                op1 == op2 && equiv!(Self | lhs1, lhs2) && equiv!(Self | rhs1, rhs2)
             }
             (IRBexpr::And(lhs), IRBexpr::And(rhs)) => {
-                <SymbolicEqv as EqvRelation<Vec<IRBexpr<L>>, Vec<IRBexpr<R>>>>::equivalent(lhs, rhs)
+                equiv!(Self | lhs, rhs)
             }
             (IRBexpr::Or(lhs), IRBexpr::Or(rhs)) => {
-                <SymbolicEqv as EqvRelation<Vec<IRBexpr<L>>, Vec<IRBexpr<R>>>>::equivalent(lhs, rhs)
+                equiv!(Self | lhs, rhs)
             }
             (IRBexpr::Not(lhs), IRBexpr::Not(rhs)) => {
-                <SymbolicEqv as EqvRelation<Box<IRBexpr<L>>, Box<IRBexpr<R>>>>::equivalent(lhs, rhs)
+                equiv!(Self | lhs, rhs)
             }
-            (IRBexpr::Det(lhs), IRBexpr::Det(rhs)) => SymbolicEqv::equivalent(lhs, rhs),
+            (IRBexpr::Det(lhs), IRBexpr::Det(rhs)) => equiv!(Self | lhs, rhs),
             (IRBexpr::Implies(lhs1, rhs1), IRBexpr::Implies(lhs2, rhs2)) => {
-                <SymbolicEqv as EqvRelation<Box<IRBexpr<L>>, Box<IRBexpr<R>>>>::equivalent(
-                    lhs1, lhs2,
-                ) && <SymbolicEqv as EqvRelation<Box<IRBexpr<L>>, Box<IRBexpr<R>>>>::equivalent(
-                    rhs1, rhs2,
-                )
+                equiv!(Self | lhs1, lhs2) && equiv!(Self | rhs1, rhs2)
             }
 
             (IRBexpr::Iff(lhs1, rhs1), IRBexpr::Iff(lhs2, rhs2)) => {
-                <SymbolicEqv as EqvRelation<Box<IRBexpr<L>>, Box<IRBexpr<R>>>>::equivalent(
-                    lhs1, lhs2,
-                ) && <SymbolicEqv as EqvRelation<Box<IRBexpr<L>>, Box<IRBexpr<R>>>>::equivalent(
-                    rhs1, rhs2,
-                )
+                equiv!(Self | lhs1, lhs2) && equiv!(Self | rhs1, rhs2)
             }
             _ => false,
         }

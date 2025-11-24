@@ -1,5 +1,7 @@
+use eqv::EqvRelation;
 use haloumi_ir_base::{
-    equivalency::{EqvRelation, SymbolicEqv},
+    SymbolicEqv,
+    //equivalency::{EqvRelation, SymbolicEqv},
     func::FuncIO,
 };
 use haloumi_lowering::{Lowering, lowerable::LowerableStmt};

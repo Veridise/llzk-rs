@@ -9,3 +9,10 @@ haloumi-core = {version = "0"}
 internment = "0.8.6"
 num-bigint = "0.4"
 log = "0.4"
+eqv = "0.1"
+
+[dev-dependencies]
+simplelog = {version = "0.12", features = ["test"] }
+similar-asserts = "1.7"
+quickcheck = "1"
+quickcheck_macros = "1"

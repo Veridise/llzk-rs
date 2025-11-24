@@ -502,6 +502,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
+name = "eqv"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0349da71389e03ffaf540a489eb71bc7d13492892882688f250ee48975d888ac"
+
+[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -760,6 +766,7 @@ dependencies = [
 name = "haloumi-ir"
 version = "0.1.0"
 dependencies = [
+ "eqv",
  "ff",
  "haloumi-core",
  "haloumi-ir-base",
@@ -772,11 +779,16 @@ dependencies = [
 name = "haloumi-ir-base"
 version = "0.1.0"
 dependencies = [
+ "eqv",
  "ff",
  "haloumi-core",
  "internment",
  "log",
  "num-bigint",
+ "quickcheck",
+ "quickcheck_macros",
+ "similar-asserts",
+ "simplelog",
 ]
 
 [[package]]
