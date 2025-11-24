@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 ff = { workspace = true }
-haloumi-core = {version = "0"}
+haloumi-core = {version = "0.1.0"}
 internment = "0.8.6"
 num-bigint = "0.4"
 log = "0.4"
