@@ -2,6 +2,11 @@
 name = "haloumi-lowering"
 version = "0.1.0"
 edition = "2024"
+description = "Core traits for enabling types to integrate with the codegen module."
+keywords = ["halo2", "llzk", "haloumi"]
+categories = ["compilers"]
+repository = "https://github.com/Veridise/haloumi"
+license = "Apache-2.0"
 
 [dependencies]
 ff = { workspace = true }
