@@ -667,6 +667,7 @@ dependencies = [
  "anyhow",
  "bit-set",
  "disjoint",
+ "eqv",
  "ff",
  "group",
  "halo2-midnight-integration",
@@ -691,6 +692,7 @@ dependencies = [
  "rstest 0.26.1",
  "similar-asserts",
  "simplelog",
+ "thiserror",
 ]
 
 [[package]]

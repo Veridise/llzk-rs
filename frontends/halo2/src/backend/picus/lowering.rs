@@ -1,13 +1,11 @@
+use std::sync::Arc;
+
 use super::vars::{NamingConvention, VarKey, VarKeySeed};
-use crate::ir::expr::Felt;
-use crate::{
-    backend::{
-        func::{ArgNo, FieldId, FuncIO},
-        lowering::{ExprLowering, Lowering},
-    },
-    ir::CmpOp,
-};
-use anyhow::Result;
+//use anyhow::Result;
+use haloumi_ir::cmp::CmpOp;
+use haloumi_ir::felt::Felt;
+use haloumi_ir::func::{ArgNo, FieldId, FuncIO};
+use haloumi_lowering::{ExprLowering, Lowering, Result, backend_err};
 use picus::{ModuleLike as _, expr, stmt};
 
 pub type PicusModuleRef = picus::ModuleRef<VarKey>;
@@ -33,6 +31,12 @@ impl PicusModuleLowering {
         let seed = VarKeySeed::io(func_io, self.naming_convention);
         expr::var(&self.module, seed)
     }
+}
+
+fn err(e: anyhow::Error) -> haloumi_lowering::error::Error {
+    let b: Box<dyn std::error::Error> = e.into();
+    let a: Arc<dyn std::error::Error> = b.into();
+    haloumi_lowering::error::Error::Backend(a)
 }
 
 impl Lowering for PicusModuleLowering {
@@ -76,13 +80,14 @@ impl Lowering for PicusModuleLowering {
                 .copied()
                 .map(|o| self.lower_func_io(o))
                 .collect(),
-        )?;
+        )
+        .map_err(err)?;
         self.module.borrow_mut().add_stmt(stmt);
         Ok(())
     }
 
     fn generate_assume_deterministic(&self, func_io: FuncIO) -> Result<()> {
-        let stmt = stmt::assume_deterministic(self.lower_func_io(func_io))?;
+        let stmt = stmt::assume_deterministic(self.lower_func_io(func_io)).map_err(err)?;
         self.module.borrow_mut().add_stmt(stmt);
         Ok(())
     }
@@ -124,7 +129,7 @@ impl ExprLowering for PicusModuleLowering {
     }
 
     fn lower_constant(&self, f: Felt) -> Result<Self::CellOutput> {
-        let expr = expr::r#const(f);
+        let expr = expr::r#const((*f).clone());
         log::debug!(
             "[PicusBackend::lower_constant] Constant value {f:?} becomes expression {expr:?}"
         );

@@ -7,6 +7,7 @@ pub use params::LlzkParams;
 
 mod codegen;
 mod counter;
+mod error;
 mod extras;
 mod factory;
 mod lowering;

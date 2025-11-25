@@ -1,6 +1,5 @@
 use super::{RegionData, Row};
 use crate::{
-    backend::func::FuncIO,
     gates::SelectorSet,
     io::{AdviceIO, InstanceIO},
     resolvers::{
@@ -14,6 +13,7 @@ use halo2_frontend_core::{
     info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
     query::{Advice, Fixed, Instance},
 };
+use haloumi_ir_base::func::FuncIO;
 use std::borrow::Cow;
 
 #[derive(Copy, Clone, Debug)]

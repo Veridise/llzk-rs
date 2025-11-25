@@ -3,23 +3,22 @@
 
 use crate::{
     expressions::{ExpressionInRow, ScopedExpression},
-    ir::{expr::IRAexpr, generate::region_data, groups::GroupBody, printer::IRPrinter},
+    ir::{generate::region_data, groups::GroupBody, printer::IRPrinter},
     synthesis::SynthesizedCircuit,
     temps::ExprOrTemp,
 };
 use anyhow::Result;
 use ff::PrimeField;
 use halo2_frontend_core::{expressions::EvaluableExpr, table::RegionIndex};
+use haloumi_ir::expr::IRAexpr;
+use haloumi_ir::stmt::IRStmt;
 use haloumi_ir_base::felt::Felt;
-use stmt::IRStmt;
 
-pub use haloumi_ir::{expr, stmt};
-pub use haloumi_ir_base::cmp::CmpOp;
-pub use haloumi_ir_base::equivalency;
+//pub use haloumi_ir::{expr, stmt};
+//pub use haloumi_ir_base::cmp::CmpOp;
 
-mod canon;
+//mod canon;
 mod ctx;
-//pub mod equivalency;
 pub mod generate;
 pub mod groups;
 pub mod printer;

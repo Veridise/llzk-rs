@@ -1,10 +1,8 @@
-use crate::{
-    backend::{
-        codegen::CodegenParams,
-        picus::{params::PicusParams, PicusModule, Pipeline, PipelineBuilder},
-    },
-    ir::expr::Felt,
+use crate::backend::{
+    codegen::CodegenParams,
+    picus::{PicusModule, Pipeline, PipelineBuilder, params::PicusParams},
 };
+use haloumi_ir_base::felt::Felt;
 
 use anyhow::Result;
 
@@ -49,7 +47,7 @@ impl PicusCodegenInner {
     pub fn prime(&self) -> Result<picus::felt::Felt> {
         self.prime
             .ok_or_else(|| anyhow::anyhow!("Prime was not set!"))
-            .map(Into::into)
+            .map(|f| picus::felt::Felt::new((*f).clone()))
     }
 
     pub fn optimization_pipeline(&self) -> Option<Pipeline> {

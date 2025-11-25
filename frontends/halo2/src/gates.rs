@@ -7,7 +7,6 @@ use ff::{Field, PrimeField};
 use crate::{
     expressions::{ScopedExpression, constant_folding::ConstantFolding},
     io::{AdviceIO, InstanceIO},
-    ir::stmt::IRStmt,
     resolvers::FixedQueryResolver,
     synthesis::regions::{RegionData, RegionRow},
 };
@@ -16,6 +15,7 @@ use halo2_frontend_core::{
     info_traits::{GateInfo, SelectorInfo as _},
     table::RegionIndex,
 };
+use haloumi_ir::stmt::IRStmt;
 
 /// Information about a gate in the constraint system.
 ///

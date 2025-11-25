@@ -2,15 +2,23 @@
 
 use std::ops::Deref;
 
+use haloumi_ir::{expr::IRAexpr, func::FuncIO};
+
 /// A temporary variable.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Temp(usize);
+pub struct Temp(pub(crate) usize);
 
 impl Deref for Temp {
     type Target = usize;
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl From<Temp> for FuncIO {
+    fn from(value: Temp) -> Self {
+        Self::Temp(value.0)
     }
 }
 
@@ -57,6 +65,20 @@ impl<E: Clone> Clone for ExprOrTemp<E> {
 }
 
 impl<E: Copy> Copy for ExprOrTemp<E> {}
+
+impl<E> TryFrom<ExprOrTemp<E>> for IRAexpr
+where
+    IRAexpr: TryFrom<E>,
+{
+    type Error = <E as TryInto<IRAexpr>>::Error;
+
+    fn try_from(value: ExprOrTemp<E>) -> Result<Self, Self::Error> {
+        match value {
+            ExprOrTemp::Temp(temp) => Ok(IRAexpr::IO(temp.into())),
+            ExprOrTemp::Expr(e) => e.try_into(),
+        }
+    }
+}
 
 /// Generator of temporary variables.
 ///

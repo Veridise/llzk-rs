@@ -2,14 +2,11 @@
 
 use std::fmt::{Display, Formatter, Result as FmtResult, Write};
 
-use crate::{
-    backend::func::FuncIO,
-    ir::{
-        ResolvedIRCircuit,
-        expr::{IRAexpr, IRBexpr},
-        groups::GroupBody,
-        stmt::IRStmt,
-    },
+use crate::ir::{ResolvedIRCircuit, groups::GroupBody};
+use haloumi_ir::{
+    expr::{aexpr::IRAexpr, bexpr::IRBexpr},
+    func::FuncIO,
+    stmt::IRStmt,
 };
 
 #[derive(Debug, Copy, Clone)]
@@ -144,7 +141,7 @@ impl<'a> IRPrinter<'a> {
                 write!(ctx, "(lookup {id} {col} {row} {idx} {region})")
             }
             FuncIO::CallOutput(call, idx) => write!(ctx, "(call-result {call} {idx})"),
-            FuncIO::Temp(temp) => write!(ctx, "(temp {})", **temp),
+            FuncIO::Temp(temp) => write!(ctx, "(temp {})", *temp),
             FuncIO::Challenge(index, phase, _) => write!(ctx, "(challenge {index} {phase})"),
         }
     }

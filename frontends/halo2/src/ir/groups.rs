@@ -5,16 +5,13 @@ use crate::{
     expressions::{ExpressionInRow, ScopedExpression},
     gates::{Gate, GateRewritePattern as _, GateScope, RewriteError, RewritePatternSet},
     ir::{
-        CmpOp, IRCtx,
+        IRCtx,
         ctx::AdviceCells,
-        equivalency::{EqvRelation, SymbolicEqv},
-        expr::IRAexpr,
         generate::{GroupIRCtx, RegionByIndex},
         groups::{
             bounds::{Bound, EqConstraintCheck, GroupBounds},
             callsite::CallSite,
         },
-        stmt::IRStmt,
     },
     lookups::table::{LazyLookupTableGenerator, LookupTableGenerator},
     resolvers::FixedQueryResolver,
@@ -24,15 +21,20 @@ use crate::{
         groups::{Group, GroupCell, GroupKey},
         regions::{RegionData, RegionRow, Row},
     },
-    temps::{ExprOrTemp, Temps},
+    temps::{ExprOrTemp, Temp, Temps},
     utils,
 };
 use anyhow::Result;
+use eqv::EqvRelation;
 use ff::Field;
 use halo2_frontend_core::{
     expressions::{ExprBuilder, ExpressionInfo},
     table::{Any, Rotation, RotationExt},
 };
+use haloumi_ir::expr::aexpr::IRAexpr;
+use haloumi_ir::stmt::IRStmt;
+use haloumi_ir::{SymbolicEqv, expr::IRBexpr};
+use haloumi_ir_base::cmp::CmpOp;
 use haloumi_ir_base::felt::Felt;
 use haloumi_ir_base::func::CellRef;
 use haloumi_ir_base::func::FuncIO;
@@ -196,9 +198,10 @@ impl GroupBody<IRAexpr> {
             callsite.constant_fold(prime);
         }
         self.lookups.constant_fold(prime)?;
-        self.injected
+        Ok(self
+            .injected
             .iter_mut()
-            .try_for_each(|s| s.constant_fold(prime))
+            .try_for_each(|s| s.constant_fold(prime))?)
     }
 
     /// Matches the statements against a series of known patterns and applies rewrites if able to.
@@ -436,7 +439,7 @@ impl EqvRelation<GroupBody<IRAexpr>> for SymbolicEqv {
 }
 
 impl LowerableStmt for GroupBody<IRAexpr> {
-    fn lower<L>(self, l: &L) -> Result<()>
+    fn lower<L>(self, l: &L) -> haloumi_lowering::Result<()>
     where
         L: Lowering + ?Sized,
     {
@@ -748,7 +751,7 @@ where
             // across the body of the group.
             if n > 0 {
                 let mut local_temps = HashMap::new();
-                region_ir.rebase_temps(&mut |temp| {
+                rebase_temps(&mut region_ir, &mut |temp| {
                     *local_temps
                         .entry(temp)
                         .or_insert_with(|| temps.next().unwrap())
@@ -760,6 +763,82 @@ where
             prepend_comment(region_ir, comment, generate_debug_comments)
         })
         .collect())
+}
+
+/// Renames all temporaries in call outputs and [`ExprOrTemp::Temp`] to a fresh new set.
+///
+/// It doesn't go inside `T` so it won't rename temporaries inside it.
+fn rebase_temps<T>(stmt: &mut IRStmt<ExprOrTemp<T>>, renaming_fn: &mut impl FnMut(Temp) -> Temp) {
+    fn rebase_bexpr<T>(
+        expr: &mut IRBexpr<ExprOrTemp<T>>,
+        renaming_fn: &mut impl FnMut(Temp) -> Temp,
+    ) {
+        match expr {
+            IRBexpr::True | IRBexpr::False => {}
+            IRBexpr::Cmp(_, lhs, rhs) => {
+                if let ExprOrTemp::Temp(temp) = lhs {
+                    *temp = renaming_fn(*temp);
+                }
+                if let ExprOrTemp::Temp(temp) = rhs {
+                    *temp = renaming_fn(*temp);
+                }
+            }
+            IRBexpr::And(exprs) | IRBexpr::Or(exprs) => {
+                for expr in exprs {
+                    rebase_bexpr(expr, renaming_fn)
+                }
+            }
+            IRBexpr::Not(expr) => rebase_bexpr(expr, renaming_fn),
+            IRBexpr::Det(expr) => {
+                if let ExprOrTemp::Temp(temp) = expr {
+                    *temp = renaming_fn(*temp);
+                }
+            }
+            IRBexpr::Implies(lhs, rhs) | IRBexpr::Iff(lhs, rhs) => {
+                rebase_bexpr(lhs, renaming_fn);
+                rebase_bexpr(rhs, renaming_fn);
+            }
+        }
+    }
+    match stmt {
+        IRStmt::ConstraintCall(call) => {
+            for input in call.inputs_mut() {
+                if let ExprOrTemp::Temp(temp) = input {
+                    *temp = renaming_fn(*temp);
+                }
+            }
+            for output in call.outputs_mut() {
+                if let FuncIO::Temp(temp) = output {
+                    *temp = *renaming_fn(Temp(*temp));
+                }
+            }
+        }
+        IRStmt::Constraint(constraint) => {
+            if let ExprOrTemp::Temp(temp) = constraint.lhs_mut() {
+                *temp = renaming_fn(*temp);
+            }
+            if let ExprOrTemp::Temp(temp) = constraint.rhs_mut() {
+                *temp = renaming_fn(*temp);
+            }
+        }
+        IRStmt::Comment(_) => todo!(),
+        IRStmt::AssumeDeterministic(assume_deterministic) => {
+            if let FuncIO::Temp(temp) = assume_deterministic.value_mut() {
+                *temp = *renaming_fn(Temp(*temp));
+            }
+        }
+        IRStmt::Assert(assert) => {
+            rebase_bexpr(assert.cond_mut(), renaming_fn);
+        }
+        IRStmt::PostCond(pc) => {
+            rebase_bexpr(pc.cond_mut(), renaming_fn);
+        }
+        IRStmt::Seq(seq) => {
+            for stmt in seq.iter_mut() {
+                rebase_temps(stmt, renaming_fn)
+            }
+        }
+    }
 }
 
 /// If the given statement is not empty prepends a comment

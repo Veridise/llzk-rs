@@ -1,29 +1,23 @@
 //! Structs for handling calls between groups.
 
 use crate::{
-    backend::{
-        func::FuncIO,
-        lowering::{
-            Lowering,
-            lowerable::{LowerableExpr, LowerableStmt},
-        },
-    },
     expressions::ScopedExpression,
-    ir::{
-        CmpOp,
-        equivalency::{EqvRelation, SymbolicEqv},
-        expr::{Felt, IRAexpr},
-        stmt::IRStmt,
-    },
     synthesis::{
         groups::{Group, GroupCell, GroupKey},
         regions::{RegionData, RegionRow, Row},
     },
     temps::ExprOrTemp,
 };
+
 use anyhow::Result;
+use eqv::EqvRelation;
 use ff::Field;
 use halo2_frontend_core::expressions::ExprBuilder;
+use haloumi_ir::{SymbolicEqv, cmp::CmpOp, expr::IRAexpr, felt::Felt, func::FuncIO, stmt::IRStmt};
+use haloumi_lowering::{
+    Lowering,
+    lowerable::{LowerableExpr, LowerableStmt},
+};
 
 /// Data related to a single callsite
 #[derive(Debug)]
@@ -221,7 +215,7 @@ impl CallSite<IRAexpr> {
 }
 
 impl LowerableStmt for CallSite<IRAexpr> {
-    fn lower<L>(self, l: &L) -> Result<()>
+    fn lower<L>(self, l: &L) -> haloumi_lowering::Result<()>
     where
         L: Lowering + ?Sized,
     {

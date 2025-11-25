@@ -1,6 +1,5 @@
 use crate::{
     CircuitIO,
-    backend::func::{ArgNo, FieldId, FuncIO},
     io::{AdviceIO, IOCell, InstanceIO},
     resolvers::{
         ChallengeResolver, FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector,
@@ -14,6 +13,7 @@ use halo2_frontend_core::{
     query::{Advice, Fixed, Instance},
     table::{ColumnType, Rotation},
 };
+use haloumi_ir_base::func::{ArgNo, FieldId, FuncIO};
 
 /// When resolving a query it is possible that the same cell is in the input and the output set.
 /// This enum configures what kind will be chosen in the case of conflicting.

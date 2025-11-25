@@ -5,7 +5,7 @@ use std::{
     ops::{Add, Deref, Mul, Rem, RemAssign, Sub},
 };
 
-use haloumi_ir_base::temps::ExprOrTemp;
+//use haloumi_ir_base::temps::ExprOrTemp;
 use haloumi_lowering::{ExprLowering, lowerable::LowerableExpr};
 //use crate::resolvers::{
 //        ChallengeResolver, QueryResolver, ResolvedQuery, ResolvedSelector, SelectorResolver,
@@ -59,7 +59,7 @@ impl IRAexpr {
     }
 
     /// Folds the expression if the values are constant.
-    pub(crate) fn constant_fold(&mut self, prime: Felt) {
+    pub fn constant_fold(&mut self, prime: Felt) {
         match self {
             IRAexpr::Constant(felt) => *felt %= prime,
             IRAexpr::IO(_) => {}
@@ -188,19 +188,19 @@ impl EqvRelation<IRAexpr> for SymbolicEqv {
 //    }
 //}
 
-impl<E> TryFrom<ExprOrTemp<E>> for IRAexpr
-where
-    IRAexpr: TryFrom<E>,
-{
-    type Error = <E as TryInto<IRAexpr>>::Error;
-
-    fn try_from(value: ExprOrTemp<E>) -> std::result::Result<Self, Self::Error> {
-        match value {
-            ExprOrTemp::Temp(temp) => Ok(IRAexpr::IO(temp.into())),
-            ExprOrTemp::Expr(e) => e.try_into(),
-        }
-    }
-}
+//impl<E> TryFrom<ExprOrTemp<E>> for IRAexpr
+//where
+//    IRAexpr: TryFrom<E>,
+//{
+//    type Error = <E as TryInto<IRAexpr>>::Error;
+//
+//    fn try_from(value: ExprOrTemp<E>) -> std::result::Result<Self, Self::Error> {
+//        match value {
+//            ExprOrTemp::Temp(temp) => Ok(IRAexpr::IO(temp.into())),
+//            ExprOrTemp::Expr(e) => e.try_into(),
+//        }
+//    }
+//}
 
 impl LowerableExpr for IRAexpr {
     fn lower<L>(self, l: &L) -> haloumi_lowering::Result<L::CellOutput>

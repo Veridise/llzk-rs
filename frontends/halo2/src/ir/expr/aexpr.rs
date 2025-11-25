@@ -62,7 +62,7 @@ impl IRAexpr {
     }
 
     /// Folds the expression if the values are constant.
-    pub(crate) fn constant_fold(&mut self, prime: Felt) {
+    pub fn constant_fold(&mut self, prime: Felt) {
         match self {
             IRAexpr::Constant(felt) => *felt %= prime,
             IRAexpr::IO(_) => {}

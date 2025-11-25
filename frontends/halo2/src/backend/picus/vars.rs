@@ -1,7 +1,7 @@
 use picus::vars::Temp;
 pub use picus::vars::{VarKind, VarStr};
 
-use crate::backend::func::FuncIO;
+use haloumi_ir_base::func::FuncIO;
 
 /// Inner value of [`VarKeySeed`].
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
@@ -66,7 +66,7 @@ impl NamingConvention {
                     format!("lkp{id}_{col}_{row}_{idx}_{ridx}")
                 }
                 FuncIO::CallOutput(module, out) => format!("cout_{module}_{out}"),
-                FuncIO::Temp(temp) => format!("t{}", *temp),
+                FuncIO::Temp(temp) => format!("t{}", temp),
                 FuncIO::Challenge(index, phase, _) => format!("chall_{index}_{phase}"),
             },
         }

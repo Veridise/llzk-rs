@@ -1,13 +1,12 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::lowering::ExprLowering as _;
-use super::lowering::lowerable::LowerableStmt;
-use super::{func::FuncIO, lowering::Lowering};
 use crate::io::{AdviceIO, InstanceIO};
-use crate::ir::expr::Felt;
 use crate::ir::{IRCtx, ResolvedIRCircuit};
 use anyhow::Result;
+use haloumi_ir_base::felt::Felt;
+use haloumi_ir_base::func::FuncIO;
+use haloumi_lowering::{ExprLowering as _, Lowering, lowerable::LowerableStmt};
 
 pub mod strats;
 

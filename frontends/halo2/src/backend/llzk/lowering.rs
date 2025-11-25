@@ -1,8 +1,9 @@
-use std::rc::Rc;
-
+use crate::backend::llzk::error::{Error, UnexpectedTypeError};
 use crate::backend::llzk::factory::filename;
-use crate::backend::lowering::ExprLowering;
-use anyhow::{Result, anyhow};
+//use backend_err::{Result, backend_err};
+use haloumi_lowering::{
+    ExprLowering, Lowering, Result as LoweringResult, backend_err, bail_backend,
+};
 use llzk::builder::OpBuilder;
 use llzk::prelude::*;
 use melior::dialect::arith;
@@ -17,14 +18,13 @@ use melior::{
     },
 };
 use mlir_sys::MlirValue;
+use std::rc::Rc;
 
-use crate::backend::func::FieldId;
-use crate::backend::{
-    func::{ArgNo, FuncIO},
-    lowering::Lowering,
+use haloumi_ir_base::{
+    cmp::CmpOp,
+    felt::Felt,
+    func::{ArgNo, FieldId, FuncIO},
 };
-use crate::ir::CmpOp;
-use crate::ir::expr::Felt;
 
 use super::counter::Counter;
 use super::extras::{block_list, operations_list};
@@ -52,7 +52,12 @@ impl<'c, 's> LlzkStructLowering<'c, 's> {
         StructDefOpLike::name(&self.struct_op)
     }
 
-    fn get_cell_field(&self, kind: &str, col: usize, row: usize) -> Result<FieldDefOpRef<'c, '_>> {
+    fn get_cell_field(
+        &self,
+        kind: &str,
+        col: usize,
+        row: usize,
+    ) -> Result<FieldDefOpRef<'c, '_>, Error> {
         let name = format!("{kind}_{col}_{row}");
         Ok(self.struct_op.get_or_create_field_def(&name, || {
             let filename = filename(self.struct_name(), Some("advice cell"));
@@ -64,31 +69,31 @@ impl<'c, 's> LlzkStructLowering<'c, 's> {
     /// Tries to fetch an advice cell field, if it doesn't exist creates a field that represents
     /// it.
     #[inline]
-    fn get_adv_cell(&self, col: usize, row: usize) -> Result<FieldDefOpRef<'c, '_>> {
+    fn get_adv_cell(&self, col: usize, row: usize) -> Result<FieldDefOpRef<'c, '_>, Error> {
         self.get_cell_field("adv", col, row)
     }
 
     /// Tries to fetch a fixed cell field, if it doesn't exist creates a field that represents
     /// it.
     #[inline]
-    fn get_fix_cell(&self, col: usize, row: usize) -> Result<FieldDefOpRef<'c, '_>> {
+    fn get_fix_cell(&self, col: usize, row: usize) -> Result<FieldDefOpRef<'c, '_>, Error> {
         self.get_cell_field("fix", col, row)
     }
 
-    fn get_output(&self, field: FieldId) -> Result<FieldDefOpRef<'c, '_>> {
+    fn get_output(&self, field: FieldId) -> Result<FieldDefOpRef<'c, '_>, Error> {
         self.struct_op
             .get_field_def(format!("out_{field}").as_str())
-            .ok_or_else(|| anyhow!("Struct is missing output #{field}"))
+            .ok_or(Error::MissingOutput(field))
     }
 
-    fn get_constrain_func(&self) -> Result<FuncDefOpRef<'c, '_>> {
+    fn get_constrain_func(&self) -> Result<FuncDefOpRef<'c, '_>, Error> {
         self.struct_op
             .get_constrain_func()
-            .ok_or_else(|| anyhow!("Constrain function is missing!"))
+            .ok_or(Error::MissingConstrainFunc)
     }
 
     /// Adds an operation at the end of the constrain function.
-    fn append_op<O>(&self, op: O) -> Result<OperationRef<'c, '_>>
+    fn append_op<O>(&self, op: O) -> Result<OperationRef<'c, '_>, Error>
     where
         O: Into<Operation<'c>>,
     {
@@ -96,11 +101,9 @@ impl<'c, 's> LlzkStructLowering<'c, 's> {
             .get_constrain_func()?
             .region(0)?
             .first_block()
-            .ok_or_else(|| anyhow!("Constraint function region is missing a block"))?;
+            .ok_or(Error::MissingBlock)?;
         let op_ref = block.insert_operation_before(
-            block
-                .terminator()
-                .ok_or_else(|| anyhow!("Constraint function is missing a terminator"))?,
+            block.terminator().ok_or(Error::MissingTerminator)?,
             op.into(),
         );
         log::debug!("Inserted operation {op_ref}");
@@ -109,20 +112,20 @@ impl<'c, 's> LlzkStructLowering<'c, 's> {
 
     /// Adds an operation at the end of the constrain function and returns the first resulf of the
     /// operation.
-    fn append_expr<O>(&self, op: O) -> Result<Value<'c, '_>>
+    fn append_expr<O>(&self, op: O) -> Result<Value<'c, '_>, Error>
     where
         O: Into<Operation<'c>>,
     {
         Ok(self.append_op(op)?.result(0)?.into())
     }
 
-    fn get_arg_impl(&self, idx: usize) -> Result<Value<'c, '_>> {
+    fn get_arg_impl(&self, idx: usize) -> Result<Value<'c, '_>, Error> {
         Ok(self.get_constrain_func()?.argument(idx)?.into())
     }
 
     /// Returns the (n+1)-th argument of the constrain function. The index is offset by one because
     /// in the constrain function the first argument is always an instance of the struct.
-    fn get_arg(&self, arg_no: ArgNo) -> Result<Value<'c, '_>> {
+    fn get_arg(&self, arg_no: ArgNo) -> Result<Value<'c, '_>, Error> {
         let val = self.get_arg_impl(*arg_no + 1)?;
         let signal_typ = StructType::from_str(self.context(), "Signal");
         if val.r#type() == signal_typ.into() {
@@ -138,11 +141,11 @@ impl<'c, 's> LlzkStructLowering<'c, 's> {
         Ok(val)
     }
 
-    fn get_component(&self) -> Result<Value<'c, '_>> {
+    fn get_component(&self) -> Result<Value<'c, '_>, Error> {
         self.get_arg_impl(0)
     }
 
-    fn read_field(&self, field: FieldDefOpRef<'c, '_>) -> Result<Value<'c, '_>> {
+    fn read_field(&self, field: FieldDefOpRef<'c, '_>) -> Result<Value<'c, '_>, Error> {
         let builder = OpBuilder::new(self.context());
 
         self.append_expr(r#struct::readf(
@@ -154,12 +157,39 @@ impl<'c, 's> LlzkStructLowering<'c, 's> {
         )?)
     }
 
-    fn lower_constant_impl(&self, f: Felt) -> Result<Value<'c, '_>> {
+    fn lower_constant_impl(&self, f: Felt) -> Result<Value<'c, '_>, Error> {
         let const_attr = FeltConstAttribute::from_biguint(self.context(), f.as_ref());
         self.append_expr(felt::constant(
             Location::unknown(self.context()),
             const_attr,
         )?)
+    }
+
+    fn create_assert_op(&self, expr: Value<'c, '_>) -> Result<Operation<'c>, Error> {
+        Ok(bool::assert(Location::unknown(self.context()), expr, None)?)
+    }
+
+    fn create_bin_op<E>(
+        &self,
+        op: impl Fn(Location<'c>, Value<'c, '_>, Value<'c, '_>) -> Result<Operation<'c>, E>,
+        lhs: Value<'c, '_>,
+        rhs: Value<'c, '_>,
+    ) -> Result<Operation<'c>, Error>
+    where
+        Error: From<E>,
+    {
+        Ok(op(Location::unknown(self.context()), lhs, rhs)?)
+    }
+
+    fn create_un_op<E>(
+        &self,
+        op: impl Fn(Location<'c>, Value<'c, '_>) -> Result<Operation<'c>, E>,
+        value: Value<'c, '_>,
+    ) -> Result<Operation<'c>, Error>
+    where
+        Error: From<E>,
+    {
+        Ok(op(Location::unknown(self.context()), value)?)
     }
 }
 
@@ -181,7 +211,7 @@ impl From<&ValueWrap> for Value<'_, '_> {
 
 macro_rules! wrap {
     ($r:expr) => {
-        ($r).map(|v| ValueWrap(v.to_raw()))
+        Ok(($r).map(|v| ValueWrap(v.to_raw()))?)
     };
 }
 
@@ -191,7 +221,7 @@ impl<'c> Lowering for LlzkStructLowering<'c, '_> {
         op: CmpOp,
         lhs: &Self::CellOutput,
         rhs: &Self::CellOutput,
-    ) -> Result<()> {
+    ) -> LoweringResult<()> {
         let loc = Location::new(
             self.context(),
             filename(self.struct_name(), Some("constraints")).as_str(),
@@ -230,7 +260,7 @@ impl<'c> Lowering for LlzkStructLowering<'c, '_> {
             .unwrap_or_default()
     }
 
-    fn generate_comment(&self, s: String) -> Result<()> {
+    fn generate_comment(&self, s: String) -> LoweringResult<()> {
         // If the final target is picus generate a 'picus.comment' op. Otherwise do nothing.
         log::warn!("Comment {s:?} was not generated");
         Ok(())
@@ -241,30 +271,26 @@ impl<'c> Lowering for LlzkStructLowering<'c, '_> {
         _name: &str,
         _inputs: &[Self::CellOutput],
         _outputs: &[FuncIO],
-    ) -> Result<()> {
+    ) -> LoweringResult<()> {
         // 1. Define a field of the type of the struct that is going to be called
         // 2. Load the field into a value
         // 3. Call the constrain function
         todo!()
     }
 
-    fn generate_assume_deterministic(&self, _func_io: FuncIO) -> Result<()> {
+    fn generate_assume_deterministic(&self, _func_io: FuncIO) -> LoweringResult<()> {
         // If the final target is picus generate a 'picus.assume_deterministic' op. Otherwise do nothing.
         todo!(
             "There isn't yet a construct in LLZK that supports the 'assume_deterministic' statement"
         )
     }
 
-    fn generate_assert(&self, expr: &Self::CellOutput) -> Result<()> {
-        self.append_op(bool::assert(
-            Location::unknown(self.context()),
-            expr.into(),
-            None,
-        )?)?;
+    fn generate_assert(&self, expr: &Self::CellOutput) -> LoweringResult<()> {
+        self.append_op(self.create_assert_op(expr.into())?)?;
         Ok(())
     }
 
-    fn generate_post_condition(&self, _expr: &Self::CellOutput) -> Result<()> {
+    fn generate_post_condition(&self, _expr: &Self::CellOutput) -> LoweringResult<()> {
         todo!()
     }
 }
@@ -276,10 +302,9 @@ impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
         &self,
         lhs: &Self::CellOutput,
         rhs: &Self::CellOutput,
-    ) -> Result<Self::CellOutput> {
+    ) -> LoweringResult<Self::CellOutput> {
         wrap! {
-            self.append_expr(felt::add(
-            Location::unknown(self.context()),
+            self.append_expr(self.create_bin_op(felt::add,
             lhs.into(),
             rhs.into(),
         )?)
@@ -290,50 +315,45 @@ impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
         &self,
         lhs: &Self::CellOutput,
         rhs: &Self::CellOutput,
-    ) -> Result<Self::CellOutput> {
+    ) -> LoweringResult<Self::CellOutput> {
         wrap! {
-            self.append_expr(felt::mul(
-                Location::unknown(self.context()),
+            self.append_expr(self.create_bin_op(felt::mul,
                 lhs.into(),
                 rhs.into(),
             )?)
         }
     }
 
-    fn lower_neg(&self, expr: &Self::CellOutput) -> Result<Self::CellOutput> {
-        wrap! { self.append_expr(felt::neg(Location::unknown(self.context()), expr.into())?) }
+    fn lower_neg(&self, expr: &Self::CellOutput) -> LoweringResult<Self::CellOutput> {
+        wrap! { self.append_expr(self.create_un_op(felt::neg, expr.into())?) }
     }
 
-    fn lower_constant(&self, f: Felt) -> Result<Self::CellOutput> {
+    fn lower_constant(&self, f: Felt) -> LoweringResult<Self::CellOutput> {
         wrap! {self.lower_constant_impl(f)}
     }
 
-    fn lower_eq(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
-        wrap!(self.append_expr(bool::eq(
-            Location::unknown(self.context()),
-            lhs.into(),
-            rhs.into()
-        )?))
+    fn lower_eq(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> LoweringResult<Self::CellOutput> {
+        wrap!(self.append_expr(self.create_bin_op(bool::eq, lhs.into(), rhs.into())?))
     }
 
     fn lower_and(
         &self,
         lhs: &Self::CellOutput,
         rhs: &Self::CellOutput,
-    ) -> Result<Self::CellOutput> {
-        wrap!(self.append_expr(bool::and(
-            Location::unknown(self.context()),
-            lhs.into(),
-            rhs.into()
-        )?))
+    ) -> LoweringResult<Self::CellOutput> {
+        wrap!(self.append_expr(self.create_bin_op(bool::and, lhs.into(), rhs.into())?))
     }
 
-    fn lower_or(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
-        wrap!(self.append_expr(bool::or(
-            Location::unknown(self.context()),
-            lhs.into(),
-            rhs.into()
-        )?))
+    fn lower_or(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> LoweringResult<Self::CellOutput> {
+        wrap!(self.append_expr(self.create_bin_op(bool::or, lhs.into(), rhs.into())?))
     }
 
     fn lower_function_input(&self, i: usize) -> FuncIO {
@@ -344,7 +364,7 @@ impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
         FieldId::from(o).into()
     }
 
-    fn lower_funcio<IO>(&self, io: IO) -> Result<Self::CellOutput>
+    fn lower_funcio<IO>(&self, io: IO) -> LoweringResult<Self::CellOutput>
     where
         IO: Into<FuncIO>,
     {
@@ -364,51 +384,51 @@ impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
         }
     }
 
-    fn lower_lt(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
-        wrap!(self.append_expr(bool::lt(
-            Location::unknown(self.context()),
-            lhs.into(),
-            rhs.into()
-        )?))
+    fn lower_lt(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> LoweringResult<Self::CellOutput> {
+        wrap!(self.append_expr(self.create_bin_op(bool::lt, lhs.into(), rhs.into())?))
     }
 
-    fn lower_le(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
-        wrap!(self.append_expr(bool::le(
-            Location::unknown(self.context()),
-            lhs.into(),
-            rhs.into()
-        )?))
+    fn lower_le(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> LoweringResult<Self::CellOutput> {
+        wrap!(self.append_expr(self.create_bin_op(bool::le, lhs.into(), rhs.into())?))
     }
 
-    fn lower_gt(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
-        wrap!(self.append_expr(bool::gt(
-            Location::unknown(self.context()),
-            lhs.into(),
-            rhs.into()
-        )?))
+    fn lower_gt(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> LoweringResult<Self::CellOutput> {
+        wrap!(self.append_expr(self.create_bin_op(bool::gt, lhs.into(), rhs.into())?))
     }
 
-    fn lower_ge(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
-        wrap!(self.append_expr(bool::ge(
-            Location::unknown(self.context()),
-            lhs.into(),
-            rhs.into()
-        )?))
+    fn lower_ge(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> LoweringResult<Self::CellOutput> {
+        wrap!(self.append_expr(self.create_bin_op(bool::ge, lhs.into(), rhs.into())?))
     }
 
-    fn lower_ne(&self, lhs: &Self::CellOutput, rhs: &Self::CellOutput) -> Result<Self::CellOutput> {
-        wrap!(self.append_expr(bool::ne(
-            Location::unknown(self.context()),
-            lhs.into(),
-            rhs.into()
-        )?))
+    fn lower_ne(
+        &self,
+        lhs: &Self::CellOutput,
+        rhs: &Self::CellOutput,
+    ) -> LoweringResult<Self::CellOutput> {
+        wrap!(self.append_expr(self.create_bin_op(bool::ne, lhs.into(), rhs.into())?))
     }
 
-    fn lower_not(&self, value: &Self::CellOutput) -> Result<Self::CellOutput> {
-        wrap!(self.append_expr(bool::not(Location::unknown(self.context()), value.into(),)?))
+    fn lower_not(&self, value: &Self::CellOutput) -> LoweringResult<Self::CellOutput> {
+        wrap!(self.append_expr(self.create_un_op(bool::not, value.into(),)?))
     }
 
-    fn lower_true(&self) -> Result<Self::CellOutput> {
+    fn lower_true(&self) -> LoweringResult<Self::CellOutput> {
         wrap!(self.append_expr(arith::constant(
             self.context(),
             IntegerAttribute::new(IntegerType::new(self.context(), 1).into(), 1).into(),
@@ -416,7 +436,7 @@ impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
         )))
     }
 
-    fn lower_false(&self) -> Result<Self::CellOutput> {
+    fn lower_false(&self) -> LoweringResult<Self::CellOutput> {
         wrap!(self.append_expr(arith::constant(
             self.context(),
             IntegerAttribute::new(IntegerType::new(self.context(), 1).into(), 0).into(),
@@ -424,7 +444,7 @@ impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
         )))
     }
 
-    fn lower_det(&self, _expr: &Self::CellOutput) -> Result<Self::CellOutput> {
+    fn lower_det(&self, _expr: &Self::CellOutput) -> LoweringResult<Self::CellOutput> {
         unimplemented!("the determinism predicate is not supported by the LLZK backend")
     }
 
@@ -432,46 +452,47 @@ impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
         &self,
         lhs: &Self::CellOutput,
         rhs: &Self::CellOutput,
-    ) -> Result<Self::CellOutput> {
+    ) -> LoweringResult<Self::CellOutput> {
         let i1: Type = IntegerType::new(self.context(), 1).into();
         let lhs: Value = lhs.into();
         let rhs: Value = rhs.into();
         if lhs.r#type() != i1 {
-            anyhow::bail!(
-                "failed to lower implies expression: was expecting type i1 but lhs has type {}",
-                lhs.r#type()
+            bail_backend!(
+                UnexpectedTypeError::new(i1, lhs.r#type())
+                    .with_context("Failed to lower lhs of implies expression")
             );
         }
         if rhs.r#type() != i1 {
-            anyhow::bail!(
-                "failed to lower implies expression: was expecting type i1 but rhs has type {}",
-                rhs.r#type()
+            bail_backend!(
+                UnexpectedTypeError::new(i1, rhs.r#type())
+                    .with_context("Failed to lower rhs of implies expression")
             );
         }
-        let lhs = self.append_expr(bool::not(Location::unknown(self.context()), lhs)?)?;
-        wrap!(self.append_expr(bool::or(Location::unknown(self.context()), lhs, rhs)?))
+        let lhs = self.append_expr(self.create_un_op(bool::not, lhs)?)?;
+        wrap!(self.append_expr(self.create_bin_op(bool::or, lhs, rhs)?))
     }
 
     fn lower_iff(
         &self,
         lhs: &Self::CellOutput,
         rhs: &Self::CellOutput,
-    ) -> Result<Self::CellOutput> {
+    ) -> LoweringResult<Self::CellOutput> {
         let i1: Type = IntegerType::new(self.context(), 1).into();
         let lhs: Value = lhs.into();
         let rhs: Value = rhs.into();
         if lhs.r#type() != i1 {
-            anyhow::bail!(
-                "failed to lower iff expression: was expecting type i1 but lhs has type {}",
-                lhs.r#type()
+            bail_backend!(
+                UnexpectedTypeError::new(i1, lhs.r#type())
+                    .with_context("Failed to lower lhs of iff expression")
             );
         }
         if rhs.r#type() != i1 {
-            anyhow::bail!(
-                "failed to lower iff expression: was expecting type i1 but rhs has type {}",
-                rhs.r#type()
+            bail_backend!(
+                UnexpectedTypeError::new(i1, rhs.r#type())
+                    .with_context("Failed to lower rhs of iff expression")
             );
         }
+
         wrap!(self.append_expr(arith::cmpi(
             self.context(),
             arith::CmpiPredicate::Eq,

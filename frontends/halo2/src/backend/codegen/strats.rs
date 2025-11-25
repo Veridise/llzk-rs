@@ -39,18 +39,16 @@ pub mod inline {
 pub mod groups {
 
     use crate::ir::IRCtx;
-    use crate::ir::expr::IRAexpr;
     use crate::ir::groups::GroupBody;
     use crate::synthesis::groups::GroupKey;
     use crate::{
         backend::codegen::{Codegen, CodegenStrategy},
-        ir::{
-            ResolvedIRCircuit,
-            equivalency::{EqvRelation, SymbolicEqv},
-        },
+        ir::ResolvedIRCircuit,
         utils,
     };
     use anyhow::Result;
+    use eqv::EqvRelation;
+    use haloumi_ir::{SymbolicEqv, expr::IRAexpr};
     use std::collections::{HashMap, HashSet};
 
     /// Code generation strategy that write the code of each group in a separate function.

@@ -63,7 +63,7 @@ impl Assert<IRAexpr> {
     }
 
     /// Matches the statements against a series of known patterns and applies rewrites if able to.
-    pub(crate) fn canonicalize(&mut self) {
+    pub fn canonicalize(&mut self) {
         self.0.canonicalize();
     }
 }

@@ -2,7 +2,7 @@
 
 use std::{fmt, ops::Deref};
 
-use crate::{SymbolicEqv, temps::Temp};
+use crate::SymbolicEqv;
 use eqv::EqvRelation;
 
 /// Argument number of a function
@@ -218,7 +218,7 @@ pub enum FuncIO {
     /// call output: (call #, output #)
     CallOutput(usize, usize),
     /// Temporary value
-    Temp(Temp),
+    Temp(usize),
     /// Challenge argument (index, phase, n-th arg)
     Challenge(usize, u8, ArgNo),
 }
@@ -293,7 +293,7 @@ impl std::fmt::Debug for FuncIO {
                 write!(f, "lookup{id}[{col},{row}]@({idx},{region_idx})")
             }
             Self::CallOutput(call, out) => write!(f, "call{call}->{out}"),
-            Self::Temp(id) => write!(f, "t{}", **id),
+            Self::Temp(id) => write!(f, "t{}", *id),
             Self::Challenge(index, phase, _) => write!(f, "challenge{index}@{phase}"),
         }
     }
@@ -310,15 +310,9 @@ impl std::fmt::Display for FuncIO {
                 write!(f, "lookup{id}[{col},{row}]@({idx},{region_idx})")
             }
             Self::CallOutput(call, out) => write!(f, "call{call}->{out}"),
-            Self::Temp(id) => write!(f, "t{}", **id),
+            Self::Temp(id) => write!(f, "t{}", *id),
             Self::Challenge(index, phase, _) => write!(f, "chall{index}@{phase}"),
         }
-    }
-}
-
-impl From<Temp> for FuncIO {
-    fn from(value: Temp) -> Self {
-        Self::Temp(value)
     }
 }
 

@@ -4,11 +4,9 @@ use std::{
     rc::Rc,
 };
 
-use super::{func::FuncIO, Backend, Codegen};
-use crate::{
-    io::{AdviceIO, InstanceIO},
-    ir::expr::Felt,
-};
+use super::{Backend, Codegen};
+use crate::io::{AdviceIO, InstanceIO};
+use haloumi_ir_base::{felt::Felt, func::FuncIO};
 
 use anyhow::Result;
 

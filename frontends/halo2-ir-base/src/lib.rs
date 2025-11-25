@@ -6,7 +6,7 @@
 pub mod cmp;
 pub mod felt;
 pub mod func;
-pub mod temps;
+//pub mod temps;
 
 /// Equivalence relation on symbolic equivalence.
 ///

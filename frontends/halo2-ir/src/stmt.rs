@@ -8,7 +8,7 @@ use haloumi_ir_base::{
     cmp::CmpOp,
     felt::Felt,
     func::FuncIO,
-    temps::{ExprOrTemp, Temp},
+    //temps::{ExprOrTemp, Temp},
 };
 use haloumi_lowering::{
     Lowering,
@@ -274,89 +274,89 @@ impl<T> IRStmt<T> {
     }
 }
 
-impl<T> IRStmt<ExprOrTemp<T>> {
-    /// Renames all temporaries in call outputs and [`ExprOrTemp::Temp`] to a fresh new set.
-    ///
-    /// It doesn't go inside `T` so it won't rename temporaries inside it.
-    pub(crate) fn rebase_temps(&mut self, renaming_fn: &mut impl FnMut(Temp) -> Temp) {
-        fn rebase_bexpr<T>(
-            expr: &mut IRBexpr<ExprOrTemp<T>>,
-            renaming_fn: &mut impl FnMut(Temp) -> Temp,
-        ) {
-            match expr {
-                IRBexpr::True | IRBexpr::False => {}
-                IRBexpr::Cmp(_, lhs, rhs) => {
-                    if let ExprOrTemp::Temp(temp) = lhs {
-                        *temp = renaming_fn(*temp);
-                    }
-                    if let ExprOrTemp::Temp(temp) = rhs {
-                        *temp = renaming_fn(*temp);
-                    }
-                }
-                IRBexpr::And(exprs) | IRBexpr::Or(exprs) => {
-                    for expr in exprs {
-                        rebase_bexpr(expr, renaming_fn)
-                    }
-                }
-                IRBexpr::Not(expr) => rebase_bexpr(expr, renaming_fn),
-                IRBexpr::Det(expr) => {
-                    if let ExprOrTemp::Temp(temp) = expr {
-                        *temp = renaming_fn(*temp);
-                    }
-                }
-                IRBexpr::Implies(lhs, rhs) | IRBexpr::Iff(lhs, rhs) => {
-                    rebase_bexpr(lhs, renaming_fn);
-                    rebase_bexpr(rhs, renaming_fn);
-                }
-            }
-        }
-        match self {
-            IRStmt::ConstraintCall(call) => {
-                for input in call.inputs_mut() {
-                    if let ExprOrTemp::Temp(temp) = input {
-                        *temp = renaming_fn(*temp);
-                    }
-                }
-                for output in call.outputs_mut() {
-                    if let FuncIO::Temp(temp) = output {
-                        *temp = renaming_fn(*temp);
-                    }
-                }
-            }
-            IRStmt::Constraint(constraint) => {
-                if let ExprOrTemp::Temp(temp) = constraint.lhs_mut() {
-                    *temp = renaming_fn(*temp);
-                }
-                if let ExprOrTemp::Temp(temp) = constraint.rhs_mut() {
-                    *temp = renaming_fn(*temp);
-                }
-            }
-            IRStmt::Comment(_) => todo!(),
-            IRStmt::AssumeDeterministic(assume_deterministic) => {
-                if let FuncIO::Temp(temp) = assume_deterministic.value_mut() {
-                    *temp = renaming_fn(*temp);
-                }
-            }
-            IRStmt::Assert(assert) => {
-                rebase_bexpr(assert.cond_mut(), renaming_fn);
-            }
-            IRStmt::PostCond(pc) => {
-                rebase_bexpr(pc.cond_mut(), renaming_fn);
-            }
-            IRStmt::Seq(seq) => {
-                for stmt in seq.iter_mut() {
-                    stmt.rebase_temps(renaming_fn)
-                }
-            }
-        }
-    }
-}
+//impl<T> IRStmt<ExprOrTemp<T>> {
+//    /// Renames all temporaries in call outputs and [`ExprOrTemp::Temp`] to a fresh new set.
+//    ///
+//    /// It doesn't go inside `T` so it won't rename temporaries inside it.
+//    pub fn rebase_temps(&mut self, renaming_fn: &mut impl FnMut(Temp) -> Temp) {
+//        fn rebase_bexpr<T>(
+//            expr: &mut IRBexpr<ExprOrTemp<T>>,
+//            renaming_fn: &mut impl FnMut(Temp) -> Temp,
+//        ) {
+//            match expr {
+//                IRBexpr::True | IRBexpr::False => {}
+//                IRBexpr::Cmp(_, lhs, rhs) => {
+//                    if let ExprOrTemp::Temp(temp) = lhs {
+//                        *temp = renaming_fn(*temp);
+//                    }
+//                    if let ExprOrTemp::Temp(temp) = rhs {
+//                        *temp = renaming_fn(*temp);
+//                    }
+//                }
+//                IRBexpr::And(exprs) | IRBexpr::Or(exprs) => {
+//                    for expr in exprs {
+//                        rebase_bexpr(expr, renaming_fn)
+//                    }
+//                }
+//                IRBexpr::Not(expr) => rebase_bexpr(expr, renaming_fn),
+//                IRBexpr::Det(expr) => {
+//                    if let ExprOrTemp::Temp(temp) = expr {
+//                        *temp = renaming_fn(*temp);
+//                    }
+//                }
+//                IRBexpr::Implies(lhs, rhs) | IRBexpr::Iff(lhs, rhs) => {
+//                    rebase_bexpr(lhs, renaming_fn);
+//                    rebase_bexpr(rhs, renaming_fn);
+//                }
+//            }
+//        }
+//        match self {
+//            IRStmt::ConstraintCall(call) => {
+//                for input in call.inputs_mut() {
+//                    if let ExprOrTemp::Temp(temp) = input {
+//                        *temp = renaming_fn(*temp);
+//                    }
+//                }
+//                for output in call.outputs_mut() {
+//                    if let FuncIO::Temp(temp) = output {
+//                        *temp = renaming_fn(*temp);
+//                    }
+//                }
+//            }
+//            IRStmt::Constraint(constraint) => {
+//                if let ExprOrTemp::Temp(temp) = constraint.lhs_mut() {
+//                    *temp = renaming_fn(*temp);
+//                }
+//                if let ExprOrTemp::Temp(temp) = constraint.rhs_mut() {
+//                    *temp = renaming_fn(*temp);
+//                }
+//            }
+//            IRStmt::Comment(_) => todo!(),
+//            IRStmt::AssumeDeterministic(assume_deterministic) => {
+//                if let FuncIO::Temp(temp) = assume_deterministic.value_mut() {
+//                    *temp = renaming_fn(*temp);
+//                }
+//            }
+//            IRStmt::Assert(assert) => {
+//                rebase_bexpr(assert.cond_mut(), renaming_fn);
+//            }
+//            IRStmt::PostCond(pc) => {
+//                rebase_bexpr(pc.cond_mut(), renaming_fn);
+//            }
+//            IRStmt::Seq(seq) => {
+//                for stmt in seq.iter_mut() {
+//                    stmt.rebase_temps(renaming_fn)
+//                }
+//            }
+//        }
+//    }
+//}
 
 impl IRStmt<IRAexpr> {
     /// Folds the statements if the expressions are constant.
     /// If a assert-like statement folds into a tautology (i.e. `(= 0 0 )`) gets removed. If it
     /// folds into a unsatisfiable proposition the method returns an error.
-    pub(crate) fn constant_fold(&mut self, prime: Felt) -> Result<(), Error> {
+    pub fn constant_fold(&mut self, prime: Felt) -> Result<(), Error> {
         match self {
             IRStmt::ConstraintCall(call) => call.constant_fold(prime),
             IRStmt::Constraint(constraint) => {
@@ -382,7 +382,7 @@ impl IRStmt<IRAexpr> {
     }
 
     /// Matches the statements against a series of known patterns and applies rewrites if able to.
-    pub(crate) fn canonicalize(&mut self) {
+    pub fn canonicalize(&mut self) {
         match self {
             IRStmt::ConstraintCall(_) => {}
             IRStmt::Constraint(constraint) => constraint.canonicalize(),

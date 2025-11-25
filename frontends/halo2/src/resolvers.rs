@@ -1,12 +1,12 @@
 use std::borrow::Cow;
 
-use crate::backend::func::{ArgNo, FuncIO};
 use anyhow::Result;
 use ff::Field;
 use halo2_frontend_core::{
     info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
     query::{Advice, Fixed, Instance},
 };
+use haloumi_ir_base::func::{ArgNo, FuncIO};
 
 pub trait ResolversProvider<F> {
     fn query_resolver(&self) -> &dyn QueryResolver<F>;

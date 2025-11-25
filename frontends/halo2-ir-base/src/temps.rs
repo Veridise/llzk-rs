@@ -57,27 +57,3 @@ impl<E: Clone> Clone for ExprOrTemp<E> {
 }
 
 impl<E: Copy> Copy for ExprOrTemp<E> {}
-
-/// Generator of temporary variables.
-///
-/// Handles the generation by implementing [`Iterator`].
-#[derive(Debug)]
-pub struct Temps {
-    count: usize,
-}
-
-impl Temps {
-    pub(crate) fn new() -> Self {
-        Self { count: 0 }
-    }
-}
-
-impl Iterator for Temps {
-    type Item = Temp;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let id = self.count;
-        self.count += 1;
-        Some(Temp(id))
-    }
-}

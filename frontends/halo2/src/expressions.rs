@@ -1,18 +1,20 @@
 //! Traits and types related to expressions.
 
-use std::borrow::Cow;
+use std::{borrow::Cow, marker::PhantomData};
 
 use crate::{
     resolvers::{
-        ChallengeResolver, FixedQueryResolver, QueryResolver, ResolversProvider, SelectorResolver,
-        boxed_resolver,
+        ChallengeResolver, FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector,
+        ResolversProvider, SelectorResolver, boxed_resolver,
     },
     synthesis::regions::{RegionData, RegionRow},
 };
 
 pub(crate) mod constant_folding;
 
-use ff::Field;
+use ff::{Field, PrimeField};
+use halo2_frontend_core::expressions::{EvalExpression, EvaluableExpr, ExpressionTypes};
+use haloumi_ir::{expr::IRAexpr, felt::Felt};
 
 /// Indicates to the driver that the expression should be scoped in that row of the circuit.
 ///
@@ -156,5 +158,103 @@ where
 {
     fn as_ref(&self) -> &E {
         self.expression.as_ref()
+    }
+}
+
+impl<F, E> TryFrom<ScopedExpression<'_, '_, F, E>> for IRAexpr
+where
+    F: PrimeField,
+    E: EvaluableExpr<F> + Clone,
+{
+    type Error = anyhow::Error;
+
+    fn try_from(expr: ScopedExpression<'_, '_, F, E>) -> Result<Self, Self::Error> {
+        expr.as_ref().evaluate(&PolyToAexpr::new(
+            expr.selector_resolver(),
+            expr.query_resolver(),
+            expr.challenge_resolver(),
+        ))
+    }
+}
+
+/// Implements the conversion logic between an [`ScopedExpression`] and [`IRAexpr`].
+struct PolyToAexpr<'r, F, E> {
+    sr: &'r dyn SelectorResolver,
+    qr: &'r dyn QueryResolver<F>,
+    cr: &'r dyn ChallengeResolver,
+    _marker: PhantomData<E>,
+}
+
+impl<'r, F, E> PolyToAexpr<'r, F, E> {
+    pub fn new(
+        sr: &'r dyn SelectorResolver,
+        qr: &'r dyn QueryResolver<F>,
+        cr: &'r dyn ChallengeResolver,
+    ) -> Self {
+        Self {
+            sr,
+            qr,
+            cr,
+            _marker: Default::default(),
+        }
+    }
+}
+
+impl<F: PrimeField, E: ExpressionTypes> EvalExpression<F, E> for PolyToAexpr<'_, F, E> {
+    type Output = anyhow::Result<IRAexpr>;
+
+    fn constant(&self, f: &F) -> Self::Output {
+        Ok(IRAexpr::Constant(Felt::new(*f)))
+    }
+
+    fn selector(&self, selector: &E::Selector) -> Self::Output {
+        Ok(match self.sr.resolve_selector(selector)? {
+            ResolvedSelector::Const(bool) => IRAexpr::Constant(Felt::new::<F>(bool.to_f())),
+            ResolvedSelector::Arg(arg) => IRAexpr::IO(arg.into()),
+        })
+    }
+
+    fn fixed(&self, fixed_query: &E::FixedQuery) -> Self::Output {
+        Ok(match self.qr.resolve_fixed_query(fixed_query)? {
+            ResolvedQuery::IO(io) => IRAexpr::IO(io),
+            ResolvedQuery::Lit(f) => IRAexpr::Constant(Felt::new(f)),
+        })
+    }
+
+    fn advice(&self, advice_query: &E::AdviceQuery) -> Self::Output {
+        Ok(match self.qr.resolve_advice_query(advice_query)? {
+            ResolvedQuery::IO(io) => IRAexpr::IO(io),
+            ResolvedQuery::Lit(f) => IRAexpr::Constant(Felt::new(f)),
+        })
+    }
+
+    fn instance(&self, instance_query: &E::InstanceQuery) -> Self::Output {
+        Ok(match self.qr.resolve_instance_query(instance_query)? {
+            ResolvedQuery::IO(io) => IRAexpr::IO(io),
+            ResolvedQuery::Lit(f) => IRAexpr::Constant(Felt::new(f)),
+        })
+    }
+
+    fn challenge(&self, challenge: &E::Challenge) -> Self::Output {
+        Ok(IRAexpr::IO(self.cr.resolve_challenge(challenge)?))
+    }
+
+    fn negated(&self, expr: Self::Output) -> Self::Output {
+        Ok(IRAexpr::Negated(Box::new(expr?)))
+    }
+
+    fn sum(&self, lhs: Self::Output, rhs: Self::Output) -> Self::Output {
+        Ok(IRAexpr::Sum(Box::new(lhs?), Box::new(rhs?)))
+    }
+
+    fn product(&self, lhs: Self::Output, rhs: Self::Output) -> Self::Output {
+        Ok(IRAexpr::Product(Box::new(lhs?), Box::new(rhs?)))
+    }
+
+    fn scaled(&self, lhs: Self::Output, rhs: &F) -> Self::Output {
+        Ok(IRAexpr::Product(
+            Box::new(lhs?),
+            Box::new(self.constant(rhs)?),
+        ))
     }
 }
