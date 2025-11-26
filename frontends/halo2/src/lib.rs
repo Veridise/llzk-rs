@@ -48,7 +48,7 @@ pub trait CircuitSynthesis<F: Field> {
     /// The type of the circuit.
     type Circuit;
     /// Should be the same type as the circuit config.
-    type Config;
+    type Config<'a>;
     /// Type of the constraint system.
     type CS: ConstraintSystemInfo<F> + Default + 'static;
     /// Error type for synthesis.
@@ -58,23 +58,23 @@ pub trait CircuitSynthesis<F: Field> {
     fn circuit(&self) -> &Self::Circuit;
 
     /// Creates the configuration of the circuit.
-    fn configure(cs: &mut Self::CS) -> Self::Config;
+    fn configure(cs: &mut Self::CS) -> Self::Config<'_>;
 
     /// Returns the advice cells that are part of the inputs and outputs of the circuit.
-    fn advice_io(config: &Self::Config) -> anyhow::Result<AdviceIO>;
+    fn advice_io(config: &Self::Config<'_>) -> anyhow::Result<AdviceIO>;
 
     /// Returns the instance cells that are part of the inputs and outputs of the circuit.
-    fn instance_io(config: &Self::Config) -> anyhow::Result<InstanceIO>;
+    fn instance_io(config: &Self::Config<'_>) -> anyhow::Result<InstanceIO>;
 
     /// This callback requests the client to fill out the [`Synthesizer`] with the synthesis
     /// information about the circuit.
     ///
     /// Has a default implementation as part of the halo2 removal process. This method will be a
     /// required method in the final version.
-    fn synthesize(
+    fn synthesize<'a>(
         circuit: &Self::Circuit,
-        config: Self::Config,
-        synthesizer: &mut Synthesizer<F>,
+        config: Self::Config<'a>,
+        synthesizer: &'a mut Synthesizer<F>,
         cs: &Self::CS,
     ) -> Result<(), Self::Error>;
 }
