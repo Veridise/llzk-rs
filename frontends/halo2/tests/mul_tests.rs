@@ -93,13 +93,12 @@ mod mul_inject {
     use halo2_frontend_core::table::RegionIndex;
     use halo2_llzk_frontend::CircuitSynthesis;
     use halo2_llzk_frontend::{
-        driver::Driver,
-        expressions::ExpressionInRow,
-        ir::{CmpOp, ResolvedIRCircuit, stmt::IRStmt},
+        driver::Driver, expressions::ExpressionInRow, ir::ResolvedIRCircuit,
     };
     use halo2_midnight_integration::plonk::_Expression;
     use halo2_midnight_integration::plonk::ConstraintSystem;
     use halo2_proofs::plonk::Expression;
+    use haloumi_ir::{cmp::CmpOp, stmt::IRStmt};
 
     use super::*;
 

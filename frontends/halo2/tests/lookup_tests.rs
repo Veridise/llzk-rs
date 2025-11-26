@@ -4,13 +4,14 @@ use common::synthesis_impl;
 use group::ff::Field;
 use halo2_llzk_frontend::{
     LookupCallbacks,
-    ir::{generate::IRGenParamsBuilder, stmt::IRStmt},
+    ir::generate::IRGenParamsBuilder,
     lookups::{Lookup, table::LookupTableGenerator},
     temps::{ExprOrTemp, Temps},
 };
 use halo2_midnight_integration::plonk::_Expression;
 use halo2_test_circuits::lookup;
 use halo2curves::bn256::Fr;
+use haloumi_ir::stmt::IRStmt;
 use std::borrow::Cow;
 
 mod common;

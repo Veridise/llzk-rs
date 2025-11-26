@@ -141,7 +141,7 @@ impl<'a> IRPrinter<'a> {
                 write!(ctx, "(lookup {id} {col} {row} {idx} {region})")
             }
             FuncIO::CallOutput(call, idx) => write!(ctx, "(call-result {call} {idx})"),
-            FuncIO::Temp(temp) => write!(ctx, "(temp {})", **temp),
+            FuncIO::Temp(temp) => write!(ctx, "(temp {})", *temp),
             FuncIO::Challenge(index, phase, _) => write!(ctx, "(challenge {index} {phase})"),
         }
     }

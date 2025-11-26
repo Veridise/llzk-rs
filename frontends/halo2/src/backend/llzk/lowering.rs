@@ -773,9 +773,7 @@ mod tests {
     }
 
     #[rstest]
-    #[should_panic(
-        expected = "failed to lower implies expression: was expecting type i1 but lhs has type !felt.type"
-    )]
+    #[should_panic(expected = "Failed to lower lhs of implies expression")]
     fn lower_implies_wrong_lhs(fragment_main: FragmentCfg) {
         fragment_test(fragment_main, r"", |l| {
             let arg = l.lower_funcio(l.lower_function_input(0))?;
@@ -786,9 +784,7 @@ mod tests {
     }
 
     #[rstest]
-    #[should_panic(
-        expected = "failed to lower implies expression: was expecting type i1 but rhs has type !felt.type"
-    )]
+    #[should_panic(expected = "Failed to lower rhs of implies expression")]
     fn lower_implies_wrong_rhs(fragment_main: FragmentCfg) {
         fragment_test(fragment_main, r"", |l| {
             let arg = l.lower_funcio(l.lower_function_input(0))?;
@@ -813,9 +809,7 @@ mod tests {
     }
 
     #[rstest]
-    #[should_panic(
-        expected = "failed to lower iff expression: was expecting type i1 but lhs has type !felt.type"
-    )]
+    #[should_panic(expected = "Failed to lower lhs of iff expression")]
     fn lower_iff_wrong_lhs(fragment_main: FragmentCfg) {
         fragment_test(fragment_main, r"", |l| {
             let arg = l.lower_funcio(l.lower_function_input(0))?;
@@ -826,9 +820,7 @@ mod tests {
     }
 
     #[rstest]
-    #[should_panic(
-        expected = "failed to lower iff expression: was expecting type i1 but rhs has type !felt.type"
-    )]
+    #[should_panic(expected = "Failed to lower rhs of iff expression")]
     fn lower_iff_wrong_rhs(fragment_main: FragmentCfg) {
         fragment_test(fragment_main, r"", |l| {
             let arg = l.lower_funcio(l.lower_function_input(0))?;
@@ -907,7 +899,7 @@ mod tests {
     fn fragment_test(
         cfg: FragmentCfg,
         frag: &str,
-        test: impl FnOnce(&LlzkStructLowering) -> Result<()>,
+        test: impl FnOnce(&LlzkStructLowering) -> haloumi_lowering::Result<()>,
     ) {
         let _ = TestLogger::init(LevelFilter::Debug, Config::default());
         let context = LlzkContext::new();
