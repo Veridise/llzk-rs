@@ -25,7 +25,7 @@ picus = { path = "../../picus", version = "0.1.0", features=["bigint-felt"], opt
 halo2-frontend-core = { version = "0", package = "haloumi-core" }
 haloumi-ir-base = { version = "0.1" }
 haloumi-ir = {  version = "0.2" }
-haloumi-lowering = { version = "0.1"}
+haloumi-lowering = { version = "0.2"}
 anyhow = "^1"
 ff = {workspace = true }
 num-bigint = "0.4"
