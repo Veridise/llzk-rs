@@ -1,6 +1,6 @@
 [package]
 name = "haloumi-ir-base"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 readme = "README.md"
 description = "Types used by the IR and by some modules that the IR depends on."

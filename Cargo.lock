@@ -675,8 +675,8 @@ dependencies = [
  "halo2curves",
  "haloumi-core",
  "haloumi-ir 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "haloumi-ir-base 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "haloumi-lowering 0.1.0",
+ "haloumi-ir-base 0.1.0",
+ "haloumi-lowering 0.2.0",
  "llzk",
  "llzk-sys",
  "log",
@@ -771,8 +771,8 @@ dependencies = [
  "eqv",
  "ff",
  "haloumi-core",
- "haloumi-ir-base 0.1.0",
- "haloumi-lowering 0.2.0",
+ "haloumi-ir-base 0.2.0",
+ "haloumi-lowering 0.2.1",
  "log",
  "thiserror",
 ]
@@ -786,26 +786,10 @@ dependencies = [
  "eqv",
  "ff",
  "haloumi-core",
- "haloumi-ir-base 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "haloumi-ir-base 0.1.0",
  "haloumi-lowering 0.1.0",
  "log",
  "thiserror",
-]
-
-[[package]]
-name = "haloumi-ir-base"
-version = "0.1.0"
-dependencies = [
- "eqv",
- "ff",
- "haloumi-core",
- "internment",
- "log",
- "num-bigint",
- "quickcheck",
- "quickcheck_macros",
- "similar-asserts",
- "simplelog",
 ]
 
 [[package]]
@@ -823,6 +807,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "haloumi-ir-base"
+version = "0.2.0"
+dependencies = [
+ "eqv",
+ "ff",
+ "haloumi-core",
+ "internment",
+ "log",
+ "num-bigint",
+ "quickcheck",
+ "quickcheck_macros",
+ "similar-asserts",
+ "simplelog",
+]
+
+[[package]]
 name = "haloumi-lowering"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -830,17 +830,29 @@ checksum = "17194dc624ba559026a161f5bcd78a99f43b33031dff66d58b32906f5865960e"
 dependencies = [
  "ff",
  "haloumi-core",
- "haloumi-ir-base 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "haloumi-ir-base 0.1.0",
  "thiserror",
 ]
 
 [[package]]
 name = "haloumi-lowering"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f1232d4b968d12be48984e2871271b76aabc31e887e929fddc92e8760125342"
 dependencies = [
  "ff",
  "haloumi-core",
  "haloumi-ir-base 0.1.0",
+ "thiserror",
+]
+
+[[package]]
+name = "haloumi-lowering"
+version = "0.2.1"
+dependencies = [
+ "ff",
+ "haloumi-core",
+ "haloumi-ir-base 0.2.0",
  "thiserror",
 ]
 

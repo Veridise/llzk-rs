@@ -883,7 +883,7 @@ mod tests {
     #[rstest]
     fn lower_constant(fragment_main: FragmentCfg) {
         fragment_test(fragment_main, "%felt_const_1 = felt.const 1", |l| {
-            l.lower_constant(Felt::new_from(1usize))?;
+            l.lower_constant(Felt::new(halo2curves::bn256::Fq::ONE))?;
             Ok(())
         })
     }
