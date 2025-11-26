@@ -11,7 +11,7 @@ license = "Apache-2.0"
 [dependencies]
 ff = { workspace = true }
 haloumi-core = {version = "0.1.0"}
-haloumi-lowering = {path = "../halo2-lowering", version = "0.1.0"}
+haloumi-lowering = {path = "../halo2-lowering", version = "0.2.0"}
 haloumi-ir-base = {path = "../halo2-ir-base", version = "0.1.0"}
 log = "0.4"
 thiserror = "2"
