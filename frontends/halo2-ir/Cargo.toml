@@ -1,6 +1,6 @@
 [package]
 name = "haloumi-ir"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Intermediate representation of the haloumi framework."
 keywords = ["halo2", "llzk", "haloumi"]
