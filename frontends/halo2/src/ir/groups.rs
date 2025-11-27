@@ -714,7 +714,7 @@ where
     F: Field,
     E: Clone + ExpressionInfo,
 {
-    let lookups = syn.lookups();
+    let lookups = syn.lookups().iter().collect::<Vec<_>>();
     let tables_sto = lookups
         .iter()
         .map(|lookup| {

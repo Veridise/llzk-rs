@@ -35,7 +35,7 @@ pub trait LookupCallbacks<F: Field, E> {
     /// inter-lookup work and by default loops over the lookups and calls [`LookupCallbacks::on_lookup`] on each.
     fn on_lookups<'syn>(
         &self,
-        lookups: &'syn [Lookup<E>],
+        lookups: &[&'syn Lookup<E>],
         tables: &[&dyn LookupTableGenerator<F>],
         temps: &mut Temps,
     ) -> Result<IRStmt<ExprOrTemp<Cow<'syn, E>>>>
@@ -45,7 +45,7 @@ pub trait LookupCallbacks<F: Field, E> {
         lookups
             .iter()
             .zip(tables.iter())
-            .map(|(lookup, table)| self.on_lookup(lookup, *table, temps))
+            .map(|(lookup, table)| self.on_lookup(*lookup, *table, temps))
             .collect()
     }
 
