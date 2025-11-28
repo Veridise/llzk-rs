@@ -1,4 +1,4 @@
-//! Structs for handling lookups from the client side.
+//! Types and traits for handling lookups from the client side.
 
 use std::borrow::Cow;
 
@@ -11,6 +11,9 @@ use ff::Field;
 use haloumi_ir::stmt::IRStmt;
 
 use super::Lookup;
+
+/// Type for statements emitted by [`LookupCallbacks`].
+pub type LookupStmt<'syn, E> = IRStmt<ExprOrTemp<Cow<'syn, E>>>;
 
 /// Callback trait for defering to the client how to handle the logic of a lookup.
 pub trait LookupCallbacks<F: Field, E> {
@@ -38,7 +41,7 @@ pub trait LookupCallbacks<F: Field, E> {
         lookups: &[&'syn Lookup<E>],
         tables: &[&dyn LookupTableGenerator<F>],
         temps: &mut Temps,
-    ) -> Result<IRStmt<ExprOrTemp<Cow<'syn, E>>>>
+    ) -> Result<LookupStmt<'syn, E>>
     where
         E: Clone,
     {
@@ -55,7 +58,7 @@ pub trait LookupCallbacks<F: Field, E> {
         lookup: &'syn Lookup<E>,
         table: &dyn LookupTableGenerator<F>,
         temps: &mut Temps,
-    ) -> Result<IRStmt<ExprOrTemp<Cow<'syn, E>>>>
+    ) -> Result<LookupStmt<'syn, E>>
     where
         E: Clone;
 }
@@ -69,7 +72,7 @@ impl<F: Field, E: Clone> LookupCallbacks<F, E> for DefaultLookupCallbacks {
         lookup: &'syn Lookup<E>,
         table: &dyn LookupTableGenerator<F>,
         temps: &mut Temps,
-    ) -> Result<IRStmt<ExprOrTemp<Cow<'syn, E>>>> {
+    ) -> Result<LookupStmt<'syn, E>> {
         panic!("Target circuit has lookups but their behaviour was not specified");
     }
 }

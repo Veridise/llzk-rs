@@ -1,4 +1,8 @@
-use std::{borrow::Borrow, collections::HashMap, ops::Deref};
+use std::{
+    borrow::Borrow,
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
 use ff::Field;
 
@@ -86,52 +90,82 @@ impl From<IOCell<Advice>> for GroupCell {
     }
 }
 
-/// A flat read-only representation of a group.
-///
-/// The parent-children relation is represented by indices on a vector instead.
+/// Shared implementation of a group.
 #[derive(Debug)]
-pub(crate) struct Group {
+pub(crate) struct GroupBase {
     kind: GroupKind,
     name: Option<String>,
     inputs: Vec<GroupCell>,
     outputs: Vec<GroupCell>,
     regions: Regions,
-    children: Vec<usize>,
 }
 
-impl Group {
-    fn new(
-        kind: GroupKind,
-        name: Option<String>,
-        inputs: Vec<GroupCell>,
-        outputs: Vec<GroupCell>,
-        regions: Regions,
-        children: Vec<usize>,
-    ) -> Self {
-        // Sanity check; if group is top level there cannot be any assigned cells.
-        if kind == GroupKind::TopLevel {
-            assert!(
-                inputs.iter().all(|i| !matches!(i, GroupCell::Assigned(_))),
-                "Cannot assign input cells in the top level"
-            );
-            assert!(
-                outputs.iter().all(|i| !matches!(i, GroupCell::Assigned(_))),
-                "Cannot assign output cells in the top level"
-            );
-        }
+impl GroupBase {
+    /// Constructs an empty top-level group.
+    fn top_level() -> Self {
         Self {
-            kind,
-            name,
-            inputs,
-            outputs,
-            regions,
-            children,
+            kind: GroupKind::TopLevel,
+            name: None,
+            inputs: Default::default(),
+            outputs: Default::default(),
+            regions: Default::default(),
+        }
+    }
+
+    /// Constructs an named empty group.
+    fn empty(name: String, key: GroupKey) -> Self {
+        Self {
+            kind: GroupKind::Group(key),
+            name: Some(name),
+            inputs: Default::default(),
+            outputs: Default::default(),
+            regions: Default::default(),
         }
     }
 
     /// Returns a list of region data.
     pub fn regions<'a>(&'a self) -> Vec<RegionData<'a>> {
         self.regions.regions()
+    }
+
+    pub fn name(&self) -> &str {
+        if self.kind == GroupKind::TopLevel {
+            return "Main";
+        }
+        self.name
+            .as_deref()
+            .and_then(|s| (!s.is_empty()).then_some(s))
+            .unwrap_or("unnamed_group")
+    }
+}
+
+/// A flat read-only representation of a group.
+///
+/// The parent-children relation is represented by indices on a vector instead.
+#[derive(Debug)]
+pub(crate) struct Group {
+    base: GroupBase,
+    children: Vec<usize>,
+}
+
+impl Group {
+    fn with_children(base: GroupBase, children: Vec<usize>) -> Self {
+        // Sanity check; if group is top level there cannot be any assigned cells.
+        if base.kind == GroupKind::TopLevel {
+            assert!(
+                base.inputs
+                    .iter()
+                    .all(|i| !matches!(i, GroupCell::Assigned(_))),
+                "Cannot assign input cells in the top level"
+            );
+            assert!(
+                base.outputs
+                    .iter()
+                    .all(|i| !matches!(i, GroupCell::Assigned(_))),
+                "Cannot assign output cells in the top level"
+            );
+        }
+        Self { base, children }
     }
 
     /// Returns the regions' rows
@@ -158,16 +192,6 @@ impl Group {
         &self.outputs
     }
 
-    pub fn name(&self) -> &str {
-        if self.kind == GroupKind::TopLevel {
-            return "Main";
-        }
-        self.name
-            .as_deref()
-            .map(|s| if s.is_empty() { "unnamed_group" } else { s })
-            .unwrap_or("unnamed_group")
-    }
-
     /// Returns the group objects of the children
     pub fn children<'a>(&'a self, groups: &'a [Group]) -> Vec<(usize, &'a Group)> {
         self.children
@@ -183,6 +207,20 @@ impl Group {
             GroupKind::TopLevel => None,
             GroupKind::Group(group_key_instance) => Some(group_key_instance),
         }
+    }
+}
+
+impl Deref for Group {
+    type Target = GroupBase;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+
+impl DerefMut for Group {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
     }
 }
 
@@ -240,11 +278,7 @@ impl Deref for Groups {
 /// the circuit declares during synthesis.
 #[derive(Debug)]
 pub(crate) struct GroupTree {
-    kind: GroupKind,
-    name: Option<String>,
-    inputs: Vec<GroupCell>,
-    outputs: Vec<GroupCell>,
-    regions: Regions,
+    base: GroupBase,
     children: Vec<GroupTree>,
 }
 
@@ -252,11 +286,7 @@ impl GroupTree {
     /// Constructs an empty top-level group.
     fn top_level() -> Self {
         Self {
-            kind: GroupKind::TopLevel,
-            name: None,
-            inputs: Default::default(),
-            outputs: Default::default(),
-            regions: Default::default(),
+            base: GroupBase::top_level(),
             children: Default::default(),
         }
     }
@@ -264,11 +294,7 @@ impl GroupTree {
     /// Constructs an empty group
     fn new(name: String, key: GroupKey) -> Self {
         Self {
-            kind: GroupKind::Group(key),
-            name: Some(name),
-            inputs: Default::default(),
-            outputs: Default::default(),
-            regions: Default::default(),
+            base: GroupBase::empty(name, key),
             children: Default::default(),
         }
     }
@@ -279,14 +305,7 @@ impl GroupTree {
             child.flatten_impl(groups);
             child_indices.push(groups.len() - 1);
         }
-        groups.push(Group::new(
-            self.kind,
-            self.name,
-            self.inputs,
-            self.outputs,
-            self.regions,
-            child_indices,
-        ));
+        groups.push(Group::with_children(self.base, child_indices));
     }
 
     /// Transforms the tree into a read-only flat representation.
@@ -295,10 +314,19 @@ impl GroupTree {
         self.flatten_impl(&mut groups);
         Groups(groups)
     }
+}
 
-    /// Returns the name of the group.
-    pub fn name(&self) -> &str {
-        self.name.as_deref().unwrap_or("<no name>")
+impl Deref for GroupTree {
+    type Target = GroupBase;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+
+impl DerefMut for GroupTree {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
     }
 }
 
