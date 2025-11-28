@@ -1,6 +1,6 @@
 //use anyhow::Result;
 
-use crate::expr::IRAexpr;
+use crate::{expr::IRAexpr, traits::ConstantFolding};
 use eqv::{EqvRelation, equiv};
 use haloumi_ir_base::{
     SymbolicEqv,
@@ -81,14 +81,16 @@ impl<T> Call<T> {
     pub fn outputs_mut(&mut self) -> &mut Vec<FuncIO> {
         &mut self.outputs
     }
-}
 
-impl Call<IRAexpr> {
     /// Folds the statements if the expressions are constant.
-    pub fn constant_fold(&mut self, prime: Felt) {
+    pub fn constant_fold(&mut self, prime: T::F) -> Result<(), T::Error>
+    where
+        T: ConstantFolding,
+    {
         for i in &mut self.inputs {
-            i.constant_fold(prime);
+            i.constant_fold(prime)?;
         }
+        Ok(())
     }
 }
 

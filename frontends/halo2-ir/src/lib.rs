@@ -7,4 +7,5 @@ mod canon;
 pub mod error;
 pub mod expr;
 pub mod stmt;
+pub mod traits;
 pub use haloumi_ir_base::*;

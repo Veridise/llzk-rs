@@ -1,4 +1,4 @@
-use crate::{error::Error, expr::IRAexpr};
+use crate::{error::Error, expr::IRAexpr, traits::ConstantFolding};
 use haloumi_ir_base::felt::Felt;
 use haloumi_lowering::{
     Lowering,
@@ -38,18 +38,23 @@ impl<T> Seq<T> {
     pub fn len(&self) -> usize {
         self.0.len()
     }
-}
 
-impl Seq<IRAexpr> {
     /// Folds the statements if the expressions are constant.
     /// If a assert-like statement folds into a tautology (i.e. `(= 0 0 )`) gets removed. If it
     /// folds into a unsatisfiable proposition the method returns an error.
-    pub fn constant_fold(&mut self, prime: Felt) -> Result<(), Error> {
+    pub fn constant_fold(&mut self, prime: T::F) -> Result<(), Error<T>>
+    where
+        T: ConstantFolding + std::fmt::Debug + Clone,
+        Error<T>: From<T::Error>,
+        T::T: Eq + Ord,
+    {
         self.0
             .iter_mut()
             .try_for_each(|inner| inner.constant_fold(prime))
     }
+}
 
+impl Seq<IRAexpr> {
     /// Matches the statements against a series of known patterns and applies rewrites if able to.
     pub fn canonicalize(&mut self) {
         for inner in &mut self.0 {

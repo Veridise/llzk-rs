@@ -3,6 +3,7 @@ use crate::{
     error::Error,
     expr::{IRAexpr, IRBexpr},
     stmt::IRStmt,
+    traits::ConstantFolding,
 };
 use eqv::{EqvRelation, equiv};
 use haloumi_ir_base::{
@@ -63,21 +64,18 @@ impl<T> Constraint<T> {
     pub fn lhs_mut(&mut self) -> &mut T {
         &mut self.lhs
     }
-}
 
-impl<T> From<Constraint<T>> for IRBexpr<T> {
-    fn from(value: Constraint<T>) -> Self {
-        IRBexpr::Cmp(value.op, value.lhs, value.rhs)
-    }
-}
-
-impl Constraint<IRAexpr> {
     /// Folds the statements if the expressions are constant.
     /// If a assert-like statement folds into a tautology (i.e. `(= 0 0 )`) gets removed. If it
     /// folds into a unsatisfiable proposition the method returns an error.
-    pub fn constant_fold(&mut self, prime: Felt) -> Result<Option<IRStmt<IRAexpr>>, Error> {
-        self.lhs.constant_fold(prime);
-        self.rhs.constant_fold(prime);
+    pub fn constant_fold(&mut self, prime: T::F) -> Result<Option<IRStmt<T>>, Error<T>>
+    where
+        T: ConstantFolding + std::fmt::Debug + Clone,
+        Error<T>: From<T::Error>,
+        T::T: Ord + Eq,
+    {
+        self.lhs.constant_fold(prime)?;
+        self.rhs.constant_fold(prime)?;
         if let Some((lhs, rhs)) = self.lhs.const_value().zip(self.rhs.const_value()) {
             let r = match self.op {
                 CmpOp::Eq => lhs == rhs,
@@ -95,12 +93,20 @@ impl Constraint<IRAexpr> {
         }
         Ok(None)
     }
+}
 
+impl Constraint<IRAexpr> {
     /// Matches the statements against a series of known patterns and applies rewrites if able to.
     pub fn canonicalize(&mut self) {
         if let Some((op, lhs, rhs)) = canonicalize_constraint(self.op, &self.lhs, &self.rhs) {
             *self = Self::new(op, lhs, rhs);
         }
+    }
+}
+
+impl<T> From<Constraint<T>> for IRBexpr<T> {
+    fn from(value: Constraint<T>) -> Self {
+        IRBexpr::Cmp(value.op, value.lhs, value.rhs)
     }
 }
 

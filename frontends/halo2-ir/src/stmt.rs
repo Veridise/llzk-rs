@@ -1,7 +1,7 @@
 //! Structs for representing statements of the circuit's logic.
 
 use super::expr::IRBexpr;
-use crate::{error::Error, expr::IRAexpr};
+use crate::{error::Error, expr::IRAexpr, traits::ConstantFolding};
 use eqv::{EqvRelation, equiv};
 use haloumi_ir_base::{
     SymbolicEqv,
@@ -274,91 +274,22 @@ impl<T> IRStmt<T> {
     }
 }
 
-//impl<T> IRStmt<ExprOrTemp<T>> {
-//    /// Renames all temporaries in call outputs and [`ExprOrTemp::Temp`] to a fresh new set.
-//    ///
-//    /// It doesn't go inside `T` so it won't rename temporaries inside it.
-//    pub fn rebase_temps(&mut self, renaming_fn: &mut impl FnMut(Temp) -> Temp) {
-//        fn rebase_bexpr<T>(
-//            expr: &mut IRBexpr<ExprOrTemp<T>>,
-//            renaming_fn: &mut impl FnMut(Temp) -> Temp,
-//        ) {
-//            match expr {
-//                IRBexpr::True | IRBexpr::False => {}
-//                IRBexpr::Cmp(_, lhs, rhs) => {
-//                    if let ExprOrTemp::Temp(temp) = lhs {
-//                        *temp = renaming_fn(*temp);
-//                    }
-//                    if let ExprOrTemp::Temp(temp) = rhs {
-//                        *temp = renaming_fn(*temp);
-//                    }
-//                }
-//                IRBexpr::And(exprs) | IRBexpr::Or(exprs) => {
-//                    for expr in exprs {
-//                        rebase_bexpr(expr, renaming_fn)
-//                    }
-//                }
-//                IRBexpr::Not(expr) => rebase_bexpr(expr, renaming_fn),
-//                IRBexpr::Det(expr) => {
-//                    if let ExprOrTemp::Temp(temp) = expr {
-//                        *temp = renaming_fn(*temp);
-//                    }
-//                }
-//                IRBexpr::Implies(lhs, rhs) | IRBexpr::Iff(lhs, rhs) => {
-//                    rebase_bexpr(lhs, renaming_fn);
-//                    rebase_bexpr(rhs, renaming_fn);
-//                }
-//            }
-//        }
-//        match self {
-//            IRStmt::ConstraintCall(call) => {
-//                for input in call.inputs_mut() {
-//                    if let ExprOrTemp::Temp(temp) = input {
-//                        *temp = renaming_fn(*temp);
-//                    }
-//                }
-//                for output in call.outputs_mut() {
-//                    if let FuncIO::Temp(temp) = output {
-//                        *temp = renaming_fn(*temp);
-//                    }
-//                }
-//            }
-//            IRStmt::Constraint(constraint) => {
-//                if let ExprOrTemp::Temp(temp) = constraint.lhs_mut() {
-//                    *temp = renaming_fn(*temp);
-//                }
-//                if let ExprOrTemp::Temp(temp) = constraint.rhs_mut() {
-//                    *temp = renaming_fn(*temp);
-//                }
-//            }
-//            IRStmt::Comment(_) => todo!(),
-//            IRStmt::AssumeDeterministic(assume_deterministic) => {
-//                if let FuncIO::Temp(temp) = assume_deterministic.value_mut() {
-//                    *temp = renaming_fn(*temp);
-//                }
-//            }
-//            IRStmt::Assert(assert) => {
-//                rebase_bexpr(assert.cond_mut(), renaming_fn);
-//            }
-//            IRStmt::PostCond(pc) => {
-//                rebase_bexpr(pc.cond_mut(), renaming_fn);
-//            }
-//            IRStmt::Seq(seq) => {
-//                for stmt in seq.iter_mut() {
-//                    stmt.rebase_temps(renaming_fn)
-//                }
-//            }
-//        }
-//    }
-//}
+impl<T> ConstantFolding for IRStmt<T>
+where
+    T: ConstantFolding + std::fmt::Debug + Clone,
+    Error<T>: From<T::Error>,
+    T::T: Eq + Ord,
+{
+    type F = T::F;
+    type Error = Error<T>;
+    type T = ();
 
-impl IRStmt<IRAexpr> {
     /// Folds the statements if the expressions are constant.
     /// If a assert-like statement folds into a tautology (i.e. `(= 0 0 )`) gets removed. If it
     /// folds into a unsatisfiable proposition the method returns an error.
-    pub fn constant_fold(&mut self, prime: Felt) -> Result<(), Error> {
+    fn constant_fold(&mut self, prime: T::F) -> Result<(), Error<T>> {
         match self {
-            IRStmt::ConstraintCall(call) => call.constant_fold(prime),
+            IRStmt::ConstraintCall(call) => call.constant_fold(prime)?,
             IRStmt::Constraint(constraint) => {
                 if let Some(replacement) = constraint.constant_fold(prime)? {
                     *self = replacement;
@@ -380,7 +311,9 @@ impl IRStmt<IRAexpr> {
         }
         Ok(())
     }
+}
 
+impl IRStmt<IRAexpr> {
     /// Matches the statements against a series of known patterns and applies rewrites if able to.
     pub fn canonicalize(&mut self) {
         match self {

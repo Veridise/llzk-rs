@@ -2,6 +2,7 @@ use crate::{
     error::Error,
     expr::{IRAexpr, IRBexpr},
     stmt::IRStmt,
+    traits::ConstantFolding,
 };
 use eqv::{EqvRelation, equiv};
 use haloumi_ir_base::{
@@ -44,14 +45,17 @@ impl<T> Assert<T> {
     pub fn try_map_inplace<E>(&mut self, f: &impl Fn(&mut T) -> Result<(), E>) -> Result<(), E> {
         self.0.try_map_inplace(f)
     }
-}
 
-impl Assert<IRAexpr> {
     /// Folds the statements if the expressions are constant.
     /// If a assert-like statement folds into a tautology (i.e. `(= 0 0 )`) gets removed. If it
     /// folds into a unsatisfiable proposition the method returns an error.
-    pub fn constant_fold(&mut self, prime: Felt) -> Result<Option<IRStmt<IRAexpr>>, Error> {
-        self.0.constant_fold(prime);
+    pub fn constant_fold(&mut self, prime: T::F) -> Result<Option<IRStmt<T>>, Error<T>>
+    where
+        T: ConstantFolding + std::fmt::Debug + Clone,
+        T::T: Eq + Ord,
+        Error<T>: From<T::Error>,
+    {
+        self.0.constant_fold(prime)?;
         if let Some(b) = self.0.const_value() {
             if b {
                 return Ok(Some(IRStmt::empty()));
@@ -61,7 +65,9 @@ impl Assert<IRAexpr> {
         }
         Ok(None)
     }
+}
 
+impl Assert<IRAexpr> {
     /// Matches the statements against a series of known patterns and applies rewrites if able to.
     pub fn canonicalize(&mut self) {
         self.0.canonicalize();

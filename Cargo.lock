@@ -676,7 +676,7 @@ dependencies = [
  "haloumi-core",
  "haloumi-ir 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "haloumi-ir-base 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "haloumi-lowering 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "haloumi-lowering 0.2.1",
  "llzk",
  "llzk-sys",
  "log",
@@ -772,8 +772,9 @@ dependencies = [
  "ff",
  "haloumi-core",
  "haloumi-ir-base 0.2.0",
- "haloumi-lowering 0.2.1",
+ "haloumi-lowering 0.2.2",
  "log",
+ "rstest 0.26.1",
  "thiserror",
 ]
 
@@ -787,7 +788,7 @@ dependencies = [
  "ff",
  "haloumi-core",
  "haloumi-ir-base 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "haloumi-lowering 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "haloumi-lowering 0.2.1",
  "log",
  "thiserror",
 ]
@@ -825,22 +826,22 @@ dependencies = [
 [[package]]
 name = "haloumi-lowering"
 version = "0.2.1"
-dependencies = [
- "ff",
- "haloumi-core",
- "haloumi-ir-base 0.2.0",
- "thiserror",
-]
-
-[[package]]
-name = "haloumi-lowering"
-version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fed51db6cc199b33577a3a71320a95c826998e6fce600ba40a5bba82ef6528fc"
 dependencies = [
  "ff",
  "haloumi-core",
  "haloumi-ir-base 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "thiserror",
+]
+
+[[package]]
+name = "haloumi-lowering"
+version = "0.2.2"
+dependencies = [
+ "ff",
+ "haloumi-core",
+ "haloumi-ir-base 0.2.0",
  "thiserror",
 ]
 
