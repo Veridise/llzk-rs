@@ -311,7 +311,7 @@ impl std::fmt::Display for FuncIO {
             }
             Self::CallOutput(call, out) => write!(f, "call{call}->{out}"),
             Self::Temp(id) => write!(f, "t{}", *id),
-            Self::Challenge(index, phase, _) => write!(f, "chall{index}@{phase}"),
+            Self::Challenge(index, phase, _) => write!(f, "challenge{index}@{phase}"),
         }
     }
 }
