@@ -821,7 +821,7 @@ fn rebase_temps<T>(stmt: &mut IRStmt<ExprOrTemp<T>>, renaming_fn: &mut impl FnMu
                 *temp = renaming_fn(*temp);
             }
         }
-        IRStmt::Comment(_) => todo!(),
+        IRStmt::Comment(_) => {}
         IRStmt::AssumeDeterministic(assume_deterministic) => {
             if let FuncIO::Temp(temp) = assume_deterministic.value_mut() {
                 *temp = *renaming_fn(Temp(*temp));
