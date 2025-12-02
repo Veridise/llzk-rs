@@ -13,7 +13,10 @@ use anyhow::Result;
 use eqv::EqvRelation;
 use ff::Field;
 use halo2_frontend_core::expressions::ExprBuilder;
-use haloumi_ir::{SymbolicEqv, cmp::CmpOp, expr::IRAexpr, felt::Felt, func::FuncIO, stmt::IRStmt};
+use haloumi_ir::{
+    SymbolicEqv, cmp::CmpOp, expr::IRAexpr, felt::Felt, func::FuncIO, stmt::IRStmt,
+    traits::ConstantFolding,
+};
 use haloumi_lowering::{
     Lowering,
     lowerable::{LowerableExpr, LowerableStmt},
@@ -210,7 +213,7 @@ impl CallSite<IRAexpr> {
         self.inputs
             .iter_mut()
             .chain(self.outputs.iter_mut())
-            .for_each(|expr| expr.constant_fold(prime))
+            .for_each(|expr| expr.constant_fold(prime).unwrap())
     }
 }
 

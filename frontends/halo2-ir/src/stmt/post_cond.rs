@@ -5,11 +5,7 @@ use crate::{
     traits::ConstantFolding,
 };
 use eqv::{EqvRelation, equiv};
-use haloumi_ir_base::{
-    SymbolicEqv,
-    //equivalency::{EqvRelation, SymbolicEqv},
-    felt::Felt,
-};
+use haloumi_ir_base::SymbolicEqv;
 use haloumi_lowering::{
     Lowering,
     lowerable::{LowerableExpr, LowerableStmt},
@@ -48,10 +44,10 @@ impl<T> PostCond<T> {
     /// Folds the statements if the expressions are constant.
     /// If an assert-like statement folds into a tautology (i.e. `(= 0 0 )`), it gets removed. If it
     /// folds into a unsatisfiable proposition the method returns an error.
-    pub fn constant_fold(&mut self, prime: T::F) -> Result<Option<IRStmt<T>>, Error<T>>
+    pub fn constant_fold(&mut self, prime: T::F) -> Result<Option<IRStmt<T>>, Error>
     where
         T: ConstantFolding + std::fmt::Debug + Clone,
-        Error<T>: From<T::Error>,
+        Error: From<T::Error>,
         T::T: Eq + Ord,
     {
         self.0.constant_fold(prime)?;
@@ -59,7 +55,10 @@ impl<T> PostCond<T> {
             if b {
                 return Ok(Some(IRStmt::empty()));
             } else {
-                return Err(Error::FoldedFalseStmt("post-condition", self.0.clone()));
+                return Err(Error::FoldedFalseStmt(
+                    "post-condition",
+                    format!("{:#?}", self.0),
+                ));
             }
         }
         Ok(None)

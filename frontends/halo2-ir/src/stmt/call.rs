@@ -1,13 +1,6 @@
-//use anyhow::Result;
-
-use crate::{expr::IRAexpr, traits::ConstantFolding};
+use crate::traits::ConstantFolding;
 use eqv::{EqvRelation, equiv};
-use haloumi_ir_base::{
-    SymbolicEqv,
-    //equivalency::{EqvRelation, SymbolicEqv},
-    felt::Felt,
-    func::FuncIO,
-};
+use haloumi_ir_base::{SymbolicEqv, func::FuncIO};
 use haloumi_lowering::{
     Lowering,
     lowerable::{LowerableExpr, LowerableStmt},
@@ -152,10 +145,5 @@ where
         lhs.callee == rhs.callee
             && equiv! { SymbolicEqv | &lhs.inputs, &rhs.inputs }
             && equiv! { SymbolicEqv | &lhs.outputs, &rhs.outputs }
-        //&& <SymbolicEqv as EqvRelation<Vec<L>, Vec<R>>>::equivalent(&lhs.inputs, &rhs.inputs)
-        //&& <SymbolicEqv as EqvRelation<Vec<FuncIO>, Vec<FuncIO>>>::equivalent(
-        //    &lhs.outputs,
-        //    &rhs.outputs,
-        //)
     }
 }

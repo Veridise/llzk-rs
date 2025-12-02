@@ -62,7 +62,7 @@ impl Driver {
         params: IRGenParams<'cb, '_, F, E>,
     ) -> anyhow::Result<UnresolvedIRCircuit<'drv, 'syn, 'sco, F, E>>
     where
-        F: PrimeField,
+        F: PrimeField + Ord,
         E: Clone + ExprBuilder<F> + ExpressionInfo + EvaluableExpr<F> + std::fmt::Debug,
         'syn: 'sco,
         'drv: 'sco + 'syn,

@@ -1,5 +1,4 @@
 use crate::{error::Error, expr::IRAexpr, traits::ConstantFolding};
-use haloumi_ir_base::felt::Felt;
 use haloumi_lowering::{
     Lowering,
     lowerable::{LowerableExpr, LowerableStmt},
@@ -42,10 +41,10 @@ impl<T> Seq<T> {
     /// Folds the statements if the expressions are constant.
     /// If a assert-like statement folds into a tautology (i.e. `(= 0 0 )`) gets removed. If it
     /// folds into a unsatisfiable proposition the method returns an error.
-    pub fn constant_fold(&mut self, prime: T::F) -> Result<(), Error<T>>
+    pub fn constant_fold(&mut self, prime: T::F) -> Result<(), Error>
     where
         T: ConstantFolding + std::fmt::Debug + Clone,
-        Error<T>: From<T::Error>,
+        Error: From<T::Error>,
         T::T: Eq + Ord,
     {
         self.0

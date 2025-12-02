@@ -5,11 +5,7 @@ use crate::{
     traits::ConstantFolding,
 };
 use eqv::{EqvRelation, equiv};
-use haloumi_ir_base::{
-    SymbolicEqv,
-    //equivalency::{EqvRelation, SymbolicEqv},
-    felt::Felt,
-};
+use haloumi_ir_base::SymbolicEqv;
 use haloumi_lowering::{
     Lowering,
     lowerable::{LowerableExpr, LowerableStmt},
@@ -49,18 +45,18 @@ impl<T> Assert<T> {
     /// Folds the statements if the expressions are constant.
     /// If a assert-like statement folds into a tautology (i.e. `(= 0 0 )`) gets removed. If it
     /// folds into a unsatisfiable proposition the method returns an error.
-    pub fn constant_fold(&mut self, prime: T::F) -> Result<Option<IRStmt<T>>, Error<T>>
+    pub fn constant_fold(&mut self, prime: T::F) -> Result<Option<IRStmt<T>>, Error>
     where
         T: ConstantFolding + std::fmt::Debug + Clone,
         T::T: Eq + Ord,
-        Error<T>: From<T::Error>,
+        Error: From<T::Error>,
     {
         self.0.constant_fold(prime)?;
         if let Some(b) = self.0.const_value() {
             if b {
                 return Ok(Some(IRStmt::empty()));
             } else {
-                return Err(Error::FoldedFalseStmt("assert", self.0.clone()));
+                return Err(Error::FoldedFalseStmt("assert", format!("{:#?}", self.0)));
             }
         }
         Ok(None)

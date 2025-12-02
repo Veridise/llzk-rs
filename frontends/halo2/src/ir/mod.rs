@@ -45,7 +45,7 @@ where
     F: PrimeField,
     'syn: 'sco,
     'ctx: 'sco + 'syn,
-    E: Clone,
+    E: Clone + std::fmt::Debug,
 {
     pub(crate) fn new(
         ctx: &'ctx IRCtx,

@@ -2,7 +2,7 @@
 
 use std::ops::Deref;
 
-use haloumi_ir::{expr::IRAexpr, func::FuncIO};
+use haloumi_ir::{expr::IRAexpr, func::FuncIO, traits::ConstantFolding};
 
 /// A temporary variable.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -36,6 +36,41 @@ impl<E> ExprOrTemp<E> {
         match self {
             ExprOrTemp::Temp(temp) => ExprOrTemp::Temp(temp),
             ExprOrTemp::Expr(e) => ExprOrTemp::Expr(f(e)),
+        }
+    }
+}
+
+impl<E> ConstantFolding for ExprOrTemp<E>
+where
+    E: ConstantFolding,
+{
+    type F = E::F;
+
+    type Error = E::Error;
+
+    type T = E::T;
+
+    fn constant_fold(&mut self, prime: Self::F) -> Result<(), Self::Error> {
+        match self {
+            ExprOrTemp::Temp(_) => Ok(()),
+            ExprOrTemp::Expr(e) => e.constant_fold(prime),
+        }
+    }
+
+    fn constant_folded(self, prime: Self::F) -> Result<Self, Self::Error>
+    where
+        Self: Sized,
+    {
+        Ok(match self {
+            ExprOrTemp::Temp(temp) => ExprOrTemp::Temp(temp),
+            ExprOrTemp::Expr(e) => ExprOrTemp::Expr(e.constant_folded(prime)?),
+        })
+    }
+
+    fn const_value(&self) -> Option<Self::T> {
+        match self {
+            ExprOrTemp::Temp(_) => None,
+            ExprOrTemp::Expr(e) => e.const_value(),
         }
     }
 }

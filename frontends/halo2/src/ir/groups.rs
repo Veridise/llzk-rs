@@ -28,11 +28,12 @@ use anyhow::Result;
 use eqv::EqvRelation;
 use ff::Field;
 use halo2_frontend_core::{
-    expressions::{ExprBuilder, ExpressionInfo},
+    expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
     table::{Any, Rotation, RotationExt},
 };
 use haloumi_ir::expr::aexpr::IRAexpr;
 use haloumi_ir::stmt::IRStmt;
+use haloumi_ir::traits::ConstantFolding;
 use haloumi_ir::{SymbolicEqv, expr::IRBexpr};
 use haloumi_ir_base::cmp::CmpOp;
 use haloumi_ir_base::felt::Felt;
@@ -67,7 +68,7 @@ where
     'syn: 'sco,
     'ctx: 'sco + 'syn,
     F: Field,
-    E: Clone,
+    E: Clone + std::fmt::Debug,
 {
     pub(super) fn new(
         group: &'syn Group,
@@ -77,7 +78,8 @@ where
         instance_io: &'ctx crate::io::InstanceIO,
     ) -> anyhow::Result<Self>
     where
-        E: ExprBuilder<F> + ExpressionInfo,
+        F: Ord,
+        E: ExprBuilder<F> + ExpressionInfo + EvaluableExpr<F> + Sync + Send,
     {
         log::debug!("Lowering call-sites for group {:?}", group.name());
         let callsites = {
@@ -687,13 +689,15 @@ where
                 .map(|stmt| {
                     prepend_comment(
                         stmt,
-                        IRStmt::comment(format!(
-                            "gate '{}' @ {} @ rows {}..={}",
-                            scope.gate_name(),
-                            scope.region_header().to_string(),
-                            scope.start_row(),
-                            scope.end_row()
-                        )),
+                        || {
+                            IRStmt::comment(format!(
+                                "gate '{}' @ {} @ rows {}..={}",
+                                scope.gate_name(),
+                                scope.region_header().to_string(),
+                                scope.start_row(),
+                                scope.end_row()
+                            ))
+                        },
                         generate_debug_comments,
                     )
                 })
@@ -711,8 +715,8 @@ where
     'syn: 'sco,
     'ctx: 'sco + 'syn,
     'cb: 'sco + 'syn,
-    F: Field,
-    E: Clone + ExpressionInfo,
+    F: Field + Ord,
+    E: Clone + ExpressionInfo + EvaluableExpr<F> + ExprBuilder<F> + std::fmt::Debug + Sync + Send,
 {
     let lookups = syn.lookups().iter().collect::<Vec<_>>();
     let tables_sto = lookups
@@ -730,13 +734,14 @@ where
         .collect::<Vec<_>>();
     let mut temps = Temps::new();
     let ir = lookup_cb.on_lookups(&lookups, &tables, &mut temps)?;
-    Ok(region_rows
+    region_rows
         .iter()
         .enumerate()
         .map(|(n, rr)| {
             let mut region_ir = ir
                 .clone()
                 .map(&|e| e.map(|e| ScopedExpression::from_cow(e, *rr)));
+            region_ir.constant_fold(())?;
             // The IR representing the lookup is generated only once, with a sequence of temps
             // 0,1,...
             // When the IR is cloned under the scope of a region row the temporaries
@@ -758,11 +763,13 @@ where
                 });
             }
 
-            let comment =
-                IRStmt::comment(format!("Lookups @ {} @ {}", rr.header(), rr.row_number()));
-            prepend_comment(region_ir, comment, generate_debug_comments)
+            Ok(prepend_comment(
+                region_ir,
+                || IRStmt::comment(format!("Lookups @ {} @ {}", rr.header(), rr.row_number())),
+                generate_debug_comments,
+            ))
         })
-        .collect())
+        .collect()
 }
 
 /// Renames all temporaries in call outputs and [`ExprOrTemp::Temp`] to a fresh new set.
@@ -846,13 +853,13 @@ fn rebase_temps<T>(stmt: &mut IRStmt<ExprOrTemp<T>>, renaming_fn: &mut impl FnMu
 #[inline]
 fn prepend_comment<E>(
     stmt: IRStmt<E>,
-    comment: IRStmt<E>,
+    comment: impl FnOnce() -> IRStmt<E>,
     generate_debug_comments: bool,
 ) -> IRStmt<E> {
     if stmt.is_empty() || !generate_debug_comments {
         return stmt;
     }
-    [comment, stmt].into_iter().collect()
+    [comment(), stmt].into_iter().collect()
 }
 
 /// If the rewrite error is [`RewriteError::NoMatch`] returns an error

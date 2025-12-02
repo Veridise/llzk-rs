@@ -1,8 +1,9 @@
 //! Traits and types related to expressions.
 
-use std::{borrow::Cow, marker::PhantomData};
+use std::{borrow::Cow, convert::Infallible, marker::PhantomData, sync::Arc};
 
 use crate::{
+    expressions::constant_folding::ConstantFolding,
     resolvers::{
         ChallengeResolver, FixedQueryResolver, QueryResolver, ResolvedQuery, ResolvedSelector,
         ResolversProvider, SelectorResolver, boxed_resolver,
@@ -13,7 +14,9 @@ use crate::{
 pub(crate) mod constant_folding;
 
 use ff::{Field, PrimeField};
-use halo2_frontend_core::expressions::{EvalExpression, EvaluableExpr, ExpressionTypes};
+use halo2_frontend_core::expressions::{
+    EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes,
+};
 use haloumi_ir::{expr::IRAexpr, felt::Felt};
 
 /// Indicates to the driver that the expression should be scoped in that row of the circuit.
@@ -76,13 +79,14 @@ impl<'e, E: Clone> ExpressionInRow<'e, E> {
 /// the resolvers required for lowering the expression.
 ///
 /// The expression can be either a reference or owned.
+#[derive(Clone)]
 pub(crate) struct ScopedExpression<'e, 'r, F, E>
 where
     F: Field,
     E: Clone,
 {
     expression: Cow<'e, E>,
-    resolvers: Box<dyn ResolversProvider<F> + 'r>,
+    resolvers: Arc<dyn ResolversProvider<F> + 'r>,
 }
 
 impl<'e, 'r, F, E> ScopedExpression<'e, 'r, F, E>
@@ -112,6 +116,15 @@ where
         }
     }
 
+    pub fn simplify(&mut self)
+    where
+        E: EvaluableExpr<F> + ExpressionInfo + ExprBuilder<F>,
+    {
+        let expression =
+            ConstantFolding::new(self.resolvers()).constant_fold(self.expression.as_ref());
+        self.expression = Cow::Owned(expression);
+    }
+
     pub(crate) fn from_cow<R>(expression: Cow<'e, E>, resolvers: R) -> Self
     where
         R: ResolversProvider<F> + 'r,
@@ -136,6 +149,23 @@ where
 
     pub(crate) fn challenge_resolver(&self) -> &dyn ChallengeResolver {
         self.resolvers.challenge_resolver()
+    }
+}
+
+impl<F, E> haloumi_ir::traits::ConstantFolding for ScopedExpression<'_, '_, F, E>
+where
+    E: EvaluableExpr<F> + ExpressionInfo + ExprBuilder<F> + Clone,
+    F: Field,
+{
+    type F = ();
+
+    type Error = Infallible;
+
+    type T = F;
+
+    fn constant_fold(&mut self, _: Self::F) -> Result<(), Self::Error> {
+        self.simplify();
+        Ok(())
     }
 }
 

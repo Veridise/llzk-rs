@@ -3,13 +3,7 @@
 use super::expr::IRBexpr;
 use crate::{error::Error, expr::IRAexpr, traits::ConstantFolding};
 use eqv::{EqvRelation, equiv};
-use haloumi_ir_base::{
-    SymbolicEqv,
-    cmp::CmpOp,
-    felt::Felt,
-    func::FuncIO,
-    //temps::{ExprOrTemp, Temp},
-};
+use haloumi_ir_base::{SymbolicEqv, cmp::CmpOp, func::FuncIO};
 use haloumi_lowering::{
     Lowering,
     lowerable::{LowerableExpr, LowerableStmt},
@@ -277,17 +271,17 @@ impl<T> IRStmt<T> {
 impl<T> ConstantFolding for IRStmt<T>
 where
     T: ConstantFolding + std::fmt::Debug + Clone,
-    Error<T>: From<T::Error>,
+    Error: From<T::Error>,
     T::T: Eq + Ord,
 {
     type F = T::F;
-    type Error = Error<T>;
+    type Error = Error;
     type T = ();
 
     /// Folds the statements if the expressions are constant.
     /// If a assert-like statement folds into a tautology (i.e. `(= 0 0 )`) gets removed. If it
     /// folds into a unsatisfiable proposition the method returns an error.
-    fn constant_fold(&mut self, prime: T::F) -> Result<(), Error<T>> {
+    fn constant_fold(&mut self, prime: T::F) -> Result<(), Error> {
         match self {
             IRStmt::ConstraintCall(call) => call.constant_fold(prime)?,
             IRStmt::Constraint(constraint) => {

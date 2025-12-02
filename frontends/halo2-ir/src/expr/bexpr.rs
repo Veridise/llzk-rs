@@ -6,7 +6,6 @@ use crate::{canon::canonicalize_constraint, expr::IRAexpr};
 use eqv::{EqvRelation, equiv};
 use haloumi_ir_base::SymbolicEqv;
 use haloumi_ir_base::cmp::CmpOp;
-use haloumi_ir_base::felt::Felt;
 use haloumi_lowering::lowering_err;
 use haloumi_lowering::{ExprLowering, lowerable::LowerableExpr};
 use std::{
@@ -576,7 +575,7 @@ where
         .into_iter()
         .map(|e| e.lower(l))
         .reduce(|lhs, rhs| lhs.and_then(|lhs| rhs.and_then(|rhs| cb(l, &lhs, &rhs))))
-        .ok_or_else(|| lowering_err!(Error::<()>::EmptyBexpr))
+        .ok_or_else(|| lowering_err!(Error::EmptyBexpr))
         .and_then(identity)
 }
 
