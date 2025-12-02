@@ -44,10 +44,9 @@ pub fn canonicalize_constraint(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        backend::func::FuncIO,
-        ir::{CmpOp, expr::IRAexpr},
-    };
+    use crate::expr::IRAexpr;
+    use haloumi_ir_base::cmp::CmpOp;
+    use haloumi_ir_base::func::FuncIO;
 
     #[test]
     fn test_subtraction_to_equal() {

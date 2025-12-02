@@ -1,4 +1,4 @@
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, rc::Rc};
 
 use anyhow::Result;
 use ff::Field;
@@ -16,8 +16,8 @@ pub trait ResolversProvider<F> {
 
 pub(crate) fn boxed_resolver<'a, F: Field, T: ResolversProvider<F> + 'a>(
     t: T,
-) -> Arc<dyn ResolversProvider<F> + 'a> {
-    Arc::new(t)
+) -> Rc<dyn ResolversProvider<F> + 'a> {
+    Rc::new(t)
 }
 
 impl<Q, F, S, C> ResolversProvider<F> for (Q, S, C)

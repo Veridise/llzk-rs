@@ -99,7 +99,7 @@ pub mod ff {
     use std::ops::{Add, Mul};
 
     use crate::stmt::{IRStmt, test::TestHelper};
-    use halo2_frontend_core::table::{Rotation, RotationExt};
+    use haloumi_core::table::{Rotation, RotationExt};
 
     #[derive(Debug, PartialEq, Eq, Clone)]
     pub enum MockExpr {

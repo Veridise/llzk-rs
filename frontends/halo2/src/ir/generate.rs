@@ -131,7 +131,7 @@ pub(crate) fn generate_ir<'syn, 'ctx, 'cb, 'sco, F, E>(
 ) -> anyhow::Result<Vec<GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>>>>
 where
     F: PrimeField + Ord,
-    E: Clone + ExprBuilder<F> + ExpressionInfo + EvaluableExpr<F> + std::fmt::Debug + Sync + Send,
+    E: Clone + ExprBuilder<F> + ExpressionInfo + EvaluableExpr<F> + std::fmt::Debug,
     'syn: 'sco,
     'ctx: 'sco + 'syn,
     'cb: 'sco + 'syn,

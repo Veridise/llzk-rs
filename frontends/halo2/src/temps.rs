@@ -38,6 +38,14 @@ impl<E> ExprOrTemp<E> {
             ExprOrTemp::Expr(e) => ExprOrTemp::Expr(f(e)),
         }
     }
+
+    /// Maps the expression.
+    pub fn map_into<O>(&self, mut f: impl FnMut(&E) -> O) -> ExprOrTemp<O> {
+        match self {
+            ExprOrTemp::Temp(temp) => ExprOrTemp::Temp(*temp),
+            ExprOrTemp::Expr(e) => ExprOrTemp::Expr(f(e)),
+        }
+    }
 }
 
 impl<E> ConstantFolding for ExprOrTemp<E>

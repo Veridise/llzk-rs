@@ -1,6 +1,6 @@
 //! Traits and types related to expressions.
 
-use std::{borrow::Cow, convert::Infallible, marker::PhantomData, sync::Arc};
+use std::{borrow::Cow, convert::Infallible, marker::PhantomData, rc::Rc};
 
 use crate::{
     expressions::constant_folding::ConstantFolding,
@@ -86,7 +86,7 @@ where
     E: Clone,
 {
     expression: Cow<'e, E>,
-    resolvers: Arc<dyn ResolversProvider<F> + 'r>,
+    resolvers: Rc<dyn ResolversProvider<F> + 'r>,
 }
 
 impl<'e, 'r, F, E> ScopedExpression<'e, 'r, F, E>
@@ -113,6 +113,18 @@ where
         Self {
             expression: Cow::Borrowed(expression),
             resolvers: boxed_resolver(resolvers),
+        }
+    }
+
+    pub fn simplified<'x>(self) -> ScopedExpression<'x, 'r, F, E>
+    where
+        E: EvaluableExpr<F> + ExpressionInfo + ExprBuilder<F>,
+    {
+        let expression =
+            ConstantFolding::new(self.resolvers()).constant_fold(self.expression.as_ref());
+        ScopedExpression {
+            expression: Cow::Owned(expression),
+            resolvers: self.resolvers,
         }
     }
 
@@ -166,6 +178,56 @@ where
     fn constant_fold(&mut self, _: Self::F) -> Result<(), Self::Error> {
         self.simplify();
         Ok(())
+    }
+
+    fn const_value(&self) -> Option<Self::T> {
+        struct ConstEval;
+
+        impl<F: Field, E: ExpressionTypes> EvalExpression<F, E> for ConstEval {
+            type Output = Option<F>;
+
+            fn constant(&self, f: &F) -> Self::Output {
+                Some(*f)
+            }
+
+            fn selector(&self, _selector: &E::Selector) -> Self::Output {
+                None
+            }
+
+            fn fixed(&self, _fixed_query: &E::FixedQuery) -> Self::Output {
+                None
+            }
+
+            fn advice(&self, _advice_query: &E::AdviceQuery) -> Self::Output {
+                None
+            }
+
+            fn instance(&self, _instance_query: &E::InstanceQuery) -> Self::Output {
+                None
+            }
+
+            fn challenge(&self, _challenge: &E::Challenge) -> Self::Output {
+                None
+            }
+
+            fn negated(&self, expr: Self::Output) -> Self::Output {
+                expr.map(|f| -f)
+            }
+
+            fn sum(&self, lhs: Self::Output, rhs: Self::Output) -> Self::Output {
+                lhs.zip(rhs).map(|(lhs, rhs)| lhs + rhs)
+            }
+
+            fn product(&self, lhs: Self::Output, rhs: Self::Output) -> Self::Output {
+                lhs.zip(rhs).map(|(lhs, rhs)| lhs * rhs)
+            }
+
+            fn scaled(&self, lhs: Self::Output, rhs: &F) -> Self::Output {
+                lhs.map(|f| f * rhs)
+            }
+        }
+
+        self.expression.as_ref().evaluate(&ConstEval)
     }
 }
 

@@ -24,7 +24,7 @@ picus = { path = "../../picus", version = "0.1.0", features=["bigint-felt"], opt
 # halo2-frontend-core = { path = "../halo2-core" }
 halo2-frontend-core = { version = "0", package = "haloumi-core" }
 haloumi-ir-base = { version = "0.2.0" }
-haloumi-ir = {  version = "0.2.2" }
+haloumi-ir = {  version = "0.2.3" }
 haloumi-lowering = { version = "0.2.1"}
 anyhow = "^1"
 ff = {workspace = true }

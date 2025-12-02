@@ -19,3 +19,4 @@ eqv = "0.1"
 
 [dev-dependencies]
 rstest = "0.26"
+similar-asserts = "1.7"

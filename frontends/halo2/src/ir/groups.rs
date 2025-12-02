@@ -79,7 +79,7 @@ where
     ) -> anyhow::Result<Self>
     where
         F: Ord,
-        E: ExprBuilder<F> + ExpressionInfo + EvaluableExpr<F> + Sync + Send,
+        E: ExprBuilder<F> + ExpressionInfo + EvaluableExpr<F>,
     {
         log::debug!("Lowering call-sites for group {:?}", group.name());
         let callsites = {
@@ -716,7 +716,7 @@ where
     'ctx: 'sco + 'syn,
     'cb: 'sco + 'syn,
     F: Field + Ord,
-    E: Clone + ExpressionInfo + EvaluableExpr<F> + ExprBuilder<F> + std::fmt::Debug + Sync + Send,
+    E: Clone + ExpressionInfo + EvaluableExpr<F> + ExprBuilder<F> + std::fmt::Debug,
 {
     let lookups = syn.lookups().iter().collect::<Vec<_>>();
     let tables_sto = lookups
@@ -738,9 +738,9 @@ where
         .iter()
         .enumerate()
         .map(|(n, rr)| {
-            let mut region_ir = ir
-                .clone()
-                .map(&|e| e.map(|e| ScopedExpression::from_cow(e, *rr)));
+            let mut region_ir = ir.map_into(&|e| {
+                e.map_into(|e| ScopedExpression::from_ref(e.as_ref(), *rr).simplified())
+            });
             region_ir.constant_fold(())?;
             // The IR representing the lookup is generated only once, with a sequence of temps
             // 0,1,...
