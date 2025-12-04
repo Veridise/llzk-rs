@@ -33,15 +33,16 @@
         "release-helpers": "release-helpers"
       },
       "locked": {
-        "lastModified": 1764823152,
-        "narHash": "sha256-9GUlgOb0AcZJZPxXUUp+optSwbAcKVo+bKoSrY0TdoE=",
+        "lastModified": 1764824562,
+        "narHash": "sha256-R4YMegb9QDx0jSHJ3l7id1IRIlpIGzEFnjzBvSUsyz8=",
         "owner": "Veridise",
         "repo": "llzk-lib",
-        "rev": "45824938c4553f246045edb1825dcba7c8f45d3c",
+        "rev": "1857b9d1ea75e7f08a9e0397d1da067950e6279d",
         "type": "github"
       },
       "original": {
         "owner": "Veridise",
+        "ref": "th/fix_release_build_warn_as_error",
         "repo": "llzk-lib",
         "type": "github"
       }
