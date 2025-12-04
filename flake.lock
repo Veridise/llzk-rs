@@ -29,14 +29,15 @@
           "llzk-pkgs",
           "nixpkgs"
         ],
+        "pcl-mlir-pkg": "pcl-mlir-pkg",
         "release-helpers": "release-helpers"
       },
       "locked": {
-        "lastModified": 1761678649,
-        "narHash": "sha256-GEs9NeJWchMlwuhvt/tXqFktrJ3jk7E/Yd4vyrXQ//0=",
+        "lastModified": 1764855004,
+        "narHash": "sha256-R4YMegb9QDx0jSHJ3l7id1IRIlpIGzEFnjzBvSUsyz8=",
         "owner": "Veridise",
         "repo": "llzk-lib",
-        "rev": "e74a9c9df1dea7c9e29a88deafaf0cf179113154",
+        "rev": "7f49eaca4131fd7616fcb02a1cda2fe05b2f18d2",
         "type": "github"
       },
       "original": {
@@ -76,6 +77,41 @@
       "original": {
         "owner": "NixOS",
         "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "pcl-mlir-pkg": {
+      "inputs": {
+        "flake-utils": [
+          "llzk-lib",
+          "llzk-pkgs",
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "llzk-lib",
+          "llzk-pkgs",
+          "nixpkgs"
+        ],
+        "release-helpers": [
+          "llzk-lib",
+          "release-helpers"
+        ],
+        "shared-pkgs": [
+          "llzk-lib",
+          "llzk-pkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1762369885,
+        "narHash": "sha256-j7aARWOa10cranctQ39cfEELMlEAeZsRrJIGKPJ5o88=",
+        "owner": "Veridise",
+        "repo": "pcl-mlir",
+        "rev": "a82620c4dabf6e51ceda66bba2abb19f7f74ac7d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Veridise",
+        "repo": "pcl-mlir",
         "type": "github"
       }
     },
