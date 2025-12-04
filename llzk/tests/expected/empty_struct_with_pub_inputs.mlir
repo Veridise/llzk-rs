@@ -1,11 +1,11 @@
 module attributes {veridise.lang = "llzk"} {
   struct.def @empty<[]> {
-  function.def @compute(%arg0: !felt.type {llzk.pub}) -> !struct.type<@empty<[]>> attributes {function.allow_witness} {
-    %self = struct.new : <@empty<[]>>
-    function.return %self : !struct.type<@empty<[]>>
+    function.def @compute(%arg0: !felt.type {llzk.pub}) -> !struct.type<@empty<[]>> attributes {function.allow_witness} {
+      %self = struct.new : <@empty<[]>>
+      function.return %self : !struct.type<@empty<[]>>
+    }
+    function.def @constrain(%arg0: !struct.type<@empty<[]>>, %arg1: !felt.type {llzk.pub}) attributes {function.allow_constraint} {
+      function.return
+    }
   }
-  function.def @constrain(%arg0: !struct.type<@empty<[]>>, %arg1: !felt.type {llzk.pub}) attributes {function.allow_constraint} {
-    function.return
-  }
-}
 }
