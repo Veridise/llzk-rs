@@ -4,15 +4,19 @@ use crate::{
     dialect::r#struct::StructType,
     error::Error,
     macros::llzk_op_type,
-    symbol_ref::SymbolRefAttribute,
+    symbol_ref::{SymbolRefAttrLike, SymbolRefAttribute},
 };
 
 use llzk_sys::{
-    llzkCallOpBuild, llzkFuncDefOpCreateWithAttrsAndArgAttrs, llzkFuncDefOpGetFullyQualifiedName,
+    llzkCallOpBuild, llzkCallOpGetCalleeIsCompute, llzkCallOpGetCalleeIsConstrain,
+    llzkCallOpGetCalleeIsStructCompute, llzkCallOpGetCalleeIsStructConstrain,
+    llzkCallOpGetSelfValueFromCompute, llzkCallOpGetSelfValueFromConstrain,
+    llzkFuncDefOpCreateWithAttrsAndArgAttrs, llzkFuncDefOpGetFullyQualifiedName,
     llzkFuncDefOpGetHasAllowConstraintAttr, llzkFuncDefOpGetHasAllowWitnessAttr,
     llzkFuncDefOpGetHasArgIsPub, llzkFuncDefOpGetIsInStruct, llzkFuncDefOpGetIsStructCompute,
     llzkFuncDefOpGetIsStructConstrain, llzkFuncDefOpGetNameIsCompute,
-    llzkFuncDefOpGetNameIsConstrain, llzkFuncDefOpGetSingleResultTypeOfCompute,
+    llzkFuncDefOpGetNameIsConstrain, llzkFuncDefOpGetSelfValueFromCompute,
+    llzkFuncDefOpGetSelfValueFromConstrain, llzkFuncDefOpGetSingleResultTypeOfCompute,
     llzkFuncDefOpSetAllowConstraintAttr, llzkFuncDefOpSetAllowWitnessAttr, llzkOperationIsACallOp,
     llzkOperationIsAFuncDefOp,
 };
@@ -81,12 +85,12 @@ pub trait FuncDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
         unsafe { Attribute::from_raw(llzkFuncDefOpGetFullyQualifiedName(self.to_raw())) }
     }
 
-    /// Returns true if the function's name is 'compute'.
+    /// Returns true if the function's name is [`FUNC_NAME_COMPUTE`](llzk_sys::FUNC_NAME_COMPUTE).
     fn name_is_compute(&self) -> bool {
         unsafe { llzkFuncDefOpGetNameIsCompute(self.to_raw()) }
     }
 
-    /// Returns true if the function's name is 'constrain'.
+    /// Returns true if the function's name is [`FUNC_NAME_CONSTRAIN`](llzk_sys::FUNC_NAME_CONSTRAIN).
     fn name_is_constrain(&self) -> bool {
         unsafe { llzkFuncDefOpGetNameIsConstrain(self.to_raw()) }
     }
@@ -104,6 +108,26 @@ pub trait FuncDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     /// Returns true if the function is the struct's constrain definition.
     fn is_struct_constrain(&self) -> bool {
         unsafe { llzkFuncDefOpGetIsStructConstrain(self.to_raw()) }
+    }
+
+    /// If the function name is [`FUNC_NAME_COMPUTE`](llzk_sys::FUNC_NAME_COMPUTE), return the "self"
+    /// value (i.e. the return value) from the function. Otherwise, return Err(ExpectedFunctionName).
+    fn self_value_of_compute(&self) -> Result<Value<'c, 'a>, Error> {
+        if self.name_is_compute() {
+            Ok(unsafe { Value::from_raw(llzkFuncDefOpGetSelfValueFromCompute(self.to_raw())) })
+        } else {
+            Err(Error::ExpectedFunctionName(&llzk_sys::FUNC_NAME_COMPUTE))
+        }
+    }
+
+    /// If the function name is [`FUNC_NAME_CONSTRAIN`](llzk_sys::FUNC_NAME_CONSTRAIN), return the "self"
+    /// value (i.e. the first parameter) from the function. Otherwise, return Err(ExpectedFunctionName).
+    fn self_value_of_constrain(&self) -> Result<Value<'c, 'a>, Error> {
+        if self.name_is_constrain() {
+            Ok(unsafe { Value::from_raw(llzkFuncDefOpGetSelfValueFromConstrain(self.to_raw())) })
+        } else {
+            Err(Error::ExpectedFunctionName(&llzk_sys::FUNC_NAME_CONSTRAIN))
+        }
     }
 
     /// Assuming the function is the compute function returns its StructType result.
@@ -164,7 +188,47 @@ impl<'a, 'c: 'a> FuncDefOpMutLike<'c, 'a> for FuncDefOpRefMut<'c, 'a> {}
 //===----------------------------------------------------------------------===//
 
 /// Defines the public API of the 'function.call' op.
-pub trait CallOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {}
+pub trait CallOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
+    /// Returns true if the call target name is [`FUNC_NAME_COMPUTE`](llzk_sys::FUNC_NAME_COMPUTE).
+    fn callee_is_compute(&self) -> bool {
+        unsafe { llzkCallOpGetCalleeIsCompute(self.to_raw()) }
+    }
+
+    /// Returns true if the call target name is [`FUNC_NAME_CONSTRAIN`](llzk_sys::FUNC_NAME_CONSTRAIN).
+    fn callee_is_constrain(&self) -> bool {
+        unsafe { llzkCallOpGetCalleeIsConstrain(self.to_raw()) }
+    }
+
+    /// Return `true` iff the callee function name is [`FUNC_NAME_COMPUTE`](llzk_sys::FUNC_NAME_COMPUTE) within a StructDefOp.
+    fn callee_is_struct_compute(&self) -> bool {
+        unsafe { llzkCallOpGetCalleeIsStructCompute(self.to_raw()) }
+    }
+
+    /// Return `true` iff the callee function name is [`FUNC_NAME_CONSTRAIN`](llzk_sys::FUNC_NAME_CONSTRAIN) within a StructDefOp.
+    fn callee_is_struct_constrain(&self) -> bool {
+        unsafe { llzkCallOpGetCalleeIsStructConstrain(self.to_raw()) }
+    }
+
+    /// If the function name is [`FUNC_NAME_COMPUTE`](llzk_sys::FUNC_NAME_COMPUTE), return the "self"
+    /// value (i.e. the return value) from the callee function. Otherwise, return Err(ExpectedFunctionName).
+    fn self_value_of_compute(&self) -> Result<Value<'c, 'a>, Error> {
+        if self.callee_is_compute() {
+            Ok(unsafe { Value::from_raw(llzkCallOpGetSelfValueFromCompute(self.to_raw())) })
+        } else {
+            Err(Error::ExpectedFunctionName(&llzk_sys::FUNC_NAME_COMPUTE))
+        }
+    }
+
+    /// If the function name is [`FUNC_NAME_CONSTRAIN`](llzk_sys::FUNC_NAME_CONSTRAIN), return the "self"
+    /// value (i.e. the first parameter) from the callee function. Otherwise, return Err(ExpectedFunctionName).
+    fn self_value_of_constrain(&self) -> Result<Value<'c, 'a>, Error> {
+        if self.callee_is_constrain() {
+            Ok(unsafe { Value::from_raw(llzkCallOpGetSelfValueFromConstrain(self.to_raw())) })
+        } else {
+            Err(Error::ExpectedFunctionName(&llzk_sys::FUNC_NAME_CONSTRAIN))
+        }
+    }
+}
 
 //===----------------------------------------------------------------------===//
 // CallOp, CallOpRef, CallOpRefMut
@@ -244,12 +308,10 @@ pub fn def<'c>(
 pub fn call<'c>(
     builder: &OpBuilder<'c>,
     location: Location<'c>,
-    name: &str,
+    name: impl SymbolRefAttrLike<'c>,
     args: &[Value<'c, '_>],
     return_types: &[impl TypeLike<'c>],
 ) -> Result<CallOp<'c>, Error> {
-    let ctx = location.context();
-    let name = FlatSymbolRefAttribute::new(unsafe { ctx.to_ref() }, name);
     unsafe {
         Operation::from_raw(llzkCallOpBuild(
             builder.to_raw(),

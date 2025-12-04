@@ -10,6 +10,7 @@ pub use crate::dialect::r#struct::prelude::*;
 pub use crate::error::Error as LlzkError;
 pub use crate::operation::{verify_operation, verify_operation_with_diags};
 pub use crate::passes as llzk_passes;
+pub use crate::symbol_ref::{SymbolRefAttrLike, SymbolRefAttribute};
 
 /// Exports functions that create operations
 pub mod array {
@@ -62,7 +63,7 @@ pub use melior::{
     pass::{OperationPassManager, Pass, PassManager},
 };
 
-/// Reexpor of the passes included in melior.
+/// Reexport of the passes included in melior.
 pub mod melior_passes {
     pub use melior::pass::r#async::*;
     pub use melior::pass::conversion::*;
