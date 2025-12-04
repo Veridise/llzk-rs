@@ -57,9 +57,10 @@ fn function_call() {
         let builder =
             OpBuilder::at_block_begin(&context, unsafe { BlockRef::from_raw(block.to_raw()) });
         // Build call to itself
+        let name = FlatSymbolRefAttribute::new(&context, "recursive");
         let v = block
             .append_operation(
-                function::call(&builder, loc, "recursive", &[], &[felt_type])
+                function::call(&builder, loc, name, &[], &[felt_type])
                     .unwrap()
                     .into(),
             )

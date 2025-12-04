@@ -4,7 +4,7 @@ use crate::{
     dialect::r#struct::StructType,
     error::Error,
     macros::llzk_op_type,
-    symbol_ref::SymbolRefAttribute,
+    symbol_ref::{SymbolRefAttrLike, SymbolRefAttribute},
 };
 
 use llzk_sys::{
@@ -244,12 +244,10 @@ pub fn def<'c>(
 pub fn call<'c>(
     builder: &OpBuilder<'c>,
     location: Location<'c>,
-    name: &str,
+    name: impl SymbolRefAttrLike<'c>,
     args: &[Value<'c, '_>],
     return_types: &[impl TypeLike<'c>],
 ) -> Result<CallOp<'c>, Error> {
-    let ctx = location.context();
-    let name = FlatSymbolRefAttribute::new(unsafe { ctx.to_ref() }, name);
     unsafe {
         Operation::from_raw(llzkCallOpBuild(
             builder.to_raw(),

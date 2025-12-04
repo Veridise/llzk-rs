@@ -100,3 +100,10 @@ impl<'c> fmt::Display for SymbolRefAttribute<'c> {
         write!(f, "{}", self.inner)
     }
 }
+
+/// Equivalent to `SymbolRefAttr` in MLIR, providing a common trait for
+/// both flat and non-flat symbol reference attributes.
+pub trait SymbolRefAttrLike<'c>: AttributeLike<'c> {}
+
+impl<'c> SymbolRefAttrLike<'c> for SymbolRefAttribute<'c> {}
+impl<'c> SymbolRefAttrLike<'c> for FlatSymbolRefAttribute<'c> {}
