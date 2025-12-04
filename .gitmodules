@@ -1,4 +1,3 @@
 [submodule "llzk-sys/llzk-lib"]
 	path = llzk-sys/llzk-lib
 	url = https://github.com/Veridise/llzk-lib.git
-	branch = th/fix_release_build_warn_as_error
