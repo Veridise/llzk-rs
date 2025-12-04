@@ -379,7 +379,7 @@ pub fn readf<'c>(
             field_name.to_raw(),
         );
         if raw.ptr.is_null() {
-            Err(Error::BuildMthdFailed("readf"))
+            Err(Error::BuildMethodFailed("readf"))
         } else {
             Ok(Operation::from_raw(raw))
         }

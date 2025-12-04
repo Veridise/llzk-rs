@@ -15,7 +15,7 @@ type MeliorError = melior::Error;
 #[derive(Debug, Eq, PartialEq)]
 pub enum Error {
     /// Happens when a custom operation factory function fails.
-    BuildMthdFailed(&'static str),
+    BuildMethodFailed(&'static str),
     /// Happens when accessing an element in a collection by an index out of bounds.
     OutOfBoundsArgument(Option<String>, usize),
     /// Happens when attempting to cast a type erased operation into the wrong type.
@@ -41,8 +41,8 @@ pub enum Error {
         /// Optional list of diagnostics related to the verification failure.
         diags: Option<DiagnosticErrors>,
     },
-    /// Happens when a user-defined method is expected to have a certain name but doesn't.
-    ExpectedMthdName(&'static str),
+    /// Happens when a user-defined function is expected to have a certain name but doesn't.
+    ExpectedFunctionName(&'static str),
 }
 
 impl error::Error for Error {}
@@ -91,7 +91,7 @@ impl Display for Error {
                     None => write!(f, "block"),
                 }
             }
-            Error::BuildMthdFailed(mthd) => write!(f, "build method '{mthd}' failed"),
+            Error::BuildMethodFailed(m) => write!(f, "build method '{m}' failed"),
             Error::BlockExpected(nth) => {
                 write!(
                     f,
@@ -119,9 +119,9 @@ impl Display for Error {
                 }
                 Ok(())
             }
-            Error::ExpectedMthdName(expected_name) => write!(
+            Error::ExpectedFunctionName(expected_name) => write!(
                 f,
-                "expected user-defined method to have name: {expected_name}"
+                "expected user-defined function to have name: {expected_name}"
             ),
         }
     }
