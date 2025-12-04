@@ -41,6 +41,8 @@ pub enum Error {
         /// Optional list of diagnostics related to the verification failure.
         diags: Option<DiagnosticErrors>,
     },
+    /// Happens when a user-defined method is expected to have a certain name but doesn't.
+    ExpectedMthdName(&'static str),
 }
 
 impl error::Error for Error {}
@@ -117,6 +119,10 @@ impl Display for Error {
                 }
                 Ok(())
             }
+            Error::ExpectedMthdName(expected_name) => write!(
+                f,
+                "expected user-defined method to have name: {expected_name}"
+            ),
         }
     }
 }

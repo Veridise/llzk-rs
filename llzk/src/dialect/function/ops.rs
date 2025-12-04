@@ -110,16 +110,24 @@ pub trait FuncDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
         unsafe { llzkFuncDefOpGetIsStructConstrain(self.to_raw()) }
     }
 
-    /// Return the "self" value (i.e. the return value) from the function (which
-    /// must be named [`FUNC_NAME_COMPUTE`](llzk_sys::FUNC_NAME_COMPUTE)).
-    fn self_value_of_compute(&self) -> Value<'c, 'a> {
-        unsafe { Value::from_raw(llzkFuncDefOpGetSelfValueFromCompute(self.to_raw())) }
+    /// If the function name is [`FUNC_NAME_COMPUTE`](llzk_sys::FUNC_NAME_COMPUTE), return the "self"
+    /// value (i.e. the return value) from the function. Otherwise, return Err(ExpectedMthdName).
+    fn self_value_of_compute(&self) -> Result<Value<'c, 'a>, Error> {
+        if self.name_is_compute() {
+            Ok(unsafe { Value::from_raw(llzkFuncDefOpGetSelfValueFromCompute(self.to_raw())) })
+        } else {
+            Err(Error::ExpectedMthdName(&llzk_sys::FUNC_NAME_COMPUTE))
+        }
     }
 
-    /// Return the "self" value (i.e. the first parameter) from the function (which
-    /// must be named [`FUNC_NAME_CONSTRAIN`](llzk_sys::FUNC_NAME_CONSTRAIN)).
-    fn self_value_of_constrain(&self) -> Value<'c, 'a> {
-        unsafe { Value::from_raw(llzkFuncDefOpGetSelfValueFromConstrain(self.to_raw())) }
+    /// If the function name is [`FUNC_NAME_CONSTRAIN`](llzk_sys::FUNC_NAME_CONSTRAIN), return the "self"
+    /// value (i.e. the first parameter) from the function. Otherwise, return Err(ExpectedMthdName).
+    fn self_value_of_constrain(&self) -> Result<Value<'c, 'a>, Error> {
+        if self.name_is_constrain() {
+            Ok(unsafe { Value::from_raw(llzkFuncDefOpGetSelfValueFromConstrain(self.to_raw())) })
+        } else {
+            Err(Error::ExpectedMthdName(&llzk_sys::FUNC_NAME_CONSTRAIN))
+        }
     }
 
     /// Assuming the function is the compute function returns its StructType result.
@@ -201,16 +209,24 @@ pub trait CallOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
         unsafe { llzkCallOpGetCalleeIsStructConstrain(self.to_raw()) }
     }
 
-    /// Returns the "self" value (i.e. the return value) from the callee
-    /// function (which must be named [`FUNC_NAME_COMPUTE`](llzk_sys::FUNC_NAME_COMPUTE)).
-    fn self_value_of_compute(&self) -> Value<'c, 'a> {
-        unsafe { Value::from_raw(llzkCallOpGetSelfValueFromCompute(self.to_raw())) }
+    /// If the function name is [`FUNC_NAME_COMPUTE`](llzk_sys::FUNC_NAME_COMPUTE), return the "self"
+    /// value (i.e. the return value) from the callee function. Otherwise, return Err(ExpectedMthdName).
+    fn self_value_of_compute(&self) -> Result<Value<'c, 'a>, Error> {
+        if self.callee_is_compute() {
+            Ok(unsafe { Value::from_raw(llzkCallOpGetSelfValueFromCompute(self.to_raw())) })
+        } else {
+            Err(Error::ExpectedMthdName(&llzk_sys::FUNC_NAME_COMPUTE))
+        }
     }
 
-    /// Return the "self" value (i.e. the first parameter) from the callee
-    /// function (which must be named [`FUNC_NAME_CONSTRAIN`](llzk_sys::FUNC_NAME_CONSTRAIN)).
-    fn self_value_of_constrain(&self) -> Value<'c, 'a> {
-        unsafe { Value::from_raw(llzkCallOpGetSelfValueFromConstrain(self.to_raw())) }
+    /// If the function name is [`FUNC_NAME_CONSTRAIN`](llzk_sys::FUNC_NAME_CONSTRAIN), return the "self"
+    /// value (i.e. the first parameter) from the callee function. Otherwise, return Err(ExpectedMthdName).
+    fn self_value_of_constrain(&self) -> Result<Value<'c, 'a>, Error> {
+        if self.callee_is_constrain() {
+            Ok(unsafe { Value::from_raw(llzkCallOpGetSelfValueFromConstrain(self.to_raw())) })
+        } else {
+            Err(Error::ExpectedMthdName(&llzk_sys::FUNC_NAME_CONSTRAIN))
+        }
     }
 }
 

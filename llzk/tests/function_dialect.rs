@@ -113,7 +113,7 @@ fn func_def_op_self_value_of_compute() {
 
     let self_val = s.get_compute_func().unwrap().self_value_of_compute();
     similar_asserts::assert_eq!(
-        format!("{}", self_val),
+        format!("{}", self_val.unwrap()),
         "%self = struct.new : <@StructA<[]>>"
     );
 }
@@ -132,7 +132,7 @@ fn func_def_op_self_value_of_constrain() {
 
     let self_val = s.get_constrain_func().unwrap().self_value_of_constrain();
     similar_asserts::assert_eq!(
-        format!("{}", self_val),
+        format!("{}", self_val.unwrap()),
         "<block argument> of type '!struct.type<@StructA<[]>>' at index: 0"
     );
 }
@@ -200,7 +200,7 @@ fn call_op_self_value_of_compute() {
     let call = CallOpRef::try_from(call).unwrap();
     let self_val = call.self_value_of_compute();
     similar_asserts::assert_eq!(
-        format!("{}", self_val),
+        format!("{}", self_val.unwrap()),
         // Yes, the line does have a trailing space, here and in the entire IR above.
         "%0 = function.call @StructA::@compute() : () -> !struct.type<@StructA<[]>> "
     );
