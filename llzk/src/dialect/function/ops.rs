@@ -85,12 +85,12 @@ pub trait FuncDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
         unsafe { Attribute::from_raw(llzkFuncDefOpGetFullyQualifiedName(self.to_raw())) }
     }
 
-    /// Returns true if the function's name is `LLZK_FUNC_NAME_COMPUTE`.
+    /// Returns true if the function's name is [`FUNC_NAME_COMPUTE`](llzk_sys::FUNC_NAME_COMPUTE).
     fn name_is_compute(&self) -> bool {
         unsafe { llzkFuncDefOpGetNameIsCompute(self.to_raw()) }
     }
 
-    /// Returns true if the function's name is `LLZK_FUNC_NAME_CONSTRAIN`.
+    /// Returns true if the function's name is [`FUNC_NAME_CONSTRAIN`](llzk_sys::FUNC_NAME_CONSTRAIN).
     fn name_is_constrain(&self) -> bool {
         unsafe { llzkFuncDefOpGetNameIsConstrain(self.to_raw()) }
     }
@@ -111,13 +111,13 @@ pub trait FuncDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     }
 
     /// Return the "self" value (i.e. the return value) from the function (which
-    /// must be named `LLZK_FUNC_NAME_COMPUTE`).
+    /// must be named [`FUNC_NAME_COMPUTE`](llzk_sys::FUNC_NAME_COMPUTE)).
     fn self_value_of_compute(&self) -> Value<'c, 'a> {
         unsafe { Value::from_raw(llzkFuncDefOpGetSelfValueFromCompute(self.to_raw())) }
     }
 
     /// Return the "self" value (i.e. the first parameter) from the function (which
-    /// must be named `LLZK_FUNC_NAME_CONSTRAIN`).
+    /// must be named [`FUNC_NAME_CONSTRAIN`](llzk_sys::FUNC_NAME_CONSTRAIN)).
     fn self_value_of_constrain(&self) -> Value<'c, 'a> {
         unsafe { Value::from_raw(llzkFuncDefOpGetSelfValueFromConstrain(self.to_raw())) }
     }
@@ -181,34 +181,34 @@ impl<'a, 'c: 'a> FuncDefOpMutLike<'c, 'a> for FuncDefOpRefMut<'c, 'a> {}
 
 /// Defines the public API of the 'function.call' op.
 pub trait CallOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
-    /// Returns true if the call target name is `LLZK_FUNC_NAME_COMPUTE`.
+    /// Returns true if the call target name is [`FUNC_NAME_COMPUTE`](llzk_sys::FUNC_NAME_COMPUTE).
     fn callee_is_compute(&self) -> bool {
         unsafe { llzkCallOpGetCalleeIsCompute(self.to_raw()) }
     }
 
-    /// Returns true if the call target name is `LLZK_FUNC_NAME_CONSTRAIN`.
+    /// Returns true if the call target name is [`FUNC_NAME_CONSTRAIN`](llzk_sys::FUNC_NAME_CONSTRAIN).
     fn callee_is_constrain(&self) -> bool {
         unsafe { llzkCallOpGetCalleeIsConstrain(self.to_raw()) }
     }
 
-    /// Return `true` iff the callee function name is `LLZK_FUNC_NAME_COMPUTE` within a StructDefOp.
+    /// Return `true` iff the callee function name is [`FUNC_NAME_COMPUTE`](llzk_sys::FUNC_NAME_COMPUTE) within a StructDefOp.
     fn callee_is_struct_compute(&self) -> bool {
         unsafe { llzkCallOpGetCalleeIsStructCompute(self.to_raw()) }
     }
 
-    /// Return `true` iff the callee function name is `LLZK_FUNC_NAME_CONSTRAIN` within a StructDefOp.
+    /// Return `true` iff the callee function name is [`FUNC_NAME_CONSTRAIN`](llzk_sys::FUNC_NAME_CONSTRAIN) within a StructDefOp.
     fn callee_is_struct_constrain(&self) -> bool {
         unsafe { llzkCallOpGetCalleeIsStructConstrain(self.to_raw()) }
     }
 
     /// Returns the "self" value (i.e. the return value) from the callee
-    /// function (which must be named `LLZK_FUNC_NAME_COMPUTE`).
+    /// function (which must be named [`FUNC_NAME_COMPUTE`](llzk_sys::FUNC_NAME_COMPUTE)).
     fn self_value_of_compute(&self) -> Value<'c, 'a> {
         unsafe { Value::from_raw(llzkCallOpGetSelfValueFromCompute(self.to_raw())) }
     }
 
     /// Return the "self" value (i.e. the first parameter) from the callee
-    /// function (which must be named `LLZK_FUNC_NAME_CONSTRAIN`).
+    /// function (which must be named [`FUNC_NAME_CONSTRAIN`](llzk_sys::FUNC_NAME_CONSTRAIN)).
     fn self_value_of_constrain(&self) -> Value<'c, 'a> {
         unsafe { Value::from_raw(llzkCallOpGetSelfValueFromConstrain(self.to_raw())) }
     }
