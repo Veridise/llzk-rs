@@ -112,11 +112,23 @@ fn func_def_op_self_value_of_compute() {
     llzk::operation::verify_operation_with_diags(&s).expect("verification failed");
     log::info!("Struct passed verification");
 
-    let self_val = s.get_compute_func().unwrap().self_value_of_compute();
-    similar_asserts::assert_eq!(
-        format!("{}", self_val.unwrap()),
-        "%self = struct.new : <@StructA<[]>>"
-    );
+    let compute_fn = s
+        .get_compute_func()
+        .expect("failed to get compute function");
+    let self_val = compute_fn.self_value_of_compute().unwrap();
+    // Get the expected value. The first operation in the compute function is
+    // the CreateStructOp, whose first result is the self value.
+    let expected = compute_fn
+        .region(0)
+        .expect("failed to get first region")
+        .first_block()
+        .expect("failed to get first block")
+        .first_operation()
+        .expect("failed to get first operation")
+        .result(0)
+        .expect("failed to get first result");
+
+    similar_asserts::assert_eq!(self_val, expected.into());
 }
 
 #[test]
@@ -131,11 +143,16 @@ fn func_def_op_self_value_of_constrain() {
     llzk::operation::verify_operation_with_diags(&s).expect("verification failed");
     log::info!("Struct passed verification");
 
-    let self_val = s.get_constrain_func().unwrap().self_value_of_constrain();
-    similar_asserts::assert_eq!(
-        format!("{}", self_val.unwrap()),
-        "<block argument> of type '!struct.type<@StructA<[]>>' at index: 0"
-    );
+    let constrain_fn = s
+        .get_constrain_func()
+        .expect("failed to get constrain function");
+    let self_val = constrain_fn.self_value_of_constrain().unwrap();
+    // Get the expected value. The first argument of the function is the self value.
+    let expected = constrain_fn
+        .argument(0)
+        .expect("failed to get first argument");
+
+    similar_asserts::assert_eq!(self_val, expected.into());
 }
 
 #[test]
@@ -157,11 +174,11 @@ fn call_op_self_value_of_compute() {
 
     let s2_compute_body = s2
         .get_compute_func()
-        .unwrap()
+        .expect("failed to get compute function")
         .region(0)
-        .unwrap()
+        .expect("failed to get first region")
         .first_block()
-        .unwrap();
+        .expect("failed to get first block");
     let builder = OpBuilder::at_block_begin(&context, s2_compute_body);
     let loc = Location::unknown(&context);
     let call = builder.insert(loc, |_, loc| {
