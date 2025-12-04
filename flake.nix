@@ -4,7 +4,7 @@
     nixpkgs.follows = "llzk-pkgs/nixpkgs";
     flake-utils.follows = "llzk-pkgs/flake-utils";
     llzk-lib = {
-      url = "github:Veridise/llzk-lib";
+      url = "github:Veridise/llzk-lib?ref=th/fix_release_build_warn_as_error";
       inputs = {
         nixpkgs.follows = "llzk-pkgs/nixpkgs";
         flake-utils.follows = "llzk-pkgs/flake-utils";
