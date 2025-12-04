@@ -108,7 +108,7 @@ fn func_def_op_self_value_of_compute() {
 
     let s = make_empty_struct(&context, "StructA");
     let s = StructDefOpRef::try_from(module_body.append_operation(s.into())).unwrap();
-    assert!(s.verify());
+    llzk::operation::verify_operation_with_diags(&s).expect("verification failed");
     log::info!("Struct passed verification");
 
     let self_val = s.get_compute_func().unwrap().self_value_of_compute();
@@ -127,7 +127,7 @@ fn func_def_op_self_value_of_constrain() {
 
     let s = make_empty_struct(&context, "StructA");
     let s = StructDefOpRef::try_from(module_body.append_operation(s.into())).unwrap();
-    assert!(s.verify());
+    llzk::operation::verify_operation_with_diags(&s).expect("verification failed");
     log::info!("Struct passed verification");
 
     let self_val = s.get_constrain_func().unwrap().self_value_of_constrain();
