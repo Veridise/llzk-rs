@@ -103,7 +103,19 @@ impl<'c> fmt::Display for SymbolRefAttribute<'c> {
 
 /// Equivalent to `SymbolRefAttr` in MLIR, providing a common trait for
 /// both flat and non-flat symbol reference attributes.
-pub trait SymbolRefAttrLike<'c>: AttributeLike<'c> {}
+pub trait SymbolRefAttrLike<'c>: AttributeLike<'c> + private::Sealed {}
 
 impl<'c> SymbolRefAttrLike<'c> for SymbolRefAttribute<'c> {}
 impl<'c> SymbolRefAttrLike<'c> for FlatSymbolRefAttribute<'c> {}
+
+/// Sealed trait pattern to prevent external implementations of `SymbolRefAttrLike`.
+mod private {
+    use crate::symbol_ref::SymbolRefAttribute;
+    use melior::ir::attribute::FlatSymbolRefAttribute;
+
+    pub trait Sealed {}
+
+    // Implement for the same types as above, but no others.
+    impl<'c> Sealed for SymbolRefAttribute<'c> {}
+    impl<'c> Sealed for FlatSymbolRefAttribute<'c> {}
+}
