@@ -2,6 +2,7 @@ use llzk::builder::{OpBuilder, OpBuilderLike};
 use llzk::prelude::*;
 use melior::ir::{Location, r#type::FunctionType};
 
+#[macro_use]
 mod common;
 
 #[test]
@@ -170,31 +171,7 @@ fn call_op_self_value_of_compute() {
             .into()
     });
 
-    // First ensure it's properly formed
-    let ir = format!("{}", module.as_operation());
-    let expected = r#"module attributes {veridise.lang = "llzk"} {
-  struct.def @StructA<[]> {
-    function.def @compute() -> !struct.type<@StructA<[]>> attributes {function.allow_witness} {
-      %self = struct.new : <@StructA<[]>>
-      function.return %self : !struct.type<@StructA<[]>>
-    }
-    function.def @constrain(%arg0: !struct.type<@StructA<[]>>) attributes {function.allow_constraint} {
-      function.return
-    }
-  }
-  struct.def @StructB<[]> {
-    function.def @compute() -> !struct.type<@StructB<[]>> attributes {function.allow_witness} {
-      %self = struct.new : <@StructB<[]>>
-      %0 = function.call @StructA::@compute() : () -> !struct.type<@StructA<[]>> 
-      function.return %self : !struct.type<@StructB<[]>>
-    }
-    function.def @constrain(%arg0: !struct.type<@StructB<[]>>) attributes {function.allow_constraint} {
-      function.return
-    }
-  }
-}
-"#;
-    similar_asserts::assert_eq!(ir, expected);
+    assert_test!(module.as_operation(), module, @file "expected/call_op_self_value_of_compute.mlir" );
 
     // Now actually test the `self_value_of_compute` function
     let call = CallOpRef::try_from(call).unwrap();
