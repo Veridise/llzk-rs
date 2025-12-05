@@ -13,7 +13,6 @@ pub fn handle() -> DialectHandle {
 
 /// Constructs a 'undef.undef' operation.
 pub fn undef<'c>(location: Location<'c>, result: Type<'c>) -> Operation<'c> {
-    let ctx = location.context();
     OperationBuilder::new("undef.undef", location)
         .add_results(&[result])
         .build()

@@ -1,6 +1,7 @@
 use log::LevelFilter;
 use simplelog::{Config, TestLogger};
 
+#[macro_export]
 macro_rules! assert_test {
     ($op:expr, $module:expr, @file $expected:literal ) => {{
         verify_operation_with_diags(&$op).unwrap();

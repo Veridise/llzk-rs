@@ -23,9 +23,9 @@ use llzk_sys::{
 use melior::{
     Context, StringRef,
     ir::{
-        Attribute, AttributeLike, BlockLike as _, Identifier, Location, Operation, RegionLike as _,
-        Type, TypeLike, Value,
-        attribute::{ArrayAttribute, FlatSymbolRefAttribute},
+        Attribute, AttributeLike, BlockLike as _, Location, Operation, RegionLike as _, Type,
+        TypeLike, Value,
+        attribute::ArrayAttribute,
         block::BlockArgument,
         operation::{OperationBuilder, OperationLike, OperationMutLike},
         r#type::FunctionType,
