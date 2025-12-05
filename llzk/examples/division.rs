@@ -75,7 +75,7 @@ fn witness<'c>(
 ) -> Result<Operation<'c>> {
     // The inputs to the functions are public circuit inputs.
     let inputs = vec![(signal_ty, location); 2];
-    let pub_attr = [PublicAttribute::named_attr_pair(context)];
+    let pub_attr = [PublicAttribute::new_named_attr(context)];
     let main_ty = StructType::from_str(context, "Main");
 
     // The functions inside a struct need to have a particular structure. This helper creates the
@@ -157,7 +157,7 @@ fn constraints<'c>(
 ) -> Result<Operation<'c>> {
     // The inputs to the functions are public circuit inputs.
     let inputs = vec![(signal_ty, location); 2];
-    let pub_attr = [PublicAttribute::named_attr_pair(context)];
+    let pub_attr = [PublicAttribute::new_named_attr(context)];
     let main_ty = StructType::from_str(context, "Main");
 
     // The functions inside a struct need to have a particular structure. This helper creates the

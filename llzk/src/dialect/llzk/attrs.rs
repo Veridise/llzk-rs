@@ -1,3 +1,4 @@
+use crate::attributes::NamedAttribute;
 use llzk_sys::{llzkAttributeIsAPublicAttr, llzkPublicAttrGet};
 use melior::{
     Context,
@@ -30,8 +31,8 @@ impl<'c> PublicAttribute<'c> {
         unsafe { Self::from_raw(llzkPublicAttrGet(ctx.to_raw())) }
     }
 
-    /// Creates a new `llzk.pub` attribute along the expected identifier for this attribute.
-    pub fn named_attr_pair(ctx: &'c Context) -> (Identifier<'c>, Attribute<'c>) {
+    /// Creates a new `llzk.pub` NamedAttribute.
+    pub fn new_named_attr(ctx: &'c Context) -> NamedAttribute<'c> {
         (Identifier::new(ctx, "llzk.pub"), Attribute::unit(ctx))
     }
 }

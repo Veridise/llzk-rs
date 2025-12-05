@@ -50,7 +50,7 @@ fn empty_struct_with_pub_inputs() {
     let typ = StructType::from_str_params(&context, "empty", &[]);
 
     let inputs = vec![(FeltType::new(&context).into(), Location::unknown(&context))];
-    let arg_attrs = vec![vec![PublicAttribute::named_attr_pair(&context)]];
+    let arg_attrs = vec![vec![PublicAttribute::new_named_attr(&context)]];
     let s = r#struct::def(loc, "empty", &[], {
         [
             r#struct::helpers::compute_fn(loc, typ, inputs.as_slice(), Some(arg_attrs.as_slice()))
