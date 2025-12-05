@@ -1,7 +1,6 @@
 use llzk::prelude::*;
 use melior::ir::Location;
 
-#[macro_use]
 mod common;
 
 fn default_funcs<'c>(

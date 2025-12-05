@@ -2,7 +2,6 @@ use llzk::builder::{OpBuilder, OpBuilderLike};
 use llzk::prelude::*;
 use melior::ir::{Location, r#type::FunctionType};
 
-#[macro_use]
 mod common;
 
 #[test]
