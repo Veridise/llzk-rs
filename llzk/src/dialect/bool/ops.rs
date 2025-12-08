@@ -100,14 +100,13 @@ pub fn assert<'c>(
     cond: Value<'c, '_>,
     msg: Option<&str>,
 ) -> Result<Operation<'c>, Error> {
-    let ctx = unsafe { location.context().to_ref() };
+    let ctx = location.context();
     let mut builder = OperationBuilder::new("bool.assert", location).add_operands(&[cond]);
     if let Some(msg) = msg {
         builder = builder.add_attributes(&[(
-            Identifier::new(ctx, "msg"),
-            StringAttribute::new(ctx, msg).into(),
+            Identifier::new(unsafe { ctx.to_ref() }, "msg"),
+            StringAttribute::new(unsafe { ctx.to_ref() }, msg).into(),
         )]);
     }
-
     builder.build().map_err(Into::into)
 }
