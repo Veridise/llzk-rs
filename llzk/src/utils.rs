@@ -1,12 +1,17 @@
 //! General utilities
 
+use melior::{
+    StringRef,
+    ir::{
+        Block, BlockRef, Operation, OperationRef, Region, RegionLike, RegionRef,
+        operation::OperationLike,
+    },
+};
+use mlir_sys::MlirStringRef;
 use std::{
     ffi::c_void,
     fmt::{self, Formatter},
 };
-
-use melior::StringRef;
-use mlir_sys::MlirStringRef;
 
 /// Creates an instance from its low-level unsafe representation.
 pub trait FromRaw<RawT> {
@@ -47,3 +52,28 @@ macro_rules! ident {
         melior::ir::Identifier::new(unsafe { ctx.to_ref() }, $name)
     }};
 }
+
+/// Trait for converting melior types to their reference counterparts.
+///
+/// This trait provides a safe interface for types that have a `to_raw()` and `from_raw()` pattern,
+/// enabling conversion from owned types to reference types (e.g., `Block` to `BlockRef`).
+pub trait IntoRef<RefType> {
+    /// Convert this type into its reference counterpart.
+    fn into_ref(self) -> RefType;
+}
+
+/// Macro to implement `IntoRef` for melior types with the `to_raw()` + `from_raw()` pattern.
+macro_rules! impl_into_ref {
+    ($owned:ty, $ref:ty) => {
+        impl<'c, 'a> IntoRef<$ref> for $owned {
+            #[inline]
+            fn into_ref(self) -> $ref {
+                unsafe { <$ref>::from_raw(self.to_raw()) }
+            }
+        }
+    };
+}
+
+impl_into_ref!(Block<'c>, BlockRef<'c, 'a>);
+impl_into_ref!(Region<'c>, RegionRef<'c, 'a>);
+impl_into_ref!(Operation<'c>, OperationRef<'c, 'a>);

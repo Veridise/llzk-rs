@@ -11,6 +11,7 @@ pub use crate::error::Error as LlzkError;
 pub use crate::operation::{verify_operation, verify_operation_with_diags};
 pub use crate::passes as llzk_passes;
 pub use crate::symbol_ref::{SymbolRefAttrLike, SymbolRefAttribute};
+pub use crate::utils::IntoRef;
 
 /// Exports functions that create operations
 pub mod array {
