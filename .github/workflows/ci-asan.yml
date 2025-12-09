@@ -19,7 +19,7 @@ jobs:
           submodules: true
       - name: Load shared env
         run: |
-          cat .github/llzk.env >> $GITHUB_ENV
+          cat .github/workflows/llzk.env >> $GITHUB_ENV
       - name: Add sanitizer rust flag
         run: |
           echo RUSTFLAGS="$RUSTFLAGS -Zsanitizer=address" >> $GITHUB_ENV

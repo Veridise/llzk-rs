@@ -20,7 +20,7 @@ jobs:
           submodules: true
       - name: Load shared env
         run: |
-          cat .github/llzk.env >> "$GITHUB_ENV"
+          cat .github/workflows/llzk.env >> "$GITHUB_ENV"
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
