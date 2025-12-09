@@ -3,7 +3,7 @@
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 
-use haloumi_ir_base::{cmp::CmpOp, felt::Felt, func::FuncIO};
+use haloumi_core::{cmp::CmpOp, felt::Felt, func::FuncIO};
 
 pub mod error;
 pub mod lowerable;

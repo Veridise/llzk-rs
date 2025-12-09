@@ -17,7 +17,6 @@ use haloumi_ir_base::felt::Felt;
 //pub use haloumi_ir::{expr, stmt};
 //pub use haloumi_ir_base::cmp::CmpOp;
 
-//mod canon;
 mod ctx;
 pub mod generate;
 pub mod groups;

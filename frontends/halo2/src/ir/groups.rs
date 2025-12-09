@@ -741,7 +741,7 @@ where
             let mut region_ir = ir.map_into(&|e| {
                 e.map_into(|e| ScopedExpression::from_ref(e.as_ref(), *rr).simplified())
             });
-            region_ir.constant_fold(())?;
+            //region_ir.constant_fold(())?;
             // The IR representing the lookup is generated only once, with a sequence of temps
             // 0,1,...
             // When the IR is cloned under the scope of a region row the temporaries

@@ -8,7 +8,7 @@ use std::ops::{Add, Deref, Mul, Rem, RemAssign, Sub};
 /// Lightweight representation of a constant value.
 ///
 /// The actual value is interned which allows this type to be [`Copy`] and
-/// avoids duplicatation of commonly used values.
+/// avoids duplication of commonly used values.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Felt(Intern<BigUint>);
 

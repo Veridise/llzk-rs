@@ -36,85 +36,6 @@ pub enum IRBexpr<A> {
 }
 
 impl<T> IRBexpr<T> {
-    /// Returns true if the formula is an atom.
-    ///
-    /// Atom in this context means that it doesn't have other formulas inside it.
-    /// The negation of an atom is considered an atom (due to double-negation elimination).
-    pub fn is_atom(&self) -> bool {
-        match self {
-            IRBexpr::True | IRBexpr::False | IRBexpr::Cmp(_, _, _) | IRBexpr::Det(_) => true,
-            IRBexpr::And(_) | IRBexpr::Or(_) | IRBexpr::Iff(_, _) | IRBexpr::Implies(_, _) => false,
-            IRBexpr::Not(expr) => expr.is_atom(),
-        }
-    }
-
-    /// Returns true if the formula is in DNF.
-    pub fn is_dnf(&self) -> bool {
-        match self {
-            IRBexpr::True | IRBexpr::False | IRBexpr::Cmp(_, _, _) | IRBexpr::Det(_) => true,
-            IRBexpr::Or(exprs) => exprs.iter().all(Self::is_dnf),
-            IRBexpr::And(exprs) => exprs.iter().all(Self::is_atom),
-            IRBexpr::Not(expr) => expr.is_atom(),
-            _ => false,
-        }
-    }
-
-    fn apply_dnf_patterns(&mut self)
-    where
-        T: Clone,
-    {
-        match self {
-            IRBexpr::True => {}
-            IRBexpr::False => {}
-            IRBexpr::Cmp(_, _, _) => {}
-            IRBexpr::And(irbexprs) => todo!(),
-            IRBexpr::Or(irbexprs) => todo!(),
-            IRBexpr::Not(expr) => {
-                expr.apply_dnf_patterns();
-                match &mut **expr {
-                    IRBexpr::True => {
-                        *self = IRBexpr::False;
-                    }
-                    IRBexpr::False => {
-                        *self = IRBexpr::True;
-                    }
-                    IRBexpr::And(exprs) => {
-                        *self = IRBexpr::Or(std::mem::take(exprs).into_iter().map(|e| !e).collect())
-                    }
-                    IRBexpr::Or(exprs) => {
-                        *self =
-                            IRBexpr::And(std::mem::take(exprs).into_iter().map(|e| !e).collect())
-                    }
-                    IRBexpr::Not(expr) => *self = std::mem::replace(expr.as_mut(), IRBexpr::False),
-                    IRBexpr::Implies(_, _) => unreachable!(),
-                    IRBexpr::Iff(_, _) => unreachable!(),
-                    _ => {}
-                }
-            }
-            IRBexpr::Det(_) => {}
-            IRBexpr::Implies(lhs, rhs) => {
-                lhs.apply_dnf_patterns();
-                rhs.apply_dnf_patterns();
-                let lhs = IRBexpr::Not(std::mem::replace(lhs, Box::new(IRBexpr::False)));
-                let rhs = std::mem::replace(rhs.as_mut(), IRBexpr::False);
-                *self = lhs | rhs;
-            }
-            IRBexpr::Iff(lhs, rhs) => {
-                lhs.apply_dnf_patterns();
-                rhs.apply_dnf_patterns();
-                let new_lhs = IRBexpr::Implies(lhs.clone(), rhs.clone());
-                let new_rhs = IRBexpr::Implies(
-                    std::mem::replace(rhs, Box::new(IRBexpr::False)),
-                    std::mem::replace(lhs, Box::new(IRBexpr::False)),
-                );
-                *self = new_lhs & new_rhs;
-            }
-        }
-    }
-
-    /// Converts the formula into DNF.
-    pub fn into_dnf(&mut self) {}
-
     /// Transforms the inner expression into a different type.
     pub fn map<O>(self, f: &impl Fn(T) -> O) -> IRBexpr<O> {
         match self {
@@ -695,39 +616,5 @@ impl<A: LowerableExpr> LowerableExpr for IRBexpr<A> {
                 l.lower_iff(&lhs, &rhs)
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn is_dnf() {
-        let a = IRBexpr::Det("A");
-        let b = IRBexpr::Det("B");
-        let c = IRBexpr::Det("C");
-        let d = IRBexpr::Det("D");
-        let e = IRBexpr::Det("E");
-        let f = IRBexpr::Det("F");
-        // A
-        assert!(a.clone().is_dnf());
-        // (A /\ B)
-        assert!((a.clone() & b.clone()).is_dnf());
-        // (A /\ B) \/ C
-        assert!(((a.clone() & b.clone()) | c.clone()).is_dnf());
-        // (A /\ !B /\ !C) \/ (!D /\ E /\ F /\ D /\ F)
-        assert!(
-            ((a.clone() & !b.clone() & !c.clone()) | (!d.clone() & e & f.clone() & d.clone() & f))
-                .is_dnf()
-        );
-
-        // Not in DNF
-        // !(A \/ B)
-        assert!(!(!(a.clone() | b.clone())).is_dnf());
-        // !(A /\ B) \/ C
-        assert!(!(!(a.clone() & b.clone()) | c.clone()).is_dnf());
-        // A \/ (B /\ (C \/ D))
-        assert!(!(a | (b & (c | d))).is_dnf());
     }
 }
