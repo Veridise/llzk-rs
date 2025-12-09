@@ -3,22 +3,29 @@ name: Continuous Integration
 on:
   pull_request:
   push:
-    branches: 
+    branches:
       - main
 
 env:
+  LLVM_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@20
   # /opt/homebrew/opt/llvm@20/ is for macOS
-  MLIR_SYS_200_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@20/
-  TABLEGEN_200_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@20/
-  RUSTFLAGS: '-L /home/linuxbrew/.linuxbrew/opt/llvm@20/lib'
+  MLIR_SYS_200_PREFIX: ${{ env.LLVM_PREFIX }}
+  TABLEGEN_200_PREFIX: ${{ env.LLVM_PREFIX }}
+  RUSTFLAGS: '-L ${{ env.LLVM_PREFIX }}/lib'
   LLZK_SYS_ENABLE_WHOLE_ARCHIVE: 1
+
+  LLVM_DIR: ${{ env.LLVM_PREFIX }}/lib/cmake/llvm
+  Clang_DIR: ${{ env.LLVM_PREFIX }}/lib/cmake/clang
+
+  CC: ${{ env.LLVM_PREFIX }}/bin/clang
+  CXX: ${{ env.LLVM_PREFIX }}/bin/clang++
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        BUILD_TARGET: 
+        BUILD_TARGET:
           - release
           - dev
     steps:
@@ -32,7 +39,7 @@ jobs:
       - uses: Homebrew/actions/setup-homebrew@master
       - name: Cache homebrew downloads
         uses: actions/cache@v4
-        with: 
+        with:
           path: ~/.cache/Homebrew/
           # It's not the greatest key in the world but works
           key: ${{ runner.os }}-homebrew-${{ hashFiles('**/Cargo.lock') }}
