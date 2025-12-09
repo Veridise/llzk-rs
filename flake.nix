@@ -110,8 +110,8 @@
 
             # Shared environment variables
             env = {
-              CC = "clang";
-              CXX = "clang++";
+              CC = "${final.llzk-llvmPackages.clang}/bin/clang";
+              CXX = "${final.llzk-llvmPackages.clang}/bin/clang++";
               MLIR_SYS_200_PREFIX = "${mlir-with-llvm}";
               TABLEGEN_200_PREFIX = "${mlir-with-llvm}";
               LIBCLANG_PATH = "${final.llzk-llvmPackages.libclang.lib}/lib";
