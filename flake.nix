@@ -88,7 +88,7 @@
               cmake
               rustc
               cargo
-              clang
+              llzk-llvmPackages.clang
             ];
 
             buildInputs = with final; [
@@ -96,6 +96,7 @@
               zlib
               zstd
               z3.lib
+              llzk-llvmPackages.libclang.dev
             ];
 
             devBuildInputs =
