@@ -1,32 +1,28 @@
 # This job checks that picus and the halo2 frontend without the llzk deps builds for 1.85
 
-name: Continuous Integration (rust 1.85)
+name: Continuous Integration (picus, halo2 with rust 1.85)
 
 on:
   pull_request:
   push:
-    branches: 
+    branches:
       - main
-
-env:
-  # /opt/homebrew/opt/llvm@20/ is for macOS
-  MLIR_SYS_200_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@20/
-  TABLEGEN_200_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@20/
-  RUSTFLAGS: '-L /home/linuxbrew/.linuxbrew/opt/llvm@20/lib'
-  LLZK_SYS_ENABLE_WHOLE_ARCHIVE: 1
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        BUILD_TARGET: 
+        BUILD_TARGET:
           - release
           - dev
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - name: Load shared env
+        run: |
+          cat .github/llzk.env >> "$GITHUB_ENV"
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
@@ -34,7 +30,7 @@ jobs:
       - uses: Homebrew/actions/setup-homebrew@master
       - name: Cache homebrew downloads
         uses: actions/cache@v4
-        with: 
+        with:
           path: ~/.cache/Homebrew/
           # It's not the greatest key in the world but works
           key: ${{ runner.os }}-homebrew-${{ hashFiles('**/Cargo.lock') }}

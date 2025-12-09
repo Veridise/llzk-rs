@@ -1,24 +1,10 @@
-name: Continuous Integration
+name: Continuous Integration (without nix build)
 
 on:
   pull_request:
   push:
     branches:
       - main
-
-env:
-  LLVM_PREFIX: /home/linuxbrew/.linuxbrew/opt/llvm@20
-  # /opt/homebrew/opt/llvm@20/ is for macOS
-  MLIR_SYS_200_PREFIX: ${{ env.LLVM_PREFIX }}
-  TABLEGEN_200_PREFIX: ${{ env.LLVM_PREFIX }}
-  RUSTFLAGS: '-L ${{ env.LLVM_PREFIX }}/lib'
-  LLZK_SYS_ENABLE_WHOLE_ARCHIVE: 1
-
-  LLVM_DIR: ${{ env.LLVM_PREFIX }}/lib/cmake/llvm
-  Clang_DIR: ${{ env.LLVM_PREFIX }}/lib/cmake/clang
-
-  CC: ${{ env.LLVM_PREFIX }}/bin/clang
-  CXX: ${{ env.LLVM_PREFIX }}/bin/clang++
 
 jobs:
   build:
@@ -32,6 +18,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - name: Load shared env
+        run: |
+          cat .github/llzk.env >> "$GITHUB_ENV"
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
