@@ -7,6 +7,7 @@ on:
       - main
 
 env:
+  ASAN_SYMBOLIZER_PATH: /home/linuxbrew/.linuxbrew/opt/llvm@20/bin/llvm-symbolizer
   ASAN_OPTIONS: 'detect_odr_violation=2:symbolize=1'
   LSAN_OPTIONS: ''
 
