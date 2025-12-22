@@ -38,7 +38,7 @@ jobs:
         run: brew install llvm@20
       - name: Verify LLVM & MLIR installation
         run: |
-          /home/linuxbrew/.linuxbrew/opt/llvm@20/bin/llvm-config --version --assertion-mode
+          $LLVM_BIN/llvm-config --version --assertion-mode
       - name: Cache cargo crates
         uses: actions/cache@v4
         with:

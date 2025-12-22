@@ -32,7 +32,6 @@ mod tests {
     #[rstest]
     fn test_mlir_register_transformation_passes_and_create(register_passes: (), context: TestContext) {
         unsafe {
-            // mlirRegisterLLZKTransformationPasses();
             let manager = mlirPassManagerCreate(context.ctx);
 
             let pass1 = mlirCreateLLZKTransformationRedundantOperationEliminationPass();
@@ -49,7 +48,6 @@ mod tests {
     #[rstest]
     fn test_mlir_register_redundant_operation_elimination_pass_and_create(register_passes: (), context: TestContext) {
         unsafe {
-            // mlirRegisterLLZKTransformationRedundantOperationEliminationPass();
             let manager = mlirPassManagerCreate(context.ctx);
 
             let pass = mlirCreateLLZKTransformationRedundantOperationEliminationPass();
@@ -61,7 +59,6 @@ mod tests {
     #[rstest]
     fn test_mlir_register_redudant_read_and_write_elimination_pass_and_create(register_passes: (), context: TestContext) {
         unsafe {
-            // mlirRegisterLLZKTransformationRedundantReadAndWriteEliminationPass();
             let manager = mlirPassManagerCreate(context.ctx);
 
             let pass = mlirCreateLLZKTransformationRedundantReadAndWriteEliminationPass();
@@ -73,7 +70,6 @@ mod tests {
     #[rstest]
     fn test_mlir_register_unused_declaration_elimination_pass_and_create(register_passes: (), context: TestContext) {
         unsafe {
-            // mlirRegisterLLZKTransformationUnusedDeclarationEliminationPass();
             let manager = mlirPassManagerCreate(context.ctx);
 
             let pass = mlirCreateLLZKTransformationUnusedDeclarationEliminationPass();
