@@ -54,6 +54,7 @@ binop!(bit_xor);
 binop!(div);
 binop!(mul);
 binop!(r#mod, "mod");
+binop!(pow);
 binop!(shl);
 binop!(shr);
 binop!(sub);
