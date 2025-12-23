@@ -1,22 +1,23 @@
 # Rust bindings for LLZK.
 
-⚠️  These crates are under active development and things may change unexpectedly.
+> [!WARNING]
+> These crates are under active development and things may change unexpectedly.
 
-Rust bindings for [LLZK](https://veridise.github.io/llzk-lib/) over its C API. 
-The bindings' API is meant to be more user friendly than the raw C API and more idiomatic. Its design is heavily inspired 
-by [melior](https://github.com/mlir-rs/melior) and depends on it for handling the MLIR parts that are not 
+Rust bindings for [LLZK](https://veridise.github.io/llzk-lib/) over its C API.
+The bindings' API is meant to be more user friendly than the raw C API and more idiomatic. Its design is heavily inspired
+by [melior](https://github.com/mlir-rs/melior) and depends on it for handling the MLIR parts that are not
 specific to LLZK.
 
-The primary supported use case of these bindings is creating IR and running passes on it. Support for other things, 
+The primary supported use case of these bindings is creating IR and running passes on it. Support for other things,
 such as writing custom passes, is limited and not as ergonomic as it is in C++.
 
-## Usage 
+## Usage
 
-Run `cargo doc -p llzk` to generate the API documentation of the rust API and you can visit  
+Run `cargo doc -p llzk` to generate the API documentation of the rust API and you can visit
 [LLZK's documentation](https://veridise.github.io/llzk-lib/) for more information about the IR itself.
 For the high-level usage of the bindings you can check the examples in `llzk/examples`.
 
-### Optional features 
+### Optional features
 
 We include some optional functionality guarded by feature flags. We currently have the following features:
 
@@ -25,7 +26,7 @@ We include some optional functionality guarded by feature flags. We currently ha
 ## Manual installation (pre v1 release)
 
 Install LLVM 20 and note the installation path. While building your project the build scripts will look for LLVM using `llvm-config`.
-If you don't have that tool in your `PATH` or it doesn't point to an LLVM 20 installation set the following environment variables 
+If you don't have that tool in your `PATH` or it doesn't point to an LLVM 20 installation set the following environment variables
 to the path where LLVM is installed and the build scripts will then use `$MLIR_SYS_200_PREFIX/bin/llvm-config` instead.
 
 ```text
@@ -43,7 +44,7 @@ llzk = { git = "https://github.com/Veridise/llzk-rs" }
 ### Building tips
 
 If you are using homebrew in macos you can access MLIR 20 by installing `llvm@20` with homebrew.
-Setting the following environment variables configures the build system with the correct versions of MLIR and its dependencies. 
+Setting the following environment variables configures the build system with the correct versions of MLIR and its dependencies.
 Depending on the version of your default C++ compiler you may need to set `CXX` and `CC` to a compiler that supports C++ 20.
 
 ```text
@@ -62,7 +63,7 @@ If working on LLZK via the submodule you can enable dumping the compile commands
 LLZK_EMIT_COMPILE_COMMANDS=$(pwd) cargo build
 ```
 
-## Nix installation 
+## Nix installation
 
 We also include a nix flake that creates an environment with the right version of LLVM and MLIR. If you are already using nix this may be your prefered method.
 
@@ -73,7 +74,7 @@ For example, to work within a nix developer shell you can use the following comm
 nix develop 'github:Veridise/llzk-rs?submodules=1#llzk-rs'
 ```
 
-Another alternative is to use [direnv](https://direnv.net/) with the following `.envrc` to automatically enter 
+Another alternative is to use [direnv](https://direnv.net/) with the following `.envrc` to automatically enter
 the developer environment when you enter your project's directory.
 
 ```text
@@ -83,3 +84,13 @@ fi
 
 use flake 'github:Veridise/llzk-rs?submodules=1#llzk-rs'
 ```
+
+## Updating LLZK
+
+If you need to update the llzk-lib dependency, run the update script:
+
+```sh
+./scripts/update_llzk_lib.sh
+```
+
+This will pull the latest version of LLZK and update the submodule and nix flake accordingly.
