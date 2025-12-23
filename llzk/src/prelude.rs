@@ -28,7 +28,7 @@ pub mod constrain {
 /// Exports functions that create operations
 pub mod felt {
     pub use crate::dialect::felt::{
-        add, bit_and, bit_not, bit_or, bit_xor, constant, div, inv, r#mod, mul, neg, shl, shr, sub,
+        add, bit_and, bit_not, bit_or, bit_xor, constant, div, inv, r#mod, mul, neg, pow, shl, shr, sub,
     };
 }
 /// Exports functions that create operations
