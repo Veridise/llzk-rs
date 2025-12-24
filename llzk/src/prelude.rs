@@ -21,6 +21,12 @@ pub mod array {
 pub mod bool {
     pub use crate::dialect::bool::{and, assert, eq, ge, gt, le, lt, ne, not, or, xor};
 }
+
+/// Exports functions that create operations
+pub mod cast {
+    pub use crate::dialect::cast::{tofelt, toindex};
+}
+
 /// Exports functions that create operations
 pub mod constrain {
     pub use crate::dialect::constrain::{eq, r#in};

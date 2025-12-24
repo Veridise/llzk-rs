@@ -2,6 +2,7 @@
 
 pub mod array;
 pub mod bool;
+pub mod cast;
 pub mod constrain;
 pub mod felt;
 pub mod function;
