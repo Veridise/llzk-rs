@@ -12,7 +12,7 @@ pub fn handle() -> DialectHandle {
 }
 
 /// Creates a 'cast.tofelt' operation.
-pub fn tofelt<'c>(location: Location<'c>, result: Type<'c>, val: Value<'c, '_>) -> Operation<'c> {
+pub fn tofelt<'c>(location: Location<'c>, val: Value<'c, '_>) -> Operation<'c> {
     let ctx = unsafe { location.context().to_ref() };
     OperationBuilder::new("cast.tofelt", location)
         .add_results(&[FeltType::new(ctx).into()])
