@@ -12,10 +12,10 @@ pub fn handle() -> DialectHandle {
 }
 
 /// Creates a 'cast.tofelt' operation.
-pub fn tofelt<'c>(location: Location<'c>, result: Type<'c>, val: Value<'c, '_>) -> Operation<'c> {
-    let ctx = unsafe { location.context().to_ref() };
+pub fn tofelt<'c>(location: Location<'c>, val: Value<'c, '_>) -> Operation<'c> {
+    let ctx = location.context();
     OperationBuilder::new("cast.tofelt", location)
-        .add_results(&[FeltType::new(ctx).into()])
+        .add_results(&[FeltType::new(unsafe { ctx.to_ref() }).into()])
         .add_operands(&[val])
         .build()
         .expect("valid operation")
@@ -23,9 +23,9 @@ pub fn tofelt<'c>(location: Location<'c>, result: Type<'c>, val: Value<'c, '_>) 
 
 /// Creates a 'cast.toindex' operation.
 pub fn toindex<'c>(location: Location<'c>, val: Value<'c, '_>) -> Operation<'c> {
-    let ctx = unsafe { location.context().to_ref() };
+    let ctx = location.context();
     OperationBuilder::new("cast.toindex", location)
-        .add_results(&[Type::index(ctx)])
+        .add_results(&[Type::index(unsafe { ctx.to_ref() })])
         .add_operands(&[val])
         .build()
         .expect("valid operation")
