@@ -24,7 +24,7 @@ pub mod bool {
 
 /// Exports functions that create operations
 pub mod cast {
-    pub use crate::dialect::cast::{tofelt, toindex};
+    pub use crate::dialect::cast::{tofelt, toindex, toint};
 }
 
 /// Exports functions that create operations
