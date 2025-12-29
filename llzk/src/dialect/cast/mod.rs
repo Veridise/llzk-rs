@@ -38,7 +38,6 @@ pub fn toint<'c>(
     result: IntegerType<'c>,
     val: Value<'c, '_>,
 ) -> Operation<'c> {
-    let ctx = location.context();
     OperationBuilder::new("cast.toint", location)
         .add_results(&[result.into()])
         .add_operands(&[val])
