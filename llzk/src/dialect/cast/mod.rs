@@ -33,7 +33,11 @@ pub fn toindex<'c>(location: Location<'c>, val: Value<'c, '_>) -> Operation<'c> 
 }
 
 /// Creates a 'cast.toint' operation.
-pub fn toint<'c>(location: Location<'c>, result: IntegerType<'c>, val: Value<'c, '_>,) -> Operation<'c> {
+pub fn toint<'c>(
+    location: Location<'c>,
+    result: IntegerType<'c>,
+    val: Value<'c, '_>,
+) -> Operation<'c> {
     let ctx = location.context();
     OperationBuilder::new("cast.toint", location)
         .add_results(&[result.into()])
