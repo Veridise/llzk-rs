@@ -36,8 +36,6 @@ const DEFAULT_CFG: DefaultConfig<'static> = DefaultConfig::new(
     ],
     &[
         "GetDialectHandle__llzk__.*",
-        "DestroyOpBuilder.*",
-        "CreateOpBuilder.*",
         "OpBuilder.*",
         "RegisterLLZK.*Passes",
     ],
