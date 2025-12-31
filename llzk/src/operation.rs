@@ -1,8 +1,10 @@
 //! Functions related to operations.
 
-use melior::{diagnostic::DiagnosticSeverity, ir::operation::OperationLike};
-
 use crate::error::{DiagnosticError, Error};
+use melior::{
+    diagnostic::DiagnosticSeverity,
+    ir::{Value, ValueLike, operation::OperationLike},
+};
 
 /// Verifies the operation, returning an error if it failed.
 pub fn verify_operation<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> Result<(), Error> {
@@ -42,4 +44,15 @@ pub fn verify_operation_with_diags<'c: 'a, 'a>(
     });
     unsafe { ctx_ref.to_ref() }.detach_diagnostic_handler(id);
     result
+}
+
+/// Replace uses of 'of' value with the 'with' value inside the 'op' operation.
+pub fn replace_uses_of_with<'c: 'a, 'a>(
+    op: &impl OperationLike<'c, 'a>,
+    of: Value<'c, 'a>,
+    with: Value<'c, 'a>,
+) {
+    unsafe {
+        llzk_sys::mlirOperationReplaceUsesOfWith(op.to_raw(), of.to_raw(), with.to_raw());
+    }
 }
