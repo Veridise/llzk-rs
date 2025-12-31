@@ -12,9 +12,11 @@
 #![warn(missing_docs)]
 
 use mlir_sys::{
-    MlirAffineExpr, MlirAffineMap, MlirAttribute, MlirBlock, MlirContext, MlirDialectHandle,
-    MlirDialectRegistry, MlirLocation, MlirLogicalResult, MlirNamedAttribute, MlirOperation,
-    MlirPass, MlirRegion, MlirStringRef, MlirType, MlirValue,
+    MlirAffineExpr, MlirAffineMap, MlirAsmState, MlirAttribute, MlirBlock,
+    MlirBytecodeWriterConfig, MlirContext, MlirDialectHandle, MlirDialectRegistry, MlirIdentifier,
+    MlirLocation, MlirLogicalResult, MlirNamedAttribute, MlirOpPrintingFlags, MlirOperation,
+    MlirOperationState, MlirOperationWalkCallback, MlirPass, MlirRegion, MlirStringCallback,
+    MlirStringRef, MlirType, MlirTypeID, MlirValue, MlirWalkOrder,
 };
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
