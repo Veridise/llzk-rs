@@ -8,7 +8,7 @@ pub use crate::dialect::llzk::prelude::*;
 pub use crate::dialect::module::llzk_module;
 pub use crate::dialect::r#struct::prelude::*;
 pub use crate::error::Error as LlzkError;
-pub use crate::operation::{verify_operation, verify_operation_with_diags};
+pub use crate::operation::{replace_uses_of_with, verify_operation, verify_operation_with_diags};
 pub use crate::passes as llzk_passes;
 pub use crate::symbol_ref::{SymbolRefAttrLike, SymbolRefAttribute};
 pub use crate::utils::IntoRef;
@@ -34,7 +34,8 @@ pub mod constrain {
 /// Exports functions that create operations
 pub mod felt {
     pub use crate::dialect::felt::{
-        add, bit_and, bit_not, bit_or, bit_xor, constant, div, inv, r#mod, mul, neg, pow, shl, shr, sub,
+        add, bit_and, bit_not, bit_or, bit_xor, constant, div, inv, r#mod, mul, neg, pow, shl, shr,
+        sub,
     };
 }
 /// Exports functions that create operations
@@ -59,12 +60,16 @@ pub mod undef {
 pub use melior::{
     Context, ContextRef, Error as MeliorError, StringRef,
     ir::{
-        Location, Region, RegionLike, RegionRef, Value, ValueLike,
+        Location, Module, Region, RegionLike, RegionRef, Value, ValueLike,
         attribute::{
-            Attribute, AttributeLike, FlatSymbolRefAttribute, IntegerAttribute, StringAttribute,
+            Attribute, AttributeLike, BoolAttribute, FlatSymbolRefAttribute, IntegerAttribute,
+            StringAttribute, TypeAttribute,
         },
         block::{Block, BlockArgument, BlockLike, BlockRef},
-        operation::{Operation, OperationLike, OperationMutLike, OperationRef},
+        operation::{
+            Operation, OperationLike, OperationMutLike, OperationRef, OperationRefMut, WalkOrder,
+            WalkResult,
+        },
         r#type::{FunctionType, IntegerType, Type, TypeLike},
     },
     pass::{OperationPassManager, Pass, PassManager},
@@ -78,4 +83,11 @@ pub mod melior_passes {
     pub use melior::pass::linalg::*;
     pub use melior::pass::sparse_tensor::*;
     pub use melior::pass::transform::*;
+}
+
+/// Reexport of the dialects included in melior.
+pub mod melior_dialects {
+    pub use melior::dialect::arith;
+    pub use melior::dialect::index;
+    pub use melior::dialect::scf;
 }
