@@ -1,5 +1,7 @@
 //! Implementation of the fundamenal configuration.
 
+use std::path::PathBuf;
+
 use anyhow::Result;
 use bindgen::Builder;
 use cc::Build;
@@ -33,6 +35,14 @@ impl<'a> DefaultConfig<'a> {
     pub fn wrapper(&self) -> &'static str {
         "wrapper.h"
     }
+
+    /// Returns the Clang directories for used by CMake to locate them.
+    fn clang_cmake_flags(&self) -> Result<Vec<(&'static str, PathBuf)>> {
+        Ok(vec![
+            ("Clang_DIR", self.mlir.mlir_cmake_path()?),
+            ("Clang_ROOT", self.mlir.mlir_path()?),
+        ])
+    }
 }
 
 impl CMakeConfig for DefaultConfig<'_> {
@@ -44,6 +54,9 @@ impl CMakeConfig for DefaultConfig<'_> {
             // See: https://stackoverflow.com/questions/76517286/how-does-cmake-decide-to-make-a-lib-or-lib64-directory-for-installations
             .define("CMAKE_INSTALL_LIBDIR", LIBDIR)
             .define("BUILD_TESTING", "OFF");
+        for (k, v) in self.clang_cmake_flags()? {
+            cmake.define(k, &*v);
+        }
         CMakeConfig::apply(&self.mlir, cmake)
     }
 }
