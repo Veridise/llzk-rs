@@ -13,36 +13,36 @@ pub use crate::passes as llzk_passes;
 pub use crate::symbol_ref::{SymbolRefAttrLike, SymbolRefAttribute};
 pub use crate::utils::IntoRef;
 
-/// Exports functions that create operations
+/// Exports functions from the 'array' dialect
 pub mod array {
     pub use crate::dialect::array::{extract, insert, new, read, write};
 }
-/// Exports functions that create operations
+/// Exports functions from the 'bool' dialect
 pub mod bool {
     pub use crate::dialect::bool::{and, assert, eq, ge, gt, le, lt, ne, not, or, xor};
 }
 
-/// Exports functions that create operations
+/// Exports functions from the 'cast' dialect
 pub mod cast {
     pub use crate::dialect::cast::{tofelt, toindex, toint};
 }
 
-/// Exports functions that create operations
+/// Exports functions from the 'constrain' dialect
 pub mod constrain {
     pub use crate::dialect::constrain::{eq, r#in};
 }
-/// Exports functions that create operations
+/// Exports functions from the 'felt' dialect
 pub mod felt {
     pub use crate::dialect::felt::{
         add, bit_and, bit_not, bit_or, bit_xor, constant, div, inv, r#mod, mul, neg, pow, shl, shr,
         sub,
     };
 }
-/// Exports functions that create operations
+/// Exports functions from the 'function' dialect
 pub mod function {
     pub use crate::dialect::function::{call, def, r#return};
 }
-/// Exports functions that create operations
+/// Exports functions from the 'global' dialect
 pub mod global {
     pub use crate::dialect::global::{def, read, write};
 }
@@ -51,12 +51,12 @@ pub mod poly {
     pub use crate::dialect::poly::r#type::TVarType;
     pub use crate::dialect::poly::{is_read_const_op, read_const};
 }
-/// Exports functions that create operations
+/// Exports functions from the 'struct' dialect
 pub mod r#struct {
     pub use crate::dialect::r#struct::helpers;
     pub use crate::dialect::r#struct::{def, field, new, readf, readf_with_offset, writef};
 }
-/// Exports functions that create operations
+/// Exports functions from the 'undef' dialect
 pub mod undef {
     pub use crate::dialect::undef::undef;
 }

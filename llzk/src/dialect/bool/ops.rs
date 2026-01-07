@@ -1,11 +1,12 @@
 use crate::{
     dialect::bool::{CmpPredicate, CmpPredicateAttribute},
     error::Error,
+    ident,
 };
 
 use melior::ir::{
-    Identifier, Location, Operation, Value, attribute::StringAttribute,
-    operation::OperationBuilder, r#type::IntegerType,
+    Location, Operation, Value, attribute::StringAttribute, operation::OperationBuilder,
+    r#type::IntegerType,
 };
 
 fn build_cmp_op<'c>(
@@ -18,7 +19,7 @@ fn build_cmp_op<'c>(
         .add_results(&[IntegerType::new(unsafe { ctx.to_ref() }, 1).into()])
         .add_operands(operands)
         .add_attributes(&[(
-            Identifier::new(unsafe { ctx.to_ref() }, "predicate"),
+            ident!(ctx, "predicate"),
             CmpPredicateAttribute::new(unsafe { ctx.to_ref() }, pred).into(),
         )])
         .build()
@@ -104,7 +105,7 @@ pub fn assert<'c>(
     let mut builder = OperationBuilder::new("bool.assert", location).add_operands(&[cond]);
     if let Some(msg) = msg {
         builder = builder.add_attributes(&[(
-            Identifier::new(unsafe { ctx.to_ref() }, "msg"),
+            ident!(ctx, "msg"),
             StringAttribute::new(unsafe { ctx.to_ref() }, msg).into(),
         )]);
     }
