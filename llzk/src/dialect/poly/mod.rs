@@ -1,5 +1,7 @@
 //! `poly` dialect.
 
+pub mod r#type;
+
 use crate::ident;
 use llzk_sys::mlirGetDialectHandle__llzk__polymorphic__;
 use melior::{

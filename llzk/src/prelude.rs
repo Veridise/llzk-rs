@@ -48,6 +48,7 @@ pub mod global {
 }
 /// Exports functions from the 'poly' dialect
 pub mod poly {
+    pub use crate::dialect::poly::r#type::TVarType;
     pub use crate::dialect::poly::{is_read_const_op, read_const};
 }
 /// Exports functions that create operations
