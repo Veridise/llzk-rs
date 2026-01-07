@@ -10,7 +10,7 @@ use llzk_sys::{
 use melior::{
     StringRef,
     ir::{
-        Attribute, AttributeLike, Block, BlockLike as _, BlockRef, Identifier, Location, Operation,
+        Attribute, AttributeLike, Block, BlockLike as _, BlockRef, Location, Operation,
         OperationRef, Region, RegionLike as _, RegionRef, Type, TypeLike, Value, ValueLike,
         attribute::{ArrayAttribute, FlatSymbolRefAttribute, StringAttribute, TypeAttribute},
         operation::{OperationBuilder, OperationLike, OperationMutLike},
@@ -309,11 +309,8 @@ where
     region.append_block(block);
     let name: Attribute = StringAttribute::new(unsafe { ctx.to_ref() }, name).into();
     let attrs = [
-        (Identifier::new(unsafe { ctx.to_ref() }, "sym_name"), name),
-        (
-            Identifier::new(unsafe { ctx.to_ref() }, "const_params"),
-            params,
-        ),
+        (ident!(ctx, "sym_name"), name),
+        (ident!(ctx, "const_params"), params),
     ];
 
     OperationBuilder::new("struct.def", location)
@@ -402,10 +399,7 @@ pub fn writef<'c>(
 ) -> Result<Operation<'c>, Error> {
     let context = location.context();
     let field_name = FlatSymbolRefAttribute::new(unsafe { context.to_ref() }, field_name);
-    let attrs = [(
-        Identifier::new(unsafe { context.to_ref() }, "field_name"),
-        field_name.into(),
-    )];
+    let attrs = [(ident!(context, "field_name"), field_name.into())];
     OperationBuilder::new("struct.writef", location)
         .add_operands(&[component, value])
         .add_attributes(&attrs)
