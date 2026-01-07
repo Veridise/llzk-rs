@@ -46,6 +46,11 @@ pub mod function {
 pub mod global {
     pub use crate::dialect::global::{def, read, write};
 }
+/// Exports functions from the 'poly' dialect
+pub mod poly {
+    pub use crate::dialect::poly::r#type::TVarType;
+    pub use crate::dialect::poly::{is_read_const_op, read_const};
+}
 /// Exports functions from the 'struct' dialect
 pub mod r#struct {
     pub use crate::dialect::r#struct::helpers;
