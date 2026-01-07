@@ -31,7 +31,7 @@ pub fn read_const<'c>(location: Location<'c>, symbol: &str, result: Type<'c>) ->
         .expect("valid operation")
 }
 
-/// Returns wether the given operation is a 'poly.read_const' operation or not.
+/// Returns whether the given operation is a 'poly.read_const' operation or not.
 pub fn is_read_const_op(op: OperationRef) -> bool {
     op.name().as_string_ref().as_str() == Result::Ok("poly.read_const")
 }
