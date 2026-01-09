@@ -15,7 +15,7 @@ pub struct FeltConstAttribute<'c> {
 
 impl<'c> FeltConstAttribute<'c> {
     /// # Safety
-    /// The MLIR attribute must be a valid pointer of type FeltConstAttribute.
+    /// The MLIR attribute must contain a valid pointer of type `FeltConstAttr`.
     pub unsafe fn from_raw(attr: MlirAttribute) -> Self {
         unsafe {
             Self {

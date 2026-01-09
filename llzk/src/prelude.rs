@@ -72,8 +72,8 @@ pub use melior::{
         },
         block::{Block, BlockArgument, BlockLike, BlockRef},
         operation::{
-            Operation, OperationLike, OperationMutLike, OperationRef, OperationRefMut, WalkOrder,
-            WalkResult,
+            Operation, OperationLike, OperationMutLike, OperationRef, OperationRefMut,
+            OperationResult, WalkOrder, WalkResult,
         },
         r#type::{FunctionType, IntegerType, Type, TypeLike},
     },
