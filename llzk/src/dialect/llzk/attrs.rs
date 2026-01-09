@@ -17,7 +17,7 @@ impl<'c> PublicAttribute<'c> {
     ///
     /// # Safety
     ///
-    /// The MLIR attribute must be a valid pointer of type FeltConstAttribute.
+    /// The MLIR attribute must contain a valid pointer of type `PublicAttr`.
     pub unsafe fn from_raw(attr: MlirAttribute) -> Self {
         unsafe {
             Self {
