@@ -24,7 +24,7 @@ pub enum CmpPredicate {
 }
 
 /// Attribute representing a comparison predicate.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct CmpPredicateAttribute<'c> {
     inner: Attribute<'c>,
 }

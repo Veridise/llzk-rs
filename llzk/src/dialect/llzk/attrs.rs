@@ -10,7 +10,7 @@ use melior::{
 use mlir_sys::MlirAttribute;
 
 /// Represents the `llzk.pub` attribute.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct PublicAttribute<'c> {
     inner: Attribute<'c>,
 }
@@ -71,7 +71,7 @@ impl<'c> From<PublicAttribute<'c>> for Attribute<'c> {
 }
 
 /// Represents the `llzk.loopbounds` attribute.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct LoopBoundsAttribute<'c> {
     inner: Attribute<'c>,
 }
