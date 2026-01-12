@@ -9,6 +9,7 @@ use melior::{
 use mlir_sys::MlirAttribute;
 
 /// A constant finite field element.
+#[derive(Clone, Copy)]
 pub struct FeltConstAttribute<'c> {
     inner: Attribute<'c>,
 }
