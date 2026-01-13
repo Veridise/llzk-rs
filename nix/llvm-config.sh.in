@@ -8,7 +8,7 @@
 error_and_quit() {
   echo "ERROR: $1" >&2
   echo "WARNING: This is a minimal llvm-config replacement that allows the" \
-       "standalone MLIR built by https://github.com/Veridise/llzk-nix-pkgs" \
+       "standalone MLIR built by https://github.com/project-llzk/llzk-nix-pkgs" \
        "to be used with https://github.com/mlir-rs/mlir-sys. It is not" \
        "guaranteed to support anything beyond the specific option" \
        "combinations used by mlir-sys." >&2

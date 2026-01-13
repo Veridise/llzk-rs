@@ -4,7 +4,7 @@ description = "Internal macros for LLZK rust bindings"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-repository = "https://github.com/Veridise/llzk-rs"
+repository = "https://github.com/project-llzk/llzk-rs"
 keywords = ["mlir", "llvm", "llzk"]
 readme = "README.md"
 
