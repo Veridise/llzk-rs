@@ -5,7 +5,6 @@ use crate::{
     mlirCreateLLZKTransformationRedundantOperationEliminationPass,
     mlirCreateLLZKTransformationRedundantReadAndWriteEliminationPass,
     mlirCreateLLZKTransformationUnusedDeclarationEliminationPass,
-    mlirRegisterLLZKTransformationPasses,
     mlirRegisterLLZKTransformationRedundantOperationEliminationPass,
     mlirRegisterLLZKTransformationRedundantReadAndWriteEliminationPass,
     mlirRegisterLLZKTransformationUnusedDeclarationEliminationPass,
@@ -13,6 +12,7 @@ use crate::{
 };
 
 #[cfg(test)]
+#[allow(unused_variables)]
 mod tests {
     use super::*;
     use rstest::fixture;
@@ -20,17 +20,18 @@ mod tests {
     #[fixture]
     fn register_passes() {
         static ONCE: std::sync::Once = std::sync::Once::new();
-        ONCE.call_once(|| {
-            unsafe {
-                mlirRegisterLLZKTransformationRedundantOperationEliminationPass();
-                mlirRegisterLLZKTransformationRedundantReadAndWriteEliminationPass();
-                mlirRegisterLLZKTransformationUnusedDeclarationEliminationPass();
-            }
+        ONCE.call_once(|| unsafe {
+            mlirRegisterLLZKTransformationRedundantOperationEliminationPass();
+            mlirRegisterLLZKTransformationRedundantReadAndWriteEliminationPass();
+            mlirRegisterLLZKTransformationUnusedDeclarationEliminationPass();
         });
     }
 
     #[rstest]
-    fn test_mlir_register_transformation_passes_and_create(register_passes: (), context: TestContext) {
+    fn test_mlir_register_transformation_passes_and_create(
+        register_passes: (),
+        context: TestContext,
+    ) {
         unsafe {
             let manager = mlirPassManagerCreate(context.ctx);
 
@@ -46,7 +47,10 @@ mod tests {
     }
 
     #[rstest]
-    fn test_mlir_register_redundant_operation_elimination_pass_and_create(register_passes: (), context: TestContext) {
+    fn test_mlir_register_redundant_operation_elimination_pass_and_create(
+        register_passes: (),
+        context: TestContext,
+    ) {
         unsafe {
             let manager = mlirPassManagerCreate(context.ctx);
 
@@ -57,7 +61,10 @@ mod tests {
         }
     }
     #[rstest]
-    fn test_mlir_register_redudant_read_and_write_elimination_pass_and_create(register_passes: (), context: TestContext) {
+    fn test_mlir_register_redudant_read_and_write_elimination_pass_and_create(
+        register_passes: (),
+        context: TestContext,
+    ) {
         unsafe {
             let manager = mlirPassManagerCreate(context.ctx);
 
@@ -68,7 +75,10 @@ mod tests {
         }
     }
     #[rstest]
-    fn test_mlir_register_unused_declaration_elimination_pass_and_create(register_passes: (), context: TestContext) {
+    fn test_mlir_register_unused_declaration_elimination_pass_and_create(
+        register_passes: (),
+        context: TestContext,
+    ) {
         unsafe {
             let manager = mlirPassManagerCreate(context.ctx);
 
