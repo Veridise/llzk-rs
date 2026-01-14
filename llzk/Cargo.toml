@@ -5,7 +5,7 @@ edition = "2024"
 keywords = ["llzk", "mlir"]
 categories = ["api-bindings"]
 description = "Rust bindings to the LLZK C API."
-repository = "https://github.com/Veridise/llzk-rs"
+repository = "https://github.com/project-llzk/llzk-rs"
 license = "Apache-2.0"
 readme = "README.md"
 
