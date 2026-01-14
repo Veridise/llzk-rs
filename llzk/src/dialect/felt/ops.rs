@@ -1,7 +1,10 @@
 use crate::{error::Error, ident};
 
 use super::{FeltConstAttribute, FeltType};
-use melior::ir::{Location, Operation, Value, operation::OperationBuilder};
+use melior::ir::{
+    Location, Operation, Value,
+    operation::{OperationBuilder, OperationLike},
+};
 
 fn build_op<'c>(
     name: &str,
@@ -29,6 +32,14 @@ macro_rules! binop {
         ) -> Result<Operation<'c>, Error> {
             build_op($opname, location, &[lhs, rhs])
         }
+
+        paste::paste! {
+            #[doc = concat!("Return `true` iff the given op is `felt.", $opname ,"`.")]
+            #[inline]
+            pub fn [<is_felt_ $name>]<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+                crate::operation::isa(op, concat!("felt.", $opname))
+            }
+        }
     };
 }
 
@@ -43,6 +54,14 @@ macro_rules! unop {
             value: Value<'c, '_>,
         ) -> Result<Operation<'c>, Error> {
             build_op($opname, location, &[value])
+        }
+
+        paste::paste! {
+            #[doc = concat!("Return `true` iff the given op is `felt.", $opname ,"`.")]
+            #[inline]
+            pub fn [<is_felt_ $name>]<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+                crate::operation::isa(op, concat!("felt.", $opname))
+            }
         }
     };
 }
@@ -75,6 +94,12 @@ pub fn constant<'c>(
         .map_err(Into::into)
 }
 
+/// Return `true` iff the given op is `felt.const`.
+#[inline]
+pub fn is_felt_const<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "felt.const")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -90,5 +115,16 @@ mod tests {
         )
         .unwrap();
         assert!(op.verify(), "operation {op:?} failed verification");
+    }
+
+    #[quickcheck]
+    fn felt_const_op_isa(value: u64) {
+        let ctx = LlzkContext::new();
+        let op = constant(
+            Location::unknown(&ctx),
+            FeltConstAttribute::new(&ctx, value),
+        )
+        .unwrap();
+        assert!(is_felt_const(&op), "operation {op:?} failed isa test");
     }
 }

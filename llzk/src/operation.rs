@@ -3,7 +3,7 @@
 use crate::error::{DiagnosticError, Error};
 use melior::{
     diagnostic::DiagnosticSeverity,
-    ir::{Value, ValueLike, operation::OperationLike},
+    ir::{ValueLike, operation::OperationLike},
 };
 
 /// Verifies the operation, returning an error if it failed.
@@ -47,12 +47,36 @@ pub fn verify_operation_with_diags<'c: 'a, 'a>(
 }
 
 /// Replace uses of 'of' value with the 'with' value inside the 'op' operation.
+#[inline]
 pub fn replace_uses_of_with<'c: 'a, 'a>(
     op: &impl OperationLike<'c, 'a>,
-    of: Value<'c, 'a>,
-    with: Value<'c, 'a>,
+    of: impl ValueLike<'c> + Copy,
+    with: impl ValueLike<'c> + Copy,
 ) {
     unsafe {
         llzk_sys::mlirOperationReplaceUsesOfWith(op.to_raw(), of.to_raw(), with.to_raw());
     }
+}
+
+/// Moves the operation right after the reference op.
+#[inline]
+pub fn move_op_after<'c: 'a, 'a>(
+    reference: &impl OperationLike<'c, 'a>,
+    op: &impl OperationLike<'c, 'a>,
+) {
+    unsafe { mlir_sys::mlirOperationMoveAfter(op.to_raw(), reference.to_raw()) }
+}
+
+/// Erase the given operation.
+#[inline]
+pub fn erase_op<'c: 'a, 'a>(op: impl OperationLike<'c, 'a>) {
+    unsafe {
+        mlir_sys::mlirOperationDestroy(op.to_raw());
+    }
+}
+
+/// Return `true` iff the given op is has the given name.
+#[inline]
+pub fn isa<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>, name: &str) -> bool {
+    op.name().as_string_ref().as_str() == Result::Ok(name)
 }

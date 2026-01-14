@@ -1,5 +1,6 @@
 //! Implementation of `!poly.tvar` type.
 
+use crate::utils::IsA;
 use llzk_sys::{llzkTypeIsATypeVarType, llzkTypeVarTypeGet, llzkTypeVarTypeGetNameRef};
 use melior::{
     Context, StringRef,
@@ -62,4 +63,10 @@ impl<'c> From<TVarType<'c>> for Type<'c> {
     fn from(t: TVarType<'c>) -> Type<'c> {
         t.r#type
     }
+}
+
+/// Return `true` iff the given [Type] is a [TVarType].
+#[inline]
+pub fn is_type_variable(t: Type) -> bool {
+    t.isa::<TVarType>()
 }

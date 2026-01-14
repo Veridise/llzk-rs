@@ -321,6 +321,12 @@ where
         .and_then(TryInto::try_into)
 }
 
+/// Return `true` iff the given op is `struct.def`.
+#[inline]
+pub fn is_struct_def<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "struct.def")
+}
+
 /// Creates a 'struct.field' op
 pub fn field<'c, T>(
     location: Location<'c>,
@@ -358,6 +364,12 @@ where
         .inspect(|op: &FieldDefOp<'c>| op.set_public_attr(is_public))
 }
 
+/// Return `true` iff the given op is `struct.field`.
+#[inline]
+pub fn is_struct_field<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "struct.field")
+}
+
 /// Creates a 'struct.readf' op
 pub fn readf<'c>(
     builder: &OpBuilder<'c>,
@@ -390,6 +402,12 @@ pub fn readf_with_offset<'c>() -> Operation<'c> {
     todo!()
 }
 
+/// Return `true` iff the given op is `struct.readf`.
+#[inline]
+pub fn is_struct_readf<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "struct.readf")
+}
+
 /// Creates a 'struct.writef' op.
 pub fn writef<'c>(
     location: Location<'c>,
@@ -407,10 +425,22 @@ pub fn writef<'c>(
         .map_err(Into::into)
 }
 
+/// Return `true` iff the given op is `struct.writef`.
+#[inline]
+pub fn is_struct_writef<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "struct.writef")
+}
+
 /// Creates a 'struct.new' op
 pub fn new<'c>(location: Location<'c>, r#type: StructType<'c>) -> Operation<'c> {
     OperationBuilder::new("struct.new", location)
         .add_results(&[r#type.into()])
         .build()
         .expect("valid operation")
+}
+
+/// Return `true` iff the given op is `struct.new`.
+#[inline]
+pub fn is_struct_new<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "struct.new")
 }

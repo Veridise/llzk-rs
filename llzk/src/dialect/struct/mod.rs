@@ -10,7 +10,8 @@ pub use ops::{
     FieldDefOp, FieldDefOpLike, FieldDefOpRef, StructDefOp, StructDefOpLike, StructDefOpMutLike,
     StructDefOpRef, def, field, new, readf, readf_with_offset, writef,
 };
-pub use r#type::StructType;
+pub use ops::{is_struct_def, is_struct_field, is_struct_new, is_struct_readf, is_struct_writef};
+pub use r#type::{StructType, is_struct_type};
 
 /// Returns a handle to the `struct` dialect.
 pub fn handle() -> DialectHandle {
@@ -23,5 +24,5 @@ pub mod prelude {
         FieldDefOp, FieldDefOpLike, FieldDefOpRef, FieldDefOpRefMut, StructDefOp, StructDefOpLike,
         StructDefOpMutLike, StructDefOpRef, StructDefOpRefMut,
     };
-    pub use super::r#type::StructType;
+    pub use super::r#type::{StructType, is_struct_type};
 }

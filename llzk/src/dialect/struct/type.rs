@@ -1,3 +1,7 @@
+//! Implementation of `!struct.type` type.
+
+use crate::utils::FromRaw;
+use crate::utils::IsA;
 use llzk_sys::{llzkStructTypeGetWithArrayAttr, llzkTypeIsAStructType};
 use melior::{
     Context,
@@ -7,8 +11,6 @@ use melior::{
     },
 };
 use mlir_sys::MlirType;
-
-use crate::utils::FromRaw;
 
 /// Represents the `!struct.type` type.
 #[derive(Copy, Clone, Debug)]
@@ -83,4 +85,10 @@ impl<'c> From<StructType<'c>> for Type<'c> {
     fn from(s: StructType<'c>) -> Type<'c> {
         s.t
     }
+}
+
+/// Return `true` iff the given [Type] is a [StructType].
+#[inline]
+pub fn is_struct_type(t: Type) -> bool {
+    t.isa::<StructType>()
 }
