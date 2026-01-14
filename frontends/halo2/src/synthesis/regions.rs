@@ -20,6 +20,7 @@ pub use row::Row;
 pub use table::TableData;
 
 /// Replacement for Halo2's `RegionStart` type.
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct RegionStart(usize);
 

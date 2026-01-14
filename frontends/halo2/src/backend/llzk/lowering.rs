@@ -11,10 +11,7 @@ use melior::ir::attribute::IntegerAttribute;
 use melior::ir::r#type::IntegerType;
 use melior::{
     Context,
-    ir::{
-        BlockLike as _, Location, Operation, OperationRef, RegionLike as _, Type, Value,
-        operation::OperationLike as _,
-    },
+    ir::{Location, Operation, OperationRef, Type, Value},
 };
 use mlir_sys::MlirValue;
 
@@ -484,14 +481,11 @@ impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
 
 #[cfg(test)]
 mod tests {
-    use ff::Field as _;
     use halo2_frontend_core::{
         query::{Advice, Instance},
         table::Column,
     };
-    use halo2_proofs::plonk::ConstraintSystem;
     use log::LevelFilter;
-    use melior::ir::Module;
     use simplelog::{Config, TestLogger};
 
     use crate::{
@@ -882,7 +876,7 @@ mod tests {
     /// The expected behavior is defined in textual MLIR IR as the fragment. This fragment is
     /// injected into a textual representation of the final module and compared against the emitted
     /// module. To avoid whitespacing issues or other formatting issues the textual IR is parsed
-    /// into a [`Module`] and then reprinted to standardize the syntax.
+    /// into a [`melior::ir::Module`] and then reprinted to standardize the syntax.
     fn fragment_test(
         cfg: FragmentCfg,
         frag: &str,
@@ -940,7 +934,6 @@ mod tests {
         }
 
         fn instance_io(&self) -> InstanceIO {
-            //let mut cs = ConstraintSystem::<crate::halo2::Fr>::default();
             let inputs = Vec::from_iter(0..self.n_public_inputs);
             let outputs = Vec::from_iter(0..self.n_public_outputs);
             InstanceIO::new(
