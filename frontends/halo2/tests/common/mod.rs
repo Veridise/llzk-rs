@@ -88,6 +88,7 @@ fn clean_string(s: &str) -> String {
     r
 }
 
+#[allow(dead_code)]
 struct DummyPattern;
 
 impl<F: Field> GateRewritePattern<F, _Expression<F>> for DummyPattern {
@@ -102,6 +103,7 @@ impl<F: Field> GateRewritePattern<F, _Expression<F>> for DummyPattern {
     }
 }
 
+#[allow(dead_code)]
 pub struct GC;
 
 impl<F: Field> GateCallbacks<F, _Expression<F>> for GC {
