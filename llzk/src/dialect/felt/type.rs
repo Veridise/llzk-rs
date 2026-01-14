@@ -1,3 +1,6 @@
+//! Implementation of `!felt.type` type.
+
+use crate::utils::IsA;
 use llzk_sys::{llzkFeltTypeGet, llzkTypeIsAFeltType};
 use melior::{
     Context,
@@ -52,4 +55,10 @@ impl<'c> From<FeltType<'c>> for Type<'c> {
     fn from(t: FeltType<'c>) -> Type<'c> {
         t.r#type
     }
+}
+
+/// Return `true` iff the given [Type] is a [FeltType].
+#[inline]
+pub fn is_felt_type(t: Type) -> bool {
+    t.isa::<FeltType>()
 }

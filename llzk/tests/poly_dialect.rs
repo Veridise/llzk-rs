@@ -46,5 +46,5 @@ fn is_read_const() {
     let op = poly::read_const(loc, "C", IntegerType::new(&context, 64).into());
 
     let op_ref = unsafe { OperationRef::from_raw(op.to_raw()) };
-    assert!(poly::is_read_const_op(op_ref));
+    assert!(poly::is_read_const_op(&op_ref));
 }

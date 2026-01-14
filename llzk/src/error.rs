@@ -43,6 +43,8 @@ pub enum Error {
     },
     /// Happens when a user-defined function is expected to have a certain name but doesn't.
     ExpectedFunctionName(&'static str),
+    /// General error containing only a message.
+    GeneralError(&'static str),
 }
 
 impl error::Error for Error {}
@@ -123,6 +125,7 @@ impl Display for Error {
                 f,
                 "expected user-defined function to have name: {expected_name}"
             ),
+            Error::GeneralError(msg) => write!(f, "{msg}"),
         }
     }
 }

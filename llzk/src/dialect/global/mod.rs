@@ -6,7 +6,7 @@ use melior::{
     ir::{
         Attribute, Location, Operation, Type, Value,
         attribute::{StringAttribute, TypeAttribute},
-        operation::OperationBuilder,
+        operation::{OperationBuilder, OperationLike},
     },
 };
 
@@ -48,6 +48,12 @@ pub fn def<'c>(
         .expect("valid operation")
 }
 
+/// Return `true` iff the given op is `global.def`.
+#[inline]
+pub fn is_global_def<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "global.def")
+}
+
 /// Constructs a 'global.read' operation.
 pub fn read<'c>(
     location: Location<'c>,
@@ -62,6 +68,12 @@ pub fn read<'c>(
         .expect("valid operation")
 }
 
+/// Return `true` iff the given op is `global.read`.
+#[inline]
+pub fn is_global_read<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "global.read")
+}
+
 /// Constructs a 'global.write' operation.
 pub fn write<'c>(
     location: Location<'c>,
@@ -74,4 +86,10 @@ pub fn write<'c>(
         .add_operands(&[value])
         .build()
         .expect("valid operation")
+}
+
+/// Return `true` iff the given op is `global.write`.
+#[inline]
+pub fn is_global_write<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "global.write")
 }

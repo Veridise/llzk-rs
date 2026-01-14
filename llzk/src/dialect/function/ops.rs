@@ -25,7 +25,7 @@ use melior::{
     ir::{
         Attribute, AttributeLike, BlockLike as _, Location, Operation, RegionLike as _, Type,
         TypeLike, Value,
-        attribute::ArrayAttribute,
+        attribute::{ArrayAttribute, TypeAttribute},
         block::BlockArgument,
         operation::{OperationBuilder, OperationLike, OperationMutLike},
         r#type::FunctionType,
@@ -161,6 +161,14 @@ pub trait FuncDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
             ))
         }
         .ok_or_else(|| Error::AttributeNotFound(name.to_string()))
+    }
+
+    /// Get the [FunctionType] attribute.
+    fn get_function_type_attribute(&self) -> Result<FunctionType<'c>, Error> {
+        let attr = self.attribute("function_type")?;
+        let type_attr: TypeAttribute<'c> = attr.try_into()?;
+        let func_type: FunctionType<'c> = type_attr.value().try_into()?;
+        Ok(func_type)
     }
 }
 
@@ -304,6 +312,12 @@ pub fn def<'c>(
     .try_into()
 }
 
+/// Return `true` iff the given op is `function.def`.
+#[inline]
+pub fn is_func_def<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "function.def")
+}
+
 /// Creates a new `function.call` operation.
 pub fn call<'c>(
     builder: &OpBuilder<'c>,
@@ -326,6 +340,12 @@ pub fn call<'c>(
     .try_into()
 }
 
+/// Return `true` iff the given op is `function.call`.
+#[inline]
+pub fn is_func_call<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "function.call")
+}
+
 /// Creates a new `function.return` operation.
 ///
 /// This operation is the terminator op for `function.def` and must be the last operation of the
@@ -336,4 +356,10 @@ pub fn r#return<'c>(location: Location<'c>, values: &[Value<'c, '_>]) -> Operati
         .add_operands(values)
         .build()
         .unwrap()
+}
+
+/// Return `true` iff the given op is `function.return`.
+#[inline]
+pub fn is_func_return<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "function.return")
 }

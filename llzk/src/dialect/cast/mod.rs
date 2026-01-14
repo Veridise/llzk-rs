@@ -3,7 +3,10 @@
 use llzk_sys::mlirGetDialectHandle__llzk__cast__;
 use melior::dialect::DialectHandle;
 use melior::ir::r#type::IntegerType;
-use melior::ir::{Location, Operation, Type, Value, operation::OperationBuilder};
+use melior::ir::{
+    Location, Operation, Type, Value,
+    operation::{OperationBuilder, OperationLike},
+};
 
 use crate::prelude::FeltType;
 
@@ -22,6 +25,12 @@ pub fn tofelt<'c>(location: Location<'c>, val: Value<'c, '_>) -> Operation<'c> {
         .expect("valid operation")
 }
 
+/// Return `true` iff the given op is `cast.tofelt`.
+#[inline]
+pub fn is_cast_tofelt<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "cast.tofelt")
+}
+
 /// Creates a 'cast.toindex' operation.
 pub fn toindex<'c>(location: Location<'c>, val: Value<'c, '_>) -> Operation<'c> {
     let ctx = location.context();
@@ -30,6 +39,12 @@ pub fn toindex<'c>(location: Location<'c>, val: Value<'c, '_>) -> Operation<'c> 
         .add_operands(&[val])
         .build()
         .expect("valid operation")
+}
+
+/// Return `true` iff the given op is `cast.toindex`.
+#[inline]
+pub fn is_cast_toindex<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "cast.toindex")
 }
 
 /// Creates a 'cast.toint' operation.
@@ -43,4 +58,10 @@ pub fn toint<'c>(
         .add_operands(&[val])
         .build()
         .expect("valid operation")
+}
+
+/// Return `true` iff the given op is `cast.toint`.
+#[inline]
+pub fn is_cast_toint<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "cast.toint")
 }

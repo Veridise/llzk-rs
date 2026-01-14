@@ -1,3 +1,6 @@
+//! Implementation of `!array.type` type.
+
+use crate::utils::IsA;
 use llzk_sys::{
     llzkArrayTypeGet, llzkArrayTypeGetDim, llzkArrayTypeGetElementType, llzkArrayTypeGetNumDims,
     llzkArrayTypeGetWithNumericDims, llzkTypeIsAArrayType,
@@ -54,6 +57,12 @@ impl<'c> ArrayType<'c> {
     pub fn dim(&self, idx: isize) -> Attribute<'c> {
         unsafe { Attribute::from_raw(llzkArrayTypeGetDim(self.to_raw(), idx)) }
     }
+
+    /// Returns the Attributes specifying the sizes of all dimensions.
+    #[inline]
+    pub fn dims(&self) -> Vec<Attribute<'c>> {
+        (0..self.num_dims()).map(|idx| self.dim(idx)).collect()
+    }
 }
 
 impl<'c> TypeLike<'c> for ArrayType<'c> {
@@ -84,4 +93,10 @@ impl<'c> From<ArrayType<'c>> for Type<'c> {
     fn from(t: ArrayType<'c>) -> Type<'c> {
         t.r#type
     }
+}
+
+/// Return `true` iff the given [Type] is an [ArrayType].
+#[inline]
+pub fn is_array_type(t: Type) -> bool {
+    t.isa::<ArrayType>()
 }

@@ -77,3 +77,13 @@ macro_rules! impl_into_ref {
 impl_into_ref!(Block<'c>, BlockRef<'c, 'a>);
 impl_into_ref!(Region<'c>, RegionRef<'c, 'a>);
 impl_into_ref!(Operation<'c>, OperationRef<'c, 'a>);
+
+/// Replicates MLIR `isa` functionality for Rust types using `TryFrom`.
+pub trait IsA: Sized {
+    /// Like MLIR `isa`, check if `self` can be converted to type `Out`.
+    #[inline]
+    fn isa<Out: TryFrom<Self>>(self) -> bool {
+        Out::try_from(self).is_ok()
+    }
+}
+impl<T> IsA for T {}
