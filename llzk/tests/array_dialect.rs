@@ -11,8 +11,8 @@ mod common;
 fn array_new_affine_map() {
     common::setup();
     let context = LlzkContext::new();
-    let module = llzk_module(Location::unknown(&context));
     let location = Location::unknown(&context);
+    let module = llzk_module(location);
     let index_type = Type::index(&context);
     let f = function::def(
         location,
