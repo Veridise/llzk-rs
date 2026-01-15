@@ -4,7 +4,8 @@ use crate::error::Error;
 use crate::prelude::replace_uses_of_with;
 use llzk_sys::MlirValueRange;
 use melior::ir::{BlockRef, OperationRef, Value, ValueLike};
-use std::marker::PhantomData;
+use mlir_sys::MlirValue;
+use std::{marker::PhantomData, num::TryFromIntError};
 
 /// Wrapper around a MLIR `ValueRange`, a non-owned iterator of MLIR values.
 #[derive(Debug)]
@@ -17,6 +18,62 @@ impl ValueRange<'_, '_, '_> {
     /// Returns the raw representation of the value range.
     pub fn to_raw(&self) -> MlirValueRange {
         self.raw
+    }
+
+    /// Creates the value range from a raw pointer.
+    pub fn from_raw(raw: MlirValueRange) -> Self {
+        Self {
+            raw,
+            _context: PhantomData,
+        }
+    }
+}
+
+/// Convenience wrapper for [ValueRange] that owns the range of MlirValues, but
+/// not the values themselves. Allows for safe management of the pointer used
+/// for [MlirValueRange].
+#[derive(Debug)]
+pub struct OwningValueRange<'c, 'b> {
+    values: Vec<MlirValue>,
+    _context: PhantomData<Value<'c, 'b>>,
+}
+
+impl<'c, 'b> OwningValueRange<'c, 'b> {
+    /// Return the value range as a slice.
+    pub fn values(&self) -> &[MlirValue] {
+        self.values.as_slice()
+    }
+}
+
+impl<'c, 'b> From<&[Value<'c, 'b>]> for OwningValueRange<'c, 'b> {
+    fn from(range: &[Value<'c, 'b>]) -> Self {
+        let values = range.iter().map(|v| v.to_raw()).collect();
+        Self {
+            values,
+            _context: PhantomData,
+        }
+    }
+}
+
+impl<'c, 'a, 'b> TryFrom<&'a [MlirValue]> for ValueRange<'c, 'a, 'b> {
+    type Error = TryFromIntError;
+
+    fn try_from(vals: &'a [MlirValue]) -> Result<Self, Self::Error> {
+        Ok(Self {
+            raw: MlirValueRange {
+                values: vals.as_ptr(),
+                size: isize::try_from(vals.len())?,
+            },
+            _context: PhantomData,
+        })
+    }
+}
+
+impl<'c, 'a, 'b> TryFrom<&'a OwningValueRange<'c, 'b>> for ValueRange<'c, 'a, 'b> {
+    type Error = TryFromIntError;
+
+    fn try_from(owning_value_range: &'a OwningValueRange<'c, 'b>) -> Result<Self, Self::Error> {
+        owning_value_range.values().try_into()
     }
 }
 
