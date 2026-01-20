@@ -1,7 +1,7 @@
 use crate::gates::SelectorSet;
 use halo2_frontend_core::{
     info_traits::SelectorInfo,
-    table::{Any, Column, ColumnType, RegionIndex},
+    table::{Any, Column, ColumnType, RegionIndex, RegionStart},
 };
 
 use std::{
@@ -26,13 +26,17 @@ pub struct RegionDataImpl {
 }
 
 impl RegionDataImpl {
-    pub fn new<S: Into<String>>(name: S, index: RegionIndex) -> Self {
+    pub fn new<S: Into<String>>(
+        name: S,
+        index: RegionIndex,
+        region_start: Option<RegionStart>,
+    ) -> Self {
         Self {
             name: name.into(),
             index: Some(index),
             enabled_selectors: Default::default(),
             columns: Default::default(),
-            rows: Default::default(),
+            rows: region_start.map(|start| (*start, *start)),
             namespaces: Default::default(),
         }
     }

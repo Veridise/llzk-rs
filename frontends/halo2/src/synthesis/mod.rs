@@ -20,7 +20,7 @@ use halo2_frontend_core::{
     info_traits::{ConstraintSystemInfo, GroupInfo, QueryInfo as _, SelectorInfo},
     query::{Advice, Fixed},
     synthesis::SynthesizerLike,
-    table::{Any, Column, RegionIndex},
+    table::{Any, Column, RegionIndex, RegionStart},
 };
 
 pub(crate) mod constraint;
@@ -209,10 +209,19 @@ impl<F: Field> SynthesizerLike<F> for Synthesizer<F> {
     /// Enters a new region of the circuit.
     ///
     /// Panics if the synthesizer entered a region already and didn't exit.
-    fn enter_region(&mut self, region_name: String) {
-        self.groups
-            .regions_mut()
-            .push(|| region_name, &mut self.next_index, &mut self.tables);
+    fn enter_region(
+        &mut self,
+        region_name: String,
+        region_index: Option<RegionIndex>,
+        region_start: Option<RegionStart>,
+    ) {
+        self.groups.regions_mut().push(
+            || region_name,
+            &mut self.next_index,
+            &mut self.tables,
+            region_index,
+            region_start,
+        );
     }
 
     /// Exits the current region of the circuit.

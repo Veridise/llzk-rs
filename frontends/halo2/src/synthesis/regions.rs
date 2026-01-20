@@ -19,24 +19,7 @@ pub use region_row::RegionRow;
 pub use row::Row;
 pub use table::TableData;
 
-/// Replacement for Halo2's `RegionStart` type.
-#[allow(dead_code)]
-#[derive(Debug)]
-pub struct RegionStart(usize);
-
-impl Deref for RegionStart {
-    type Target = usize;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<usize> for RegionStart {
-    fn from(value: usize) -> Self {
-        Self(value)
-    }
-}
+pub use halo2_frontend_core::table::RegionStart;
 
 /// A set of regions
 #[derive(Default, Debug)]
@@ -56,6 +39,8 @@ impl Regions {
         region_name: N,
         next_index: &mut dyn Iterator<Item = RegionIndex>,
         tables: &mut Vec<HashSet<Column<Fixed>>>,
+        region_index: Option<RegionIndex>,
+        region_start: Option<RegionStart>,
     ) where
         NR: Into<String>,
         N: FnOnce() -> NR,
@@ -63,7 +48,8 @@ impl Regions {
         assert!(self.current.is_none());
         self.move_latest_to_tables(tables);
         let name: String = region_name().into();
-        let index = self
+        let index = region_index.unwrap_or_else(|| {
+            self
             // Reuse the previous index if available.
             .recovered_index
             .take()
@@ -72,9 +58,10 @@ impl Regions {
                 next_index
                     .next()
                     .expect("Iterator of region indices should be infinite")
-            });
+            })
+        });
         log::debug!("Region {} {name:?} is the current region", *index);
-        self.current = Some(RegionDataImpl::new(name, index));
+        self.current = Some(RegionDataImpl::new(name, index, region_start));
     }
 
     /// Commits the current region to the list of regions.
