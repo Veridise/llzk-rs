@@ -8,7 +8,7 @@ use mlir_sys::MlirValue;
 use std::{marker::PhantomData, num::TryFromIntError};
 
 /// Wrapper around a MLIR `ValueRange`, a non-owned iterator of MLIR values.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct ValueRange<'c, 'a, 'b> {
     raw: MlirValueRange,
     _context: PhantomData<&'a [Value<'c, 'b>]>,

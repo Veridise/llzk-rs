@@ -2,7 +2,7 @@ use mlir_sys::*;
 use rstest::{fixture, rstest};
 use std::ffi::CString;
 
-use crate::llzkRegisterAllDialects;
+use crate::{LlzkAffineMapOperandsBuilder, llzkRegisterAllDialects};
 
 mod builder;
 mod constants;
@@ -128,3 +128,7 @@ fn test_location(context: TestContext, registry: TestRegistry) {
         mlirOperationStateGet(reference, location);
     }
 }
+
+// [`LlzkAffineMapOperandsBuilder`] MUST implement Copy.
+trait AssertCopy: Copy {}
+impl AssertCopy for LlzkAffineMapOperandsBuilder {}

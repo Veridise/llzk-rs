@@ -13,6 +13,7 @@ mod diagnostics;
 pub mod dialect;
 pub mod error;
 mod macros;
+pub mod map_operands;
 pub mod operation;
 pub mod passes;
 pub mod prelude;

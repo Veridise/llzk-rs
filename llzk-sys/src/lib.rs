@@ -11,15 +11,27 @@
 // It's set to warn as a reminder for the CAPI maintainers to add missing documentation.
 #![warn(missing_docs)]
 
-use mlir_sys::{
-    MlirAffineExpr, MlirAffineMap, MlirAsmState, MlirAttribute, MlirBlock,
-    MlirBytecodeWriterConfig, MlirContext, MlirDialectHandle, MlirDialectRegistry, MlirIdentifier,
-    MlirLocation, MlirLogicalResult, MlirModule, MlirNamedAttribute, MlirOpPrintingFlags,
-    MlirOperation, MlirOperationState, MlirOperationWalkCallback, MlirPass, MlirRegion,
-    MlirStringCallback, MlirStringRef, MlirType, MlirTypeID, MlirValue, MlirWalkOrder,
-};
+mod sys {
 
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+    #![allow(
+        non_camel_case_types,
+        non_snake_case,
+        non_upper_case_globals,
+        dead_code
+    )]
+
+    use mlir_sys::{
+        MlirAffineExpr, MlirAffineMap, MlirAsmState, MlirAttribute, MlirBlock,
+        MlirBytecodeWriterConfig, MlirContext, MlirDialectHandle, MlirDialectRegistry,
+        MlirIdentifier, MlirLocation, MlirLogicalResult, MlirModule, MlirNamedAttribute,
+        MlirOpPrintingFlags, MlirOperation, MlirOperationState, MlirOperationWalkCallback,
+        MlirPass, MlirRegion, MlirStringCallback, MlirStringRef, MlirType, MlirTypeID, MlirValue,
+        MlirWalkOrder,
+    };
+    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+}
+
+pub use sys::*;
 
 use std::{ffi::CStr, sync::LazyLock};
 

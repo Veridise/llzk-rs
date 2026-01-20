@@ -1,17 +1,17 @@
 use crate::{
-    llzkArrayTypeGet, llzkArrayTypeGetDim, llzkArrayTypeGetElementType, llzkArrayTypeGetNumDims,
+    llzkAffineMapOperandsBuilderCreate, llzkAffineMapOperandsBuilderDestroy, llzkArrayTypeGet,
+    llzkArrayTypeGetDim, llzkArrayTypeGetElementType, llzkArrayTypeGetNumDims,
     llzkArrayTypeGetWithNumericDims, llzkCreateArrayOpBuildWithMapOperands,
-    llzkCreateArrayOpBuildWithMapOperandsAndDims, llzkCreateArrayOpBuildWithValues,
-    llzkTypeIsAArrayType, mlirGetDialectHandle__llzk__array__, mlirOpBuilderCreate,
-    mlirOpBuilderDestroy,
+    llzkCreateArrayOpBuildWithValues, llzkTypeIsAArrayType, mlirGetDialectHandle__llzk__array__,
+    mlirOpBuilderCreate, mlirOpBuilderDestroy,
     sanity_tests::{TestContext, context, load_llzk_dialects},
 };
 use mlir_sys::{
-    MlirContext, MlirOperation, MlirType, mlirAttributeEqual, mlirDenseI32ArrayGet,
-    mlirIdentifierGet, mlirIndexTypeGet, mlirIntegerAttrGet, mlirLocationUnknownGet,
-    mlirNamedAttributeGet, mlirOperationCreate, mlirOperationDestroy, mlirOperationGetResult,
-    mlirOperationStateAddAttributes, mlirOperationStateEnableResultTypeInference,
-    mlirOperationStateGet, mlirOperationVerify, mlirStringRefCreateFromCString, mlirTypeEqual,
+    MlirContext, MlirOperation, MlirType, mlirAttributeEqual, mlirIdentifierGet, mlirIndexTypeGet,
+    mlirIntegerAttrGet, mlirLocationUnknownGet, mlirNamedAttributeGet, mlirOperationCreate,
+    mlirOperationDestroy, mlirOperationGetResult, mlirOperationStateAddAttributes,
+    mlirOperationStateEnableResultTypeInference, mlirOperationStateGet, mlirOperationVerify,
+    mlirStringRefCreateFromCString, mlirTypeEqual,
 };
 use rstest::{fixture, rstest};
 use std::{ffi::CString, ptr::null};
@@ -143,49 +143,13 @@ fn test_llzk_create_array_op_build_with_map_operands(
 
         let builder = mlirOpBuilderCreate(context.ctx);
         let location = mlirLocationUnknownGet(context.ctx);
-        let dims_per_map = mlirDenseI32ArrayGet(context.ctx, 0, null());
+        let mut map_operands = llzkAffineMapOperandsBuilderCreate();
 
-        let op = llzkCreateArrayOpBuildWithMapOperands(
-            builder,
-            location,
-            test_type,
-            0,
-            null(),
-            dims_per_map,
-        );
+        let op = llzkCreateArrayOpBuildWithMapOperands(builder, location, test_type, map_operands);
 
         assert!(mlirOperationVerify(op));
         mlirOperationDestroy(op);
-        mlirOpBuilderDestroy(builder);
-    }
-}
-
-#[rstest]
-fn test_llzk_create_array_op_build_with_map_operands_and_dims(
-    context: TestContext,
-    #[values(&[1])] dims: &[i64],
-) {
-    load_llzk_dialects(&context);
-    unsafe {
-        let elt_type = mlirIndexTypeGet(context.ctx);
-        let test_type = test_array(elt_type, &dims);
-
-        let builder = mlirOpBuilderCreate(context.ctx);
-        let location = mlirLocationUnknownGet(context.ctx);
-
-        let op = llzkCreateArrayOpBuildWithMapOperandsAndDims(
-            builder,
-            location,
-            test_type,
-            0,
-            null(),
-            0,
-            null(),
-        );
-
-        assert!(mlirOperationVerify(op));
-        mlirOperationDestroy(op);
-
+        llzkAffineMapOperandsBuilderDestroy(&mut map_operands);
         mlirOpBuilderDestroy(builder);
     }
 }

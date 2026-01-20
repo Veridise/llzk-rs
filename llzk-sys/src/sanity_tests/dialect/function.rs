@@ -1,23 +1,23 @@
 use crate::{
-    llzkCallOpBuild, llzkCallOpBuildToCallee, llzkCallOpBuildToCalleeWithMapOperands,
-    llzkCallOpBuildToCalleeWithMapOperandsAndDims, llzkCallOpBuildWithMapOperands,
-    llzkCallOpBuildWithMapOperandsAndDims, llzkCallOpGetCalleeIsCompute,
-    llzkCallOpGetCalleeIsConstrain, llzkCallOpGetCalleeIsStructCompute,
-    llzkCallOpGetCalleeIsStructConstrain, llzkCallOpGetCalleeType,
-    llzkCallOpGetSingleResultTypeOfCompute, llzkFuncDefOpCreateWithAttrsAndArgAttrs,
-    llzkFuncDefOpGetFullyQualifiedName, llzkFuncDefOpGetHasAllowConstraintAttr,
-    llzkFuncDefOpGetHasAllowWitnessAttr, llzkFuncDefOpGetHasArgIsPub, llzkFuncDefOpGetIsInStruct,
-    llzkFuncDefOpGetIsStructCompute, llzkFuncDefOpGetIsStructConstrain,
-    llzkFuncDefOpGetNameIsCompute, llzkFuncDefOpGetNameIsConstrain,
-    llzkFuncDefOpGetSingleResultTypeOfCompute, llzkFuncDefOpSetAllowConstraintAttr,
-    llzkFuncDefOpSetAllowWitnessAttr, llzkOperationIsACallOp, llzkOperationIsAFuncDefOp,
-    mlirGetDialectHandle__llzk__function__, mlirOpBuilderCreate, mlirOpBuilderDestroy,
+    llzkAffineMapOperandsBuilderCreate, llzkAffineMapOperandsBuilderDestroy, llzkCallOpBuild,
+    llzkCallOpBuildToCallee, llzkCallOpBuildToCalleeWithMapOperands,
+    llzkCallOpBuildWithMapOperands, llzkCallOpGetCalleeIsCompute, llzkCallOpGetCalleeIsConstrain,
+    llzkCallOpGetCalleeIsStructCompute, llzkCallOpGetCalleeIsStructConstrain,
+    llzkCallOpGetCalleeType, llzkCallOpGetSingleResultTypeOfCompute,
+    llzkFuncDefOpCreateWithAttrsAndArgAttrs, llzkFuncDefOpGetFullyQualifiedName,
+    llzkFuncDefOpGetHasAllowConstraintAttr, llzkFuncDefOpGetHasAllowWitnessAttr,
+    llzkFuncDefOpGetHasArgIsPub, llzkFuncDefOpGetIsInStruct, llzkFuncDefOpGetIsStructCompute,
+    llzkFuncDefOpGetIsStructConstrain, llzkFuncDefOpGetNameIsCompute,
+    llzkFuncDefOpGetNameIsConstrain, llzkFuncDefOpGetSingleResultTypeOfCompute,
+    llzkFuncDefOpSetAllowConstraintAttr, llzkFuncDefOpSetAllowWitnessAttr, llzkOperationIsACallOp,
+    llzkOperationIsAFuncDefOp, mlirGetDialectHandle__llzk__function__, mlirOpBuilderCreate,
+    mlirOpBuilderDestroy,
     sanity_tests::{TestContext, context, str_ref},
 };
 use mlir_sys::{
-    MlirAttribute, MlirContext, MlirNamedAttribute, MlirOperation, MlirType, mlirDenseI32ArrayGet,
-    mlirDictionaryAttrGet, mlirFlatSymbolRefAttrGet, mlirFunctionTypeGet, mlirIndexTypeGet,
-    mlirLocationUnknownGet, mlirOperationDestroy, mlirOperationGetContext, mlirOperationVerify,
+    MlirAttribute, MlirContext, MlirNamedAttribute, MlirOperation, MlirType, mlirDictionaryAttrGet,
+    mlirFlatSymbolRefAttrGet, mlirFunctionTypeGet, mlirIndexTypeGet, mlirLocationUnknownGet,
+    mlirOperationDestroy, mlirOperationGetContext, mlirOperationVerify,
     mlirStringRefCreateFromCString, mlirTypeEqual,
 };
 use rstest::{fixture, rstest};
@@ -297,48 +297,20 @@ fn llzk_call_op_build_with_map_operands(test_function0: TestFuncDefOp) {
         let location = mlirLocationUnknownGet(ctx);
         let callee_name = str_ref(test_function0.name);
         let callee_name = mlirFlatSymbolRefAttrGet(ctx, callee_name);
-        let dims_per_map = mlirDenseI32ArrayGet(ctx, 0, null());
+        let mut map_operands = llzkAffineMapOperandsBuilderCreate();
         let call = llzkCallOpBuildWithMapOperands(
             builder,
             location,
             test_function0.out_types.len() as isize,
             test_function0.out_types.as_ptr(),
             callee_name,
-            0,
-            null(),
-            dims_per_map,
-            0,
-            null(),
-        );
-        assert!(mlirOperationVerify(call));
-        mlirOperationDestroy(call);
-        mlirOpBuilderDestroy(builder);
-    }
-}
-
-#[rstest]
-fn llzk_call_op_build_with_map_operands_and_dims(test_function0: TestFuncDefOp) {
-    unsafe {
-        let ctx = mlirOperationGetContext(test_function0.op);
-        let builder = mlirOpBuilderCreate(ctx);
-        let location = mlirLocationUnknownGet(ctx);
-        let callee_name = str_ref(test_function0.name);
-        let callee_name = mlirFlatSymbolRefAttrGet(ctx, callee_name);
-        let call = llzkCallOpBuildWithMapOperandsAndDims(
-            builder,
-            location,
-            test_function0.out_types.len() as isize,
-            test_function0.out_types.as_ptr(),
-            callee_name,
-            0,
-            null(),
-            0,
-            null(),
+            map_operands,
             0,
             null(),
         );
         assert!(mlirOperationVerify(call));
         mlirOperationDestroy(call);
+        llzkAffineMapOperandsBuilderDestroy(&mut map_operands);
         mlirOpBuilderDestroy(builder);
     }
 }
@@ -349,42 +321,18 @@ fn llzk_call_op_build_to_callee_with_map_operands(test_function0: TestFuncDefOp)
         let ctx = mlirOperationGetContext(test_function0.op);
         let builder = mlirOpBuilderCreate(ctx);
         let location = mlirLocationUnknownGet(ctx);
-        let dims_per_map = mlirDenseI32ArrayGet(ctx, 0, null());
+        let mut map_operands = llzkAffineMapOperandsBuilderCreate();
         let call = llzkCallOpBuildToCalleeWithMapOperands(
             builder,
             location,
             test_function0.op,
-            0,
-            null(),
-            dims_per_map,
-            0,
-            null(),
-        );
-        assert!(mlirOperationVerify(call));
-        mlirOperationDestroy(call);
-        mlirOpBuilderDestroy(builder);
-    }
-}
-
-#[rstest]
-fn llzk_call_op_build_to_callee_with_map_operands_and_dims(test_function0: TestFuncDefOp) {
-    unsafe {
-        let ctx = mlirOperationGetContext(test_function0.op);
-        let builder = mlirOpBuilderCreate(ctx);
-        let location = mlirLocationUnknownGet(ctx);
-        let call = llzkCallOpBuildToCalleeWithMapOperandsAndDims(
-            builder,
-            location,
-            test_function0.op,
-            0,
-            null(),
-            0,
-            null(),
+            map_operands,
             0,
             null(),
         );
         assert!(mlirOperationVerify(call));
         mlirOperationDestroy(call);
+        llzkAffineMapOperandsBuilderDestroy(&mut map_operands);
         mlirOpBuilderDestroy(builder);
     }
 }
