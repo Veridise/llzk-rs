@@ -229,6 +229,7 @@ fn try_relativize_advice_cell<'a>(
         return Ok(cell);
     }
     for region in regions {
+        log::debug!("region = {region:?}");
         if !region.contains_advice_cell(cell.col(), cell.row()) {
             continue;
         }
