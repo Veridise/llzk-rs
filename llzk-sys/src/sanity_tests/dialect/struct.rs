@@ -366,7 +366,6 @@ fn test_llzk_field_read_op_build_with_affine_map_distance(context: TestContext) 
                 values: values.as_ptr(),
                 size: values.len() as isize,
             },
-            0,
         );
 
         mlirOperationDestroy(op);
