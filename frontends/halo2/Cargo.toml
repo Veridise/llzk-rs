@@ -53,8 +53,6 @@ git = "https://github.com/Veridise/midnight-zk.git"
 default-features = false
 package = "midnight-proofs"
 features = [
-    "bits",
-    "cost-estimator",
     "circuit-params",
     "committed-instances",
     "region-groups"

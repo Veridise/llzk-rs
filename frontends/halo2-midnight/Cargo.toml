@@ -11,8 +11,6 @@ ff = {workspace = true }
 git = "https://github.com/Veridise/midnight-zk.git"
 default-features = false
 features = [
-    "bits",
-    "cost-estimator",
     "circuit-params",
     "committed-instances",
     "region-groups"

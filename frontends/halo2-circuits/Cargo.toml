@@ -7,8 +7,6 @@ edition = "2024"
 git = "https://github.com/Veridise/midnight-zk.git"
 default-features = false
 features = [
-    "bits",
-    "cost-estimator",
     "circuit-params",
     "committed-instances",
     "region-groups"
