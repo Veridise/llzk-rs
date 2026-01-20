@@ -1,15 +1,13 @@
-use llzk_sys::{
-    llzkCreateArrayOpBuildWithMapOperands, llzkCreateArrayOpBuildWithMapOperandsAndDims,
-    llzkCreateArrayOpBuildWithValues,
-};
+use llzk_sys::{llzkCreateArrayOpBuildWithMapOperands, llzkCreateArrayOpBuildWithValues};
 use melior::ir::TypeLike;
 use melior::ir::operation::OperationBuilder;
 use melior::ir::{
-    Attribute, AttributeLike, Location, Operation, Type, Value, ValueLike,
-    attribute::DenseI32ArrayAttribute, operation::OperationLike,
+    Location, Operation, Type, Value, ValueLike, attribute::DenseI32ArrayAttribute,
+    operation::OperationLike,
 };
 use mlir_sys::MlirOperation;
 
+use crate::map_operands::MapOperandsBuilder;
 use crate::{
     builder::{OpBuilder, OpBuilderLike},
     value_ext::ValueRange,
@@ -53,28 +51,33 @@ impl<'c, 'a, 'b, 'd> ArrayCtor<'c, 'a, 'b, 'd> {
             },
 
             Self::MapDimAttr(map_operands, num_dims_per_map) => unsafe {
-                let raw_operands = map_operands.iter().map(|v| v.to_raw()).collect::<Vec<_>>();
-                let dims: Attribute = (*num_dims_per_map).into();
+                let mut map_operands_builder = MapOperandsBuilder::new();
+
+                for operands in *map_operands {
+                    map_operands_builder.append_operands(*operands);
+                }
+
+                map_operands_builder.set_dims_per_map_from_attr(*num_dims_per_map);
+
                 llzkCreateArrayOpBuildWithMapOperands(
                     builder.to_raw(),
                     location.to_raw(),
                     r#type.to_raw(),
-                    raw_operands.len() as isize,
-                    raw_operands.as_ptr(),
-                    dims.to_raw(),
+                    map_operands_builder.to_raw(),
                 )
             },
 
             Self::MapDimSlice(map_operands, num_dims_per_map) => unsafe {
-                let raw_operands = map_operands.iter().map(|v| v.to_raw()).collect::<Vec<_>>();
-                llzkCreateArrayOpBuildWithMapOperandsAndDims(
+                assert_eq!(map_operands.len(), num_dims_per_map.len());
+                let mut map_operands_builder = MapOperandsBuilder::new();
+                for (operands, dim) in std::iter::zip(*map_operands, *num_dims_per_map) {
+                    map_operands_builder.append_operands_with_dim_count(*operands, *dim);
+                }
+                llzkCreateArrayOpBuildWithMapOperands(
                     builder.to_raw(),
                     location.to_raw(),
                     r#type.to_raw(),
-                    raw_operands.len() as isize,
-                    raw_operands.as_ptr(),
-                    num_dims_per_map.len() as isize,
-                    num_dims_per_map.as_ptr(),
+                    map_operands_builder.to_raw(),
                 )
             },
         }

@@ -67,6 +67,9 @@ impl BindgenConfig for DefaultConfig<'_> {
             .allowlist_item("[Ll]lzk.*")
             .allowlist_var("LLZK_.*")
             .allowlist_recursively(false)
+            // Needs to be defined as an opaque blob because bindgen won't derive Copy otherwise
+            // because it cannot figure out that the inner MlirAttribute is Copy.
+            .opaque_type("LlzkAffineMapOperandsBuilder")
             .impl_debug(true)
             .header(self.wrapper())
             .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
