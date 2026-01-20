@@ -6,13 +6,13 @@ use melior::ir::TypeLike;
 use melior::ir::operation::OperationBuilder;
 use melior::ir::{
     Attribute, AttributeLike, Location, Operation, Type, Value, ValueLike,
-    attribute::DenseI32ArrayAttribute,
+    attribute::DenseI32ArrayAttribute, operation::OperationLike,
 };
 use mlir_sys::MlirOperation;
 
 use crate::{
     builder::{OpBuilder, OpBuilderLike},
-    value_range::ValueRange,
+    value_ext::ValueRange,
 };
 
 use super::ArrayType;
@@ -91,6 +91,12 @@ pub fn new<'c>(
     unsafe { Operation::from_raw(ctor.build(builder, location, r#type)) }
 }
 
+/// Return `true` iff the given op is `array.new`.
+#[inline]
+pub fn is_array_new<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "array.new")
+}
+
 fn read_like_op<'c>(
     name: &str,
     location: Location<'c>,
@@ -116,6 +122,12 @@ pub fn read<'c>(
     read_like_op("array.read", location, result, arr_ref, indices)
 }
 
+/// Return `true` iff the given op is `array.read`.
+#[inline]
+pub fn is_array_read<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "array.read")
+}
+
 /// Creates an 'array.extract' operation.
 pub fn extract<'c>(
     location: Location<'c>,
@@ -124,6 +136,12 @@ pub fn extract<'c>(
     indices: &[Value<'c, '_>],
 ) -> Operation<'c> {
     read_like_op("array.extract", location, result, arr_ref, indices)
+}
+
+/// Return `true` iff the given op is `array.extract`.
+#[inline]
+pub fn is_array_extract<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "array.extract")
 }
 
 fn write_like_op<'c>(
@@ -151,6 +169,12 @@ pub fn write<'c>(
     write_like_op("array.write", location, arr_ref, indices, rvalue)
 }
 
+/// Return `true` iff the given op is `array.write`.
+#[inline]
+pub fn is_array_write<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "array.write")
+}
+
 /// Creates an 'array.insert' operation.
 pub fn insert<'c>(
     location: Location<'c>,
@@ -159,4 +183,10 @@ pub fn insert<'c>(
     rvalue: Value<'c, '_>,
 ) -> Operation<'c> {
     write_like_op("array.insert", location, arr_ref, indices, rvalue)
+}
+
+/// Return `true` iff the given op is `array.insert`.
+#[inline]
+pub fn is_array_insert<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "array.insert")
 }

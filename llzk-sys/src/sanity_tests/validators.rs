@@ -3,7 +3,6 @@ use rstest::rstest;
 
 use crate::{
     mlirCreateLLZKValidationFieldWriteValidatorPass,
-    mlirRegisterLLZKValidationFieldWriteValidatorPass, mlirRegisterLLZKValidationPasses,
     sanity_tests::{TestContext, context},
 };
 

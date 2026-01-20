@@ -52,7 +52,7 @@ impl<'r, 'io, 'fq, F: Field> RegionRow<'r, 'io, 'fq, F> {
         }
     }
 
-    fn enabled(&self) -> Cow<SelectorSet> {
+    fn enabled(&self) -> Cow<'_, SelectorSet> {
         self.region.selectors_enabled_for_row(self.row.row)
     }
 

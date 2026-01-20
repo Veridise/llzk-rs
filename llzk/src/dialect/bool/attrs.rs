@@ -24,7 +24,7 @@ pub enum CmpPredicate {
 }
 
 /// Attribute representing a comparison predicate.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct CmpPredicateAttribute<'c> {
     inner: Attribute<'c>,
 }
@@ -34,7 +34,7 @@ impl<'c> CmpPredicateAttribute<'c> {
     ///
     /// # Safety
     ///
-    /// The MLIR attribute must be a valid pointer of type CmpPredicateAttribute.
+    /// The MLIR attribute must contain a valid pointer of type `CmpPredicateAttr`.
     pub unsafe fn from_raw(attr: MlirAttribute) -> Self {
         unsafe {
             Self {

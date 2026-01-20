@@ -3,16 +3,6 @@ use melior::ir::Location;
 
 mod common;
 
-macro_rules! assert_test {
-    ($op:expr, $module:expr, @file $expected:literal ) => {{
-        let s = $module.body().append_operation($op.into());
-        verify_operation_with_diags(&s).unwrap();
-        log::info!("Op passed verification");
-
-        mlir_testutils::assert_module_eq_to_file!(&$module, $expected);
-    }};
-}
-
 fn default_funcs<'c>(
     loc: Location<'c>,
     typ: StructType<'c>,
@@ -32,6 +22,7 @@ fn empty_struct() {
     let typ = StructType::from_str(&context, "empty");
 
     let s = r#struct::def(loc, "empty", &[], default_funcs(loc, typ)).unwrap();
+    let s = module.body().append_operation(s.into());
 
     assert_test!(s, module, @file "expected/empty_struct.mlir" );
 }
@@ -45,6 +36,7 @@ fn empty_struct_with_one_param() {
     let typ = StructType::from_str_params(&context, "empty", &["T"]);
 
     let s = r#struct::def(loc, "empty", &["T"], default_funcs(loc, typ)).unwrap();
+    let s = module.body().append_operation(s.into());
 
     assert_test!(s, module, @file "expected/empty_struct_with_one_param.mlir");
 }
@@ -58,7 +50,7 @@ fn empty_struct_with_pub_inputs() {
     let typ = StructType::from_str_params(&context, "empty", &[]);
 
     let inputs = vec![(FeltType::new(&context).into(), Location::unknown(&context))];
-    let arg_attrs = vec![vec![PublicAttribute::named_attr_pair(&context)]];
+    let arg_attrs = vec![vec![PublicAttribute::new_named_attr(&context)]];
     let s = r#struct::def(loc, "empty", &[], {
         [
             r#struct::helpers::compute_fn(loc, typ, inputs.as_slice(), Some(arg_attrs.as_slice()))
@@ -73,6 +65,7 @@ fn empty_struct_with_pub_inputs() {
         ]
     })
     .unwrap();
+    let s = module.body().append_operation(s.into());
 
     assert_test!(s, module, @file "expected/empty_struct_with_pub_inputs.mlir");
 }
@@ -84,6 +77,7 @@ fn signal_struct() {
     let module = llzk_module(Location::unknown(&context));
 
     let s = r#struct::helpers::define_signal_struct(&context).unwrap();
+    let s = module.body().append_operation(s.into());
 
     assert_test!(s, module, @file "expected/signal_struct.mlir");
 }

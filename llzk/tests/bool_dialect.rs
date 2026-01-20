@@ -1,7 +1,11 @@
 use llzk::prelude::*;
-use melior::ir::{
-    Location, Type,
-    r#type::{FunctionType, IntegerType},
+use melior::{
+    dialect::arith,
+    ir::{
+        Location, Type,
+        attribute::BoolAttribute,
+        r#type::{FunctionType, IntegerType},
+    },
 };
 
 mod common;
@@ -274,4 +278,19 @@ fn f_ge() {
   function.return %0 : i1
 }";
     assert_eq!(ir, expected);
+}
+
+#[test]
+fn f_assert() {
+    common::setup();
+    let context = LlzkContext::new();
+    let loc = Location::unknown(&context);
+
+    let cond = arith::constant(&context, BoolAttribute::new(&context, false).into(), loc);
+    let cond = cond.result(0).unwrap().into();
+    let op = llzk::dialect::bool::assert(loc, cond, Some("assertion failed"))
+        .expect("failed to build assert op");
+
+    assert!(op.verify());
+    log::info!("Op passed verification");
 }

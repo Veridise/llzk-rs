@@ -66,7 +66,7 @@ impl RegionDataImpl {
         self.index.take()
     }
 
-    pub fn selectors_enabled_for_row(&self, row: usize) -> Cow<SelectorSet> {
+    pub fn selectors_enabled_for_row(&self, row: usize) -> Cow<'_, SelectorSet> {
         self.enabled_selectors
             .get(&row)
             .map(Cow::Borrowed)
@@ -151,7 +151,7 @@ impl<'a> RegionData<'a> {
         self.inner.start()
     }
 
-    pub fn selectors_enabled_for_row(&self, row: usize) -> Cow<SelectorSet> {
+    pub fn selectors_enabled_for_row(&self, row: usize) -> Cow<'_, SelectorSet> {
         self.inner.selectors_enabled_for_row(row)
     }
 

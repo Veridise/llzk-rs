@@ -11,14 +11,17 @@ mod inner {
 
     use crate::common::common_lowering;
 
-    pub fn llzk_params(ctx: &LlzkContext) -> LlzkParams {
+    #[allow(dead_code)]
+    pub fn llzk_params(ctx: &LlzkContext) -> LlzkParams<'_> {
         LlzkParamsBuilder::new(ctx).no_optimize().build()
     }
 
-    pub fn opt_llzk_params(ctx: &LlzkContext) -> LlzkParams {
+    #[allow(dead_code)]
+    pub fn opt_llzk_params(ctx: &LlzkContext) -> LlzkParams<'_> {
         LlzkParamsBuilder::new(ctx).build()
     }
 
+    #[allow(dead_code)]
     pub fn check_llzk(
         driver: &Driver,
         circuit: &ResolvedIRCircuit,
@@ -30,6 +33,7 @@ mod inner {
         mlir_testutils::assert_module_eq(output.module(), expected_llzk.as_ref());
     }
 
+    #[allow(dead_code)]
     pub fn llzk_test<F, C>(
         circuit: C,
         params: LlzkParams,
@@ -51,6 +55,7 @@ mod inner {
 }
 
 #[cfg(feature = "llzk-backend")]
+#[allow(unused)]
 pub use inner::*;
 
 #[allow(unused_macros)]
@@ -99,4 +104,5 @@ macro_rules! basic_llzk_test {
     };
 }
 
+#[allow(unused)]
 pub(crate) use basic_llzk_test;

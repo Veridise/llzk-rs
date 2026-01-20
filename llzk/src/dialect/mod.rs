@@ -2,11 +2,13 @@
 
 pub mod array;
 pub mod bool;
+pub mod cast;
 pub mod constrain;
 pub mod felt;
 pub mod function;
 pub mod global;
 pub mod llzk;
+pub mod poly;
 pub mod r#struct;
 pub mod undef;
 
@@ -30,5 +32,40 @@ pub mod module {
             StringAttribute::new(unsafe { ctx.to_ref() }, "llzk").into(),
         );
         module
+    }
+}
+
+/// Extensions for the 'scf' dialect.
+pub mod scf_ext {
+    use melior::ir::operation::OperationLike;
+
+    /// Return `true` iff the given op is `scf.if`.
+    #[inline]
+    pub fn is_scf_if<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+        crate::operation::isa(op, "scf.if")
+    }
+
+    /// Return `true` iff the given op is `scf.yield`.
+    #[inline]
+    pub fn is_scf_yield<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+        crate::operation::isa(op, "scf.yield")
+    }
+
+    /// Return `true` iff the given op is `scf.condition`.
+    #[inline]
+    pub fn is_scf_condition<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+        crate::operation::isa(op, "scf.condition")
+    }
+
+    /// Return `true` iff the given op is `scf.for`.
+    #[inline]
+    pub fn is_scf_for<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+        crate::operation::isa(op, "scf.for")
+    }
+
+    /// Return `true` iff the given op is `scf.while`.
+    #[inline]
+    pub fn is_scf_while<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+        crate::operation::isa(op, "scf.while")
     }
 }

@@ -1,11 +1,14 @@
 use crate::{
     dialect::bool::{CmpPredicate, CmpPredicateAttribute},
     error::Error,
+    ident,
 };
 
 use melior::ir::{
-    Identifier, Location, Operation, Value, attribute::StringAttribute,
-    operation::OperationBuilder, r#type::IntegerType,
+    Location, Operation, Value,
+    attribute::StringAttribute,
+    operation::{OperationBuilder, OperationLike},
+    r#type::IntegerType,
 };
 
 fn build_cmp_op<'c>(
@@ -18,7 +21,7 @@ fn build_cmp_op<'c>(
         .add_results(&[IntegerType::new(unsafe { ctx.to_ref() }, 1).into()])
         .add_operands(operands)
         .add_attributes(&[(
-            Identifier::new(unsafe { ctx.to_ref() }, "predicate"),
+            ident!(ctx, "predicate"),
             CmpPredicateAttribute::new(unsafe { ctx.to_ref() }, pred).into(),
         )])
         .build()
@@ -44,6 +47,12 @@ cmp_binop!(gt, CmpPredicate::Gt);
 cmp_binop!(le, CmpPredicate::Le);
 cmp_binop!(lt, CmpPredicate::Lt);
 cmp_binop!(ne, CmpPredicate::Ne);
+
+/// Return `true` iff the given op is `bool.cmp`.
+#[inline]
+pub fn is_bool_cmp<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "bool.cmp")
+}
 
 fn build_op<'c>(
     name: &str,
@@ -71,6 +80,14 @@ macro_rules! binop {
         ) -> Result<Operation<'c>, Error> {
             build_op($opname, location, &[lhs, rhs])
         }
+
+        paste::paste! {
+            #[doc = concat!("Return `true` iff the given op is `bool.", $opname ,"`.")]
+            #[inline]
+            pub fn [<is_bool_ $name>]<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+                crate::operation::isa(op, concat!("bool.", $opname))
+            }
+        }
     };
 }
 
@@ -86,6 +103,14 @@ macro_rules! unop {
         ) -> Result<Operation<'c>, Error> {
             build_op($opname, location, &[value])
         }
+
+        paste::paste! {
+            #[doc = concat!("Return `true` iff the given op is `bool.", $opname ,"`.")]
+            #[inline]
+            pub fn [<is_bool_ $name>]<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+                crate::operation::isa(op, concat!("bool.", $opname))
+            }
+        }
     };
 }
 
@@ -100,14 +125,19 @@ pub fn assert<'c>(
     cond: Value<'c, '_>,
     msg: Option<&str>,
 ) -> Result<Operation<'c>, Error> {
-    let ctx = unsafe { location.context().to_ref() };
+    let ctx = location.context();
     let mut builder = OperationBuilder::new("bool.assert", location).add_operands(&[cond]);
     if let Some(msg) = msg {
         builder = builder.add_attributes(&[(
-            Identifier::new(ctx, "msg"),
-            StringAttribute::new(ctx, msg).into(),
+            ident!(ctx, "msg"),
+            StringAttribute::new(unsafe { ctx.to_ref() }, msg).into(),
         )]);
     }
-
     builder.build().map_err(Into::into)
+}
+
+/// Return `true` iff the given op is `bool.assert`.
+#[inline]
+pub fn is_bool_assert<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "bool.assert")
 }

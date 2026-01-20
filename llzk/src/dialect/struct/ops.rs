@@ -10,7 +10,7 @@ use llzk_sys::{
 use melior::{
     StringRef,
     ir::{
-        Attribute, AttributeLike, Block, BlockLike as _, BlockRef, Identifier, Location, Operation,
+        Attribute, AttributeLike, Block, BlockLike as _, BlockRef, Location, Operation,
         OperationRef, Region, RegionLike as _, RegionRef, Type, TypeLike, Value, ValueLike,
         attribute::{ArrayAttribute, FlatSymbolRefAttribute, StringAttribute, TypeAttribute},
         operation::{OperationBuilder, OperationLike, OperationMutLike},
@@ -309,11 +309,8 @@ where
     region.append_block(block);
     let name: Attribute = StringAttribute::new(unsafe { ctx.to_ref() }, name).into();
     let attrs = [
-        (Identifier::new(unsafe { ctx.to_ref() }, "sym_name"), name),
-        (
-            Identifier::new(unsafe { ctx.to_ref() }, "const_params"),
-            params,
-        ),
+        (ident!(ctx, "sym_name"), name),
+        (ident!(ctx, "const_params"), params),
     ];
 
     OperationBuilder::new("struct.def", location)
@@ -322,6 +319,12 @@ where
         .build()
         .map_err(Into::into)
         .and_then(TryInto::try_into)
+}
+
+/// Return `true` iff the given op is `struct.def`.
+#[inline]
+pub fn is_struct_def<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "struct.def")
 }
 
 /// Creates a 'struct.field' op
@@ -361,6 +364,12 @@ where
         .inspect(|op: &FieldDefOp<'c>| op.set_public_attr(is_public))
 }
 
+/// Return `true` iff the given op is `struct.field`.
+#[inline]
+pub fn is_struct_field<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "struct.field")
+}
+
 /// Creates a 'struct.readf' op
 pub fn readf<'c>(
     builder: &OpBuilder<'c>,
@@ -379,7 +388,7 @@ pub fn readf<'c>(
             field_name.to_raw(),
         );
         if raw.ptr.is_null() {
-            Err(Error::BuildMthdFailed("readf"))
+            Err(Error::BuildMethodFailed("readf"))
         } else {
             Ok(Operation::from_raw(raw))
         }
@@ -393,6 +402,12 @@ pub fn readf_with_offset<'c>() -> Operation<'c> {
     todo!()
 }
 
+/// Return `true` iff the given op is `struct.readf`.
+#[inline]
+pub fn is_struct_readf<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "struct.readf")
+}
+
 /// Creates a 'struct.writef' op.
 pub fn writef<'c>(
     location: Location<'c>,
@@ -402,15 +417,18 @@ pub fn writef<'c>(
 ) -> Result<Operation<'c>, Error> {
     let context = location.context();
     let field_name = FlatSymbolRefAttribute::new(unsafe { context.to_ref() }, field_name);
-    let attrs = [(
-        Identifier::new(unsafe { context.to_ref() }, "field_name"),
-        field_name.into(),
-    )];
+    let attrs = [(ident!(context, "field_name"), field_name.into())];
     OperationBuilder::new("struct.writef", location)
         .add_operands(&[component, value])
         .add_attributes(&attrs)
         .build()
         .map_err(Into::into)
+}
+
+/// Return `true` iff the given op is `struct.writef`.
+#[inline]
+pub fn is_struct_writef<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "struct.writef")
 }
 
 /// Creates a 'struct.new' op
@@ -419,4 +437,10 @@ pub fn new<'c>(location: Location<'c>, r#type: StructType<'c>) -> Operation<'c> 
         .add_results(&[r#type.into()])
         .build()
         .expect("valid operation")
+}
+
+/// Return `true` iff the given op is `struct.new`.
+#[inline]
+pub fn is_struct_new<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "struct.new")
 }
