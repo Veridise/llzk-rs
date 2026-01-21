@@ -215,7 +215,9 @@ pub fn relativize_eq_constraints(
         group.name()
     );
     log::debug!("//===--------------------------------------------------------------===//");
+    log::debug!("COPY CONSTRAINTS:\n{:?}", group.eq_constraints_mut());
     let res = group.eq_constraints_mut().try_map_inplace(&mut |expr| {
+        log::debug!("  Copy constraint arg: {expr:?}");
         expr.try_map_io(&|io| match io {
             Slot::Advice(cell) => {
                 *cell = try_relativize_advice_cell(*cell, ctx.advice_cells().values())?;
@@ -274,7 +276,6 @@ fn try_relativize_advice_cell<'a>(
         return Ok(cell);
     }
     for region in regions {
-        log::debug!("region = {region:?}");
         if !region.contains_advice_cell(cell.col(), cell.row()) {
             continue;
         }
