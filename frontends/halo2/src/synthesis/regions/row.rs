@@ -8,12 +8,12 @@ use crate::{
 };
 use anyhow::{Result, bail};
 use ff::Field;
+use halo2_frontend_core::slot::{Slot as FuncIO, arg::ArgNo, output::OutputId as FieldId};
 use halo2_frontend_core::{
     info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
     query::{Advice, Fixed, Instance},
     table::{ColumnType, Rotation},
 };
-use haloumi_ir_base::func::{ArgNo, FieldId, FuncIO};
 
 /// When resolving a query it is possible that the same cell is in the input and the output set.
 /// This enum configures what kind will be chosen in the case of conflicting.
@@ -125,7 +125,7 @@ impl<'io, 'fq, F: Field> Row<'io, 'fq, F> {
     fn step_advice_io(&self, io: FuncIO) -> FuncIO {
         match io {
             FuncIO::Arg(arg_no) => (arg_no.offset_by(self.instance_io.inputs().len())).into(),
-            FuncIO::Field(field_id) => {
+            FuncIO::Output(field_id) => {
                 (field_id.offset_by(self.instance_io.outputs().len())).into()
             }
             io => io,

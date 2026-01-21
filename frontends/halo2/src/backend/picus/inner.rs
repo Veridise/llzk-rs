@@ -2,9 +2,10 @@ use crate::backend::{
     codegen::CodegenParams,
     picus::{PicusModule, Pipeline, PipelineBuilder, params::PicusParams},
 };
-use haloumi_ir_base::felt::Felt;
+use halo2_frontend_core::felt::Felt;
 
 use anyhow::Result;
+use haloumi_ir::Prime;
 
 pub use super::lowering::PicusModuleLowering;
 use super::{
@@ -21,7 +22,7 @@ use picus::{
 #[derive(Debug)]
 pub struct PicusCodegenInner {
     params: PicusParams,
-    prime: Option<Felt>,
+    prime: Option<Prime>,
     modules: Vec<PicusModuleRef>,
     current_scope: Option<PicusModuleLowering>,
 }
@@ -47,7 +48,7 @@ impl PicusCodegenInner {
     pub fn prime(&self) -> Result<picus::felt::Felt> {
         self.prime
             .ok_or_else(|| anyhow::anyhow!("Prime was not set!"))
-            .map(|f| picus::felt::Felt::new((*f).clone()))
+            .map(|f| picus::felt::Felt::new(f.value().clone()))
     }
 
     pub fn optimization_pipeline(&self) -> Option<Pipeline> {
@@ -68,7 +69,7 @@ impl PicusCodegenInner {
         Some(pipeline.into())
     }
 
-    pub fn set_prime(&mut self, prime: Felt) {
+    pub fn set_prime(&mut self, prime: Prime) {
         self.prime = Some(prime);
     }
 

@@ -7,7 +7,11 @@ use ff::{Field, PrimeField};
 use crate::{
     expressions::ScopedExpression,
     gates::{DefaultGateCallbacks, GateCallbacks, RewritePatternSet},
-    ir::{IRCtx, generate::patterns::load_patterns, groups::GroupBody},
+    ir::{
+        IRCtx,
+        generate::patterns::load_patterns,
+        groups::{GroupBody, new_group},
+    },
     lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
     synthesis::{SynthesizedCircuit, groups::Group, regions::RegionData},
     temps::ExprOrTemp,
@@ -153,7 +157,7 @@ where
         .iter()
         .enumerate()
         .map(|(id, g)| {
-            GroupBody::new(
+            new_group(
                 g,
                 id,
                 &ctx,

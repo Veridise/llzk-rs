@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use haloumi_ir_base::func::FieldId;
+use halo2_frontend_core::slot::output::OutputId as FieldId;
 use llzk::prelude::Type;
 use thiserror::Error;
 

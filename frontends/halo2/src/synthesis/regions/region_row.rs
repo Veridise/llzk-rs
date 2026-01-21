@@ -9,11 +9,11 @@ use crate::{
 };
 use anyhow::Result;
 use ff::Field;
+use halo2_frontend_core::slot::Slot as FuncIO;
 use halo2_frontend_core::{
     info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
     query::{Advice, Fixed, Instance},
 };
-use haloumi_ir_base::func::FuncIO;
 use std::borrow::Cow;
 
 #[derive(Copy, Clone, Debug)]

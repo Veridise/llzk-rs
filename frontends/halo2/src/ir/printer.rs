@@ -4,8 +4,8 @@ use std::fmt::{Display, Formatter, Result as FmtResult, Write};
 
 use crate::ir::{ResolvedIRCircuit, groups::GroupBody};
 use haloumi_ir::{
-    expr::{aexpr::IRAexpr, bexpr::IRBexpr},
-    func::FuncIO,
+    Slot,
+    expr::{IRAexpr, IRBexpr},
     stmt::IRStmt,
 };
 
@@ -98,7 +98,7 @@ impl<'a> IRPrinter<'a> {
         &self,
         callee: &str,
         inputs: &[IRAexpr],
-        outputs: &[FuncIO],
+        outputs: &[Slot],
         id: Option<usize>,
         ctx: &mut IRPrinterCtx,
     ) -> FmtResult {
@@ -129,20 +129,20 @@ impl<'a> IRPrinter<'a> {
         })
     }
 
-    fn fmt_func_io(&self, func_io: &FuncIO, ctx: &mut IRPrinterCtx) -> FmtResult {
+    fn fmt_func_io(&self, func_io: &Slot, ctx: &mut IRPrinterCtx) -> FmtResult {
         match func_io {
-            FuncIO::Arg(arg_no) => write!(ctx, "(input {arg_no})"),
-            FuncIO::Field(field_id) => write!(ctx, "(output {field_id})"),
-            FuncIO::Advice(cell_ref) => {
+            Slot::Arg(arg_no) => write!(ctx, "(input {arg_no})"),
+            Slot::Output(field_id) => write!(ctx, "(output {field_id})"),
+            Slot::Advice(cell_ref) => {
                 write!(ctx, "(advice {cell_ref})")
             }
-            FuncIO::Fixed(cell_ref) => write!(ctx, "(fixed {cell_ref})"),
-            FuncIO::TableLookup(id, col, row, idx, region) => {
+            Slot::Fixed(cell_ref) => write!(ctx, "(fixed {cell_ref})"),
+            Slot::TableLookup(id, col, row, idx, region) => {
                 write!(ctx, "(lookup {id} {col} {row} {idx} {region})")
             }
-            FuncIO::CallOutput(call, idx) => write!(ctx, "(call-result {call} {idx})"),
-            FuncIO::Temp(temp) => write!(ctx, "(temp {})", *temp),
-            FuncIO::Challenge(index, phase, _) => write!(ctx, "(challenge {index} {phase})"),
+            Slot::CallOutput(call, idx) => write!(ctx, "(call-result {call} {idx})"),
+            Slot::Temp(temp) => write!(ctx, "(temp {})", *temp),
+            Slot::Challenge(index, phase, _) => write!(ctx, "(challenge {index} {phase})"),
         }
     }
 

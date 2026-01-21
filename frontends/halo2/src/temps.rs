@@ -2,7 +2,7 @@
 
 use std::ops::Deref;
 
-use haloumi_ir::{expr::IRAexpr, func::FuncIO, traits::ConstantFolding};
+use haloumi_ir::{Slot, expr::IRAexpr, traits::ConstantFolding};
 
 /// A temporary variable.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -16,7 +16,7 @@ impl Deref for Temp {
     }
 }
 
-impl From<Temp> for FuncIO {
+impl From<Temp> for Slot {
     fn from(value: Temp) -> Self {
         Self::Temp(value.0)
     }
@@ -52,26 +52,24 @@ impl<E> ConstantFolding for ExprOrTemp<E>
 where
     E: ConstantFolding,
 {
-    type F = E::F;
-
     type Error = E::Error;
 
     type T = E::T;
 
-    fn constant_fold(&mut self, prime: Self::F) -> Result<(), Self::Error> {
+    fn constant_fold(&mut self) -> Result<(), Self::Error> {
         match self {
             ExprOrTemp::Temp(_) => Ok(()),
-            ExprOrTemp::Expr(e) => e.constant_fold(prime),
+            ExprOrTemp::Expr(e) => e.constant_fold(),
         }
     }
 
-    fn constant_folded(self, prime: Self::F) -> Result<Self, Self::Error>
+    fn constant_folded(self) -> Result<Self, Self::Error>
     where
         Self: Sized,
     {
         Ok(match self {
             ExprOrTemp::Temp(temp) => ExprOrTemp::Temp(temp),
-            ExprOrTemp::Expr(e) => ExprOrTemp::Expr(e.constant_folded(prime)?),
+            ExprOrTemp::Expr(e) => ExprOrTemp::Expr(e.constant_folded()?),
         })
     }
 
@@ -117,7 +115,7 @@ where
 
     fn try_from(value: ExprOrTemp<E>) -> Result<Self, Self::Error> {
         match value {
-            ExprOrTemp::Temp(temp) => Ok(IRAexpr::IO(temp.into())),
+            ExprOrTemp::Temp(temp) => Ok(IRAexpr::slot(temp)),
             ExprOrTemp::Expr(e) => e.try_into(),
         }
     }

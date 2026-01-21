@@ -10,7 +10,7 @@ use crate::{
         generate::{GroupIRCtx, RegionByIndex},
         groups::{
             bounds::{Bound, EqConstraintCheck, GroupBounds},
-            callsite::CallSite,
+            callsite::new_callsite,
         },
     },
     lookups::table::{LazyLookupTableGenerator, LookupTableGenerator},
@@ -29,193 +29,223 @@ use eqv::EqvRelation;
 use ff::Field;
 use halo2_frontend_core::{
     expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
+    slot::Slot,
     table::{Any, Rotation, RotationExt},
 };
-use haloumi_ir::expr::aexpr::IRAexpr;
+use haloumi_ir::CmpOp;
+use haloumi_ir::Felt;
 use haloumi_ir::stmt::IRStmt;
 use haloumi_ir::traits::ConstantFolding;
 use haloumi_ir::{SymbolicEqv, expr::IRBexpr};
-use haloumi_ir_base::cmp::CmpOp;
-use haloumi_ir_base::felt::Felt;
-use haloumi_ir_base::func::CellRef;
-use haloumi_ir_base::func::FuncIO;
+use haloumi_ir::{cell::CellRef, groups::callsite::CallSite};
+use haloumi_ir::{expr::IRAexpr, groups::IRGroup};
 use haloumi_lowering::{Lowering, lowerable::LowerableStmt};
-use std::collections::HashMap;
+use std::{collections::HashMap, convert::Infallible};
 
 pub(crate) mod bounds;
 pub mod callsite;
 
-/// Group's IR
-#[derive(Debug)]
-pub struct GroupBody<E> {
-    name: String,
-    /// Index in the original groups array.
-    id: usize,
-    input_count: usize,
-    output_count: usize,
-    key: Option<GroupKey>,
-    gates: IRStmt<E>,
-    eq_constraints: IRStmt<E>,
-    callsites: Vec<CallSite<E>>,
-    lookups: IRStmt<E>,
-    injected: Vec<IRStmt<E>>,
-    generate_debug_comments: bool,
-}
+/// Type alias to avoid compilation errors for now.
+pub type GroupBody<E> = IRGroup<E>;
 
-impl<'cb, 'syn, 'ctx, 'sco, F, E> GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>>
+///// Group's IR
+//#[derive(Debug)]
+//pub struct GroupBody<E> {
+//    name: String,
+//    /// Index in the original groups array.
+//    id: usize,
+//    input_count: usize,
+//    output_count: usize,
+//    key: Option<GroupKey>,
+//    gates: IRStmt<E>,
+//    eq_constraints: IRStmt<E>,
+//    callsites: Vec<CallSite<E>>,
+//    lookups: IRStmt<E>,
+//    injected: Vec<IRStmt<E>>,
+//    generate_debug_comments: bool,
+//}
+
+//impl<'cb, 'syn, 'ctx, 'sco, F, E> GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>>
+//where
+//    'cb: 'sco + 'syn,
+//    'syn: 'sco,
+//    'ctx: 'sco + 'syn,
+//    F: Field,
+//    E: Clone + std::fmt::Debug,
+//{
+pub(super) fn new_group<'cb, 'syn, 'ctx, 'sco, F, E>(
+    group: &'syn Group,
+    id: usize,
+    ctx: &GroupIRCtx<'cb, '_, 'syn, F, E>,
+    advice_io: &'ctx crate::io::AdviceIO,
+    instance_io: &'ctx crate::io::InstanceIO,
+) -> anyhow::Result<GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>>>
 where
+    F: Ord,
+    E: ExprBuilder<F> + ExpressionInfo + EvaluableExpr<F>,
     'cb: 'sco + 'syn,
     'syn: 'sco,
     'ctx: 'sco + 'syn,
     F: Field,
     E: Clone + std::fmt::Debug,
 {
-    pub(super) fn new(
-        group: &'syn Group,
-        id: usize,
-        ctx: &GroupIRCtx<'cb, '_, 'syn, F, E>,
-        advice_io: &'ctx crate::io::AdviceIO,
-        instance_io: &'ctx crate::io::InstanceIO,
-    ) -> anyhow::Result<Self>
-    where
-        F: Ord,
-        E: ExprBuilder<F> + ExpressionInfo + EvaluableExpr<F>,
-    {
-        log::debug!("Lowering call-sites for group {:?}", group.name());
-        let callsites = {
-            group
-                .children(ctx.groups())
-                .into_iter()
-                .enumerate()
-                .map(|(call_no, (callee_id, callee))| {
-                    CallSite::new(callee, callee_id, ctx, call_no, advice_io, instance_io)
-                })
-                .collect::<Result<Vec<_>, _>>()?
-        };
-
-        log::debug!("Lowering gates for group {:?}", group.name());
-        let gates = IRStmt::seq(
-            lower_gates(
-                ctx.syn().gates(),
-                &group.regions(),
-                ctx.patterns(),
-                advice_io,
-                instance_io,
-                ctx.syn().fixed_query_resolver(),
-                ctx.generate_debug_comments(),
-            )?
+    log::debug!("Lowering call-sites for group {:?}", group.name());
+    let callsites = {
+        group
+            .children(ctx.groups())
             .into_iter()
-            .map(|stmt| stmt.map(&ExprOrTemp::Expr)),
-        );
-
-        log::debug!(
-            "Lowering inter region equality constraints for group {:?}",
-            group.name()
-        );
-        let eq_constraints = select_equality_constraints(group, ctx);
-
-        let mut eq_constraints = inter_region_constraints(
-            eq_constraints,
-            advice_io,
-            instance_io,
-            ctx.syn().fixed_query_resolver(),
-        );
-        let extra_eq_constraints = search_double_annotated(
-            group,
-            advice_io,
-            instance_io,
-            ctx.syn().fixed_query_resolver(),
-            ctx.regions_by_index(),
-        );
-        eq_constraints.extend(extra_eq_constraints);
-        let eq_constraints = IRStmt::seq(
-            eq_constraints
-                .into_iter()
-                .map(|stmt| stmt.map(&ExprOrTemp::Expr)),
-        );
-
-        log::debug!("Lowering lookups for group {:?}", group.name());
-        let lookups = IRStmt::seq(codegen_lookup_invocations(
-            ctx.syn(),
-            &group.region_rows(advice_io, instance_io, ctx.syn().fixed_query_resolver()),
-            ctx.lookup_cb(),
-            ctx.generate_debug_comments(),
-        )?);
-
-        Ok(Self {
-            id,
-            input_count: instance_io.inputs().len() + advice_io.inputs().len(),
-            output_count: instance_io.outputs().len() + advice_io.outputs().len(),
-            name: group.name().to_owned(),
-            key: group.key(),
-            callsites,
-            gates,
-            eq_constraints,
-            lookups,
-            injected: vec![],
-            generate_debug_comments: ctx.generate_debug_comments(),
-        })
-    }
-
-    /// Injects IR into the group scoped by the region.
-    pub(super) fn inject_ir<'a>(
-        &'a mut self,
-        region: RegionData<'syn>,
-        ir: IRStmt<ExpressionInRow<'syn, E>>,
-        advice_io: &'ctx crate::io::AdviceIO,
-        instance_io: &'ctx crate::io::InstanceIO,
-        fqr: &'syn dyn FixedQueryResolver<F>,
-    ) -> anyhow::Result<()> {
-        self.injected.push(ir.try_map(&|expr| {
-            expr.scoped_in_region_row(region, advice_io, instance_io, fqr)
-                .map(ExprOrTemp::Expr)
-        })?);
-        Ok(())
-    }
-}
-
-impl GroupBody<IRAexpr> {
-    /// Relativizes advice cells to the regions in the group.
-    ///
-    /// It is used for improving the detection of equivalent groups.
-    pub fn relativize_eq_constraints(&mut self, ctx: &IRCtx) -> anyhow::Result<()> {
-        self.eq_constraints.try_map_inplace(&|expr| {
-            expr.try_map_io(&|io| match io {
-                FuncIO::Advice(cell) => {
-                    *cell = try_relativize_advice_cell(*cell, ctx.advice_cells().values())?;
-                    Ok(())
-                }
-                _ => Ok(()),
+            .enumerate()
+            .map(|(call_no, (callee_id, callee))| {
+                new_callsite(callee, callee_id, ctx, call_no, advice_io, instance_io)
             })
-        })
-    }
+            .collect::<Result<Vec<_>, _>>()?
+    };
 
-    /// Folds the statements if the expressions are constant.
-    ///
-    /// If any of the statements fails to fold returns an error.
-    pub(crate) fn constant_fold(&mut self, prime: Felt) -> Result<()> {
-        self.gates.constant_fold(prime)?;
-        self.eq_constraints.constant_fold(prime)?;
-        for callsite in &mut self.callsites {
-            callsite.constant_fold(prime);
-        }
-        self.lookups.constant_fold(prime)?;
-        Ok(self
-            .injected
-            .iter_mut()
-            .try_for_each(|s| s.constant_fold(prime))?)
-    }
+    log::debug!("Lowering gates for group {:?}", group.name());
+    let gates = IRStmt::seq(
+        lower_gates(
+            ctx.syn().gates(),
+            &group.regions(),
+            ctx.patterns(),
+            advice_io,
+            instance_io,
+            ctx.syn().fixed_query_resolver(),
+            ctx.generate_debug_comments(),
+        )?
+        .into_iter()
+        .map(|stmt| stmt.map(&mut ExprOrTemp::Expr)),
+    );
 
-    /// Matches the statements against a series of known patterns and applies rewrites if able to.
-    pub fn canonicalize(&mut self) {
-        self.gates.canonicalize();
-        self.eq_constraints.canonicalize();
-        self.lookups.canonicalize();
-        for stmt in &mut self.injected {
-            stmt.canonicalize();
-        }
-    }
+    log::debug!(
+        "Lowering inter region equality constraints for group {:?}",
+        group.name()
+    );
+    let eq_constraints = select_equality_constraints(group, ctx);
+
+    let mut eq_constraints = inter_region_constraints(
+        eq_constraints,
+        advice_io,
+        instance_io,
+        ctx.syn().fixed_query_resolver(),
+    );
+    let extra_eq_constraints = search_double_annotated(
+        group,
+        advice_io,
+        instance_io,
+        ctx.syn().fixed_query_resolver(),
+        ctx.regions_by_index(),
+    );
+    eq_constraints.extend(extra_eq_constraints);
+    let eq_constraints = IRStmt::seq(
+        eq_constraints
+            .into_iter()
+            .map(|stmt| stmt.map(&mut ExprOrTemp::Expr)),
+    );
+
+    log::debug!("Lowering lookups for group {:?}", group.name());
+    let lookups = IRStmt::seq(codegen_lookup_invocations(
+        ctx.syn(),
+        &group.region_rows(advice_io, instance_io, ctx.syn().fixed_query_resolver()),
+        ctx.lookup_cb(),
+        ctx.generate_debug_comments(),
+    )?);
+
+    //    {
+    //    //id,
+    //    //input_count: ,
+    //    //output_count: ,
+    //    //name: group.name().to_owned(),
+    //    key: group.key(),
+    //    callsites,
+    //    gates,
+    //    eq_constraints,
+    //    lookups,
+    //    injected: vec![],
+    //    generate_debug_comments: ctx.generate_debug_comments(),
+    //})
+
+    Ok(GroupBody::new(group.name().to_owned(), id)
+        .with_input_count(instance_io.inputs().len() + advice_io.inputs().len())
+        .with_output_count(instance_io.outputs().len() + advice_io.outputs().len())
+        .with_key(group.key())
+        .with_callsites(callsites)
+        .with_gates(gates)
+        .with_copy_constraints(eq_constraints)
+        .with_lookups(lookups)
+        .do_debug_comments(ctx.generate_debug_comments()))
 }
+
+//    /// Injects IR into the group scoped by the region.
+pub(super) fn inject_ir<'cb, 'syn, 'ctx, 'sco, F, E>(
+    group: &mut GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>>,
+    region: RegionData<'syn>,
+    ir: IRStmt<ExpressionInRow<'syn, E>>,
+    advice_io: &'ctx crate::io::AdviceIO,
+    instance_io: &'ctx crate::io::InstanceIO,
+    fqr: &'syn dyn FixedQueryResolver<F>,
+) -> anyhow::Result<()>
+where
+    //F: Ord,
+    //E: ExprBuilder<F> + ExpressionInfo + EvaluableExpr<F>,
+    'cb: 'sco + 'syn,
+    'syn: 'sco,
+    'ctx: 'sco + 'syn,
+    F: Field,
+    E: Clone + std::fmt::Debug,
+{
+    group.inject(ir.try_map(&mut |expr| {
+        expr.scoped_in_region_row(region, advice_io, instance_io, fqr)
+            .map(ExprOrTemp::Expr)
+    })?);
+    Ok(())
+}
+//}
+
+//impl GroupBody<IRAexpr> {
+/// Relativizes advice cells to the regions in the group.
+///
+/// It is used for improving the detection of equivalent groups.
+pub fn relativize_eq_constraints(
+    group: &mut GroupBody<IRAexpr>,
+    ctx: &IRCtx,
+) -> anyhow::Result<()> {
+    group.eq_constraints_mut().try_map_inplace(&mut |expr| {
+        expr.try_map_io(&|io| match io {
+            Slot::Advice(cell) => {
+                *cell = try_relativize_advice_cell(*cell, ctx.advice_cells().values())?;
+                Ok(())
+            }
+            _ => Ok(()),
+        })
+    })
+}
+
+///// Folds the statements if the expressions are constant.
+/////
+///// If any of the statements fails to fold returns an error.
+//pub(crate) fn constant_fold(&mut self, prime: Felt) -> Result<()> {
+//    self.gates.constant_fold(prime)?;
+//    self.eq_constraints.constant_fold(prime)?;
+//    for callsite in &mut self.callsites {
+//        callsite.constant_fold(prime);
+//    }
+//    self.lookups.constant_fold(prime)?;
+//    Ok(self
+//        .injected
+//        .iter_mut()
+//        .try_for_each(|s| s.constant_fold(prime))?)
+//}
+
+//    /// Matches the statements against a series of known patterns and applies rewrites if able to.
+//    pub fn canonicalize(&mut self) {
+//        self.gates.canonicalize();
+//        self.eq_constraints.canonicalize();
+//        self.lookups.canonicalize();
+//        for stmt in &mut self.injected {
+//            stmt.canonicalize();
+//        }
+//    }
+//}
 
 /// Searches to what region the advice cell belongs to and converts it to a relative reference from
 /// that region.
@@ -236,9 +266,7 @@ fn try_relativize_advice_cell<'a>(
         let start = region
             .start()
             .ok_or_else(|| anyhow::anyhow!("Region does not have a base"))?;
-        return cell
-            .relativize(start)
-            .ok_or_else(|| anyhow::anyhow!("Failed to relativize cell"));
+        return Ok(cell.try_relativize(start)?);
     }
 
     Err(anyhow::anyhow!(
@@ -246,258 +274,258 @@ fn try_relativize_advice_cell<'a>(
     ))
 }
 
-impl<E> GroupBody<E> {
-    /// Sets the id of the group.
-    pub fn set_id(&mut self, id: usize) {
-        self.id = id;
-    }
-
-    /// Returns true if the group is the top-level.
-    pub fn is_main(&self) -> bool {
-        self.key.is_none()
-    }
-
-    /// Returns the index in the groups list.
-    pub fn id(&self) -> usize {
-        self.id
-    }
-
-    /// Returns the name of the group.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// Returns a mutable reference to the name.
-    pub fn name_mut(&mut self) -> &mut String {
-        &mut self.name
-    }
-
-    /// Returns the number of inputs.
-    pub fn input_count(&self) -> usize {
-        self.input_count
-    }
-
-    /// Returns the number of outputs.
-    pub fn output_count(&self) -> usize {
-        self.output_count
-    }
-
-    /// Returns the list of callsites inside the group.
-    pub fn callsites(&self) -> &[CallSite<E>] {
-        &self.callsites
-    }
-
-    /// Returns a mutable reference to the callsites list inside the group.
-    pub fn callsites_mut(&mut self) -> &mut Vec<CallSite<E>> {
-        &mut self.callsites
-    }
-
-    /// Returns the group key. Returns `None` if the group is the top-level.
-    pub fn key(&self) -> Option<GroupKey> {
-        self.key
-    }
-
-    /// Returns an iterator with all the [`IRStmt`] in the group.
-    pub fn statements<'a>(&'a self) -> impl Iterator<Item = &'a IRStmt<E>> {
-        self.gates
-            .iter()
-            .chain(self.eq_constraints.iter())
-            .chain(self.lookups.iter())
-            .chain(self.injected.iter().flatten())
-    }
-
-    /// Tries to convert the inner expression type to another.
-    pub fn try_map<O>(self, f: &impl Fn(E) -> Result<O>) -> Result<GroupBody<O>> {
-        Ok(GroupBody {
-            name: self.name,
-            id: self.id,
-            input_count: self.input_count,
-            output_count: self.output_count,
-            key: self.key,
-            gates: self.gates.try_map(f)?,
-            eq_constraints: self.eq_constraints.try_map(f)?,
-            callsites: self
-                .callsites
-                .into_iter()
-                .map(|cs| cs.try_map(f))
-                .collect::<Result<Vec<_>, _>>()?,
-            lookups: self.lookups.try_map(f)?,
-            injected: self
-                .injected
-                .into_iter()
-                .map(|i| i.try_map(f))
-                .collect::<Result<Vec<_>, _>>()?,
-            generate_debug_comments: self.generate_debug_comments,
-        })
-    }
-
-    fn validate_callsite(&self, callsite: &CallSite<E>, groups: &[GroupBody<E>]) -> Result<()> {
-        let callee_id = callsite.callee_id();
-        let callee = groups
-            .get(callee_id)
-            .ok_or_else(|| anyhow::anyhow!("Callee with id {callee_id} was not found"))?;
-        if callee.id() != callsite.callee_id() {
-            anyhow::bail!(
-                "Callsite points to \"{}\" ({}) but callee was \"{}\" ({})",
-                callsite.name(),
-                callsite.callee_id(),
-                callee.name(),
-                callee.id()
-            );
-        }
-        if callee.input_count != callsite.inputs().len() {
-            anyhow::bail!(
-                "Callee \"{}\" ({}) was expecting {} inputs but callsite has {}",
-                callee.name(),
-                callee.id(),
-                callee.input_count,
-                callsite.inputs().len()
-            );
-        }
-        if callee.output_count != callsite.outputs().len() {
-            anyhow::bail!(
-                "Callee \"{}\" ({}) was expecting {} outputs but callsite has {}",
-                callee.name(),
-                callee.id(),
-                callee.output_count,
-                callsite.outputs().len()
-            );
-        }
-        if callsite.outputs().len() != callsite.output_vars().len() {
-            anyhow::bail!(
-                "Call to \"{}\" ({}) has {} outputs but declared {} output variables",
-                callsite.name(),
-                callsite.callee_id(),
-                callsite.outputs().len(),
-                callsite.output_vars().len()
-            );
-        }
-
-        Ok(())
-    }
-
-    /// Validates the IR in the group.
-    pub fn validate(&self, groups: &[GroupBody<E>]) -> (Result<()>, Vec<String>) {
-        let mut errors = vec![];
-
-        // Check 1. Consistency of callsites arity.
-        for (call_no, callsite) in self.callsites().iter().enumerate() {
-            if let Err(err) = self.validate_callsite(callsite, groups) {
-                errors.push(format!("On callsite {call_no}: {err}"));
-            }
-        }
-
-        // Return errors if any.
-        (
-            if errors.is_empty() {
-                Ok(())
-            } else {
-                Err(anyhow::anyhow!(
-                    "Validation of group {} failed with {} errors",
-                    self.name(),
-                    errors.len()
-                ))
-            },
-            errors,
-        )
-    }
-}
-
-impl EqvRelation<GroupBody<IRAexpr>> for SymbolicEqv {
-    /// Two groups are equivalent if the code they represent is equivalent and have the same key.
-    ///
-    /// Special case is main which is never equivalent to anything.
-    fn equivalent(lhs: &GroupBody<IRAexpr>, rhs: &GroupBody<IRAexpr>) -> bool {
-        // Main is never equivalent to others
-        if lhs.is_main() || rhs.is_main() {
-            return false;
-        }
-
-        let lhs_key = lhs.key.unwrap();
-        let rhs_key = rhs.key.unwrap();
-
-        let k = lhs_key == rhs_key;
-        log::debug!("[equivalent({} ~ {})] key: {k}", lhs.id(), rhs.id());
-        let io = lhs.input_count == rhs.input_count && lhs.output_count == rhs.output_count;
-        log::debug!("[equivalent({} ~ {})] io: {io}", lhs.id(), rhs.id());
-        let gates = Self::equivalent(&lhs.gates, &rhs.gates);
-        log::debug!("[equivalent({} ~ {})] gates: {gates}", lhs.id(), rhs.id());
-        let eqc = Self::equivalent(&lhs.eq_constraints, &rhs.eq_constraints);
-        log::debug!("[equivalent({} ~ {})] eqc: {eqc}", lhs.id(), rhs.id());
-        let lookups = Self::equivalent(&lhs.lookups, &rhs.lookups);
-        log::debug!(
-            "[equivalent({} ~ {})] lookups: {lookups}",
-            lhs.id(),
-            rhs.id()
-        );
-        let callsites = Self::equivalent(&lhs.callsites, &rhs.callsites);
-        log::debug!(
-            "[equivalent({} ~ {})] callsites: {callsites}",
-            lhs.id(),
-            rhs.id()
-        );
-
-        k && io && gates && eqc && lookups && callsites
-    }
-}
-
-impl LowerableStmt for GroupBody<IRAexpr> {
-    fn lower<L>(self, l: &L) -> haloumi_lowering::Result<()>
-    where
-        L: Lowering + ?Sized,
-    {
-        log::debug!("Lowering {self:?}");
-        if self.generate_debug_comments {
-            l.generate_comment("Calls to subgroups".to_owned())?;
-        }
-        log::debug!("  Lowering callsites");
-        for callsite in self.callsites {
-            callsite.lower(l)?;
-        }
-        if self.generate_debug_comments {
-            l.generate_comment("Gate constraints".to_owned())?;
-        }
-        log::debug!("  Lowering gates");
-        self.gates.lower(l)?;
-        if self.generate_debug_comments {
-            l.generate_comment("Equality constraints".to_owned())?;
-        }
-        log::debug!("  Lowering equality constraints");
-        self.eq_constraints.lower(l)?;
-        if self.generate_debug_comments {
-            l.generate_comment("Lookups".to_owned())?;
-        }
-        log::debug!("  Lowering lookups");
-        self.lookups.lower(l)?;
-        if self.generate_debug_comments {
-            l.generate_comment("Injected".to_owned())?;
-        }
-        log::debug!("  Lowering injected IR");
-        for stmt in self.injected {
-            stmt.lower(l)?;
-        }
-
-        Ok(())
-    }
-}
-
-impl<E: Clone> Clone for GroupBody<E> {
-    fn clone(&self) -> Self {
-        Self {
-            name: self.name.clone(),
-            id: self.id,
-            input_count: self.input_count,
-            output_count: self.output_count,
-            key: self.key,
-            gates: self.gates.clone(),
-            eq_constraints: self.eq_constraints.clone(),
-            callsites: self.callsites.clone(),
-            lookups: self.lookups.clone(),
-            injected: self.injected.clone(),
-            generate_debug_comments: self.generate_debug_comments,
-        }
-    }
-}
+//impl<E> GroupBody<E> {
+//    /// Sets the id of the group.
+//    pub fn set_id(&mut self, id: usize) {
+//        self.id = id;
+//    }
+//
+//    /// Returns true if the group is the top-level.
+//    pub fn is_main(&self) -> bool {
+//        self.key.is_none()
+//    }
+//
+//    /// Returns the index in the groups list.
+//    pub fn id(&self) -> usize {
+//        self.id
+//    }
+//
+//    /// Returns the name of the group.
+//    pub fn name(&self) -> &str {
+//        &self.name
+//    }
+//
+//    /// Returns a mutable reference to the name.
+//    pub fn name_mut(&mut self) -> &mut String {
+//        &mut self.name
+//    }
+//
+//    /// Returns the number of inputs.
+//    pub fn input_count(&self) -> usize {
+//        self.input_count
+//    }
+//
+//    /// Returns the number of outputs.
+//    pub fn output_count(&self) -> usize {
+//        self.output_count
+//    }
+//
+//    /// Returns the list of callsites inside the group.
+//    pub fn callsites(&self) -> &[CallSite<E>] {
+//        &self.callsites
+//    }
+//
+//    /// Returns a mutable reference to the callsites list inside the group.
+//    pub fn callsites_mut(&mut self) -> &mut Vec<CallSite<E>> {
+//        &mut self.callsites
+//    }
+//
+//    /// Returns the group key. Returns `None` if the group is the top-level.
+//    pub fn key(&self) -> Option<GroupKey> {
+//        self.key
+//    }
+//
+//    /// Returns an iterator with all the [`IRStmt`] in the group.
+//    pub fn statements<'a>(&'a self) -> impl Iterator<Item = &'a IRStmt<E>> {
+//        self.gates
+//            .iter()
+//            .chain(self.eq_constraints.iter())
+//            .chain(self.lookups.iter())
+//            .chain(self.injected.iter().flatten())
+//    }
+//
+//    /// Tries to convert the inner expression type to another.
+//    pub fn try_map<O>(self, f: &impl Fn(E) -> Result<O>) -> Result<GroupBody<O>> {
+//        Ok(GroupBody {
+//            name: self.name,
+//            id: self.id,
+//            input_count: self.input_count,
+//            output_count: self.output_count,
+//            key: self.key,
+//            gates: self.gates.try_map(f)?,
+//            eq_constraints: self.eq_constraints.try_map(f)?,
+//            callsites: self
+//                .callsites
+//                .into_iter()
+//                .map(|cs| cs.try_map(f))
+//                .collect::<Result<Vec<_>, _>>()?,
+//            lookups: self.lookups.try_map(f)?,
+//            injected: self
+//                .injected
+//                .into_iter()
+//                .map(|i| i.try_map(f))
+//                .collect::<Result<Vec<_>, _>>()?,
+//            generate_debug_comments: self.generate_debug_comments,
+//        })
+//    }
+//
+//    fn validate_callsite(&self, callsite: &CallSite<E>, groups: &[GroupBody<E>]) -> Result<()> {
+//        let callee_id = callsite.callee_id();
+//        let callee = groups
+//            .get(callee_id)
+//            .ok_or_else(|| anyhow::anyhow!("Callee with id {callee_id} was not found"))?;
+//        if callee.id() != callsite.callee_id() {
+//            anyhow::bail!(
+//                "Callsite points to \"{}\" ({}) but callee was \"{}\" ({})",
+//                callsite.name(),
+//                callsite.callee_id(),
+//                callee.name(),
+//                callee.id()
+//            );
+//        }
+//        if callee.input_count != callsite.inputs().len() {
+//            anyhow::bail!(
+//                "Callee \"{}\" ({}) was expecting {} inputs but callsite has {}",
+//                callee.name(),
+//                callee.id(),
+//                callee.input_count,
+//                callsite.inputs().len()
+//            );
+//        }
+//        if callee.output_count != callsite.outputs().len() {
+//            anyhow::bail!(
+//                "Callee \"{}\" ({}) was expecting {} outputs but callsite has {}",
+//                callee.name(),
+//                callee.id(),
+//                callee.output_count,
+//                callsite.outputs().len()
+//            );
+//        }
+//        if callsite.outputs().len() != callsite.output_vars().len() {
+//            anyhow::bail!(
+//                "Call to \"{}\" ({}) has {} outputs but declared {} output variables",
+//                callsite.name(),
+//                callsite.callee_id(),
+//                callsite.outputs().len(),
+//                callsite.output_vars().len()
+//            );
+//        }
+//
+//        Ok(())
+//    }
+//
+//    /// Validates the IR in the group.
+//    pub fn validate(&self, groups: &[GroupBody<E>]) -> (Result<()>, Vec<String>) {
+//        let mut errors = vec![];
+//
+//        // Check 1. Consistency of callsites arity.
+//        for (call_no, callsite) in self.callsites().iter().enumerate() {
+//            if let Err(err) = self.validate_callsite(callsite, groups) {
+//                errors.push(format!("On callsite {call_no}: {err}"));
+//            }
+//        }
+//
+//        // Return errors if any.
+//        (
+//            if errors.is_empty() {
+//                Ok(())
+//            } else {
+//                Err(anyhow::anyhow!(
+//                    "Validation of group {} failed with {} errors",
+//                    self.name(),
+//                    errors.len()
+//                ))
+//            },
+//            errors,
+//        )
+//    }
+//}
+//
+//impl EqvRelation<GroupBody<IRAexpr>> for SymbolicEqv {
+//    /// Two groups are equivalent if the code they represent is equivalent and have the same key.
+//    ///
+//    /// Special case is main which is never equivalent to anything.
+//    fn equivalent(lhs: &GroupBody<IRAexpr>, rhs: &GroupBody<IRAexpr>) -> bool {
+//        // Main is never equivalent to others
+//        if lhs.is_main() || rhs.is_main() {
+//            return false;
+//        }
+//
+//        let lhs_key = lhs.key.unwrap();
+//        let rhs_key = rhs.key.unwrap();
+//
+//        let k = lhs_key == rhs_key;
+//        log::debug!("[equivalent({} ~ {})] key: {k}", lhs.id(), rhs.id());
+//        let io = lhs.input_count == rhs.input_count && lhs.output_count == rhs.output_count;
+//        log::debug!("[equivalent({} ~ {})] io: {io}", lhs.id(), rhs.id());
+//        let gates = Self::equivalent(&lhs.gates, &rhs.gates);
+//        log::debug!("[equivalent({} ~ {})] gates: {gates}", lhs.id(), rhs.id());
+//        let eqc = Self::equivalent(&lhs.eq_constraints, &rhs.eq_constraints);
+//        log::debug!("[equivalent({} ~ {})] eqc: {eqc}", lhs.id(), rhs.id());
+//        let lookups = Self::equivalent(&lhs.lookups, &rhs.lookups);
+//        log::debug!(
+//            "[equivalent({} ~ {})] lookups: {lookups}",
+//            lhs.id(),
+//            rhs.id()
+//        );
+//        let callsites = Self::equivalent(&lhs.callsites, &rhs.callsites);
+//        log::debug!(
+//            "[equivalent({} ~ {})] callsites: {callsites}",
+//            lhs.id(),
+//            rhs.id()
+//        );
+//
+//        k && io && gates && eqc && lookups && callsites
+//    }
+//}
+//
+//impl LowerableStmt for GroupBody<IRAexpr> {
+//    fn lower<L>(self, l: &L) -> haloumi_lowering::Result<()>
+//    where
+//        L: Lowering + ?Sized,
+//    {
+//        log::debug!("Lowering {self:?}");
+//        if self.generate_debug_comments {
+//            l.generate_comment("Calls to subgroups".to_owned())?;
+//        }
+//        log::debug!("  Lowering callsites");
+//        for callsite in self.callsites {
+//            callsite.lower(l)?;
+//        }
+//        if self.generate_debug_comments {
+//            l.generate_comment("Gate constraints".to_owned())?;
+//        }
+//        log::debug!("  Lowering gates");
+//        self.gates.lower(l)?;
+//        if self.generate_debug_comments {
+//            l.generate_comment("Equality constraints".to_owned())?;
+//        }
+//        log::debug!("  Lowering equality constraints");
+//        self.eq_constraints.lower(l)?;
+//        if self.generate_debug_comments {
+//            l.generate_comment("Lookups".to_owned())?;
+//        }
+//        log::debug!("  Lowering lookups");
+//        self.lookups.lower(l)?;
+//        if self.generate_debug_comments {
+//            l.generate_comment("Injected".to_owned())?;
+//        }
+//        log::debug!("  Lowering injected IR");
+//        for stmt in self.injected {
+//            stmt.lower(l)?;
+//        }
+//
+//        Ok(())
+//    }
+//}
+//
+//impl<E: Clone> Clone for GroupBody<E> {
+//    fn clone(&self) -> Self {
+//        Self {
+//            name: self.name.clone(),
+//            id: self.id,
+//            input_count: self.input_count,
+//            output_count: self.output_count,
+//            key: self.key,
+//            gates: self.gates.clone(),
+//            eq_constraints: self.eq_constraints.clone(),
+//            callsites: self.callsites.clone(),
+//            lookups: self.lookups.clone(),
+//            injected: self.injected.clone(),
+//            generate_debug_comments: self.generate_debug_comments,
+//        }
+//    }
+//}
 
 /// Select the equality constraints that concern this group.
 fn select_equality_constraints<F: Field, E>(
@@ -682,7 +710,7 @@ where
                 .match_and_rewrite(scope)
                 .map_err(|e| make_error(e, scope))
                 .and_then(|stmt| {
-                    stmt.try_map(&|(row, expr)| {
+                    stmt.try_map(&mut |(row, expr)| {
                         let rr = scope.region_row(row)?;
                         Ok(ScopedExpression::from_cow(expr, rr))
                     })
@@ -739,7 +767,7 @@ where
         .iter()
         .enumerate()
         .map(|(n, rr)| {
-            let mut region_ir = ir.map_into(&|e| {
+            let mut region_ir = ir.map_into(&mut |e| {
                 e.map_into(|e| ScopedExpression::from_ref(e.as_ref(), *rr).simplified())
             });
             //region_ir.constant_fold(())?;
@@ -777,76 +805,90 @@ where
 ///
 /// It doesn't go inside `T` so it won't rename temporaries inside it.
 fn rebase_temps<T>(stmt: &mut IRStmt<ExprOrTemp<T>>, renaming_fn: &mut impl FnMut(Temp) -> Temp) {
-    fn rebase_bexpr<T>(
-        expr: &mut IRBexpr<ExprOrTemp<T>>,
-        renaming_fn: &mut impl FnMut(Temp) -> Temp,
-    ) {
-        match expr {
-            IRBexpr::True | IRBexpr::False => {}
-            IRBexpr::Cmp(_, lhs, rhs) => {
-                if let ExprOrTemp::Temp(temp) = lhs {
-                    *temp = renaming_fn(*temp);
-                }
-                if let ExprOrTemp::Temp(temp) = rhs {
-                    *temp = renaming_fn(*temp);
-                }
-            }
-            IRBexpr::And(exprs) | IRBexpr::Or(exprs) => {
-                for expr in exprs {
-                    rebase_bexpr(expr, renaming_fn)
-                }
-            }
-            IRBexpr::Not(expr) => rebase_bexpr(expr, renaming_fn),
-            IRBexpr::Det(expr) => {
-                if let ExprOrTemp::Temp(temp) = expr {
-                    *temp = renaming_fn(*temp);
-                }
-            }
-            IRBexpr::Implies(lhs, rhs) | IRBexpr::Iff(lhs, rhs) => {
-                rebase_bexpr(lhs, renaming_fn);
-                rebase_bexpr(rhs, renaming_fn);
-            }
+    stmt.try_map_inplace(&mut |expr| -> Result<(), Infallible> {
+        if let ExprOrTemp::Temp(temp) = expr {
+            *temp = renaming_fn(*temp);
         }
-    }
-    match stmt {
-        IRStmt::ConstraintCall(call) => {
-            for input in call.inputs_mut() {
-                if let ExprOrTemp::Temp(temp) = input {
-                    *temp = renaming_fn(*temp);
-                }
-            }
-            for output in call.outputs_mut() {
-                if let FuncIO::Temp(temp) = output {
-                    *temp = *renaming_fn(Temp(*temp));
-                }
-            }
+        Ok(())
+    })
+    .unwrap();
+    stmt.try_map_slot_inplace(&mut |slot| -> Result<(), Infallible> {
+        if let Slot::Temp(temp) = slot {
+            *temp = *renaming_fn(Temp(*temp));
         }
-        IRStmt::Constraint(constraint) => {
-            if let ExprOrTemp::Temp(temp) = constraint.lhs_mut() {
-                *temp = renaming_fn(*temp);
-            }
-            if let ExprOrTemp::Temp(temp) = constraint.rhs_mut() {
-                *temp = renaming_fn(*temp);
-            }
-        }
-        IRStmt::Comment(_) => {}
-        IRStmt::AssumeDeterministic(assume_deterministic) => {
-            if let FuncIO::Temp(temp) = assume_deterministic.value_mut() {
-                *temp = *renaming_fn(Temp(*temp));
-            }
-        }
-        IRStmt::Assert(assert) => {
-            rebase_bexpr(assert.cond_mut(), renaming_fn);
-        }
-        IRStmt::PostCond(pc) => {
-            rebase_bexpr(pc.cond_mut(), renaming_fn);
-        }
-        IRStmt::Seq(seq) => {
-            for stmt in seq.iter_mut() {
-                rebase_temps(stmt, renaming_fn)
-            }
-        }
-    }
+        Ok(())
+    })
+    .unwrap();
+    //fn rebase_bexpr<T>(
+    //    expr: &mut IRBexpr<ExprOrTemp<T>>,
+    //    renaming_fn: &mut impl FnMut(Temp) -> Temp,
+    //) {
+    //    match expr {
+    //        IRBexpr::True | IRBexpr::False => {}
+    //        IRBexpr::Cmp(_, lhs, rhs) => {
+    //            if let ExprOrTemp::Temp(temp) = lhs {
+    //                *temp = renaming_fn(*temp);
+    //            }
+    //            if let ExprOrTemp::Temp(temp) = rhs {
+    //                *temp = renaming_fn(*temp);
+    //            }
+    //        }
+    //        IRBexpr::And(exprs) | IRBexpr::Or(exprs) => {
+    //            for expr in exprs {
+    //                rebase_bexpr(expr, renaming_fn)
+    //            }
+    //        }
+    //        IRBexpr::Not(expr) => rebase_bexpr(expr, renaming_fn),
+    //        IRBexpr::Det(expr) => {
+    //            if let ExprOrTemp::Temp(temp) = expr {
+    //                *temp = renaming_fn(*temp);
+    //            }
+    //        }
+    //        IRBexpr::Implies(lhs, rhs) | IRBexpr::Iff(lhs, rhs) => {
+    //            rebase_bexpr(lhs, renaming_fn);
+    //            rebase_bexpr(rhs, renaming_fn);
+    //        }
+    //    }
+    //}
+    //match stmt {
+    //    IRStmt::ConstraintCall(call) => {
+    //        for input in call.inputs_mut() {
+    //            if let ExprOrTemp::Temp(temp) = input {
+    //                *temp = renaming_fn(*temp);
+    //            }
+    //        }
+    //        for output in call.outputs_mut() {
+    //            if let FuncIO::Temp(temp) = output {
+    //                *temp = *renaming_fn(Temp(*temp));
+    //            }
+    //        }
+    //    }
+    //    IRStmt::Constraint(constraint) => {
+    //        if let ExprOrTemp::Temp(temp) = constraint.lhs_mut() {
+    //            *temp = renaming_fn(*temp);
+    //        }
+    //        if let ExprOrTemp::Temp(temp) = constraint.rhs_mut() {
+    //            *temp = renaming_fn(*temp);
+    //        }
+    //    }
+    //    IRStmt::Comment(_) => {}
+    //    IRStmt::AssumeDeterministic(assume_deterministic) => {
+    //        if let FuncIO::Temp(temp) = assume_deterministic.value_mut() {
+    //            *temp = *renaming_fn(Temp(*temp));
+    //        }
+    //    }
+    //    IRStmt::Assert(assert) => {
+    //        rebase_bexpr(assert.cond_mut(), renaming_fn);
+    //    }
+    //    IRStmt::PostCond(pc) => {
+    //        rebase_bexpr(pc.cond_mut(), renaming_fn);
+    //    }
+    //    IRStmt::Seq(seq) => {
+    //        for stmt in seq.iter_mut() {
+    //            rebase_temps(stmt, renaming_fn)
+    //        }
+    //    }
+    //}
 }
 
 /// If the given statement is not empty prepends a comment

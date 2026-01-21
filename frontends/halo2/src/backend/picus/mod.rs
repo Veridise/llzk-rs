@@ -6,7 +6,7 @@ use std::{
 
 use super::{Backend, Codegen};
 use crate::io::{AdviceIO, InstanceIO};
-use haloumi_ir_base::{felt::Felt, func::FuncIO};
+use halo2_frontend_core::{felt::Prime, slot::Slot as FuncIO};
 
 use anyhow::Result;
 
@@ -113,7 +113,7 @@ impl<'c: 's, 's> Codegen<'c, 's> for PicusCodegen {
         }
     }
 
-    fn set_prime_field(&self, prime: Felt) -> Result<()> {
+    fn set_prime_field(&self, prime: Prime) -> Result<()> {
         self.inner.borrow_mut().set_prime(prime);
         Ok(())
     }

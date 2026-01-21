@@ -17,10 +17,10 @@ use melior::{
 use mlir_sys::MlirValue;
 use std::rc::Rc;
 
-use haloumi_ir_base::{
+use halo2_frontend_core::{
     cmp::CmpOp,
     felt::Felt,
-    func::{ArgNo, FieldId, FuncIO},
+    slot::{Slot as FuncIO, arg::ArgNo, output::OutputId as FieldId},
 };
 
 use super::counter::Counter;
@@ -367,7 +367,7 @@ impl<'c> ExprLowering for LlzkStructLowering<'c, '_> {
     {
         match io.into() {
             FuncIO::Arg(arg_no) => wrap!(self.get_arg(arg_no)),
-            FuncIO::Field(field_id) => wrap!(self.read_field(self.get_output(field_id)?)),
+            FuncIO::Output(field_id) => wrap!(self.read_field(self.get_output(field_id)?)),
             FuncIO::Advice(cell) => {
                 wrap!(self.read_field(self.get_adv_cell(cell.col(), cell.row())?))
             }

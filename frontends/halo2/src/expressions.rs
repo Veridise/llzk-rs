@@ -17,7 +17,7 @@ use ff::{Field, PrimeField};
 use halo2_frontend_core::expressions::{
     EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes,
 };
-use haloumi_ir::{expr::IRAexpr, felt::Felt};
+use haloumi_ir::{Felt, expr::IRAexpr};
 
 /// Indicates to the driver that the expression should be scoped in that row of the circuit.
 ///
@@ -169,13 +169,11 @@ where
     E: EvaluableExpr<F> + ExpressionInfo + ExprBuilder<F> + Clone,
     F: Field,
 {
-    type F = ();
-
     type Error = Infallible;
 
     type T = F;
 
-    fn constant_fold(&mut self, _: Self::F) -> Result<(), Self::Error> {
+    fn constant_fold(&mut self) -> Result<(), Self::Error> {
         self.simplify();
         Ok(())
     }
@@ -296,57 +294,54 @@ impl<F: PrimeField, E: ExpressionTypes> EvalExpression<F, E> for PolyToAexpr<'_,
     type Output = anyhow::Result<IRAexpr>;
 
     fn constant(&self, f: &F) -> Self::Output {
-        Ok(IRAexpr::Constant(Felt::new(*f)))
+        Ok(IRAexpr::constant(Felt::new(*f)))
     }
 
     fn selector(&self, selector: &E::Selector) -> Self::Output {
         Ok(match self.sr.resolve_selector(selector)? {
-            ResolvedSelector::Const(bool) => IRAexpr::Constant(Felt::new::<F>(bool.to_f())),
-            ResolvedSelector::Arg(arg) => IRAexpr::IO(arg.into()),
+            ResolvedSelector::Const(bool) => IRAexpr::constant(Felt::new::<F>(bool.to_f())),
+            ResolvedSelector::Arg(arg) => IRAexpr::slot(arg),
         })
     }
 
     fn fixed(&self, fixed_query: &E::FixedQuery) -> Self::Output {
         Ok(match self.qr.resolve_fixed_query(fixed_query)? {
-            ResolvedQuery::IO(io) => IRAexpr::IO(io),
-            ResolvedQuery::Lit(f) => IRAexpr::Constant(Felt::new(f)),
+            ResolvedQuery::IO(io) => IRAexpr::slot(io),
+            ResolvedQuery::Lit(f) => IRAexpr::constant(Felt::new(f)),
         })
     }
 
     fn advice(&self, advice_query: &E::AdviceQuery) -> Self::Output {
         Ok(match self.qr.resolve_advice_query(advice_query)? {
-            ResolvedQuery::IO(io) => IRAexpr::IO(io),
-            ResolvedQuery::Lit(f) => IRAexpr::Constant(Felt::new(f)),
+            ResolvedQuery::IO(io) => IRAexpr::slot(io),
+            ResolvedQuery::Lit(f) => IRAexpr::constant(Felt::new(f)),
         })
     }
 
     fn instance(&self, instance_query: &E::InstanceQuery) -> Self::Output {
         Ok(match self.qr.resolve_instance_query(instance_query)? {
-            ResolvedQuery::IO(io) => IRAexpr::IO(io),
-            ResolvedQuery::Lit(f) => IRAexpr::Constant(Felt::new(f)),
+            ResolvedQuery::IO(io) => IRAexpr::slot(io),
+            ResolvedQuery::Lit(f) => IRAexpr::constant(Felt::new(f)),
         })
     }
 
     fn challenge(&self, challenge: &E::Challenge) -> Self::Output {
-        Ok(IRAexpr::IO(self.cr.resolve_challenge(challenge)?))
+        Ok(IRAexpr::slot(self.cr.resolve_challenge(challenge)?))
     }
 
     fn negated(&self, expr: Self::Output) -> Self::Output {
-        Ok(IRAexpr::Negated(Box::new(expr?)))
+        Ok(-expr?)
     }
 
     fn sum(&self, lhs: Self::Output, rhs: Self::Output) -> Self::Output {
-        Ok(IRAexpr::Sum(Box::new(lhs?), Box::new(rhs?)))
+        Ok(lhs? + rhs?)
     }
 
     fn product(&self, lhs: Self::Output, rhs: Self::Output) -> Self::Output {
-        Ok(IRAexpr::Product(Box::new(lhs?), Box::new(rhs?)))
+        Ok(lhs? * rhs?)
     }
 
     fn scaled(&self, lhs: Self::Output, rhs: &F) -> Self::Output {
-        Ok(IRAexpr::Product(
-            Box::new(lhs?),
-            Box::new(self.constant(rhs)?),
-        ))
+        Ok(lhs? * self.constant(rhs)?)
     }
 }

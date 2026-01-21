@@ -1,7 +1,7 @@
 use picus::vars::Temp;
 pub use picus::vars::{VarKind, VarStr};
 
-use haloumi_ir_base::func::FuncIO;
+use halo2_frontend_core::slot::Slot as FuncIO;
 
 /// Inner value of [`VarKeySeed`].
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
@@ -17,7 +17,7 @@ impl VarKeySeed {
     }
 
     pub fn field(field_no: usize, conv: NamingConvention) -> Self {
-        Self(VarKeySeedInner::IO(FuncIO::Field(field_no.into())), conv)
+        Self(VarKeySeedInner::IO(FuncIO::Output(field_no.into())), conv)
     }
 }
 
@@ -59,7 +59,7 @@ impl NamingConvention {
         match self {
             NamingConvention::Short => match func_io {
                 FuncIO::Arg(arg_no) => format!("in_{arg_no}"),
-                FuncIO::Field(field_id) => format!("out_{field_id}"),
+                FuncIO::Output(field_id) => format!("out_{field_id}"),
                 FuncIO::Advice(adv) => format!("adv_{}_{}", adv.col(), adv.row()),
                 FuncIO::Fixed(fix) => format!("fix_{}_{}", fix.col(), fix.row()),
                 FuncIO::TableLookup(id, col, row, idx, ridx) => {
@@ -138,7 +138,7 @@ impl VarKind for VarKey {
 
     fn is_output(&self) -> bool {
         match self {
-            VarKey::IO(func_io) => matches!(func_io, FuncIO::Field(_)),
+            VarKey::IO(func_io) => matches!(func_io, FuncIO::Output(_)),
             _ => false,
         }
     }
@@ -164,7 +164,7 @@ impl VarKind for VarKey {
 
     fn get_output_no(&self) -> Option<usize> {
         match self {
-            VarKey::IO(FuncIO::Field(n)) => Some(**n),
+            VarKey::IO(FuncIO::Output(n)) => Some(**n),
             _ => None,
         }
     }

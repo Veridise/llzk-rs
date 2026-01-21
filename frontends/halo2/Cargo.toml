@@ -21,10 +21,9 @@ mlir-sys = { workspace = true, optional = true }
 llzk-sys = { path = "../../llzk-sys/", version = "0.1.0", optional = true }
 llzk = { path = "../../llzk/", version = "0.1.0", features =["bigint"], optional = true}
 picus = { path = "../../picus", version = "0.1.0", features=["bigint-felt"], optional = true }
-# halo2-frontend-core = { path = "../halo2-core" }
-halo2-frontend-core = { version = "*", package = "haloumi-core" }
-haloumi-ir = {  version = "*" }
-haloumi-lowering = { version = "*"}
+halo2-frontend-core = { version = "0", package = "haloumi-core" }#, path = "../../../haloumi/core/" }
+haloumi-ir = {  version = "0" }#, path = "../../../haloumi/ir/" }
+haloumi-lowering = { version = "0" }#, path = "../../../haloumi/lowering/"}
 anyhow = "^1"
 ff = {workspace = true }
 num-bigint = "0.4"

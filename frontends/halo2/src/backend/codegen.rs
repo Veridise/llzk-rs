@@ -4,8 +4,8 @@ use std::rc::Rc;
 use crate::io::{AdviceIO, InstanceIO};
 use crate::ir::{IRCtx, ResolvedIRCircuit};
 use anyhow::Result;
-use haloumi_ir_base::felt::Felt;
-use haloumi_ir_base::func::FuncIO;
+use haloumi_ir::Slot;
+use haloumi_ir::{Felt, Prime};
 use haloumi_lowering::{ExprLowering as _, Lowering, lowerable::LowerableStmt};
 
 pub mod strats;
@@ -21,7 +21,7 @@ pub trait Codegen<'c: 's, 's>: Sized + 's {
     ///
     /// By default does nothing.
     #[allow(unused_variables)]
-    fn set_prime_field(&self, prime: Felt) -> Result<()> {
+    fn set_prime_field(&self, prime: Prime) -> Result<()> {
         Ok(())
     }
 
@@ -40,7 +40,7 @@ pub trait Codegen<'c: 's, 's>: Sized + 's {
         f: FN,
     ) -> Result<()>
     where
-        FN: FnOnce(&Self::FuncOutput, &[FuncIO], &[FuncIO]) -> Result<I>,
+        FN: FnOnce(&Self::FuncOutput, &[Slot], &[Slot]) -> Result<I>,
         I: IntoIterator<Item = L>,
         L: LowerableStmt,
     {

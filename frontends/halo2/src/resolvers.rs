@@ -2,11 +2,11 @@ use std::{borrow::Cow, rc::Rc};
 
 use anyhow::Result;
 use ff::Field;
+use halo2_frontend_core::slot::{Slot as FuncIO, arg::ArgNo};
 use halo2_frontend_core::{
     info_traits::{ChallengeInfo, QueryInfo, SelectorInfo},
     query::{Advice, Fixed, Instance},
 };
-use haloumi_ir_base::func::{ArgNo, FuncIO};
 
 pub trait ResolversProvider<F> {
     fn query_resolver(&self) -> &dyn QueryResolver<F>;
