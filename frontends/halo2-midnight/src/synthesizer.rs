@@ -50,7 +50,8 @@ impl<F: Field, S: SynthesizerLike<F>> Assignment<F> for SynthesizerAssignment<'_
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
-        self.synthetizer.enter_region(region_name().into());
+        self.synthetizer
+            .enter_region(region_name().into(), None, None);
     }
 
     fn exit_region(&mut self) {

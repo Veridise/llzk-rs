@@ -91,6 +91,13 @@ impl Regions {
             region.name()
         );
         self.regions.push(region);
+        let indices = self
+            .regions
+            .iter()
+            .map(|r| r.index().unwrap())
+            .collect::<HashSet<_>>();
+        assert_eq!(self.regions.len(), indices.len());
+        assert_eq!(self.regions.len(), self.used_indices.len());
     }
 
     pub fn edit<FN, FR>(&mut self, f: FN) -> Option<FR>
