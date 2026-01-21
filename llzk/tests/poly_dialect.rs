@@ -1,4 +1,5 @@
-use llzk::dialect::poly::{self, applymap};
+use llzk::builder::OpBuilder;
+use llzk::dialect::poly::{self, applymap, is_applymap_op, is_unifiable_cast_op, unifiable_cast};
 use llzk::prelude::*;
 use melior::dialect::arith;
 use melior::ir::Location;
@@ -52,15 +53,15 @@ fn is_read_const() {
     assert!(poly::is_read_const_op(&op_ref));
 }
 
-fn create_constant<'c>(
+fn create_index_constant<'c>(
+    ctx: &'c Context,
     block: &Block<'c>,
     location: Location<'c>,
-    ty: &Type<'c>,
     i: i64,
 ) -> Value<'c, 'c> {
-    let int_attr = IntegerAttribute::new(*ty, i);
+    let int_attr = IntegerAttribute::new(Type::index(ctx), i);
     let op = arith::constant(
-        unsafe { location.context().to_ref() },
+        ctx,
         int_attr.into(),
         location,
     );
@@ -95,7 +96,6 @@ fn create_applymap(#[case] affine_map: &str, #[case] ops: &[i64], #[case] expect
     common::setup();
     let context = LlzkContext::new();
     let location = Location::unknown(&context);
-    let index_ty = Type::index(&context);
 
     let affine_map =
         Attribute::parse(&context, affine_map).expect("could not parse affine_map attribute");
@@ -103,12 +103,42 @@ fn create_applymap(#[case] affine_map: &str, #[case] ops: &[i64], #[case] expect
     let block = module.body();
     let operands = ops
         .iter()
-        .map(|i| create_constant(&block, location, &index_ty, *i))
+        .map(|i| create_index_constant(&context, &block, location, *i))
         .collect::<Vec<_>>();
 
     let applymap_op = applymap(location, affine_map, &operands);
     assert!(applymap_op.verify(), "op {applymap_op} failed to verify");
+    assert!(is_applymap_op(&applymap_op));
     block.append_operation(applymap_op);
+    let ir = format!("{block}");
+    assert_eq!(ir, expected);
+}
+
+#[test]
+fn create_unifiable_cast() {
+    common::setup();
+    let context = LlzkContext::new();
+    let location = Location::unknown(&context);
+    let module = Module::new(location);
+    let block = module.body();
+
+    let affine_map_str = "affine_map<()[s0, s1] -> (s0 + s1)>";
+    let affine_map =
+        Attribute::parse(&context, affine_map_str).expect("could not parse affine_map attribute");
+    let array_ty = ArrayType::new(FeltType::new(&context).into(), &[FlatSymbolRefAttribute::new(&context, "N").into()]);
+    let array_op = array::new(&OpBuilder::new(&context), location, array_ty, llzk::dialect::array::ArrayCtor::Values(&[]));
+    let array_op = block.append_operation(array_op);
+
+    let new_array_ty = ArrayType::new(FeltType::new(&context).into(), &[affine_map]);
+    let cast = unifiable_cast(location, array_op.result(0).unwrap().into(), new_array_ty.into());
+    let cast =   block.append_operation(cast);
+    assert!(cast.verify(), "op {cast} failed to verify");
+    assert!(is_unifiable_cast_op(&cast));
+
+    let expected = r#"^bb0:
+  %0 = "array.new"() <{mapOpGroupSizes = array<i32>, numDimsPerMap = array<i32>, operandSegmentSizes = array<i32: 0, 0>}> : () -> !array.type<@N x !felt.type>
+  %1 = "poly.unifiable_cast"(%0) : (!array.type<@N x !felt.type>) -> !array.type<affine_map<()[s0, s1] -> (s0 + s1)> x !felt.type>
+"#;
     let ir = format!("{block}");
     assert_eq!(ir, expected);
 }

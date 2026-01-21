@@ -58,13 +58,9 @@ pub fn is_read_const_op<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
 }
 
 /// Constructs a 'poly.unifiable_cast' operation.
-pub fn unifiable_cast<'c>(location: Location<'c>, symbol: &str, result: Type<'c>) -> Operation<'c> {
-    let ctx = location.context();
+pub fn unifiable_cast<'c>(location: Location<'c>, input: Value<'c, '_>, result: Type<'c>) -> Operation<'c> {
     OperationBuilder::new("poly.unifiable_cast", location)
-        .add_attributes(&[(
-            ident!(ctx, "const_name"),
-            FlatSymbolRefAttribute::new(unsafe { ctx.to_ref() }, symbol).into(),
-        )])
+        .add_operands(&[input])
         .add_results(&[result])
         .build()
         .expect("valid operation")
