@@ -66,7 +66,6 @@ fn create_index_constant<'c>(block: &Block<'c>, location: Location<'c>, i: i64) 
 }
 
 #[rstest]
-// #[case("affine_map<()[s0, s1] -> (s0 + s1)>", &[7, 9], "%2 = poly.applymap[%0, %1] affine_map<()[s0, s1] -> (s0 + s1)>")]
 #[case("affine_map<()[] -> (2)>", &[],
 r"^bb0:
   %0 = poly.applymap () affine_map<() -> (2)>
