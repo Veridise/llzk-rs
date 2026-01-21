@@ -30,6 +30,10 @@ pub struct Regions {
     // reuse it.
     recovered_index: Option<RegionIndex>,
     last_is_table: bool,
+    // Set of already used indices.
+    // The automatic index assignment will skip these and the tool will panic
+    // if a manually assigned index has already been used.
+    used_indices: HashSet<RegionIndex>,
 }
 
 impl Regions {
@@ -48,20 +52,34 @@ impl Regions {
         assert!(self.current.is_none());
         self.move_latest_to_tables(tables);
         let name: String = region_name().into();
-        let index = region_index.unwrap_or_else(|| {
+        let index = self.get_next_index(next_index, region_index);
+        log::debug!("Region {} {name:?} is the current region", *index);
+        self.current = Some(RegionDataImpl::new(name, index, region_start));
+    }
+
+    fn get_next_index(
+        &mut self,
+        next_index: &mut dyn Iterator<Item = RegionIndex>,
+        region_index: Option<RegionIndex>,
+    ) -> RegionIndex {
+        // The index is either not passed or is fresh.
+        assert!(region_index.is_none_or(|index| !self.used_indices.contains(&index)));
+        let new_index = region_index.unwrap_or_else(|| {
             self
             // Reuse the previous index if available.
             .recovered_index
             .take()
             // Otherwise request a new one.
             .unwrap_or_else(|| {
-                next_index
+                next_index.skip_while(|index| {
+                        self.used_indices.contains(index)
+                    })
                     .next()
                     .expect("Iterator of region indices should be infinite")
             })
         });
-        log::debug!("Region {} {name:?} is the current region", *index);
-        self.current = Some(RegionDataImpl::new(name, index, region_start));
+        self.used_indices.insert(new_index);
+        new_index
     }
 
     /// Commits the current region to the list of regions.
