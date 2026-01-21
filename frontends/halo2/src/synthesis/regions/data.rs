@@ -22,6 +22,7 @@ pub struct RegionDataImpl {
     columns: HashSet<Column<Any>>,
     /// The rows that this region starts and ends on, if known.
     rows: Option<(usize, usize)>,
+    region_start_was_given: bool,
     namespaces: Vec<String>,
 }
 
@@ -37,6 +38,7 @@ impl RegionDataImpl {
             enabled_selectors: Default::default(),
             columns: Default::default(),
             rows: region_start.map(|start| (*start, *start)),
+            region_start_was_given: region_start.is_some(),
             namespaces: Default::default(),
         }
     }
