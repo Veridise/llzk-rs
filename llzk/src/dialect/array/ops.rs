@@ -1,3 +1,4 @@
+//! `array` dialect operations and helper functions.
 use llzk_sys::{llzkCreateArrayOpBuildWithMapOperands, llzkCreateArrayOpBuildWithValues};
 use melior::ir::TypeLike;
 use melior::ir::operation::OperationBuilder;
@@ -192,4 +193,24 @@ pub fn insert<'c>(
 #[inline]
 pub fn is_array_insert<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
     crate::operation::isa(op, "array.insert")
+}
+
+/// Creates an 'array.len' operation.
+pub fn len<'c>(
+    location: Location<'c>,
+    arr_ref: Value<'c, '_>,
+    dim: Value<'c, '_>,
+) -> Operation<'c> {
+    let ctx = location.context();
+    OperationBuilder::new("array.len", location)
+        .add_operands(&[arr_ref, dim])
+        .add_results(&[Type::index(unsafe { ctx.to_ref() })])
+        .build()
+        .expect("valid operation")
+}
+
+/// Return `true` iff the given op is `array.len`.
+#[inline]
+pub fn is_array_len<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
+    crate::operation::isa(op, "array.len")
 }
