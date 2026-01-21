@@ -6,11 +6,11 @@ use halo2_frontend_core::{
 
 use std::{
     borrow::Cow,
+    cmp::Ordering,
     collections::{HashMap, HashSet},
     ops::Range,
 };
 
-#[derive(Debug)]
 pub struct RegionDataImpl {
     /// The name of the region. Not required to be unique.
     name: String,
@@ -22,7 +22,6 @@ pub struct RegionDataImpl {
     columns: HashSet<Column<Any>>,
     /// The rows that this region starts and ends on, if known.
     rows: Option<(usize, usize)>,
-    region_start_was_given: bool,
     namespaces: Vec<String>,
 }
 
@@ -38,7 +37,6 @@ impl RegionDataImpl {
             enabled_selectors: Default::default(),
             columns: Default::default(),
             rows: region_start.map(|start| (*start, *start)),
-            region_start_was_given: region_start.is_some(),
             namespaces: Default::default(),
         }
     }
@@ -128,6 +126,60 @@ impl RegionDataImpl {
             .iter()
             .filter_map(|c| (*c).try_into().ok())
             .collect()
+    }
+}
+
+fn fmt_columns<'c>(
+    columns: impl IntoIterator<Item = &'c Column<Any>>,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    let mut columns = Vec::from_iter(columns);
+    columns.sort_by(|a, b| {
+        match (a.column_type(), b.column_type()) {
+            (Any::Instance, Any::Advice | Any::Fixed) | (Any::Advice, Any::Fixed) => {
+                return Ordering::Less;
+            }
+            (Any::Fixed, Any::Instance | Any::Advice) | (Any::Advice, Any::Instance) => {
+                return Ordering::Greater;
+            }
+            _ => {}
+        }
+        a.index().cmp(&b.index())
+    });
+    let columns = columns
+        .into_iter()
+        .map(|c| {
+            format!(
+                "{}:{}",
+                match c.column_type() {
+                    Any::Fixed => "Fix",
+                    Any::Advice => "Adv",
+                    Any::Instance => "Ins",
+                },
+                c.index()
+            )
+        })
+        .collect::<Vec<_>>();
+
+    write!(f, "{}", columns.join(", "))
+}
+
+impl std::fmt::Debug for RegionDataImpl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Region \"{}\" ({})", self.name, self.index_as_str())?;
+        writeln!(f, "  Rows {:?}", self.rows())?;
+        write!(f, "  Columns ")?;
+        fmt_columns(&self.columns, f)?;
+        writeln!(f)?;
+        writeln!(f, "  Selectors")?;
+        for (row, selectors) in &self.enabled_selectors {
+            let mut bitvec = 0_usize;
+            for elt in selectors {
+                bitvec = bitvec | (1 << elt);
+            }
+            writeln!(f, "    {row:10}: {bitvec:0b}")?;
+        }
+        writeln!(f)
     }
 }
 
