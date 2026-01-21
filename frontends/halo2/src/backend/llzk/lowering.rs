@@ -694,9 +694,6 @@ mod tests {
     }
 
     #[rstest]
-    #[should_panic(
-        expected = "'bool.and' op only valid within a 'function.def' with 'function.allow_witness' attribute"
-    )]
     fn lower_and(fragment_main: FragmentCfg) {
         fragment_test(
             fragment_main,
@@ -711,9 +708,6 @@ mod tests {
     }
 
     #[rstest]
-    #[should_panic(
-        expected = "'bool.or' op only valid within a 'function.def' with 'function.allow_witness' attribute"
-    )]
     fn lower_or(fragment_main: FragmentCfg) {
         fragment_test(
             fragment_main,
@@ -728,9 +722,6 @@ mod tests {
     }
 
     #[rstest]
-    #[should_panic(
-        expected = "'bool.not' op only valid within a 'function.def' with 'function.allow_witness' attribute"
-    )]
     fn lower_implies(fragment_main: FragmentCfg) {
         fragment_test(
             fragment_main,
@@ -828,9 +819,6 @@ mod tests {
     }
 
     #[rstest]
-    #[should_panic(
-        expected = "'bool.not' op only valid within a 'function.def' with 'function.allow_witness' attribute"
-    )]
     fn lower_not(fragment_main: FragmentCfg) {
         fragment_test(
             fragment_main,
