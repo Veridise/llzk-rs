@@ -59,7 +59,7 @@ impl IRCtx {
 }
 
 /// Contains information about the advice cells in a region.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct AdviceCells {
     columns: HashSet<Column<Any>>,
     rows: Range<usize>,
@@ -68,7 +68,7 @@ pub(crate) struct AdviceCells {
 
 impl AdviceCells {
     pub fn new(region: RegionData) -> Self {
-        Self {
+        let cells = Self {
             columns: region
                 .columns()
                 .iter()
@@ -77,7 +77,9 @@ impl AdviceCells {
                 .collect(),
             rows: region.rows(),
             start: region.start(),
-        }
+        };
+        log::info!("{region:?} Produced the following {cells:?}");
+        cells
     }
 
     /// Returns true if the region contains the given advice cell.
@@ -90,6 +92,16 @@ impl AdviceCells {
     /// Returns the start of the region.
     pub fn start(&self) -> Option<usize> {
         self.start
+    }
+}
+
+impl std::fmt::Debug for AdviceCells {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "AdviceCells")?;
+        writeln!(f, "  Rows {:?} (Start: {:?})", self.rows, self.start)?;
+        write!(f, "  Columns ")?;
+        crate::utils::fmt_columns(&self.columns, f)?;
+        writeln!(f)
     }
 }
 

@@ -209,7 +209,13 @@ pub fn relativize_eq_constraints(
     group: &mut GroupBody<IRAexpr>,
     ctx: &IRCtx,
 ) -> anyhow::Result<()> {
-    group.eq_constraints_mut().try_map_inplace(&mut |expr| {
+    log::debug!("//===--------------------------------------------------------------===//");
+    log::debug!(
+        "// BEGIN Relativizing copy constraints for group '{}'",
+        group.name()
+    );
+    log::debug!("//===--------------------------------------------------------------===//");
+    let res = group.eq_constraints_mut().try_map_inplace(&mut |expr| {
         expr.try_map_io(&|io| match io {
             Slot::Advice(cell) => {
                 *cell = try_relativize_advice_cell(*cell, ctx.advice_cells().values())?;
@@ -217,7 +223,16 @@ pub fn relativize_eq_constraints(
             }
             _ => Ok(()),
         })
-    })
+    });
+
+    log::debug!("//===--------------------------------------------------------------===//");
+    log::debug!(
+        "// END   Relativizing copy constraints for group '{}' (ok? {})",
+        group.name(),
+        res.is_ok()
+    );
+    log::debug!("//===--------------------------------------------------------------===//");
+    res
 }
 
 ///// Folds the statements if the expressions are constant.

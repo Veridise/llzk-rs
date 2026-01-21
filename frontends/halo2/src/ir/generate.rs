@@ -182,7 +182,9 @@ where
 pub(super) fn region_data<'s, F: Field, E>(syn: &'s SynthesizedCircuit<F, E>) -> RegionByIndex<'s> {
     syn.groups()
         .iter()
+        .inspect(|g| log::info!("[region_data] For group '{}'", g.name()))
         .flat_map(|g| g.regions())
+        .inspect(|r| log::info!("[region_data]  Region {r:?}"))
         .map(|r| {
             r.index()
                 .map(|i| (i, r))

@@ -78,10 +78,21 @@ impl RegionDataImpl {
     }
 
     pub fn update_extent(&mut self, column: Column<Any>, row: usize) {
+        log::info!(
+            "[Region '{}'] Updating extent with column = {column:?} and row = {row}",
+            self.name()
+        );
         self.columns.insert(column);
         self.rows = Some(
             self.rows
                 .map_or_else(|| (row, row), |(start, end)| (start.min(row), end.max(row))),
+        );
+
+        log::info!(
+            "[Region '{}'] Updated extent rows = {:?} | columns = {:?}",
+            self.name(),
+            self.rows(),
+            self.columns,
         );
     }
 
@@ -129,47 +140,12 @@ impl RegionDataImpl {
     }
 }
 
-fn fmt_columns<'c>(
-    columns: impl IntoIterator<Item = &'c Column<Any>>,
-    f: &mut std::fmt::Formatter<'_>,
-) -> std::fmt::Result {
-    let mut columns = Vec::from_iter(columns);
-    columns.sort_by(|a, b| {
-        match (a.column_type(), b.column_type()) {
-            (Any::Instance, Any::Advice | Any::Fixed) | (Any::Advice, Any::Fixed) => {
-                return Ordering::Less;
-            }
-            (Any::Fixed, Any::Instance | Any::Advice) | (Any::Advice, Any::Instance) => {
-                return Ordering::Greater;
-            }
-            _ => {}
-        }
-        a.index().cmp(&b.index())
-    });
-    let columns = columns
-        .into_iter()
-        .map(|c| {
-            format!(
-                "{}:{}",
-                match c.column_type() {
-                    Any::Fixed => "Fix",
-                    Any::Advice => "Adv",
-                    Any::Instance => "Ins",
-                },
-                c.index()
-            )
-        })
-        .collect::<Vec<_>>();
-
-    write!(f, "{}", columns.join(", "))
-}
-
 impl std::fmt::Debug for RegionDataImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Region \"{}\" ({})", self.name, self.index_as_str())?;
         writeln!(f, "  Rows {:?}", self.rows())?;
         write!(f, "  Columns ")?;
-        fmt_columns(&self.columns, f)?;
+        crate::utils::fmt_columns(&self.columns, f)?;
         writeln!(f)?;
         writeln!(f, "  Selectors")?;
         for (row, selectors) in &self.enabled_selectors {
@@ -183,7 +159,7 @@ impl std::fmt::Debug for RegionDataImpl {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct RegionData<'a> {
     inner: &'a RegionDataImpl,
 }
@@ -239,5 +215,11 @@ impl<'a> RegionData<'a> {
         } else {
             None
         }
+    }
+}
+
+impl std::fmt::Debug for RegionData<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self.inner, f)
     }
 }
