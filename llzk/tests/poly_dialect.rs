@@ -52,7 +52,12 @@ fn is_read_const() {
     assert!(poly::is_read_const_op(&op_ref));
 }
 
-fn create_constant<'c>(block: &Block<'c>, location: Location<'c>, ty: &Type<'c>, i: i64) -> Value<'c, 'c> {
+fn create_constant<'c>(
+    block: &Block<'c>,
+    location: Location<'c>,
+    ty: &Type<'c>,
+    i: i64,
+) -> Value<'c, 'c> {
     let int_attr = IntegerAttribute::new(*ty, i);
     let op = arith::constant(
         unsafe { location.context().to_ref() },
