@@ -16,10 +16,10 @@ pub use crate::utils::IntoRef;
 
 /// Exports functions from the 'array' dialect
 pub mod array {
-    pub use crate::dialect::array::{extract, insert, new, read, write};
+    pub use crate::dialect::array::{extract, insert, len, new, read, write};
     pub use crate::dialect::array::{
-        is_array_extract, is_array_insert, is_array_new, is_array_read, is_array_type,
-        is_array_write,
+        is_array_extract, is_array_insert, is_array_len, is_array_new, is_array_read,
+        is_array_type, is_array_write,
     };
 }
 /// Exports functions from the 'bool' dialect
@@ -65,8 +65,8 @@ pub mod global {
 }
 /// Exports functions from the 'poly' dialect
 pub mod poly {
+    pub use crate::dialect::poly::ops::{is_read_const_op, read_const};
     pub use crate::dialect::poly::r#type::{TVarType, is_type_variable};
-    pub use crate::dialect::poly::{is_read_const_op, read_const};
 }
 /// Exports functions from the 'struct' dialect
 pub mod r#struct {
