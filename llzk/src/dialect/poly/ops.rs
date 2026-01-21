@@ -7,7 +7,7 @@ use crate::{
 };
 use llzk_sys::llzkApplyMapOpBuildWithAffineMap;
 use melior::ir::{
-    Attribute, AttributeLike, Location, Operation, Type, Value, ValueLike,
+    Attribute, AttributeLike, Location, Operation, Type, Value,
     attribute::FlatSymbolRefAttribute,
     operation::{OperationBuilder, OperationLike},
 };
@@ -74,54 +74,4 @@ pub fn unifiable_cast<'c>(location: Location<'c>, symbol: &str, result: Type<'c>
 #[inline]
 pub fn is_unifiable_cast_op<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
     crate::operation::isa(op, "poly.unifiable_cast")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::prelude::*;
-    use melior::dialect::arith;
-    use quickcheck_macros::quickcheck;
-
-    // #[quickcheck]
-    // fn applymap(dim: i64) {
-    //     let ctx = LlzkContext::new();
-    //     let unknown = Location::unknown(&ctx);
-    //     let index_ty = Type::index(&ctx);
-    //     let ty = ArrayType::new_with_dims(index_ty, &[dim]);
-    //     let op = new(
-    //         &OpBuilder::new(&ctx),
-    //         unknown,
-    //         ty,
-    //         ArrayCtor::Values(&[])
-    //     );
-    //     assert_eq!(1, op.result_count(), "op {op} must only have one result");
-    //     let arr_ref = op.result(0).unwrap();
-    //     let arr_dim_op = arith::constant(&ctx, IntegerAttribute::new(index_ty, 0).into(), unknown);
-    //     assert_eq!(1, arr_dim_op.result_count(), "op {arr_dim_op} must only have one result");
-    //     let arr_dim = arr_dim_op.result(0).unwrap();
-    //     let len = len(&ctx, unknown, arr_ref.into(), arr_dim.into());
-    //     assert!(len.verify(), "op {len} failed to verify");
-    // }
-
-    // #[quickcheck]
-    // fn unifiable_cast(dim: i64) {
-    //     let ctx = LlzkContext::new();
-    //     let unknown = Location::unknown(&ctx);
-    //     let index_ty = Type::index(&ctx);
-    //     let ty = ArrayType::new_with_dims(index_ty, &[dim]);
-    //     let op = new(
-    //         &OpBuilder::new(&ctx),
-    //         unknown,
-    //         ty,
-    //         ArrayCtor::Values(&[])
-    //     );
-    //     assert_eq!(1, op.result_count(), "op {op} must only have one result");
-    //     let arr_ref = op.result(0).unwrap();
-    //     let arr_dim_op = arith::constant(&ctx, IntegerAttribute::new(index_ty, 0).into(), unknown);
-    //     assert_eq!(1, arr_dim_op.result_count(), "op {arr_dim_op} must only have one result");
-    //     let arr_dim = arr_dim_op.result(0).unwrap();
-    //     let len = len(&ctx, unknown, arr_ref.into(), arr_dim.into());
-    //     assert!(len.verify(), "op {len} failed to verify");
-    // }
 }

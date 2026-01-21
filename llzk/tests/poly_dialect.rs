@@ -52,9 +52,8 @@ fn is_read_const() {
     assert!(poly::is_read_const_op(&op_ref));
 }
 
-fn create_index_constant<'c>(block: &Block<'c>, location: Location<'c>, i: i64) -> Value<'c, 'c> {
-    let index_ty = Type::index(unsafe { location.context().to_ref() });
-    let int_attr = IntegerAttribute::new(index_ty, i);
+fn create_constant<'c>(block: &Block<'c>, location: Location<'c>, ty: &Type<'c>, i: i64) -> Value<'c, 'c> {
+    let int_attr = IntegerAttribute::new(*ty, i);
     let op = arith::constant(
         unsafe { location.context().to_ref() },
         int_attr.into(),
@@ -91,6 +90,7 @@ fn create_applymap(#[case] affine_map: &str, #[case] ops: &[i64], #[case] expect
     common::setup();
     let context = LlzkContext::new();
     let location = Location::unknown(&context);
+    let index_ty = Type::index(&context);
 
     let affine_map =
         Attribute::parse(&context, affine_map).expect("could not parse affine_map attribute");
@@ -98,7 +98,7 @@ fn create_applymap(#[case] affine_map: &str, #[case] ops: &[i64], #[case] expect
     let block = module.body();
     let operands = ops
         .iter()
-        .map(|i| create_index_constant(&block, location, *i))
+        .map(|i| create_constant(&block, location, &index_ty, *i))
         .collect::<Vec<_>>();
 
     let applymap_op = applymap(location, affine_map, &operands);
