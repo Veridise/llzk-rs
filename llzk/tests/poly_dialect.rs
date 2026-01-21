@@ -60,11 +60,7 @@ fn create_index_constant<'c>(
     i: i64,
 ) -> Value<'c, 'c> {
     let int_attr = IntegerAttribute::new(Type::index(ctx), i);
-    let op = arith::constant(
-        ctx,
-        int_attr.into(),
-        location,
-    );
+    let op = arith::constant(ctx, int_attr.into(), location);
     let op_ref = block.append_operation(op);
     assert_eq!(1, op_ref.result_count());
     op_ref.result(0).unwrap().into()
@@ -125,13 +121,25 @@ fn create_unifiable_cast() {
     let affine_map_str = "affine_map<()[s0, s1] -> (s0 + s1)>";
     let affine_map =
         Attribute::parse(&context, affine_map_str).expect("could not parse affine_map attribute");
-    let array_ty = ArrayType::new(FeltType::new(&context).into(), &[FlatSymbolRefAttribute::new(&context, "N").into()]);
-    let array_op = array::new(&OpBuilder::new(&context), location, array_ty, llzk::dialect::array::ArrayCtor::Values(&[]));
+    let array_ty = ArrayType::new(
+        FeltType::new(&context).into(),
+        &[FlatSymbolRefAttribute::new(&context, "N").into()],
+    );
+    let array_op = array::new(
+        &OpBuilder::new(&context),
+        location,
+        array_ty,
+        llzk::dialect::array::ArrayCtor::Values(&[]),
+    );
     let array_op = block.append_operation(array_op);
 
     let new_array_ty = ArrayType::new(FeltType::new(&context).into(), &[affine_map]);
-    let cast = unifiable_cast(location, array_op.result(0).unwrap().into(), new_array_ty.into());
-    let cast =   block.append_operation(cast);
+    let cast = unifiable_cast(
+        location,
+        array_op.result(0).unwrap().into(),
+        new_array_ty.into(),
+    );
+    let cast = block.append_operation(cast);
     assert!(cast.verify(), "op {cast} failed to verify");
     assert!(is_unifiable_cast_op(&cast));
 

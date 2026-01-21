@@ -1,4 +1,4 @@
-///! `array` dialect operations and helper functions.
+//! `array` dialect operations and helper functions.
 use llzk_sys::{llzkCreateArrayOpBuildWithMapOperands, llzkCreateArrayOpBuildWithValues};
 use melior::ir::TypeLike;
 use melior::ir::operation::OperationBuilder;

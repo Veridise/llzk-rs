@@ -58,7 +58,11 @@ pub fn is_read_const_op<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
 }
 
 /// Constructs a 'poly.unifiable_cast' operation.
-pub fn unifiable_cast<'c>(location: Location<'c>, input: Value<'c, '_>, result: Type<'c>) -> Operation<'c> {
+pub fn unifiable_cast<'c>(
+    location: Location<'c>,
+    input: Value<'c, '_>,
+    result: Type<'c>,
+) -> Operation<'c> {
     OperationBuilder::new("poly.unifiable_cast", location)
         .add_operands(&[input])
         .add_results(&[result])
