@@ -1,6 +1,6 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 #![deny(missing_debug_implementations)]
-#![warn(missing_docs)]
+//#![warn(missing_docs)]
 
 #[macro_use]
 pub mod display;
