@@ -58,7 +58,7 @@ impl GroupCell {
 
     pub fn region_index(&self) -> Option<RegionIndex> {
         match self {
-            GroupCell::Assigned(cell) => Some(cell.region_index.into()),
+            GroupCell::Assigned(cell) => Some(cell.region_index),
             _ => None,
         }
     }

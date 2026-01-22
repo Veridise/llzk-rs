@@ -195,7 +195,7 @@ impl<F: Field> Synthesizer<F> {
 
         Ok(SynthesizedCircuit {
             id: self.id,
-            gates: cs.gates().into_iter().map(Gate::new::<F>).collect(),
+            gates: cs.gates().into_iter().map(Gate::new).collect(),
             lookups: Lookup::load(&cs),
             eq_constraints: self.eq_constraints,
             tables: fill_tables(self.tables, &self.fixed)?,

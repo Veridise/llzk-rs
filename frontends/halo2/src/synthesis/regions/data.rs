@@ -6,7 +6,6 @@ use halo2_frontend_core::{
 
 use std::{
     borrow::Cow,
-    cmp::Ordering,
     collections::{HashMap, HashSet},
     ops::Range,
 };
@@ -151,7 +150,7 @@ impl std::fmt::Debug for RegionDataImpl {
         for (row, selectors) in &self.enabled_selectors {
             let mut bitvec = 0_usize;
             for elt in selectors {
-                bitvec = bitvec | (1 << elt);
+                bitvec |= 1 << elt;
             }
             writeln!(f, "    {row:10}: {bitvec:0b}")?;
         }

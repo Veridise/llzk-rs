@@ -3,24 +3,15 @@
 use crate::{
     expressions::ScopedExpression,
     synthesis::{
-        groups::{Group, GroupCell, GroupKey},
+        groups::{Group, GroupCell},
         regions::{RegionData, RegionRow, Row},
     },
     temps::ExprOrTemp,
 };
 
-use anyhow::Result;
-use eqv::EqvRelation;
 use ff::Field;
 use halo2_frontend_core::expressions::ExprBuilder;
-use haloumi_ir::{
-    CmpOp, Felt, Slot, SymbolicEqv, expr::IRAexpr, groups::callsite::CallSite, stmt::IRStmt,
-    traits::ConstantFolding,
-};
-use haloumi_lowering::{
-    Lowering,
-    lowerable::{LowerableExpr, LowerableStmt},
-};
+use haloumi_ir::{Slot, groups::callsite::CallSite};
 
 ///// Data related to a single callsite
 //#[derive(Debug)]
@@ -62,7 +53,7 @@ where
             let expr = cell.to_expr::<F, E>();
             let row = match cell {
                 GroupCell::Assigned(cell) => {
-                    let start = ctx.regions_by_index()[&cell.region_index.into()]
+                    let start = ctx.regions_by_index()[&cell.region_index]
                         .start()
                         .ok_or_else(|| {
                             anyhow::anyhow!("Region {} does not have a start", *cell.region_index)

@@ -115,7 +115,7 @@ fn mk_advice_io(
         match input {
             GroupCell::Assigned(cell) => match cell.column.column_type() {
                 Any::Advice => {
-                    let row = cell.row_offset + regions[&cell.region_index.into()];
+                    let row = cell.row_offset + regions[&cell.region_index];
                     Some((cell.column.try_into().unwrap(), row))
                 }
                 Any::Instance => None,
@@ -141,7 +141,7 @@ fn mk_instance_io(
         match input {
             GroupCell::Assigned(cell) => match cell.column.column_type() {
                 Any::Instance => {
-                    let row = cell.row_offset + regions[&cell.region_index.into()];
+                    let row = cell.row_offset + regions[&cell.region_index];
                     Some((cell.column.try_into().unwrap(), row))
                 }
                 Any::Advice => None,

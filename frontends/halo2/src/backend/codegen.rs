@@ -4,8 +4,8 @@ use std::rc::Rc;
 use crate::io::{AdviceIO, InstanceIO};
 use crate::ir::{IRCtx, ResolvedIRCircuit};
 use anyhow::Result;
+use haloumi_ir::Prime;
 use haloumi_ir::Slot;
-use haloumi_ir::{Felt, Prime};
 use haloumi_lowering::{ExprLowering as _, Lowering, lowerable::LowerableStmt};
 
 pub mod strats;

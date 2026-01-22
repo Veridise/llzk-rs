@@ -28,7 +28,7 @@ mod inner {
         params: LlzkParams,
         expected_llzk: impl AsRef<str>,
     ) {
-        let output = driver.llzk(&circuit, params).unwrap();
+        let output = driver.llzk(circuit, params).unwrap();
         assert!(output.module().as_operation().verify());
         mlir_testutils::assert_module_eq(output.module(), expected_llzk.as_ref());
     }
@@ -41,7 +41,7 @@ mod inner {
         expected_llzk: impl AsRef<str>,
         canonicalize: bool,
     ) where
-        F: PrimeField,
+        F: PrimeField + std::cmp::Ord,
         C: CircuitSynthesis<F, CS = ConstraintSystem<F>>,
     {
         let mut driver = Driver::default();

@@ -21,7 +21,7 @@ pub struct Lookup<E> {
 
 impl<E> Lookup<E> {
     /// Returns the list of lookups defined in the constraint system.
-    pub fn load<'syn, F: Field>(cs: &'syn dyn ConstraintSystemInfo<F, Polynomial = E>) -> Vec<Self>
+    pub fn load<F: Field>(cs: &dyn ConstraintSystemInfo<F, Polynomial = E>) -> Vec<Self>
     where
         E: EvaluableExpr<F> + Clone + ExpressionInfo + ExprBuilder<F>,
     {

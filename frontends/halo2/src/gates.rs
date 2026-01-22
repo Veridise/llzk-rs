@@ -27,13 +27,13 @@ pub(crate) struct Gate<E> {
 
 impl<E> Gate<E> {
     /// Creates a new gate.
-    pub fn new<F: Field>(info: &dyn GateInfo<E>) -> Self
+    pub fn new(info: &dyn GateInfo<E>) -> Self
     where
         E: Clone,
     {
         Self {
             name: info.name().to_string(),
-            polynomials: info.polynomials().into_iter().cloned().collect(),
+            polynomials: info.polynomials().to_vec(),
         }
     }
 
@@ -222,14 +222,7 @@ impl<F: Field, E> Copy for GateScope<'_, '_, F, E> {}
 
 impl<F: Field, E> Clone for GateScope<'_, '_, F, E> {
     fn clone(&self) -> Self {
-        Self {
-            gate: self.gate,
-            region: self.region,
-            row_bounds: self.row_bounds,
-            advice_io: self.advice_io,
-            instance_io: self.instance_io,
-            fqr: self.fqr,
-        }
+        *self
     }
 }
 

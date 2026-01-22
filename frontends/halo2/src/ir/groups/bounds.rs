@@ -53,7 +53,7 @@ impl<'a> GroupBounds<'a> {
                 GroupCell::Assigned(cell) => {
                     // Copy constraints use absolute rows but the labels have relative
                     // rows.
-                    if let Some(start) = region_by_index[&cell.region_index.into()].start() {
+                    if let Some(start) = region_by_index[&cell.region_index].start() {
                         let abs_row = cell.row_offset + start;
                         if region_indices.contains(&cell.region_index) {
                             io.insert((cell.column, abs_row));
@@ -77,7 +77,7 @@ impl<'a> GroupBounds<'a> {
         {
             match cell {
                 GroupCell::Assigned(cell) => {
-                    if let Some(start) = region_by_index[&cell.region_index.into()].start() {
+                    if let Some(start) = region_by_index[&cell.region_index].start() {
                         let abs_row = cell.row_offset + start;
                         children_output.insert((cell.column, abs_row));
                     }

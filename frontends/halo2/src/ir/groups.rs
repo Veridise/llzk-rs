@@ -5,7 +5,7 @@ use crate::{
     expressions::{ExpressionInRow, ScopedExpression},
     gates::{Gate, GateRewritePattern as _, GateScope, RewriteError, RewritePatternSet},
     ir::{
-        IRCtx,
+        IRCtx, UnresolvedExpr,
         ctx::AdviceCells,
         generate::{GroupIRCtx, RegionByIndex},
         groups::{
@@ -18,28 +18,20 @@ use crate::{
     synthesis::{
         SynthesizedCircuit,
         constraint::EqConstraint,
-        groups::{Group, GroupCell, GroupKey},
+        groups::{Group, GroupCell},
         regions::{RegionData, RegionRow, Row},
     },
     temps::{ExprOrTemp, Temp, Temps},
     utils,
 };
 use anyhow::Result;
-use eqv::EqvRelation;
 use ff::Field;
 use halo2_frontend_core::{
     expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
     slot::Slot,
     table::{Any, Rotation, RotationExt},
 };
-use haloumi_ir::CmpOp;
-use haloumi_ir::Felt;
-use haloumi_ir::stmt::IRStmt;
-use haloumi_ir::traits::ConstantFolding;
-use haloumi_ir::{SymbolicEqv, expr::IRBexpr};
-use haloumi_ir::{cell::CellRef, groups::callsite::CallSite};
-use haloumi_ir::{expr::IRAexpr, groups::IRGroup};
-use haloumi_lowering::{Lowering, lowerable::LowerableStmt};
+use haloumi_ir::{CmpOp, cell::CellRef, expr::IRAexpr, groups::IRGroup, stmt::IRStmt};
 use std::{collections::HashMap, convert::Infallible};
 
 pub(crate) mod bounds;
@@ -572,14 +564,8 @@ fn select_equality_constraints<F: Field, E>(
                     (Bound::Outside, Bound::Outside) => false,
                     (Bound::IO, Bound::Outside) => false,
                     (Bound::Outside, Bound::IO) => false,
-                    (Bound::Within, Bound::Outside) => match r.0.column_type() {
-                        Any::Fixed => true,
-                        _ => false,
-                    },
-                    (Bound::Outside, Bound::Within) => match l.0.column_type() {
-                        Any::Fixed => true,
-                        _ => false,
-                    },
+                    (Bound::Within, Bound::Outside) => matches!(r.0.column_type(), Any::Fixed),
+                    (Bound::Outside, Bound::Within) => matches!(l.0.column_type(), Any::Fixed),
                 },
                 EqConstraintCheck::FixedToConst(bound) => match bound {
                     Bound::Within | Bound::Outside => true,
@@ -755,7 +741,7 @@ fn codegen_lookup_invocations<'sco, 'syn, 'ctx, 'cb, F, E>(
     region_rows: &[RegionRow<'syn, 'ctx, 'syn, F>],
     lookup_cb: &'cb dyn LookupCallbacks<F, E>,
     generate_debug_comments: bool,
-) -> Result<Vec<IRStmt<ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>>>>
+) -> Result<Vec<IRStmt<UnresolvedExpr<'syn, 'sco, F, E>>>>
 where
     'syn: 'sco,
     'ctx: 'sco + 'syn,

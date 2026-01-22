@@ -4,7 +4,7 @@ use halo2_frontend_core::{
     table::{Column, RegionIndex},
 };
 
-use std::{collections::HashSet, ops::Deref};
+use std::collections::HashSet;
 
 pub(super) mod data;
 mod fixed;
@@ -71,10 +71,10 @@ impl Regions {
             .take()
             // Otherwise request a new one.
             .unwrap_or_else(|| {
+                #[allow(clippy::skip_while_next)]
                 next_index.skip_while(|index| {
                         self.used_indices.contains(index)
-                    })
-                    .next()
+                    }).next()
                     .expect("Iterator of region indices should be infinite")
             })
         });

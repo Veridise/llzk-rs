@@ -1,9 +1,7 @@
 use crate::backend::llzk::error::{Error, UnexpectedTypeError};
 use crate::backend::llzk::factory::filename;
 //use backend_err::{Result, backend_err};
-use haloumi_lowering::{
-    ExprLowering, Lowering, Result as LoweringResult, backend_err, bail_backend,
-};
+use haloumi_lowering::{ExprLowering, Lowering, Result as LoweringResult, bail_backend};
 use llzk::builder::OpBuilder;
 use llzk::prelude::*;
 use melior::dialect::arith;
@@ -17,14 +15,13 @@ use melior::{
 use mlir_sys::MlirValue;
 use std::rc::Rc;
 
+use super::counter::Counter;
+use super::extras::{block_list, operations_list};
 use halo2_frontend_core::{
     cmp::CmpOp,
     felt::Felt,
     slot::{Slot as FuncIO, arg::ArgNo, output::OutputId as FieldId},
 };
-
-use super::counter::Counter;
-use super::extras::{block_list, operations_list};
 
 pub struct LlzkStructLowering<'c, 's> {
     context: &'c Context,
@@ -519,6 +516,7 @@ mod tests {
     };
 
     use super::*;
+    use ff::Field as _;
 
     use rstest::{fixture, rstest};
 

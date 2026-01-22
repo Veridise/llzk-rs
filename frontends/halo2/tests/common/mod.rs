@@ -31,13 +31,13 @@ macro_rules! ensure_validation {
 /// We run the synthesis separately to test that the lifetimes of the values
 /// can be untied to the CircuitSynthesis struct. But also if we want to add LLZK tests
 /// this makes sure to test the retargeability of the driver.
-pub fn synthesize_and_generate_ir<'drv, F, C>(
-    driver: &'drv mut Driver,
+pub fn synthesize_and_generate_ir<F, C>(
+    driver: &mut Driver,
     circuit: C,
     params: IRGenParams<F, _Expression<F>>,
 ) -> ResolvedIRCircuit
 where
-    F: PrimeField,
+    F: PrimeField + std::cmp::Ord,
     C: CircuitSynthesis<F>,
     C: CircuitSynthesis<F, CS = ConstraintSystem<F>>,
 {
@@ -56,7 +56,7 @@ fn common_lowering<F, C>(
     canonicalize: bool,
 ) -> ResolvedIRCircuit
 where
-    F: PrimeField,
+    F: PrimeField + std::cmp::Ord,
     C: CircuitSynthesis<F, CS = ConstraintSystem<F>>,
 {
     let mut resolved = synthesize_and_generate_ir(driver, circuit, ir_params);
@@ -82,8 +82,8 @@ fn clean_string(s: &str) -> String {
         }
         .trim();
 
-        r.extend(line.chars());
-        r.extend("\n".chars());
+        r.push_str(line);
+        r.push('\n');
     }
     r
 }

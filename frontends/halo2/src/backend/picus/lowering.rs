@@ -5,7 +5,7 @@ use super::vars::{NamingConvention, VarKey, VarKeySeed};
 use halo2_frontend_core::cmp::CmpOp;
 use halo2_frontend_core::felt::Felt;
 use halo2_frontend_core::slot::{Slot as FuncIO, arg::ArgNo, output::OutputId as FieldId};
-use haloumi_lowering::{ExprLowering, Lowering, Result, backend_err};
+use haloumi_lowering::{ExprLowering, Lowering, Result};
 use picus::{ModuleLike as _, expr, stmt};
 
 pub type PicusModuleRef = picus::ModuleRef<VarKey>;

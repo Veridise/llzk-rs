@@ -80,7 +80,7 @@ impl StructIO {
         } else {
             FeltType::new(ctx).into()
         };
-        let types = std::iter::repeat(ty).take(self.public_inputs + self.private_inputs);
+        let types = std::iter::repeat_n(ty, self.public_inputs + self.private_inputs);
 
         std::iter::zip(types, locs).collect()
     }

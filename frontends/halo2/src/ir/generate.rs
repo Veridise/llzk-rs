@@ -5,16 +5,14 @@ use std::collections::HashMap;
 use ff::{Field, PrimeField};
 
 use crate::{
-    expressions::ScopedExpression,
     gates::{DefaultGateCallbacks, GateCallbacks, RewritePatternSet},
     ir::{
-        IRCtx,
+        IRCtx, UnresolvedExpr,
         generate::patterns::load_patterns,
         groups::{GroupBody, new_group},
     },
     lookups::callbacks::{DefaultLookupCallbacks, LookupCallbacks},
     synthesis::{SynthesizedCircuit, groups::Group, regions::RegionData},
-    temps::ExprOrTemp,
 };
 use halo2_frontend_core::{
     expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
@@ -132,7 +130,7 @@ pub(crate) fn generate_ir<'syn, 'ctx, 'cb, 'sco, F, E>(
     syn: &'syn SynthesizedCircuit<F, E>,
     params: IRGenParams<'cb, '_, F, E>,
     ir_ctx: &'ctx IRCtx,
-) -> anyhow::Result<Vec<GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>>>>
+) -> anyhow::Result<Vec<GroupBody<UnresolvedExpr<'syn, 'sco, F, E>>>>
 where
     F: PrimeField + Ord,
     E: Clone + ExprBuilder<F> + ExpressionInfo + EvaluableExpr<F> + std::fmt::Debug,

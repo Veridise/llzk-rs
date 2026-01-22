@@ -2,7 +2,6 @@ use crate::backend::{
     codegen::CodegenParams,
     picus::{PicusModule, Pipeline, PipelineBuilder, params::PicusParams},
 };
-use halo2_frontend_core::felt::Felt;
 
 use anyhow::Result;
 use haloumi_ir::Prime;

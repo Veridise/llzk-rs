@@ -98,12 +98,12 @@ mod mul_inject {
     use halo2_midnight_integration::plonk::_Expression;
     use halo2_midnight_integration::plonk::ConstraintSystem;
     use halo2_proofs::plonk::Expression;
-    use haloumi_ir::{cmp::CmpOp, stmt::IRStmt};
+    use haloumi_ir::{CmpOp, stmt::IRStmt};
 
     use super::*;
 
-    const EXPECTED_PICUS: &'static str = include_str!("expected/picus/mul_inject.picus");
-    const EXPECTED_OPT_PICUS: &'static str = include_str!("expected/picus/mul_inject_opt.picus");
+    const EXPECTED_PICUS: &str = include_str!("expected/picus/mul_inject.picus");
+    const EXPECTED_OPT_PICUS: &str = include_str!("expected/picus/mul_inject_opt.picus");
 
     fn ir_to_inject<'e>() -> Vec<(RegionIndex, IRStmt<ExpressionInRow<'e, _Expression<Fr>>>)> {
         let mut cs = ConstraintSystem::<Fr>::default();
@@ -112,9 +112,9 @@ mod mul_inject {
         let hundrend = Expression::Constant(Fr::from(1000));
         let stmts = [
             IRStmt::constraint(CmpOp::Lt, a.clone(), hundrend.clone())
-                .map(&|e| ExpressionInRow::new(0, _Expression::from(e))),
+                .map(&mut |e| ExpressionInRow::new(0, _Expression::from(e))),
             IRStmt::constraint(CmpOp::Ge, a, hundrend)
-                .map(&|e| ExpressionInRow::new(1, _Expression::from(e))),
+                .map(&mut |e| ExpressionInRow::new(1, _Expression::from(e))),
         ];
 
         let mut injected = vec![];

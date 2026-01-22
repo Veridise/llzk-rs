@@ -13,13 +13,13 @@ use crate::{
 use anyhow::Result;
 use ff::{Field, PrimeField};
 use halo2_frontend_core::{expressions::EvaluableExpr, table::RegionIndex};
+use haloumi_ir::{IRCircuit, expr::IRAexpr};
 use haloumi_ir::{
-    Felt, Prime,
+    Prime,
     printer::{IRPrintable, IRPrinter},
     stmt::IRStmt,
     traits::{Canonicalize as _, ConstantFolding as _},
 };
-use haloumi_ir::{IRCircuit, expr::IRAexpr};
 use std::fmt::Write;
 //use haloumi_ir_base::felt::Felt;
 
@@ -33,11 +33,13 @@ pub mod groups;
 
 pub use ctx::IRCtx;
 
+type UnresolvedExpr<'syn, 'sco, F, E> = ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>;
+
 /// Circuit that has not resolved its expressions yet and is still tied to the lifetime
 /// of the [`SynthesizedCircuit`](crate::synthesis::SynthesizedCircuit) and the [`Driver`](crate::driver::Driver).
 #[derive(Debug)]
 pub struct UnresolvedIRCircuit<'ctx, 'syn, 'sco, F, E>(
-    IRCircuit<ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>, (&'ctx IRCtx, Vec<usize>)>,
+    IRCircuit<UnresolvedExpr<'syn, 'sco, F, E>, (&'ctx IRCtx, Vec<usize>)>,
 )
 where
     E: Clone,

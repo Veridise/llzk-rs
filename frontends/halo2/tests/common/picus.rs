@@ -27,7 +27,7 @@ mod inner {
         expected: impl AsRef<str>,
         canonicalize: bool,
     ) where
-        F: PrimeField,
+        F: PrimeField + std::cmp::Ord,
         C: CircuitSynthesis<F, CS = ConstraintSystem<F>>,
     {
         let mut driver = Driver::default();
@@ -41,13 +41,7 @@ mod inner {
         params: PicusParams,
         expected: impl AsRef<str>,
     ) {
-        let output = clean_string(
-            &driver
-                .picus(&circuit, params)
-                .unwrap()
-                .display()
-                .to_string(),
-        );
+        let output = clean_string(&driver.picus(circuit, params).unwrap().display().to_string());
         let expected = clean_string(expected.as_ref());
         similar_asserts::assert_eq!(expected, output);
     }
