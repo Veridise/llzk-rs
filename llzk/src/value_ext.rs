@@ -32,7 +32,7 @@ impl ValueRange<'_, '_, '_> {
 /// Convenience wrapper for [ValueRange] that owns the range of MlirValues, but
 /// not the values themselves. Allows for safe management of the pointer used
 /// for [MlirValueRange].
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OwningValueRange<'c, 'b> {
     values: Vec<MlirValue>,
     _context: PhantomData<Value<'c, 'b>>,
