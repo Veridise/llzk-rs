@@ -2,7 +2,11 @@
 
 use std::ops::Deref;
 
-use haloumi_ir::{Slot, expr::IRAexpr, traits::ConstantFolding};
+use haloumi_ir::{
+    Slot,
+    expr::{ExprProperties, IRAexpr},
+    traits::{ConstantFolding, Evaluate},
+};
 
 /// A temporary variable.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -117,6 +121,15 @@ where
         match value {
             ExprOrTemp::Temp(temp) => Ok(IRAexpr::slot(temp)),
             ExprOrTemp::Expr(e) => e.try_into(),
+        }
+    }
+}
+
+impl<E: Evaluate<ExprProperties>> Evaluate<ExprProperties> for ExprOrTemp<E> {
+    fn evaluate(&self) -> ExprProperties {
+        match self {
+            ExprOrTemp::Temp(_) => Default::default(),
+            ExprOrTemp::Expr(e) => e.evaluate(),
         }
     }
 }

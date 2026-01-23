@@ -25,13 +25,16 @@ use crate::{
     utils,
 };
 use anyhow::Result;
-use ff::Field;
+use ff::{Field, PrimeField};
 use halo2_frontend_core::{
+    constraints::CopyConstraint,
     expressions::{EvaluableExpr, ExprBuilder, ExpressionInfo},
     slot::Slot,
     table::{Any, Rotation, RotationExt},
 };
-use haloumi_ir::{CmpOp, cell::CellRef, expr::IRAexpr, groups::IRGroup, stmt::IRStmt};
+use haloumi_ir::{
+    CmpOp, Felt, cell::CellRef, expr::IRAexpr, groups::IRGroup, meta::HasMeta as _, stmt::IRStmt,
+};
 use std::{collections::HashMap, convert::Infallible};
 
 pub(crate) mod bounds;
@@ -78,7 +81,7 @@ where
     'cb: 'sco + 'syn,
     'syn: 'sco,
     'ctx: 'sco + 'syn,
-    F: Field,
+    F: PrimeField,
     E: Clone + std::fmt::Debug,
 {
     log::debug!("Lowering call-sites for group {:?}", group.name());
@@ -587,34 +590,44 @@ fn inter_region_constraints<'e, 's, F, E>(
     fixed_query_resolver: &'s dyn FixedQueryResolver<F>,
 ) -> Vec<IRStmt<ScopedExpression<'e, 's, F, E>>>
 where
-    F: Field,
+    F: PrimeField,
     E: Clone + ExprBuilder<F>,
 {
     constraints
         .into_iter()
         .map(|constraint| match constraint {
-            EqConstraint::AnyToAny(from, from_row, to, to_row) => (
-                ScopedExpression::new(
+            EqConstraint::AnyToAny(from, from_row, to, to_row) => {
+                let lhs = ScopedExpression::new(
                     from.query_cell(Rotation::cur()),
                     Row::new(from_row, advice_io, instance_io, fixed_query_resolver),
-                ),
-                ScopedExpression::new(
+                );
+                let rhs = ScopedExpression::new(
                     to.query_cell(Rotation::cur()),
                     Row::new(to_row, advice_io, instance_io, fixed_query_resolver),
-                ),
-            ),
-            EqConstraint::FixedToConst(column, row, f) => (
-                ScopedExpression::new(
+                );
+                let mut stmt = IRStmt::eq(lhs, rhs);
+                stmt.meta_mut()
+                    .at_copy_constraint(CopyConstraint::Cells(from, from_row, to, to_row));
+                stmt
+            }
+            EqConstraint::FixedToConst(column, row, f) => {
+                let lhs = ScopedExpression::new(
                     column.query_cell(Rotation::cur()),
                     Row::new(row, advice_io, instance_io, fixed_query_resolver),
-                ),
-                ScopedExpression::new(
+                );
+                let rhs = ScopedExpression::new(
                     E::constant(f),
                     Row::new(row, advice_io, instance_io, fixed_query_resolver),
-                ),
-            ),
+                );
+                let mut stmt = IRStmt::eq(lhs, rhs);
+                stmt.meta_mut().at_copy_constraint(CopyConstraint::Fixed(
+                    column,
+                    row,
+                    Felt::new(f),
+                ));
+                stmt
+            }
         })
-        .map(|(lhs, rhs)| IRStmt::constraint(CmpOp::Eq, lhs, rhs))
         .collect()
 }
 
@@ -717,7 +730,14 @@ where
                         Ok(ScopedExpression::from_cow(expr, rr))
                     })
                 })
-                .map(|stmt| {
+                .map(|mut stmt| {
+                    stmt.meta_mut().at_gate(
+                        scope.gate_name(),
+                        scope.region_header(),
+                        scope.region_index(),
+                        None,
+                    );
+                    stmt.propagate_meta();
                     prepend_comment(
                         stmt,
                         || {
@@ -772,6 +792,7 @@ where
             let mut region_ir = ir.map_into(&mut |e| {
                 e.map_into(|e| ScopedExpression::from_ref(e.as_ref(), *rr).simplified())
             });
+            region_ir.meta_mut().at_row(rr.row_number());
             //region_ir.constant_fold(())?;
             // The IR representing the lookup is generated only once, with a sequence of temps
             // 0,1,...

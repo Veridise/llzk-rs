@@ -17,7 +17,11 @@ use ff::{Field, PrimeField};
 use halo2_frontend_core::expressions::{
     EvalExpression, EvaluableExpr, ExprBuilder, ExpressionInfo, ExpressionTypes,
 };
-use haloumi_ir::{Felt, expr::IRAexpr};
+use haloumi_ir::{
+    Felt,
+    expr::{ExprProperties, ExprProperty, IRAexpr},
+    traits::Evaluate,
+};
 
 /// Indicates to the driver that the expression should be scoped in that row of the circuit.
 ///
@@ -226,6 +230,84 @@ where
         }
 
         self.expression.as_ref().evaluate(&ConstEval)
+    }
+}
+
+impl<F, E> Evaluate<ExprProperties> for ScopedExpression<'_, '_, F, E>
+where
+    E: EvaluableExpr<F> + ExpressionInfo + Clone,
+    F: Field,
+{
+    fn evaluate(&self) -> ExprProperties {
+        struct Eval<'r, F, E> {
+            sr: &'r dyn SelectorResolver,
+            qr: &'r dyn QueryResolver<F>,
+            _marker: PhantomData<E>,
+        }
+
+        impl<F: Field, E: ExpressionTypes> EvalExpression<F, E> for Eval<'_, F, E> {
+            type Output = ExprProperties;
+
+            fn constant(&self, _: &F) -> Self::Output {
+                ExprProperty::Const.into()
+            }
+
+            fn selector(&self, selector: &E::Selector) -> Self::Output {
+                self.sr
+                    .resolve_selector(selector)
+                    .ok()
+                    .map(|s| match s {
+                        ResolvedSelector::Const(_) => ExprProperty::Const.into(),
+                        _ => Default::default(),
+                    })
+                    .unwrap_or_default()
+            }
+
+            fn fixed(&self, fixed_query: &E::FixedQuery) -> Self::Output {
+                self.qr
+                    .resolve_fixed_query(fixed_query)
+                    .ok()
+                    .map(|s| match s {
+                        ResolvedQuery::Lit(_) => ExprProperty::Const.into(),
+                        _ => Default::default(),
+                    })
+                    .unwrap_or_default()
+            }
+
+            fn advice(&self, _: &E::AdviceQuery) -> Self::Output {
+                Default::default()
+            }
+
+            fn instance(&self, _: &E::InstanceQuery) -> Self::Output {
+                Default::default()
+            }
+
+            fn challenge(&self, _: &E::Challenge) -> Self::Output {
+                Default::default()
+            }
+
+            fn negated(&self, expr: Self::Output) -> Self::Output {
+                expr
+            }
+
+            fn sum(&self, lhs: Self::Output, rhs: Self::Output) -> Self::Output {
+                lhs & rhs
+            }
+
+            fn product(&self, lhs: Self::Output, rhs: Self::Output) -> Self::Output {
+                lhs & rhs
+            }
+
+            fn scaled(&self, lhs: Self::Output, _: &F) -> Self::Output {
+                lhs & ExprProperty::Const
+            }
+        }
+
+        self.expression.as_ref().evaluate(&Eval {
+            sr: self.selector_resolver(),
+            qr: self.query_resolver(),
+            _marker: PhantomData,
+        })
     }
 }
 

@@ -13,12 +13,15 @@ use crate::{
 use anyhow::Result;
 use ff::{Field, PrimeField};
 use halo2_frontend_core::{expressions::EvaluableExpr, table::RegionIndex};
-use haloumi_ir::{IRCircuit, expr::IRAexpr};
+use haloumi_ir::{
+    IRCircuit, diagnostics::DiagnosticsError, expr::IRAexpr, meta::HasMeta as _,
+    traits::Validatable,
+};
 use haloumi_ir::{
     Prime,
     printer::{IRPrintable, IRPrinter},
     stmt::IRStmt,
-    traits::{Canonicalize as _, ConstantFolding as _},
+    traits::{Canonicalize as _, ConstantFolding as _, Validatable as _},
 };
 use std::fmt::Write;
 //use haloumi_ir_base::felt::Felt;
@@ -98,13 +101,17 @@ where
         R: Into<RegionIndex>,
     {
         let regions = region_data(syn);
-        for (index, stmt) in ir {
+        for (index, mut stmt) in ir {
             let index = index.into();
             let region = regions[&index];
             let group_idx = self.region_to_groups(index);
             let ctx = self.ctx();
+            let group = self.group(group_idx);
+            let stmt_index = group.injected_count();
+            stmt.meta_mut().at_inject(index, Some(stmt_index));
+            stmt.propagate_meta();
             groups::inject_ir(
-                self.group(group_idx),
+                group,
                 region,
                 stmt,
                 ctx.advice_io_of_group(group_idx),
@@ -137,17 +144,21 @@ where
     }
 
     /// Validates the IR, returning errors if it failed.
-    pub fn validate(&self) -> (Result<()>, Vec<String>) {
-        let (res, errors) = self.0.validate();
-        (
-            res.map_err(|e| {
+    pub fn validate(&self) -> Result<()>
+    where
+        IRCircuit<UnresolvedExpr<'syn, 'sco, F, E>, (&'ctx IRCtx, Vec<usize>)>:
+            Validatable<Context = ()>,
+    {
+        self.0
+            .validate_with_context(&())
+            .map(|_| {})
+            .map_err(move |errors| {
                 anyhow::anyhow!(
-                    "Validation of unresolved IR failed with {} errors",
-                    e.error_count()
+                    "Validation of unresolved IR failed with {} errors: \n{}",
+                    errors.len(),
+                    DiagnosticsError::from_iter(errors)
                 )
-            }),
-            errors,
-        )
+            })
     }
 }
 
@@ -205,17 +216,14 @@ impl ResolvedIRCircuit {
     }
 
     /// Validates the IR, returning errors if it failed.
-    pub fn validate(&self) -> (Result<()>, Vec<String>) {
-        let (res, errors) = self.0.validate();
-        (
-            res.map_err(|e| {
-                anyhow::anyhow!(
-                    "Validation of resolved IR failed with {} errors",
-                    e.error_count()
-                )
-            }),
-            errors,
-        )
+    pub fn validate(&self) -> Result<()> {
+        self.0.validate().map(|_| {}).map_err(|errors| {
+            anyhow::anyhow!(
+                "Validation of resolved IR failed with {} errors: \n{}",
+                errors.len(),
+                DiagnosticsError::from_iter(errors)
+            )
+        })
     }
 }
 

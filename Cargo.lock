@@ -207,9 +207,9 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cc"
-version = "1.2.53"
+version = "1.2.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "755d2fce177175ffca841e9a06afdb2c4ab0f593d53b4dee48147dfaade85932"
+checksum = "6354c81bbfd62d9cfa9cb3c773c2b7b2a3a482d569de977fd0e961f6e7c00583"
 dependencies = [
  "find-msvc-tools",
  "shlex",
@@ -760,9 +760,9 @@ dependencies = [
 
 [[package]]
 name = "haloumi-core"
-version = "0.4.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bb73cc88d0d3a4536b6277fd4aa0bd90a14d0e5bee7318d31bb109a085e1bc7"
+checksum = "05104114020c2c7db95291b470e4421d45e35bf570f22afd3ae4387d21540a61"
 dependencies = [
  "eqv",
  "ff",
@@ -774,14 +774,16 @@ dependencies = [
 
 [[package]]
 name = "haloumi-ir"
-version = "0.4.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b49fa628e3568d6c49d56cd8ce99235576ecb00155997389f577dde5ff971865"
+checksum = "e06bd2146cc51b3e5253eeaa5b863ae19fb254c3578f0f6a05a8a255b39437cd"
 dependencies = [
+ "bit-set",
  "eqv",
  "ff",
  "haloumi-core",
  "haloumi-lowering",
+ "internment",
  "log",
  "num-bigint",
  "thiserror",
@@ -789,9 +791,9 @@ dependencies = [
 
 [[package]]
 name = "haloumi-lowering"
-version = "0.4.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8800bc7a658b5c92e23380b022ba2790673c804f3390a94215edaf15ec93a7f"
+checksum = "72ffcdab00a69ee3f2828658a0d9662d5bfef10ae6db4c8093d734ee257ed5a7"
 dependencies = [
  "ff",
  "haloumi-core",
@@ -999,7 +1001,7 @@ checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 [[package]]
 name = "midnight-curves"
 version = "0.1.1"
-source = "git+https://github.com/Veridise/midnight-zk.git#7042b270a37dae5b3466546ebf4c31d3ebba0856"
+source = "git+https://github.com/Veridise/midnight-zk.git#20139c271e472fe86b96944543829c91724ac1c0"
 dependencies = [
  "bitvec",
  "blst",
@@ -1025,7 +1027,7 @@ dependencies = [
 [[package]]
 name = "midnight-proofs"
 version = "0.5.1"
-source = "git+https://github.com/Veridise/midnight-zk.git#7042b270a37dae5b3466546ebf4c31d3ebba0856"
+source = "git+https://github.com/Veridise/midnight-zk.git#20139c271e472fe86b96944543829c91724ac1c0"
 dependencies = [
  "blake2b_simd",
  "ff",
@@ -1260,9 +1262,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.105"
+version = "1.0.106"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "535d180e0ecab6268a3e718bb9fd44db66bbbc256257165fc699dadf70d16fe7"
+checksum = "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934"
 dependencies = [
  "unicode-ident",
 ]
@@ -1291,9 +1293,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.43"
+version = "1.0.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc74d9a594b72ae6656596548f56f667211f8a97b3d4c3d467150794690dc40a"
+checksum = "21b2ebcf727b7760c461f091f9f0f539b77b8e87f2fd88131e7f1b433b3cece4"
 dependencies = [
  "proc-macro2",
 ]

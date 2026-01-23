@@ -5,7 +5,7 @@ use crate::gates::{
     find_selectors,
 };
 use halo2_frontend_core::expressions::{EvaluableExpr, ExprBuilder};
-use haloumi_ir::{CmpOp, stmt::IRStmt};
+use haloumi_ir::{CmpOp, meta::HasMeta as _, stmt::IRStmt};
 use std::{borrow::Cow, result::Result as StdResult};
 
 /// Default gate pattern that transforms each polynomial in a gate into an equality statement for
@@ -65,7 +65,12 @@ where
                         true
                     })
                     .map(Cow::Borrowed)
-                    .map(|lhs| IRStmt::constraint(CmpOp::Eq, lhs, Cow::Owned(E::constant(F::ZERO))))
+                    .map(move |lhs| {
+                        let mut constraint =
+                            IRStmt::constraint(CmpOp::Eq, lhs, Cow::Owned(E::constant(F::ZERO)));
+                        constraint.meta_mut().at_row(row.row_number());
+                        constraint
+                    })
                     .map(move |s| s.map(&mut |e: Cow<'syn, _>| (row.row_number(), e)))
                 //.collect()
             })
