@@ -27,17 +27,19 @@ use haloumi_ir::{
 ///
 /// The expression is internally handled by a [`std::borrow::Cow`] and can be a reference or owned.
 #[derive(Debug, Clone)]
-pub struct ExpressionInRow<'e, E: Clone> {
+pub struct ExpressionInRow<'e, E: Clone, F> {
     expr: Cow<'e, E>,
     row: usize,
+    _marker: PhantomData<F>,
 }
 
-impl<'e, E: Clone> ExpressionInRow<'e, E> {
+impl<'e, E: Clone, F> ExpressionInRow<'e, E, F> {
     /// Creates a new struct owning the expression.
     pub fn new(row: usize, expr: E) -> Self {
         Self {
             expr: Cow::Owned(expr),
             row,
+            _marker: PhantomData,
         }
     }
 
@@ -46,12 +48,13 @@ impl<'e, E: Clone> ExpressionInRow<'e, E> {
         Self {
             expr: Cow::Borrowed(expr),
             row,
+            _marker: PhantomData,
         }
     }
 
     /// Creates a [`ScopedExpression`] scoped by a
     /// [`crate::synthesis::regions::RegionRow`].
-    pub(crate) fn scoped_in_region_row<'r, F>(
+    pub(crate) fn scoped_in_region_row<'r>(
         self,
         region: RegionData<'r>,
         advice_io: &'r crate::io::AdviceIO,
@@ -74,6 +77,64 @@ impl<'e, E: Clone> ExpressionInRow<'e, E> {
             self.expr,
             RegionRow::new(region, start + self.row, advice_io, instance_io, fqr),
         ))
+    }
+}
+
+impl<F, E> Evaluate<ExprProperties> for ExpressionInRow<'_, E, F>
+where
+    F: Field,
+    E: EvaluableExpr<F> + ExpressionInfo + Clone,
+{
+    fn evaluate(&self) -> ExprProperties {
+        struct Eval;
+
+        impl<F: Field, E: ExpressionTypes> EvalExpression<F, E> for Eval {
+            type Output = ExprProperties;
+
+            fn constant(&self, _: &F) -> Self::Output {
+                ExprProperty::Const.into()
+            }
+
+            fn selector(&self, _: &E::Selector) -> Self::Output {
+                // Selectors should resolved to a boolean.
+                ExprProperty::Const.into()
+            }
+
+            fn fixed(&self, _: &E::FixedQuery) -> Self::Output {
+                // Fixed queries should resolved to the collected fixed value.
+                ExprProperty::Const.into()
+            }
+
+            fn advice(&self, _: &E::AdviceQuery) -> Self::Output {
+                Default::default()
+            }
+
+            fn instance(&self, _: &E::InstanceQuery) -> Self::Output {
+                Default::default()
+            }
+
+            fn challenge(&self, _: &E::Challenge) -> Self::Output {
+                Default::default()
+            }
+
+            fn negated(&self, expr: Self::Output) -> Self::Output {
+                expr
+            }
+
+            fn sum(&self, lhs: Self::Output, rhs: Self::Output) -> Self::Output {
+                lhs & rhs
+            }
+
+            fn product(&self, lhs: Self::Output, rhs: Self::Output) -> Self::Output {
+                lhs & rhs
+            }
+
+            fn scaled(&self, lhs: Self::Output, _: &F) -> Self::Output {
+                lhs & ExprProperty::Const
+            }
+        }
+
+        self.expr.as_ref().evaluate(&Eval)
     }
 }
 

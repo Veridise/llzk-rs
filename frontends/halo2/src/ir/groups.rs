@@ -174,7 +174,7 @@ where
 pub(super) fn inject_ir<'cb, 'syn, 'ctx, 'sco, F, E>(
     group: &mut GroupBody<ExprOrTemp<ScopedExpression<'syn, 'sco, F, E>>>,
     region: RegionData<'syn>,
-    ir: IRStmt<ExpressionInRow<'syn, E>>,
+    ir: IRStmt<ExpressionInRow<'syn, E, F>>,
     advice_io: &'ctx crate::io::AdviceIO,
     instance_io: &'ctx crate::io::InstanceIO,
     fqr: &'syn dyn FixedQueryResolver<F>,

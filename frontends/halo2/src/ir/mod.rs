@@ -94,7 +94,7 @@ where
     /// Injects the IR into the specific regions
     pub fn inject_ir<R>(
         &mut self,
-        ir: impl IntoIterator<Item = (R, IRStmt<ExpressionInRow<'syn, E>>)>,
+        ir: impl IntoIterator<Item = (R, IRStmt<ExpressionInRow<'syn, E, F>>)>,
         syn: &'syn SynthesizedCircuit<F, E>,
     ) -> anyhow::Result<()>
     where
