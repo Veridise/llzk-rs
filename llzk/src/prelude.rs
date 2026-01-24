@@ -7,6 +7,7 @@ pub use crate::dialect::felt::prelude::*;
 pub use crate::dialect::function::prelude::*;
 pub use crate::dialect::llzk::prelude::*;
 pub use crate::dialect::module::llzk_module;
+pub use crate::dialect::pod::prelude::*;
 pub use crate::dialect::r#struct::prelude::*;
 pub use crate::error::Error as LlzkError;
 pub use crate::operation::{replace_uses_of_with, verify_operation, verify_operation_with_diags};
@@ -63,6 +64,11 @@ pub mod function {
 pub mod global {
     pub use crate::dialect::global::{def, read, write};
     pub use crate::dialect::global::{is_global_def, is_global_read, is_global_write};
+}
+/// Exports functions from the 'pod' dialect
+pub mod pod {
+    pub use crate::dialect::pod::ops::{is_pod_new, is_pod_read, is_pod_write};
+    pub use crate::dialect::pod::ops::{new, read, write};
 }
 /// Exports functions from the 'poly' dialect
 pub mod poly {
