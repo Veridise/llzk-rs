@@ -6,6 +6,7 @@ mod function;
 mod global;
 mod include;
 mod llzk;
+mod pod;
 mod polymorphic;
 mod string;
 mod r#struct;
