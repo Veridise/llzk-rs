@@ -212,7 +212,7 @@ fn f_div() {
 }
 
 #[test]
-fn f_mod() {
+fn f_uintdiv() {
     common::setup();
     let context = LlzkContext::new();
     let module = llzk_module(Location::unknown(&context));
@@ -220,16 +220,17 @@ fn f_mod() {
     let felt_type: Type = FeltType::new(&context).into();
     let f = function::def(
         loc,
-        "f_mod",
+        "f_uintdiv",
         FunctionType::new(&context, &[felt_type, felt_type], &[felt_type]),
         &[],
         None,
     )
     .unwrap();
+    f.set_allow_witness_attr(true);
     {
         let block = Block::new(&[(felt_type, loc), (felt_type, loc)]);
         let felt = block.append_operation(
-            felt::r#mod(
+            felt::uintdiv(
                 loc,
                 block.argument(0).unwrap().into(),
                 block.argument(1).unwrap().into(),
@@ -247,8 +248,140 @@ fn f_mod() {
     assert!(f.verify());
     log::info!("Op passed verification");
     let ir = format!("{f}");
-    let expected = r"function.def @f_mod(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type {
-  %0 = felt.mod %arg0, %arg1 : !felt.type, !felt.type
+    let expected = r"function.def @f_uintdiv(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_witness} {
+  %0 = felt.uintdiv %arg0, %arg1 : !felt.type, !felt.type
+  function.return %0 : !felt.type
+}";
+    assert_eq!(ir, expected);
+}
+
+#[test]
+fn f_sintdiv() {
+    common::setup();
+    let context = LlzkContext::new();
+    let module = llzk_module(Location::unknown(&context));
+    let loc = Location::unknown(&context);
+    let felt_type: Type = FeltType::new(&context).into();
+    let f = function::def(
+        loc,
+        "f_sintdiv",
+        FunctionType::new(&context, &[felt_type, felt_type], &[felt_type]),
+        &[],
+        None,
+    )
+    .unwrap();
+    f.set_allow_witness_attr(true);
+    {
+        let block = Block::new(&[(felt_type, loc), (felt_type, loc)]);
+        let felt = block.append_operation(
+            felt::sintdiv(
+                loc,
+                block.argument(0).unwrap().into(),
+                block.argument(1).unwrap().into(),
+            )
+            .unwrap(),
+        );
+        block.append_operation(function::r#return(loc, &[felt.result(0).unwrap().into()]));
+        f.region(0)
+            .expect("function.def must have at least 1 region")
+            .append_block(block);
+    }
+
+    assert_eq!(f.region_count(), 1);
+    let f = module.body().append_operation(f.into());
+    assert!(f.verify());
+    log::info!("Op passed verification");
+    let ir = format!("{f}");
+    let expected = r"function.def @f_sintdiv(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_witness} {
+  %0 = felt.sintdiv %arg0, %arg1 : !felt.type, !felt.type
+  function.return %0 : !felt.type
+}";
+    assert_eq!(ir, expected);
+}
+
+#[test]
+fn f_umod() {
+    common::setup();
+    let context = LlzkContext::new();
+    let module = llzk_module(Location::unknown(&context));
+    let loc = Location::unknown(&context);
+    let felt_type: Type = FeltType::new(&context).into();
+    let f = function::def(
+        loc,
+        "f_umod",
+        FunctionType::new(&context, &[felt_type, felt_type], &[felt_type]),
+        &[],
+        None,
+    )
+    .unwrap();
+    f.set_allow_witness_attr(true);
+    {
+        let block = Block::new(&[(felt_type, loc), (felt_type, loc)]);
+        let felt = block.append_operation(
+            felt::umod(
+                loc,
+                block.argument(0).unwrap().into(),
+                block.argument(1).unwrap().into(),
+            )
+            .unwrap(),
+        );
+        block.append_operation(function::r#return(loc, &[felt.result(0).unwrap().into()]));
+        f.region(0)
+            .expect("function.def must have at least 1 region")
+            .append_block(block);
+    }
+
+    assert_eq!(f.region_count(), 1);
+    let f = module.body().append_operation(f.into());
+    assert!(f.verify());
+    log::info!("Op passed verification");
+    let ir = format!("{f}");
+    let expected = r"function.def @f_umod(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_witness} {
+  %0 = felt.umod %arg0, %arg1 : !felt.type, !felt.type
+  function.return %0 : !felt.type
+}";
+    assert_eq!(ir, expected);
+}
+
+#[test]
+fn f_smod() {
+    common::setup();
+    let context = LlzkContext::new();
+    let module = llzk_module(Location::unknown(&context));
+    let loc = Location::unknown(&context);
+    let felt_type: Type = FeltType::new(&context).into();
+    let f = function::def(
+        loc,
+        "f_smod",
+        FunctionType::new(&context, &[felt_type, felt_type], &[felt_type]),
+        &[],
+        None,
+    )
+    .unwrap();
+    f.set_allow_witness_attr(true);
+    {
+        let block = Block::new(&[(felt_type, loc), (felt_type, loc)]);
+        let felt = block.append_operation(
+            felt::smod(
+                loc,
+                block.argument(0).unwrap().into(),
+                block.argument(1).unwrap().into(),
+            )
+            .unwrap(),
+        );
+        block.append_operation(function::r#return(loc, &[felt.result(0).unwrap().into()]));
+        f.region(0)
+            .expect("function.def must have at least 1 region")
+            .append_block(block);
+    }
+
+    assert_eq!(f.region_count(), 1);
+    let f = module.body().append_operation(f.into());
+    assert!(f.verify());
+    log::info!("Op passed verification");
+    let ir = format!("{f}");
+    let expected = r"function.def @f_smod(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_witness} {
+  %0 = felt.smod %arg0, %arg1 : !felt.type, !felt.type
   function.return %0 : !felt.type
 }";
     assert_eq!(ir, expected);
