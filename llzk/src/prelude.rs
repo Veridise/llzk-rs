@@ -44,13 +44,14 @@ pub mod constrain {
 /// Exports functions from the 'felt' dialect
 pub mod felt {
     pub use crate::dialect::felt::{
-        add, bit_and, bit_not, bit_or, bit_xor, constant, div, inv, r#mod, mul, neg, pow, shl, shr,
-        sub,
+        add, bit_and, bit_not, bit_or, bit_xor, constant, div, inv, mul, neg, pow, shl, shr,
+        sintdiv, smod, sub, uintdiv, umod,
     };
     pub use crate::dialect::felt::{
         is_felt_add, is_felt_bit_and, is_felt_bit_not, is_felt_bit_or, is_felt_bit_xor,
-        is_felt_const, is_felt_div, is_felt_inv, is_felt_mod, is_felt_mul, is_felt_neg,
-        is_felt_pow, is_felt_shl, is_felt_shr, is_felt_sub, is_felt_type,
+        is_felt_const, is_felt_div, is_felt_inv, is_felt_mul, is_felt_neg, is_felt_pow,
+        is_felt_shl, is_felt_shr, is_felt_sintdiv, is_felt_smod, is_felt_sub, is_felt_type,
+        is_felt_uintdiv, is_felt_umod,
     };
 }
 /// Exports functions from the 'function' dialect
