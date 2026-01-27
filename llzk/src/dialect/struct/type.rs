@@ -2,7 +2,7 @@
 
 use crate::utils::FromRaw;
 use crate::utils::IsA;
-use llzk_sys::{llzkStructTypeGetWithArrayAttr, llzkTypeIsAStructType};
+use llzk_sys::{llzkStructTypeGetName, llzkStructTypeGetWithArrayAttr, llzkTypeIsAStructType};
 use melior::{
     Context,
     ir::{
@@ -46,6 +46,14 @@ impl<'c> StructType<'c> {
             .map(|param| FlatSymbolRefAttribute::new(context, param).into())
             .collect();
         Self::new(FlatSymbolRefAttribute::new(context, name), &params)
+    }
+
+    /// Get the struct's name.
+    pub fn name(&self) -> FlatSymbolRefAttribute<'c> {
+        FlatSymbolRefAttribute::try_from(unsafe {
+            Attribute::from_raw(llzkStructTypeGetName(self.to_raw()))
+        })
+        .expect("struct type must be constructed from FlatSymbolRefAttribute")
     }
 }
 

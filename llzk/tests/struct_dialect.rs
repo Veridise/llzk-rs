@@ -20,6 +20,7 @@ fn empty_struct() {
     let module = llzk_module(Location::unknown(&context));
     let loc = Location::unknown(&context);
     let typ = StructType::from_str(&context, "empty");
+    assert_eq!(typ.name().value(), "empty");
 
     let s = r#struct::def(loc, "empty", &[], default_funcs(loc, typ)).unwrap();
     let s = module.body().append_operation(s.into());
@@ -34,6 +35,7 @@ fn empty_struct_with_one_param() {
     let module = llzk_module(Location::unknown(&context));
     let loc = Location::unknown(&context);
     let typ = StructType::from_str_params(&context, "empty", &["T"]);
+    assert_eq!(typ.name().value(), "empty");
 
     let s = r#struct::def(loc, "empty", &["T"], default_funcs(loc, typ)).unwrap();
     let s = module.body().append_operation(s.into());
@@ -48,6 +50,7 @@ fn empty_struct_with_pub_inputs() {
     let module = llzk_module(Location::unknown(&context));
     let loc = Location::unknown(&context);
     let typ = StructType::from_str_params(&context, "empty", &[]);
+    assert_eq!(typ.name().value(), "empty");
 
     let inputs = vec![(FeltType::new(&context).into(), Location::unknown(&context))];
     let arg_attrs = vec![vec![PublicAttribute::new_named_attr(&context)]];
