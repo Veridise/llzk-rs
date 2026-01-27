@@ -990,11 +990,11 @@ mod tests {
   {signal}
   struct.def @{name}<[]> {{
     {fields}
-    function.def @compute({inputs}) -> !struct.type<@{name}<[]>> attributes {{function.allow_witness}} {{
+    function.def @compute({inputs}) -> !struct.type<@{name}<[]>> attributes {{function.allow_non_native_field_ops, function.allow_witness}} {{
       %{self_name} = struct.new : <@{name}<[]>>
       function.return %{self_name} : !struct.type<@{name}<[]>>
     }}
-    function.def @constrain(%{self_name}: !struct.type<@{name}<[]>>, {inputs}) attributes {{function.allow_constraint}} {{
+    function.def @constrain(%{self_name}: !struct.type<@{name}<[]>>, {inputs}) attributes {{function.allow_constraint, function.allow_non_native_field_ops}} {{
       {frag}
       function.return
     }}
