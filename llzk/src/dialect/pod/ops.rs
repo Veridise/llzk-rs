@@ -1,19 +1,45 @@
 //! `pod` dialect operations and helper functions.
 
 use super::r#type::PodType;
-use crate::{builder::OpBuilder, ident, prelude::FlatSymbolRefAttribute};
+use crate::{
+    builder::{OpBuilder, OpBuilderLike},
+    ident,
+    prelude::FlatSymbolRefAttribute,
+};
+use llzk_sys::{LlzkRecordValue, llzkNewPodOpBuild, llzkNewPodOpBuildInferredFromInitialValues};
 use melior::ir::{
-    Location, Operation, Type, Value,
+    Location, Operation, Type, TypeLike, Value,
     operation::{OperationBuilder, OperationLike},
 };
 
-/// Creates a 'pod.new' operation.
+/// Creates a 'pod.new' operation from a list of initialization values. If the optional type
+/// of the result pod is not given, it will be inferred from the provided initialization values.
 pub fn new<'c>(
     builder: &OpBuilder<'c>,
     location: Location<'c>,
-    r#type: PodType<'c>,
+    values: &[LlzkRecordValue],
+    r#type: Option<PodType<'c>>,
 ) -> Operation<'c> {
-    todo!()
+    if let Some(r#type) = r#type {
+        unsafe {
+            Operation::from_raw(llzkNewPodOpBuild(
+                builder.to_raw(),
+                location.to_raw(),
+                r#type.to_raw(),
+                values.len() as isize,
+                values.as_ptr(),
+            ))
+        }
+    } else {
+        unsafe {
+            Operation::from_raw(llzkNewPodOpBuildInferredFromInitialValues(
+                builder.to_raw(),
+                location.to_raw(),
+                values.len() as isize,
+                values.as_ptr(),
+            ))
+        }
+    }
 }
 
 /// Return `true` iff the given op is `pod.new`.
