@@ -1,3 +1,6 @@
+use llzk::builder::OpBuilder;
+use llzk::dialect::pod::ops::RecordValue;
+use llzk::prelude::melior_dialects::arith;
 use llzk::prelude::*;
 
 mod common;
@@ -119,4 +122,41 @@ fn get_type_of_record() {
     let r = ty.get_type_of_record("b");
     assert!(r.is_some());
     assert_eq!(format!("{}", r.unwrap()), "!array.type<@N x !felt.type>");
+}
+
+#[test]
+fn pod_new_empty_and_inferred() {
+    common::setup();
+    let context = LlzkContext::new();
+    let location = Location::unknown(&context);
+    let builder = OpBuilder::new(&context);
+    let op = pod::new(&builder, location, &[], None);
+
+    let ir = format!("{op}");
+    let expected = "%pod = pod.new : <[]>\n";
+    assert_eq!(ir, expected);
+}
+
+#[test]
+fn pod_new_nonempty_and_inferred() {
+    common::setup();
+    let context = LlzkContext::new();
+    let location = Location::unknown(&context);
+    let builder = OpBuilder::new(&context);
+
+    // Note: must keep hard ref to this op to prevent it being dropped.
+    let arith_op = arith::constant(
+        &context,
+        IntegerAttribute::new(Type::index(&context), 42).into(),
+        location,
+    );
+    let values = vec![RecordValue::new(
+        StringRef::new("field1"),
+        arith_op.result(0).unwrap().into(),
+    )];
+    let op = pod::new(&builder, location, &values, None);
+
+    let ir = format!("{op}");
+    let expected = "%pod = pod.new { @field1 = <<UNKNOWN SSA VALUE>> }  : <[@field1: index]>\n";
+    assert_eq!(ir, expected);
 }
