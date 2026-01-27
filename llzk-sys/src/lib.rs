@@ -29,6 +29,16 @@ mod sys {
         MlirWalkOrder,
     };
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+
+    impl Copy for LlzkRecordValue {}
+    impl Clone for LlzkRecordValue {
+        fn clone(&self) -> Self {
+            LlzkRecordValue {
+                name: self.name.clone(),
+                value: self.value.clone(),
+            }
+        }
+    }
 }
 
 pub use sys::*;
