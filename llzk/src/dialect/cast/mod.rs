@@ -46,22 +46,3 @@ pub fn toindex<'c>(location: Location<'c>, val: Value<'c, '_>) -> Operation<'c> 
 pub fn is_cast_toindex<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
     crate::operation::isa(op, "cast.toindex")
 }
-
-/// Creates a 'cast.toint' operation.
-pub fn toint<'c>(
-    location: Location<'c>,
-    result: IntegerType<'c>,
-    val: Value<'c, '_>,
-) -> Operation<'c> {
-    OperationBuilder::new("cast.toint", location)
-        .add_results(&[result.into()])
-        .add_operands(&[val])
-        .build()
-        .expect("valid operation")
-}
-
-/// Return `true` iff the given op is `cast.toint`.
-#[inline]
-pub fn is_cast_toint<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
-    crate::operation::isa(op, "cast.toint")
-}
