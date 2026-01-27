@@ -44,7 +44,12 @@ impl<'c> PodType<'c> {
     /// If any of the wrapped attributes is not a `pod.record` attribute.
     pub fn get_records(&self) -> Vec<PodRecordAttribute<'c>> {
         let num = unsafe { llzkPodTypeGetNumRecords(self.to_raw()) };
-        let mut raw: Vec<MlirAttribute> = Vec::with_capacity(num.try_into().unwrap());
+        let mut raw = vec![
+            MlirAttribute {
+                ptr: std::ptr::null()
+            };
+            num.try_into().unwrap()
+        ];
         unsafe { llzkPodTypeGetRecords(self.to_raw(), raw.as_mut_ptr()) };
         raw.into_iter()
             .map(|op| {

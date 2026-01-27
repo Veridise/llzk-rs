@@ -7,7 +7,7 @@ use crate::{
         typing::{IndexType, index_type},
     },
 };
-use mlir_sys::MlirType;
+use mlir_sys::{MlirAttribute, MlirType};
 use rstest::rstest;
 use std::ptr::null;
 
@@ -107,7 +107,7 @@ fn test_llzk_pod_type_get_records(context: TestContext, index_type: IndexType) {
         assert_ne!(t.ptr, null());
 
         let num = llzkPodTypeGetNumRecords(t);
-        let mut raw: Vec<_> = Vec::with_capacity(num.try_into().unwrap());
+        let mut raw = vec![MlirAttribute { ptr: null() }; num.try_into().unwrap()];
         llzkPodTypeGetRecords(t, raw.as_mut_ptr());
         assert_eq!(raw.len(), 2);
     }
