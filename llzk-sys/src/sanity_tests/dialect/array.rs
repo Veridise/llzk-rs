@@ -4,7 +4,10 @@ use crate::{
     llzkArrayTypeGetWithNumericDims, llzkCreateArrayOpBuildWithMapOperands,
     llzkCreateArrayOpBuildWithValues, llzkTypeIsAArrayType, mlirGetDialectHandle__llzk__array__,
     mlirOpBuilderCreate, mlirOpBuilderDestroy,
-    sanity_tests::{TestContext, context, load_llzk_dialects},
+    sanity_tests::{
+        TestContext, context, load_llzk_dialects,
+        typing::{IndexType, index_type},
+    },
 };
 use mlir_sys::{
     MlirContext, MlirOperation, MlirType, mlirAttributeEqual, mlirIdentifierGet, mlirIndexTypeGet,
@@ -13,7 +16,7 @@ use mlir_sys::{
     mlirOperationStateEnableResultTypeInference, mlirOperationStateGet, mlirOperationVerify,
     mlirStringRefCreateFromCString, mlirTypeEqual,
 };
-use rstest::{fixture, rstest};
+use rstest::rstest;
 use std::{ffi::CString, ptr::null};
 
 #[test]
@@ -151,23 +154,6 @@ fn test_llzk_create_array_op_build_with_map_operands(
         mlirOperationDestroy(op);
         llzkAffineMapOperandsBuilderDestroy(&mut map_operands);
         mlirOpBuilderDestroy(builder);
-    }
-}
-
-struct IndexType {
-    #[allow(dead_code)]
-    context: TestContext,
-    t: MlirType,
-}
-
-#[fixture]
-fn index_type(context: TestContext) -> IndexType {
-    unsafe {
-        let ctx = context.ctx;
-        IndexType {
-            context,
-            t: mlirIndexTypeGet(ctx),
-        }
     }
 }
 

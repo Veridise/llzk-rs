@@ -19,14 +19,14 @@ use crate::{
     sanity_tests::{TestContext, context},
 };
 
-struct IndexType {
+pub struct IndexType {
     #[allow(dead_code)]
-    context: TestContext,
-    t: MlirType,
+    pub context: TestContext,
+    pub t: MlirType,
 }
 
 #[fixture]
-fn index_type(context: TestContext) -> IndexType {
+pub fn index_type(context: TestContext) -> IndexType {
     unsafe {
         let ctx = context.ctx;
         IndexType {
@@ -36,14 +36,14 @@ fn index_type(context: TestContext) -> IndexType {
     }
 }
 
-struct I16Type {
+pub struct I16Type {
     #[allow(dead_code)]
-    context: TestContext,
-    t: MlirType,
+    pub context: TestContext,
+    pub t: MlirType,
 }
 
 #[fixture]
-fn i16_type(context: TestContext) -> I16Type {
+pub fn i16_type(context: TestContext) -> I16Type {
     unsafe {
         let ctx = context.ctx;
         I16Type {
