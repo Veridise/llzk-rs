@@ -1,6 +1,7 @@
 use crate::{
-    llzkPodTypeGet, llzkPodTypeGetNumRecords, llzkPodTypeLookupRecord, llzkRecordAttrGet,
-    llzkRecordAttrGetName, llzkRecordAttrGetType, mlirGetDialectHandle__llzk__pod__,
+    llzkPodTypeGet, llzkPodTypeGetNumRecords, llzkPodTypeGetRecords, llzkPodTypeLookupRecord,
+    llzkRecordAttrGet, llzkRecordAttrGetName, llzkRecordAttrGetType,
+    mlirGetDialectHandle__llzk__pod__,
     sanity_tests::{
         TestContext, context, str_ref,
         typing::{IndexType, index_type},
@@ -78,7 +79,7 @@ fn test_llzk_pod_type_num_records(context: TestContext) {
 }
 
 #[rstest]
-fn test_llzk_pod_type_get_records(context: TestContext, index_type: IndexType) {
+fn test_llzk_pod_type_lookup_record(context: TestContext, index_type: IndexType) {
     unsafe {
         let records = vec![
             llzkRecordAttrGet(str_ref("rec1"), index_type.t),
@@ -92,5 +93,22 @@ fn test_llzk_pod_type_get_records(context: TestContext, index_type: IndexType) {
         assert_ne!(r_ty.ptr, null());
         let r_ty = llzkPodTypeLookupRecord(t, str_ref("invalid"));
         assert_eq!(r_ty.ptr, null());
+    }
+}
+
+#[rstest]
+fn test_llzk_pod_type_get_records(context: TestContext, index_type: IndexType) {
+    unsafe {
+        let records = vec![
+            llzkRecordAttrGet(str_ref("rec1"), index_type.t),
+            llzkRecordAttrGet(str_ref("rec2"), index_type.t),
+        ];
+        let t: MlirType = llzkPodTypeGet(context.ctx, records.len() as isize, records.as_ptr());
+        assert_ne!(t.ptr, null());
+
+        let num = llzkPodTypeGetNumRecords(t);
+        let mut raw: Vec<_> = Vec::with_capacity(num.try_into().unwrap());
+        llzkPodTypeGetRecords(t, raw.as_mut_ptr());
+        assert_eq!(raw.len(), 2);
     }
 }
