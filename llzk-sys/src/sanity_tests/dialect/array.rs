@@ -16,7 +16,7 @@ use mlir_sys::{
     mlirOperationStateEnableResultTypeInference, mlirOperationStateGet, mlirOperationVerify,
     mlirStringRefCreateFromCString, mlirTypeEqual,
 };
-use rstest::{fixture, rstest};
+use rstest::rstest;
 use std::{ffi::CString, ptr::null};
 
 #[test]
