@@ -7,27 +7,63 @@ use crate::{
     prelude::FlatSymbolRefAttribute,
 };
 use llzk_sys::{LlzkRecordValue, llzkNewPodOpBuild, llzkNewPodOpBuildInferredFromInitialValues};
+use melior::StringRef;
 use melior::ir::{
-    Location, Operation, Type, TypeLike, Value,
+    Location, Operation, Type, TypeLike, Value, ValueLike,
     operation::{OperationBuilder, OperationLike},
 };
+use std::marker::PhantomData;
+
+/// Wrapper around a `LlzkRecordValue`, used to initialize fields in a `pod.new` operation.
+#[derive(Debug)]
+pub struct RecordValue<'c, 'a> {
+    raw: LlzkRecordValue,
+    _context: PhantomData<Value<'c, 'a>>,
+}
+
+impl<'c, 'a> RecordValue<'c, 'a> {
+    /// Creates a new record value.
+    pub fn new(name: StringRef, value: Value<'c, 'a>) -> Self {
+        Self {
+            raw: LlzkRecordValue {
+                name: name.to_raw(),
+                value: value.to_raw(),
+            },
+            _context: PhantomData,
+        }
+    }
+
+    /// Returns the raw representation of the record value.
+    pub fn to_raw(&self) -> LlzkRecordValue {
+        self.raw
+    }
+
+    /// Creates the record value from a raw pointer.
+    pub fn from_raw(raw: LlzkRecordValue) -> Self {
+        Self {
+            raw,
+            _context: PhantomData,
+        }
+    }
+}
 
 /// Creates a 'pod.new' operation from a list of initialization values. If the optional type
 /// of the result pod is not given, it will be inferred from the provided initialization values.
-pub fn new<'c>(
+pub fn new<'c, 'a>(
     builder: &OpBuilder<'c>,
     location: Location<'c>,
-    values: &[LlzkRecordValue],
+    values: &[RecordValue<'c, 'a>],
     r#type: Option<PodType<'c>>,
 ) -> Operation<'c> {
+    let raw_values: Vec<_> = values.iter().map(RecordValue::to_raw).collect();
     if let Some(r#type) = r#type {
         unsafe {
             Operation::from_raw(llzkNewPodOpBuild(
                 builder.to_raw(),
                 location.to_raw(),
                 r#type.to_raw(),
-                values.len() as isize,
-                values.as_ptr(),
+                raw_values.len() as isize,
+                raw_values.as_ptr(),
             ))
         }
     } else {
@@ -35,8 +71,8 @@ pub fn new<'c>(
             Operation::from_raw(llzkNewPodOpBuildInferredFromInitialValues(
                 builder.to_raw(),
                 location.to_raw(),
-                values.len() as isize,
-                values.as_ptr(),
+                raw_values.len() as isize,
+                raw_values.as_ptr(),
             ))
         }
     }
