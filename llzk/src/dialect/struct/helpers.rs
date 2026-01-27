@@ -46,6 +46,7 @@ pub fn compute_fn<'c>(
         let new_struct = block.append_operation(super::new(loc, struct_type));
         block.append_operation(function::r#return(loc, &[new_struct.result(0)?.into()]));
         f.set_allow_witness_attr(true);
+        f.set_allow_non_native_field_ops_attr(true);
         f.region(0)?.append_block(block);
         Ok(f)
     })
@@ -83,6 +84,7 @@ pub fn constrain_fn<'c>(
         let block = Block::new(&all_inputs);
         block.append_operation(function::r#return(loc, &[]));
         f.set_allow_constraint_attr(true);
+        f.set_allow_non_native_field_ops_attr(true);
         f.region(0)?.append_block(block);
         Ok(f)
     })
