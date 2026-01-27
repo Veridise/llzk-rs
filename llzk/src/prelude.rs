@@ -33,8 +33,8 @@ pub mod bool {
 
 /// Exports functions from the 'cast' dialect
 pub mod cast {
-    pub use crate::dialect::cast::{is_cast_tofelt, is_cast_toindex, is_cast_toint};
-    pub use crate::dialect::cast::{tofelt, toindex, toint};
+    pub use crate::dialect::cast::{is_cast_tofelt, is_cast_toindex};
+    pub use crate::dialect::cast::{tofelt, toindex};
 }
 
 /// Exports functions from the 'constrain' dialect
