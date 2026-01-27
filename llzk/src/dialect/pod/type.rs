@@ -2,12 +2,15 @@
 
 use super::attrs::PodRecordAttribute;
 use crate::utils::IsA;
-use llzk_sys::{llzkPodTypeGet, llzkTypeIsAPodType};
-use melior::{
-    Context,
-    ir::{AttributeLike, Type, TypeLike},
+use llzk_sys::{
+    llzkPodTypeGet, llzkPodTypeGetNumRecords, llzkPodTypeGetRecords, llzkPodTypeLookupRecord,
+    llzkTypeIsAPodType,
 };
-use mlir_sys::MlirType;
+use melior::{
+    Context, StringRef,
+    ir::{Attribute, AttributeLike, Type, TypeLike},
+};
+use mlir_sys::{MlirAttribute, MlirType};
 
 /// Represents the `!pod.type` type.
 #[derive(Debug, Eq, PartialEq)]
@@ -32,6 +35,31 @@ impl<'c> PodType<'c> {
                 raw_refs.as_ptr(),
             ))
         }
+    }
+
+    /// Get the list of `PodRecordAttribute` that make up this pod type.  
+    ///
+    /// # Panics
+    ///
+    /// If any of the wrapped attributes is not a `pod.record` attribute.
+    pub fn get_records(&self) -> Vec<PodRecordAttribute<'c>> {
+        let num = unsafe { llzkPodTypeGetNumRecords(self.to_raw()) };
+        let mut raw: Vec<MlirAttribute> = Vec::with_capacity(num.try_into().unwrap());
+        unsafe { llzkPodTypeGetRecords(self.to_raw(), raw.as_mut_ptr()) };
+        raw.into_iter()
+            .map(|op| {
+                unsafe { Attribute::from_raw(op) }
+                    .try_into()
+                    .expect("op of type 'pod.record'")
+            })
+            .collect()
+    }
+
+    /// Get the type of the record with the given name, if it exists in this type.
+    pub fn get_type_of_record(&self, name: &str) -> Option<Type<'c>> {
+        let name = StringRef::new(name);
+        let raw = unsafe { llzkPodTypeLookupRecord(self.to_raw(), name.to_raw()) };
+        (!raw.ptr.is_null()).then(|| unsafe { Type::from_raw(raw) })
     }
 }
 
