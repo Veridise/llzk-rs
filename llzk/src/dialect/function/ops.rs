@@ -12,13 +12,14 @@ use llzk_sys::{
     llzkCallOpGetCalleeIsStructCompute, llzkCallOpGetCalleeIsStructConstrain,
     llzkCallOpGetSelfValueFromCompute, llzkCallOpGetSelfValueFromConstrain,
     llzkFuncDefOpCreateWithAttrsAndArgAttrs, llzkFuncDefOpGetFullyQualifiedName,
-    llzkFuncDefOpGetHasAllowConstraintAttr, llzkFuncDefOpGetHasAllowWitnessAttr,
-    llzkFuncDefOpGetHasArgIsPub, llzkFuncDefOpGetIsInStruct, llzkFuncDefOpGetIsStructCompute,
-    llzkFuncDefOpGetIsStructConstrain, llzkFuncDefOpGetNameIsCompute,
-    llzkFuncDefOpGetNameIsConstrain, llzkFuncDefOpGetSelfValueFromCompute,
-    llzkFuncDefOpGetSelfValueFromConstrain, llzkFuncDefOpGetSingleResultTypeOfCompute,
-    llzkFuncDefOpSetAllowConstraintAttr, llzkFuncDefOpSetAllowWitnessAttr, llzkOperationIsACallOp,
-    llzkOperationIsAFuncDefOp,
+    llzkFuncDefOpGetHasAllowConstraintAttr, llzkFuncDefOpGetHasAllowNonNativeFieldOpsAttr,
+    llzkFuncDefOpGetHasAllowWitnessAttr, llzkFuncDefOpGetHasArgIsPub, llzkFuncDefOpGetIsInStruct,
+    llzkFuncDefOpGetIsStructCompute, llzkFuncDefOpGetIsStructConstrain,
+    llzkFuncDefOpGetNameIsCompute, llzkFuncDefOpGetNameIsConstrain,
+    llzkFuncDefOpGetSelfValueFromCompute, llzkFuncDefOpGetSelfValueFromConstrain,
+    llzkFuncDefOpGetSingleResultTypeOfCompute, llzkFuncDefOpSetAllowConstraintAttr,
+    llzkFuncDefOpSetAllowNonNativeFieldOpsAttr, llzkFuncDefOpSetAllowWitnessAttr,
+    llzkOperationIsACallOp, llzkOperationIsAFuncDefOp,
 };
 use melior::{
     Context, StringRef,
@@ -73,6 +74,16 @@ pub trait FuncDefOpLike<'c: 'a, 'a>: OperationLike<'c, 'a> {
     /// Sets the allow_witness attribute in the FuncDefOp operation.
     fn set_allow_witness_attr(&self, value: bool) {
         unsafe { llzkFuncDefOpSetAllowWitnessAttr(self.to_raw(), value) }
+    }
+
+    /// Returns true if the FuncDefOp has the allow_non_native_field_ops attribute.
+    fn has_allow_non_native_field_ops_attr(&self) -> bool {
+        unsafe { llzkFuncDefOpGetHasAllowNonNativeFieldOpsAttr(self.to_raw()) }
+    }
+
+    /// Sets the allow_non_native_field_ops attribute in the FuncDefOp operation.
+    fn set_allow_non_native_field_ops_attr(&self, value: bool) {
+        unsafe { llzkFuncDefOpSetAllowNonNativeFieldOpsAttr(self.to_raw(), value) }
     }
 
     /// Returns true if the `idx`-th argument has the Pub attribute.

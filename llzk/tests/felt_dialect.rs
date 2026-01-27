@@ -226,7 +226,7 @@ fn f_uintdiv() {
         None,
     )
     .unwrap();
-    f.set_allow_witness_attr(true);
+    f.set_allow_non_native_field_ops_attr(true);
     {
         let block = Block::new(&[(felt_type, loc), (felt_type, loc)]);
         let felt = block.append_operation(
@@ -248,7 +248,7 @@ fn f_uintdiv() {
     assert!(f.verify());
     log::info!("Op passed verification");
     let ir = format!("{f}");
-    let expected = r"function.def @f_uintdiv(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_witness} {
+    let expected = r"function.def @f_uintdiv(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_non_native_field_ops} {
   %0 = felt.uintdiv %arg0, %arg1 : !felt.type, !felt.type
   function.return %0 : !felt.type
 }";
@@ -270,7 +270,7 @@ fn f_sintdiv() {
         None,
     )
     .unwrap();
-    f.set_allow_witness_attr(true);
+    f.set_allow_non_native_field_ops_attr(true);
     {
         let block = Block::new(&[(felt_type, loc), (felt_type, loc)]);
         let felt = block.append_operation(
@@ -292,7 +292,7 @@ fn f_sintdiv() {
     assert!(f.verify());
     log::info!("Op passed verification");
     let ir = format!("{f}");
-    let expected = r"function.def @f_sintdiv(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_witness} {
+    let expected = r"function.def @f_sintdiv(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_non_native_field_ops} {
   %0 = felt.sintdiv %arg0, %arg1 : !felt.type, !felt.type
   function.return %0 : !felt.type
 }";
@@ -314,7 +314,7 @@ fn f_umod() {
         None,
     )
     .unwrap();
-    f.set_allow_witness_attr(true);
+    f.set_allow_non_native_field_ops_attr(true);
     {
         let block = Block::new(&[(felt_type, loc), (felt_type, loc)]);
         let felt = block.append_operation(
@@ -336,7 +336,7 @@ fn f_umod() {
     assert!(f.verify());
     log::info!("Op passed verification");
     let ir = format!("{f}");
-    let expected = r"function.def @f_umod(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_witness} {
+    let expected = r"function.def @f_umod(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_non_native_field_ops} {
   %0 = felt.umod %arg0, %arg1 : !felt.type, !felt.type
   function.return %0 : !felt.type
 }";
@@ -358,7 +358,7 @@ fn f_smod() {
         None,
     )
     .unwrap();
-    f.set_allow_witness_attr(true);
+    f.set_allow_non_native_field_ops_attr(true);
     {
         let block = Block::new(&[(felt_type, loc), (felt_type, loc)]);
         let felt = block.append_operation(
@@ -380,7 +380,7 @@ fn f_smod() {
     assert!(f.verify());
     log::info!("Op passed verification");
     let ir = format!("{f}");
-    let expected = r"function.def @f_smod(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_witness} {
+    let expected = r"function.def @f_smod(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_non_native_field_ops} {
   %0 = felt.smod %arg0, %arg1 : !felt.type, !felt.type
   function.return %0 : !felt.type
 }";
@@ -439,7 +439,7 @@ fn f_inv() {
         None,
     )
     .unwrap();
-    f.set_allow_witness_attr(true);
+    f.set_allow_non_native_field_ops_attr(true);
     {
         let block = Block::new(&[(felt_type, loc)]);
         let felt =
@@ -455,7 +455,7 @@ fn f_inv() {
     assert!(f.verify());
     log::info!("Op passed verification");
     let ir = format!("{f}");
-    let expected = r"function.def @f_inv(%arg0: !felt.type) -> !felt.type attributes {function.allow_witness} {
+    let expected = r"function.def @f_inv(%arg0: !felt.type) -> !felt.type attributes {function.allow_non_native_field_ops} {
   %0 = felt.inv %arg0 : !felt.type
   function.return %0 : !felt.type
 }";
@@ -477,7 +477,7 @@ fn f_bit_not() {
         None,
     )
     .unwrap();
-    f.set_allow_witness_attr(true);
+    f.set_allow_non_native_field_ops_attr(true);
     {
         let block = Block::new(&[(felt_type, loc)]);
         let felt =
@@ -493,7 +493,7 @@ fn f_bit_not() {
     assert!(f.verify());
     log::info!("Op passed verification");
     let ir = format!("{f}");
-    let expected = r"function.def @f_bit_not(%arg0: !felt.type) -> !felt.type attributes {function.allow_witness} {
+    let expected = r"function.def @f_bit_not(%arg0: !felt.type) -> !felt.type attributes {function.allow_non_native_field_ops} {
   %0 = felt.bit_not %arg0 : !felt.type
   function.return %0 : !felt.type
 }";
@@ -515,7 +515,7 @@ fn f_shl() {
         None,
     )
     .unwrap();
-    f.set_allow_witness_attr(true);
+    f.set_allow_non_native_field_ops_attr(true);
     {
         let block = Block::new(&[(felt_type, loc), (felt_type, loc)]);
         let felt = block.append_operation(
@@ -537,7 +537,7 @@ fn f_shl() {
     assert!(f.verify());
     log::info!("Op passed verification");
     let ir = format!("{f}");
-    let expected = r"function.def @f_shl(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_witness} {
+    let expected = r"function.def @f_shl(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_non_native_field_ops} {
   %0 = felt.shl %arg0, %arg1 : !felt.type, !felt.type
   function.return %0 : !felt.type
 }";
@@ -559,7 +559,7 @@ fn f_shr() {
         None,
     )
     .unwrap();
-    f.set_allow_witness_attr(true);
+    f.set_allow_non_native_field_ops_attr(true);
     {
         let block = Block::new(&[(felt_type, loc), (felt_type, loc)]);
         let felt = block.append_operation(
@@ -581,7 +581,7 @@ fn f_shr() {
     assert!(f.verify());
     log::info!("Op passed verification");
     let ir = format!("{f}");
-    let expected = r"function.def @f_shr(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_witness} {
+    let expected = r"function.def @f_shr(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_non_native_field_ops} {
   %0 = felt.shr %arg0, %arg1 : !felt.type, !felt.type
   function.return %0 : !felt.type
 }";
@@ -603,7 +603,7 @@ fn f_bit_and() {
         None,
     )
     .unwrap();
-    f.set_allow_witness_attr(true);
+    f.set_allow_non_native_field_ops_attr(true);
     {
         let block = Block::new(&[(felt_type, loc), (felt_type, loc)]);
         let felt = block.append_operation(
@@ -625,7 +625,7 @@ fn f_bit_and() {
     assert!(f.verify());
     log::info!("Op passed verification");
     let ir = format!("{f}");
-    let expected = r"function.def @f_bit_and(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_witness} {
+    let expected = r"function.def @f_bit_and(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_non_native_field_ops} {
   %0 = felt.bit_and %arg0, %arg1 : !felt.type, !felt.type
   function.return %0 : !felt.type
 }";
@@ -647,7 +647,7 @@ fn f_bit_or() {
         None,
     )
     .unwrap();
-    f.set_allow_witness_attr(true);
+    f.set_allow_non_native_field_ops_attr(true);
     {
         let block = Block::new(&[(felt_type, loc), (felt_type, loc)]);
         let felt = block.append_operation(
@@ -669,7 +669,7 @@ fn f_bit_or() {
     assert!(f.verify());
     log::info!("Op passed verification");
     let ir = format!("{f}");
-    let expected = r"function.def @f_bit_or(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_witness} {
+    let expected = r"function.def @f_bit_or(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_non_native_field_ops} {
   %0 = felt.bit_or %arg0, %arg1 : !felt.type, !felt.type
   function.return %0 : !felt.type
 }";
@@ -691,7 +691,7 @@ fn f_bit_xor() {
         None,
     )
     .unwrap();
-    f.set_allow_witness_attr(true);
+    f.set_allow_non_native_field_ops_attr(true);
     {
         let block = Block::new(&[(felt_type, loc), (felt_type, loc)]);
         let felt = block.append_operation(
@@ -713,7 +713,7 @@ fn f_bit_xor() {
     assert!(f.verify());
     log::info!("Op passed verification");
     let ir = format!("{f}");
-    let expected = r"function.def @f_bit_xor(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_witness} {
+    let expected = r"function.def @f_bit_xor(%arg0: !felt.type, %arg1: !felt.type) -> !felt.type attributes {function.allow_non_native_field_ops} {
   %0 = felt.bit_xor %arg0, %arg1 : !felt.type, !felt.type
   function.return %0 : !felt.type
 }";
