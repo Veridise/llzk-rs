@@ -4,9 +4,13 @@ use super::r#type::PodType;
 use crate::{
     builder::{OpBuilder, OpBuilderLike},
     ident,
+    map_operands::MapOperandsBuilder,
     prelude::FlatSymbolRefAttribute,
 };
-use llzk_sys::{LlzkRecordValue, llzkNewPodOpBuild, llzkNewPodOpBuildInferredFromInitialValues};
+use llzk_sys::{
+    LlzkRecordValue, llzkNewPodOpBuild, llzkNewPodOpBuildInferredFromInitialValues,
+    llzkNewPodOpBuildWithMapOperands,
+};
 use melior::StringRef;
 use melior::ir::{
     Location, Operation, Type, TypeLike, Value, ValueLike,
@@ -75,6 +79,28 @@ pub fn new<'c, 'a>(
                 raw_values.as_ptr(),
             ))
         }
+    }
+}
+
+/// Creates a 'pod.new' operation from a list of initialization values and a`MapOperandsBuilder`
+/// to instantiate top-level `affine_map` attributes appearing in the pod type.
+pub fn new_with_affine_init<'c, 'a>(
+    builder: &OpBuilder<'c>,
+    location: Location<'c>,
+    values: &[RecordValue<'c, 'a>],
+    r#type: PodType<'c>,
+    affine_init: MapOperandsBuilder,
+) -> Operation<'c> {
+    let raw_values: Vec<_> = values.iter().map(RecordValue::to_raw).collect();
+    unsafe {
+        Operation::from_raw(llzkNewPodOpBuildWithMapOperands(
+            builder.to_raw(),
+            location.to_raw(),
+            r#type.to_raw(),
+            raw_values.len() as isize,
+            raw_values.as_ptr(),
+            affine_init.to_raw(),
+        ))
     }
 }
 

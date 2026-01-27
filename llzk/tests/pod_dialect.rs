@@ -1,7 +1,9 @@
 use llzk::builder::OpBuilder;
 use llzk::dialect::pod::ops::RecordValue;
+use llzk::map_operands::MapOperandsBuilder;
 use llzk::prelude::melior_dialects::arith;
 use llzk::prelude::*;
+use llzk::value_ext::{OwningValueRange, ValueRange};
 
 mod common;
 
@@ -158,5 +160,70 @@ fn pod_new_nonempty_and_inferred() {
 
     let ir = format!("{op}");
     let expected = "%pod = pod.new { @field1 = <<UNKNOWN SSA VALUE>> }  : <[@field1: index]>\n";
+    assert_eq!(ir, expected);
+}
+
+#[test]
+fn pod_new_empty_with_empty_affine() {
+    common::setup();
+    let context = LlzkContext::new();
+    let location = Location::unknown(&context);
+    let builder = OpBuilder::new(&context);
+
+    let ty = PodType::new(&context, &[]);
+    let map_operands = MapOperandsBuilder::new();
+    let op = pod::new_with_affine_init(&builder, location, &[], ty, map_operands);
+
+    let ir = format!("{op}");
+    let expected = "%pod = pod.new : <[]>\n";
+    assert_eq!(ir, expected);
+}
+
+#[test]
+fn pod_new_empty_with_nonempty_affine() {
+    common::setup();
+    let context = LlzkContext::new();
+    let location = Location::unknown(&context);
+    let builder = OpBuilder::new(&context);
+
+    // Note: must keep hard ref to this op to prevent it being dropped.
+    let arith_op = arith::constant(
+        &context,
+        IntegerAttribute::new(Type::index(&context), 42).into(),
+        location,
+    );
+
+    let affine_map = Attribute::parse(&context, "affine_map<()[s0, s1] -> (s0 + s1)>")
+        .expect("failed to parse affine_map");
+
+    let records = vec![
+        PodRecordAttribute::new("a", FeltType::new(&context).into()),
+        PodRecordAttribute::new(
+            "b",
+            ArrayType::new(FeltType::new(&context).into(), &[affine_map]).into(),
+        ),
+        PodRecordAttribute::new(
+            "c",
+            StructType::new(FlatSymbolRefAttribute::new(&context, "S"), &[affine_map]).into(),
+        ),
+    ];
+    let ty = PodType::new(&context, &records);
+
+    let mut map_operands = MapOperandsBuilder::new();
+    let owning_vr = OwningValueRange::from(
+        [
+            arith_op.result(0).unwrap().into(),
+            arith_op.result(0).unwrap().into(),
+        ]
+        .as_slice(),
+    );
+    map_operands.append_operands_with_dim_count(ValueRange::try_from(&owning_vr).unwrap(), 0);
+    map_operands.append_operands_with_dim_count(ValueRange::try_from(&owning_vr).unwrap(), 0);
+    let op = pod::new_with_affine_init(&builder, location, &[], ty, map_operands);
+
+    let ir = format!("{op}");
+    let expected = r"#map = affine_map<()[s0, s1] -> (s0 + s1)>
+%pod = pod.new()[<<UNKNOWN SSA VALUE>>, <<UNKNOWN SSA VALUE>>], ()[<<UNKNOWN SSA VALUE>>, <<UNKNOWN SSA VALUE>>] : <[@a: !felt.type, @b: !array.type<#map x !felt.type>, @c: !struct.type<@S<[#map]>>]>
+";
     assert_eq!(ir, expected);
 }

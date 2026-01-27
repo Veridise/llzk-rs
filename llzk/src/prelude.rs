@@ -68,7 +68,7 @@ pub mod global {
 /// Exports functions from the 'pod' dialect
 pub mod pod {
     pub use crate::dialect::pod::ops::{is_pod_new, is_pod_read, is_pod_write};
-    pub use crate::dialect::pod::ops::{new, read, write};
+    pub use crate::dialect::pod::ops::{new, new_with_affine_init, read, write};
 }
 /// Exports functions from the 'poly' dialect
 pub mod poly {
