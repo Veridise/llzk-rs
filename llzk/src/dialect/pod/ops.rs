@@ -1,7 +1,7 @@
 //! `pod` dialect operations and helper functions.
 
 use super::r#type::PodType;
-use crate::{builder::OpBuilder, ident, symbol_ref::SymbolRefAttribute};
+use crate::{builder::OpBuilder, ident, prelude::FlatSymbolRefAttribute};
 use melior::ir::{
     Location, Operation, Type, Value,
     operation::{OperationBuilder, OperationLike},
@@ -26,7 +26,7 @@ pub fn is_pod_new<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
 pub fn read<'c>(
     location: Location<'c>,
     pod_ref: Value<'c, '_>,
-    record_name: SymbolRefAttribute<'c>,
+    record_name: FlatSymbolRefAttribute<'c>,
     result: Type<'c>,
 ) -> Operation<'c> {
     let ctx = location.context();
@@ -48,7 +48,7 @@ pub fn is_pod_read<'c: 'a, 'a>(op: &impl OperationLike<'c, 'a>) -> bool {
 pub fn write<'c>(
     location: Location<'c>,
     pod_ref: Value<'c, '_>,
-    record_name: SymbolRefAttribute<'c>,
+    record_name: FlatSymbolRefAttribute<'c>,
     rvalue: Value<'c, '_>,
 ) -> Operation<'c> {
     let ctx = location.context();
